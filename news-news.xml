@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss  xmlns:atom="http://www.w3.org/2005/Atom" 
+      xmlns:media="http://search.yahoo.com/mrss/" 
+      xmlns:content="http://purl.org/rss/1.0/modules/content/" 
+      xmlns:dc="http://purl.org/dc/elements/1.1/" 
+      version="2.0">
+<channel>
+<title>a11yhood</title>
+<link>https://a11yhood.org/news.html#category=news</link>
+<atom:link href="https://a11yhood.org/news-news.xml" rel="self" type="application/rss+xml"/>
+<description>A repository for sharing accessibility solutions</description>
+<generator>quarto-1.6.40</generator>
+<lastBuildDate>Sun, 09 Mar 2025 08:00:00 GMT</lastBuildDate>
+<item>
+  <title>Welcome to A11yhood</title>
+  <dc:creator>Jenifer Mankoff</dc:creator>
+  <link>https://a11yhood.org/posts/welcome.html</link>
+  <description><![CDATA[ 
+
+
+
+
+<section id="welcome-to-my-blog" class="level1">
+<h1>Welcome to My Blog</h1>
+<p>This is my first blog post. I’m excited to share my thoughts and updates with you!</p>
+
+
+</section>
+
+ ]]></description>
+  <category>news</category>
+  <category>updates</category>
+  <guid>https://a11yhood.org/posts/welcome.html</guid>
+  <pubDate>Sun, 09 Mar 2025 08:00:00 GMT</pubDate>
+</item>
+</channel>
+</rss>
