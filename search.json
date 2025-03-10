@@ -77,24 +77,10 @@
     "text": "There is an opportunity to bring together physical and software solutions under one roof, with an emphasis on supporting opportunities for training in software and product development that can in turn translate into improved future job opportunities. On existing platforms, disabled creators are often at the fringe; their accessibility is often retrofit. Disabled end users are met with layers of inaccessibility when trying to discover access solutions hidden among other products and artifacts that are not meant to address accessibility. Further, the projects on these sites are typically siloed by equipment or design medium, which makes comparing multimodal approaches difficult (e.g., 3D-printing a stabilizer for a digital stylus, versus using a software library to reduce jitter from tremors). Further, the act of making or modifying such technologies may be inaccessible. For example, disability-led making of accessibility solutions taking place in brick-and-mortar centralized maker spaces ( university maker spaces, workshops) is difficult because maker spaces are by default not accessible. Without a community of shared goals and values, very important activities, such as skill sharing and peer support, are more difficult.\nOur goal is to provide disabled developers, engineers, and end users the ability to browse access solutions across different forms of open-source, physical, and digital accessibility technologies and that supports disabled contributors in accessibly learning about, using, and contributing to these solutions.\nContributing projects to will be handled through a simple and accessible process. Registered, verified creators with accounts will be able to contribute projects to the website, linking to existing open-source repositories when relevant. Adding projects will entail filling out a simple form specifying the access need the project addresses, the skills or equipment needed to build or use the project, and the original host site of the project. In addition to contributing projects, registered community members will be able to rate projects and host digital events and contribute tutorials around specific maker skills such as operating a 3D printer or writing and running a browser extension.\nFurther, the software source code and database of technologies underlying a11yhood are open-source and accessible. Some open-source projects such as NVDA are recognized for their disability leadership, however there is still room for growth regarding the inclusion of disabled developers in open source communities. Our community is intended serve developers with disabilities, whose lived experiences will improve the relevance and usefulness of this repository.\nFinally, we aim to learn about user needs and how people find, invest in, and repurpose AT. Key questions we will study include: - How do people with disabilities find AT? - What do they need to know about AT to invest in it? - How do intersectional identities factor into AT choices? - How do people repurpose, modify, and share tech for access?"
   },
   {
-    "objectID": "a11yhood.html",
-    "href": "a11yhood.html",
-    "title": "a11yhood",
-    "section": "",
-    "text": "Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see https://quarto.org."
-  },
-  {
-    "objectID": "a11yhood.html#quarto",
-    "href": "a11yhood.html#quarto",
-    "title": "a11yhood",
-    "section": "",
-    "text": "Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see https://quarto.org."
-  },
-  {
     "objectID": "index.html",
     "href": "index.html",
     "title": "A11yhood.org",
     "section": "",
-    "text": "A11yhood Mockup"
+    "text": "A11yhood Mockup\n\n\nThe above image shows a mockup of the a11yhood search functionality we are planning on adding. The website shows a search string and a series of results including a 3d printed wacom stylus grip with 5 stars, a mouse and tablet stabilizer available on github, a cushy pen grip from ravelry and a stroke stabilizer software from github. Details of the stylus grip provide not only a link to the repository, but also a star rating and 3d printing instructions"
   }
 ]
