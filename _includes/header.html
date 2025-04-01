@@ -1,0 +1,32 @@
+<header class="site-header">
+  <div class="wrapper">
+    {%- assign default_paths = site.pages | map: "path" -%}
+    {%- assign page_paths = site.minima.nav_pages | default: default_paths -%}
+    {%- assign page_titles = site.pages | map: 'title' | compact %}
+    <a class="site-title" rel="author" href="{{ '/' | relative_url }}">
+      <img src="{{"images/ahood-200.jpg" | relative_url}}" alt="alley hood" title="a11yhood">
+    </a>
+
+    {%- unless page_titles == empty %}
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon fas fa-bars fa-lg"></span>
+        </label>
+<div class="slab">
+  {%- for path in page_paths -%}
+    {%- assign hyperpage = site.pages | where: "path", path | first -%}
+    {%- if hyperpage.title %}
+    <a class="nav-item" href="{{ hyperpage.url | relative_url }}">{{ hyperpage.title | escape }}</a>
+    {%- endif -%}
+  {%- endfor -%}
+  <a class="nav-item" href="https://a11yhood.org/accessible-switches">Accessible Switches {% octicon link-external height:12 %}</a>
+</div>
+</nav>
+{%- endunless %}
+  </div>
+  <style>a.nav-item {
+    margin-left: .5rem;
+    margin-right: .5rem;
+  }</style>
+</header>
