@@ -1,0 +1,13 @@
+name: a11yhood site
+run-name: build a11yhood site with jekyll
+on: 
+- push
+env:
+  GH_TOKEN: ${{ github.token }}
+permissions:
+  contents: write
+jobs:
+  site:
+    uses: a11yhood/site-settings/.github/workflows/jekyll.yaml@main
+    secrets: 
+      personal_access_token: ${{ secrets.token }}
