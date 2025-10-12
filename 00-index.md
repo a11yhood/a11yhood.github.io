@@ -19,12 +19,8 @@ permalink: index.html
   {% endfor %}
 </ul>
 
-## The <strong>a11yhood</strong> Vision
+##  Try it out!
 
-<figure>
-<img title="a11yhood mockup" alt="A mockup of the a11yhood search functionality we are planning on adding. The website shows a search string titled 'draw smooth lines with a stylus on a digital tablet' and a series of results including a 3d printed wacom stylus grip with 5 stars, a mouse and tablet stabilizer available on github, a cushy pen grip from ravelry and a stroke stabilizer software from github. The user has selected the wacom stylus grip and it highlights skills needed and provides 3d printing instructions" src="images/allyhood.png"/>
+<a href="https://a11yhood.cs.washington.edu/"</a> 
 
-<figcaption>The above image shows a mockup of the a11yhood search functionality we are planning on adding. The website shows a search string and a series of results including a 3d printed wacom stylus grip with 5 stars, a mouse and tablet stabilizer available on github, a cushy pen grip from ravelry and a stroke stabilizer software from github. Details of the stylus grip provide not only a link to the repository, but also a star rating and 3d printing instructions
-</figcaption>
-</figure>
 
