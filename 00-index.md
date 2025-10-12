@@ -21,6 +21,6 @@ permalink: index.html
 
 ##  Try it out!
 
-<a href="https://a11yhood.cs.washington.edu/"</a> 
+<a href="https://a11yhood.cs.washington.edu/">A11yhood.org Search Interface</a> 
 
 
