@@ -1,0 +1,29 @@
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="apple-touch-icon" sizes="180x180" href={{"/images/ah-square-180.jpg" | relative}}>
+    <link rel="icon" type="image/jpeg" sizes="32x32" href={{"/images/ah-square-32.jpg" | relative}}>
+    <link rel="icon" type="image/jpeg" sizes="16x16" href={{"/images/ah-square-16.jpg" | relative}}>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    {%- seo -%}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@latest/css/all.min.css">
+    <link rel="stylesheet" href="{{ '/assets/main.css' | relative_url }}">
+    {%- feed_meta -%}
+    {%- if jekyll.environment == 'production' and site.google_analytics -%}
+      {%- include google-analytics.html -%}
+    {%- endif -%}
+    <style>body {
+      font-family: "Atkinson Hyperlegible";
+      font-weight: 400;
+      font-style: normal;
+    }
+    </style>
+  </head>
+<!-- <link rel="manifest" href="/images/site.webmanifest">
+<link rel="shortcut icon" href="/images/favicon.ico">
+<meta name="msapplication-TileColor" content="#da532c">
+<meta name="msapplication-config" content="/images/browserconfig.xml">
+<meta name="theme-color" content="#ffffff"> -->
