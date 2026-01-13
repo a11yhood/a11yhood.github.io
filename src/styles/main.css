@@ -1,0 +1,101 @@
+@import 'tailwindcss';
+@import "tw-animate-css";
+@import './theme.css';
+
+/*
+  The default border color has changed to `currentColor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+*/
+@layer base {
+  html {
+    background-color: var(--color-bg, #ffffff);
+    color: var(--color-fg, #000000);
+  }
+  
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+  
+  body {
+    background-color: var(--color-bg, #ffffff);
+    color: var(--color-fg, #000000);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', system-ui, sans-serif;
+  }
+  
+  .prose {
+    color: var(--foreground);
+  }
+
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4,
+  .prose h5,
+  .prose h6 {
+    color: var(--foreground);
+    font-weight: 600;
+  }
+
+  .prose a {
+    color: var(--primary);
+    text-decoration: underline;
+  }
+
+  .prose a:hover {
+    opacity: 0.8;
+  }
+
+  .prose strong {
+    color: var(--foreground);
+    font-weight: 700;
+  }
+
+  .prose code {
+    color: var(--foreground);
+    background-color: var(--muted);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-size: 0.875em;
+  }
+
+  .prose pre {
+    background-color: var(--muted);
+    color: var(--foreground);
+    overflow-x: auto;
+  }
+
+  .prose pre code {
+    background-color: transparent;
+    padding: 0;
+  }
+
+  .prose blockquote {
+    border-left-color: var(--primary);
+    color: var(--muted-foreground);
+  }
+
+  .prose hr {
+    border-color: var(--border);
+  }
+
+  .prose table {
+    border-color: var(--border);
+  }
+
+  .prose thead {
+    border-bottom-color: var(--border);
+  }
+
+  .prose tbody tr {
+    border-bottom-color: var(--border);
+  }
+}

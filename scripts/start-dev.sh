@@ -1,0 +1,162 @@
+#!/bin/bash
+# Start local development frontend for a11yhood
+# This script starts the frontend in dev mode (port 5173)
+# Backend must be running separately on port 8001
+# 
+# Usage:
+#   ./start-dev.sh              # Normal start
+#   ./start-dev.sh --help       # Show help
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Timing helper
+SECONDS=0
+ts() {
+  # Prints elapsed seconds since script start
+  echo "${SECONDS}s"
+}
+
+# Parse arguments
+HELP=false
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --help)
+      HELP=true
+      shift
+      ;;
+    *)
+      echo "Unknown option: $1"
+      HELP=true
+      shift
+      ;;
+  esac
+done
+
+if [ "$HELP" = true ]; then
+  echo "Usage: ./start-dev.sh [OPTIONS]"
+  echo ""
+  echo "Starts local development frontend (backend must be running separately on port 8000)"
+  echo ""
+  echo "Prerequisites:"
+  echo "  - Backend server running on port 8000"
+  echo "  - .env.local configured with development settings"
+  echo ""
+  echo "Options:"
+  echo "  --help       Show this help message"
+  echo ""
+  echo "The frontend will run in dev mode with hot reload on port 5173"
+  exit 0
+fi
+
+# Don't exit on error, handle errors gracefully
+set +e
+
+echo -e "${BLUE}🚀 Starting a11yhood local development frontend...${NC} (t=0s)"
+echo ""
+
+# Kill any existing frontend processes
+echo -e "${YELLOW}🔄 Stopping existing frontend...${NC} (t=$(ts))"
+pkill -f "npm.*dev" 2>/dev/null || true
+pkill -f "vite" 2>/dev/null || true
+sleep 2
+
+# Verify backend is running on port 8000
+echo -e "${BLUE}🔍 Checking backend server (port 8000)...${NC} (t=$(ts))"
+if ! curl -s http://localhost:8000/health > /dev/null 2>&1; then
+  echo -e "${RED}✗ Error: Backend server not running on port 8000${NC}"
+  echo "   Please ensure the dev backend is running at http://localhost:8000"
+  echo "   The backend should be started separately"
+  exit 1
+fi
+echo -e "${GREEN}✓ Backend is ready at port 8000${NC} (t=$(ts))"
+
+# Check if .env.local exists (development config)
+if [ ! -f .env.local ]; then
+  echo -e "${YELLOW}⚠️  Warning: .env.local not found${NC}"
+  echo "   Please create .env.local with development settings"
+  echo "   See .env.example for reference"
+  exit 1
+fi
+
+echo -e "${GREEN}✓ Using .env.local for configuration${NC}"
+
+# Check if node_modules exists
+if [ ! -d node_modules ]; then
+  echo -e "${BLUE}📦 Installing frontend dependencies...${NC}"
+  npm install
+  if [ $? -ne 0 ]; then
+    echo -e "${RED}✗ Failed to install frontend dependencies${NC}"
+    exit 1
+  fi
+  echo -e "${GREEN}✓ Frontend dependencies installed${NC} (t=$(ts))"
+fi
+
+# Start frontend in dev mode
+echo -e "${BLUE}🎨 Starting frontend dev server (port 5173)...${NC} (t=$(ts))"
+if command -v stdbuf >/dev/null 2>&1; then
+  stdbuf -oL npm run dev > frontend.log 2>&1 &
+else
+  npm run dev > frontend.log 2>&1 &
+fi
+FRONTEND_PID=$!
+echo -e "${GREEN}✓ Frontend started (PID: $FRONTEND_PID)${NC} (t=$(ts))"
+
+echo -e "${YELLOW}⏳ Waiting for frontend to start...${NC} (t=$(ts))"
+FRONTEND_URL=""
+FRONTEND_READY=false
+for i in {1..30}; do
+  # Match Vite's "Local:" line
+  if grep -E -q "Local:[[:space:]]*(→)?[[:space:]]*https?://" frontend.log 2>/dev/null; then
+    FRONTEND_URL=$(grep -E "Local:[[:space:]]*(→)?[[:space:]]*https?://" frontend.log | sed -n 's/.*Local:[[:space:]]*\(→\)?[[:space:]]*\(http[s]\?:\/\/[^[:space:]]*\).*/\2/p' | head -1)
+    if [ -n "$FRONTEND_URL" ]; then
+      echo -e "${GREEN}✓ Frontend is running at $FRONTEND_URL${NC}"
+      FRONTEND_READY=true
+      break
+    fi
+  fi
+  # Detect a Vite CLI error and bail early
+  if grep -qi "error" frontend.log 2>/dev/null; then
+    echo -e "${RED}✗ Frontend failed to start (t=$(ts))${NC}"
+    echo -e "${YELLOW}Last 40 lines of frontend.log:${NC}"
+    tail -40 frontend.log
+    exit 1
+  fi
+  echo -n "."
+  sleep 1
+done
+
+if [ "$FRONTEND_READY" = false ]; then
+  echo -e "${YELLOW}⚠ Frontend may still be starting. Check frontend.log${NC}"
+  FRONTEND_URL="https://localhost:5173 (check frontend.log for actual port)"
+fi
+
+echo ""
+echo -e "${GREEN}✅ Development frontend started!${NC} (t=$(ts))"
+echo ""
+echo -e "${BLUE}🌐 Services:${NC}"
+echo "   Frontend:  $FRONTEND_URL"
+echo "   Backend:   http://localhost:8000 (dev server)"
+echo "   API Docs:  http://localhost:8000/docs"
+echo ""
+echo -e "${BLUE}📊 Mode:${NC}"
+echo "   Environment:  DEVELOPMENT (dev mode with hot reload)"
+echo "   Backend:      Dev server on port 8000"
+echo ""
+echo -e "${BLUE}📝 Logs:${NC}"
+echo "   Frontend:  tail -f frontend.log"
+echo ""
+echo -e "${BLUE}🛑 To stop frontend:${NC}"
+echo "   ./stop-dev.sh"
+echo ""
+echo -e "${BLUE}🔐 Dev Mode Test Users:${NC}"
+echo "   Set VITE_DEV_USER in .env.local:"
+echo "   - admin_user (default)"
+echo "   - moderator_user"  
+echo "   - regular_user"
+echo ""
