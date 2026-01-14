@@ -1678,15 +1678,66 @@ function App() {
         }
 
         // Account doesn't exist yet — create it using minimal info from auth
-        const createUsername = authUser.email ? authUser.email.split('@')[0] : 'user'
-        console.log('📨 [App] Creating user account...', { username: createUsername, email: authUser.email })
+        // Priority: preferred_username (from GitHub via Supabase) > user_name > email > default
+        let createUsername = 'user'
         
-        account = await APIService.createOrUpdateUserAccount(
-          createUsername,
-          createUsername,
-          undefined, // avatar from auth not guaranteed
-          authUser.email
-        )
+        // Check Supabase user_metadata for GitHub username fields
+        const preferredUsername = authUser.user_metadata?.preferred_username
+        const userName = authUser.user_metadata?.user_name
+        
+        if (preferredUsername && typeof preferredUsername === 'string') {
+          createUsername = preferredUsername
+        } else if (userName && typeof userName === 'string') {
+          createUsername = userName
+        } else if (authUser.email && typeof authUser.email === 'string' && authUser.email.includes('@')) {
+          createUsername = authUser.email.split('@')[0]
+        } else if (authUser.email) {
+          createUsername = authUser.email
+        }
+        
+        // Ensure username is safe by removing special characters and limiting length
+        createUsername = createUsername.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 20)
+        
+        console.log('📨 [App] Creating user account...', { username: createUsername, email: authUser.email, source: preferredUsername ? 'preferred_username' : userName ? 'user_name' : 'email/default' })
+        
+        // Try to create account; if username conflict, retry with random suffix
+        let account: typeof userAccount | null = null
+        let usernameToCreate = createUsername
+        let retries = 0
+        const maxRetries = 3
+        
+        while (retries < maxRetries) {
+          try {
+            account = await APIService.createOrUpdateUserAccount(
+              usernameToCreate,
+              usernameToCreate,
+              undefined, // avatar from auth not guaranteed
+              authUser.email
+            )
+            // Success! Break out of retry loop
+            break
+          } catch (error: any) {
+            // Check if this is a uniqueness constraint error (409 Conflict or contains "unique" in message)
+            const isUniqueError = error?.status === 409 || (error?.message && error.message.toLowerCase().includes('unique'))
+            
+            if (isUniqueError && retries < maxRetries - 1) {
+              // Username taken - append random suffix and retry
+              retries++
+              const randomSuffix = Math.random().toString(36).substring(2, 6)
+              usernameToCreate = `${createUsername.slice(0, 16)}_${randomSuffix}`
+              console.log('📨 [App] Username taken, retrying with:', usernameToCreate)
+              continue
+            } else {
+              // Not a uniqueness error or out of retries - rethrow
+              throw error
+            }
+          }
+        }
+        
+        if (!account) {
+          throw new Error('Failed to create user account after retries')
+        }
+        
         userAccountFetchRef.current = authUser.id
 
         const userData = {
@@ -1708,6 +1759,12 @@ function App() {
         }
       } catch (error) {
         console.error('Failed to load user account:', error)
+        // Show user-friendly error message
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create account'
+        toast.error(`Account setup failed: ${errorMessage}`)
+        setShowSignup(false)
+        setUser(null)
+        setUserAccount(null)
       }
     }
     fetchUser()
@@ -2407,7 +2464,8 @@ function App() {
       {showSignup && user ? (
         <UserSignup
           user={{
-            username: user.username,
+            id: user.id,
+            username: user.username || '',
             avatarUrl: user.avatarUrl || userAccount?.avatarUrl || ''
           }}
           onComplete={handleCompleteSignup}

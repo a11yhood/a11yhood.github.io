@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 type UserSignupProps = {
   user: {
     id: string
-    login: string
+    username: string
     avatarUrl: string
   }
   onComplete: (profile: Partial<Pick<UserAccount, 'displayName' | 'bio' | 'location' | 'website'>>) => void
@@ -52,11 +52,11 @@ export function UserSignup({ user, onComplete, onSkip }: UserSignupProps) {
           <CardContent className="space-y-6">
             <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
               <Avatar className="w-16 h-16">
-                <AvatarImage src={user.avatarUrl || undefined} alt={`${user.login}'s avatar`} />
-                <AvatarFallback>{user.login.slice(0, 2).toUpperCase()}</AvatarFallback>
+                <AvatarImage src={user.avatarUrl || undefined} alt={`${user.username || 'user'}'s avatar`} />
+                <AvatarFallback>{(user.username || 'u').slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-medium">@{user.login}</p>
+                <p className="font-medium">@{user.username || 'user'}</p>
                 <p className="text-sm text-muted-foreground">Connected via GitHub</p>
               </div>
             </div>
