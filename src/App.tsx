@@ -1701,7 +1701,7 @@ function App() {
         console.log('📨 [App] Creating user account...', { username: createUsername, email: authUser.email, source: preferredUsername ? 'preferred_username' : userName ? 'user_name' : 'email/default' })
         
         // Try to create account; if username conflict, retry with random suffix
-        let account: typeof userAccount | null = null
+        // Re-use account variable declared earlier in the scope
         let usernameToCreate = createUsername
         let retries = 0
         const maxRetries = 3
