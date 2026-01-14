@@ -68,19 +68,27 @@ pkill -f "npm.*dev" 2>/dev/null || true
 pkill -f "vite" 2>/dev/null || true
 sleep 2
 
-# Verify backend is running on port 8001
-echo -e "${BLUE}🔍 Checking backend server (port 8001)...${NC} (t=$(ts))"
-if ! curl -s http://localhost:8001/health > /dev/null 2>&1; then
-  echo -e "${RED}✗ Error: Backend server not running on port 8001${NC}"
-  echo "   Please ensure the backend is running at http://localhost:8001"
+# Load environment variables from .env.production.local
+set -a
+[ -f .env.production.local ] && source .env.production.local
+set +a
+
+# Get backend URL from VITE_API_URL or default to localhost:8001
+BACKEND_URL="${VITE_API_URL:-http://localhost:8001}"
+
+# Verify backend is running
+echo -e "${BLUE}🔍 Checking backend server at ${BACKEND_URL}...${NC} (t=$(ts))"
+if ! curl -s ${BACKEND_URL}/health > /dev/null 2>&1; then
+  echo -e "${RED}✗ Error: Backend server not running at ${BACKEND_URL}${NC}"
+  echo "   Please ensure the backend is running at ${BACKEND_URL}"
   echo "   The backend should be started separately and always be available"
   exit 1
 fi
-echo -e "${GREEN}✓ Backend is ready at port 8001${NC} (t=$(ts))"
+echo -e "${GREEN}✓ Backend is ready at ${BACKEND_URL}${NC} (t=$(ts))"
 
 # Verify Supabase connection
 echo -e "${BLUE}🔍 Verifying Supabase connection...${NC}"
-SOURCES_CHECK=$(curl -s http://localhost:8001/api/sources/supported 2>&1)
+SOURCES_CHECK=$(curl -s ${BACKEND_URL}/api/sources/supported 2>&1)
 if [ $? -eq 0 ]; then
   echo -e "${GREEN}✓ Supabase connection verified${NC}"
 else
@@ -126,11 +134,16 @@ npm run preview > frontend.log 2>&1 &
 FRONTEND_PID=$!
 echo -e "${GREEN}✓ Frontend started (PID: $FRONTEND_PID)${NC} (t=$(ts))"
 
+# Get frontend URL and port from environment or default
+FRONTEND_PORT="${VITE_FRONTEND_PORT:-4173}"
+FRONTEND_HOST="${VITE_FRONTEND_HOST:-localhost}"
+FRONTEND_URL="http://${FRONTEND_HOST}:${FRONTEND_PORT}"
+
 # Wait for frontend to be ready
 echo -e "${BLUE}⏳ Waiting for frontend to be ready...${NC}"
 RETRIES=0
 MAX_RETRIES=30
-until curl -s http://localhost:4173 > /dev/null 2>&1; do
+until curl -s ${FRONTEND_URL} > /dev/null 2>&1; do
   RETRIES=$((RETRIES+1))
   if [ $RETRIES -ge $MAX_RETRIES ]; then
     echo -e "${RED}✗ Frontend failed to start after ${MAX_RETRIES} seconds${NC}"
@@ -147,8 +160,8 @@ echo ""
 echo -e "${GREEN}✅ Production environment started successfully!${NC} (t=$(ts))"
 echo ""
 echo -e "${BLUE}🌐 Services:${NC}"
-echo "   Frontend:  http://localhost:4173 (production build)"
-echo "   Backend:   http://localhost:8001 (separate server)"
+echo "   Frontend:  ${FRONTEND_URL} (production build)"
+echo "   Backend:   ${BACKEND_URL} (separate server)"
 echo "   API Docs:  http://localhost:8001/docs"
 echo ""
 echo -e "${BLUE}📊 Database:${NC}"
