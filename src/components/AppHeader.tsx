@@ -137,9 +137,9 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
               <span className="hidden sm:inline">Collections</span>
             </Button>
             <Button
-              variant="ghost"
+              variant={location.pathname.startsWith('/products') ? "default" : "ghost"}
               size="sm"
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/products')}
               className="flex items-center gap-2"
               aria-label="Search products"
             >
