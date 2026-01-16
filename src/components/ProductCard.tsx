@@ -138,7 +138,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, href, o
       )}
       
       {shouldShowImage ? (
-        <div className="w-full h-[60px] bg-muted overflow-hidden">
+        <div className="w-full h-[200px] bg-muted overflow-hidden">
           <img
             src={product.imageUrl}
             alt={product.imageAlt || `${product.name} image`}
@@ -147,7 +147,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, href, o
           />
         </div>
       ) : (
-        <div className="w-full h-[60px] bg-muted flex items-center justify-center text-xs text-muted-foreground">
+        <div className="w-full h-[200px] bg-muted flex items-center justify-center text-xs text-muted-foreground">
           <span aria-hidden="true">Image unavailable</span>
           <span className="sr-only">No image available</span>
         </div>
@@ -192,11 +192,14 @@ export const ProductCard = memo(function ProductCard({ product, ratings, href, o
 	  <ul>
           {product.tags && product.tags.length > 0 && (
             <li className="flex flex-wrap gap-2">
-              {Array.from(new Set(product.tags)).map((tag) => (
+              {Array.from(new Set(product.tags)).slice(0, 10).map((tag) => (
                 <Badge key={tag} variant="secondary" className="text-xs">
                   {tag}
                 </Badge>
               ))}
+              {product.tags.length > 10 && (
+                <span className="text-xs text-muted-foreground">...</span>
+              )}
             </li>
           )}
 	  </ul>

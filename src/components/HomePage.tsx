@@ -116,7 +116,7 @@ export function HomePage({ products, blogPosts, ratings, onRate }: HomePageProps
         return dateB - dateA
       })
       .slice(0, 3)
-  }, [blogPosts.length, blogPosts.filter(p => p.published).length])
+  }, [blogPosts])
 
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault()

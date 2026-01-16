@@ -132,11 +132,14 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
             <h4 className="sr-only">Tags</h4>
             <div className="flex flex-wrap gap-1.5 text-sm text-muted-foreground">
   	    <ul className="flex flex-wrap gap-1.5">
-                {product.tags.map((tag) => (
+                {product.tags.slice(0, 20).map((tag) => (
                   <li key={tag} className="px-1.5 py-0 bg-muted rounded-sm text-xs whitespace-nowrap">
                     {tag}
                   </li>
                 ))}
+                {product.tags.length > 20 && (
+                  <li className="text-xs text-muted-foreground">...</li>
+                )}
   	      </ul>
             </div>
           </div>
