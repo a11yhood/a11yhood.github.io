@@ -108,7 +108,19 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
                   <span className="line-clamp-2 break-words">{product.name}</span>
                 )}
               </h3>
-              <div className="flex items-center gap-1 flex-shrink-0" onClick={handleStarClick}>
+              <div 
+                className="flex items-center gap-1 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity rounded px-1 py-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none" 
+                onClick={handleStarClick}
+                role="button"
+                tabIndex={0}
+                aria-label={productRatings.length > 0 ? `${averageRating.toFixed(1)} star rating, click to view ratings` : 'View ratings'}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleStarClick(e as any)
+                  }
+                }}
+              >
                 {productRatings.length > 0 && (
                   <>
                     <span className="text-sm font-semibold">{averageRating.toFixed(1)}</span>

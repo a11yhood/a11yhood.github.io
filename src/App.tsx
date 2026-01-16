@@ -1481,9 +1481,9 @@ function App() {
       return // Wait for initial load
     }
 
-    // Only run on home page
-    if (location.pathname !== '/') {
-      console.log('[App.fetchEffect] Skipping - not on home page')
+    // Only run on home/products pages
+    if (location.pathname !== '/' && location.pathname !== '/products') {
+      console.log('[App.fetchEffect] Skipping - not on home or products page')
       return
     }
 
