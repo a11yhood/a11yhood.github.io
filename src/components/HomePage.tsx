@@ -134,40 +134,10 @@ export function HomePage({ products, blogPosts, ratings, onRate }: HomePageProps
 
   return (
     <div className="space-y-8">
-      {/* Random Products Section */}
-      <section>
-        <h2 className="text-2xl font-bold mb-4">Random Products</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {randomProducts.map((product, idx) => {
-            const sources = ['Ravelry', 'GitHub', 'Thingiverse']
-            if (!product) {
-              return (
-                <Card key={idx} className="opacity-50">
-                  <CardHeader>
-                    <CardTitle className="text-sm text-muted-foreground">
-                      No {sources[idx]} products available
-                    </CardTitle>
-                  </CardHeader>
-                </Card>
-              )
-            }
-            return (
-              <ProductCard
-                key={product.id}
-                product={product}
-                ratings={ratings}
-                onRate={onRate}
-                onNavigate={() => navigate(`/product/${product.slug}`)}
-              />
-            )
-          })}
-        </div>
-      </section>
-
-      {/* Main Content Area - Blog Roll and Sidebar */}
+      {/* Top Section: Quick Search and Random Products */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Quick Search Sidebar */}
-        <aside className="lg:col-span-1 order-2 lg:order-1">
+        {/* Quick Search */}
+        <aside className="lg:col-span-1">
           <Card>
             <CardHeader>
               <CardTitle>Quick Search</CardTitle>
@@ -197,8 +167,39 @@ export function HomePage({ products, blogPosts, ratings, onRate }: HomePageProps
           </Card>
         </aside>
 
-        {/* Blog Roll */}
-        <section className="lg:col-span-3 order-1 lg:order-2">
+        {/* Random Products */}
+        <section className="lg:col-span-3">
+          <h2 className="text-2xl font-bold mb-4">Random Products</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {randomProducts.map((product, idx) => {
+              const sources = ['Ravelry', 'GitHub', 'Thingiverse']
+              if (!product) {
+                return (
+                  <Card key={idx} className="opacity-50">
+                    <CardHeader>
+                      <CardTitle className="text-sm text-muted-foreground">
+                        No {sources[idx]} products available
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+                )
+              }
+              return (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  ratings={ratings}
+                  onRate={onRate}
+                  onNavigate={() => navigate(`/product/${product.slug}`)}
+                />
+              )
+            })}
+          </div>
+        </section>
+      </div>
+
+      {/* Blog Roll Section */}
+      <section>
           <h2 className="text-2xl font-bold mb-4">Recent Posts</h2>
           {recentBlogPosts.length === 0 ? (
             <Card>
@@ -256,7 +257,6 @@ export function HomePage({ products, blogPosts, ratings, onRate }: HomePageProps
             </div>
           )}
         </section>
-      </div>
     </div>
   )
 }
