@@ -527,7 +527,8 @@ export class APIService {
   static async productExistsByUrl(url: string): Promise<{ exists: boolean; product?: Product }> {
     // Use a manual fetch so we can treat 404 as {exists:false} without throwing
     const endpoint = `/products/exists?url=${encodeURIComponent(url)}`
-    const fullUrl = `${API_BASE_URL}/api${endpoint}`
+    const base = getApiBaseUrl()
+    const fullUrl = `${base}/api${endpoint}`
     const token = getAuthToken ? await getAuthToken() : null
 
     const response = await fetch(fullUrl, {
