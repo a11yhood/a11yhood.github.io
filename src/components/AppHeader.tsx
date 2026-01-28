@@ -212,11 +212,11 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                       Signed in as {userAccount?.username || user.login}
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => navigate(`/account/${user.login}`)}>
+                    <DropdownMenuItem onSelect={() => navigate(`/account/${userAccount?.username || user.email}`)}>
                       <UserCircle size={16} className="mr-2" />
                       My Account
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => navigate(`/profile/${user.login}`)}>
+                    <DropdownMenuItem onSelect={() => navigate(`/profile/${userAccount?.username || user.email}`)}>
                       <UserCircle size={16} className="mr-2" />
                       Public Profile
                     </DropdownMenuItem>
