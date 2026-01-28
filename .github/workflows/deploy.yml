@@ -21,7 +21,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    environment: github-pages
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,7 +55,7 @@ jobs:
           path: './dist'
 
   deploy:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production')
     needs: build
     runs-on: ubuntu-latest
     environment:
