@@ -35,6 +35,8 @@ import { EditCollectionDialog } from '@/components/EditCollectionDialog'
 import { AboutPage } from '@/components/AboutPage'
 import { UserSignup } from '@/components/UserSignup'
 import { FeaturedBlogCarousel } from '@/components/FeaturedBlogCarousel'
+import { HomePage } from '@/components/HomePage'
+import { SearchPage } from '@/components/SearchPage'
 import { Product, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput } from '@/lib/types'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { logger } from '@/lib/logger'
@@ -167,8 +169,6 @@ export function ProductListPage({
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const featuredPosts = blogPosts.filter(post => post.published).slice(0, 5)
-
   const getAverageRating = (productId: string) => {
     const productRatings = ratings.filter((r) => r.productId === productId)
     const product = products.find(p => p.id === productId)
@@ -226,30 +226,25 @@ export function ProductListPage({
 
   return (
     <div>
-      {featuredPosts.length > 0 && (
-        <FeaturedBlogCarousel 
-          posts={featuredPosts}
-          onSelectPost={(post) => navigate(`/blog/${post.slug}`)}
-        />
-      )}
-
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-6">Find Access Solutions</h1>
-        <div className="relative">
-          <MagnifyingGlass
-            size={20}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            type="search"
-            placeholder="Search products..."
-            value={searchInputValue}
-            onChange={onSearchInputChange}
-            onBlur={onSearchInputBlur}
-            onKeyDown={onSearchInputKeyDown}
-            className="pl-10"
-            aria-label="Search products"
-          />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold">Find Access Solutions</h1>
+          <div className="relative w-full sm:max-w-md">
+            <MagnifyingGlass
+              size={20}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              type="search"
+              placeholder="Search products..."
+              value={searchInputValue}
+              onChange={onSearchInputChange}
+              onBlur={onSearchInputBlur}
+              onKeyDown={onSearchInputKeyDown}
+              className="pl-10"
+              aria-label="Search products"
+            />
+          </div>
         </div>
       </div>
 
@@ -1312,6 +1307,15 @@ function App() {
     setSearchInputValue(searchQuery)
   }, [searchQuery])
 
+  // Sync search query from URL params when navigating to /products
+  useEffect(() => {
+    const urlQuery = searchParams.get('q') || ''
+    if (location.pathname === '/products' && urlQuery !== searchQuery) {
+      setSearchQuery(urlQuery)
+      setSearchInputValue(urlQuery)
+    }
+  }, [searchParams, location.pathname])
+
   // Combine filtered tags with tags from current page of products, plus any selected tags
   // Sort by frequency in current results (most common first)
   const allTags = useMemo(() => {
@@ -1345,27 +1349,55 @@ function App() {
       console.log('[App] Loading initial data...', { pathname: location.pathname })
       
       // Only load all products on pages that need the full list
-      const needsFullProductList = location.pathname === '/' || 
+      const needsFullProductList = location.pathname === '/products' || 
                                    location.pathname === '/submit' ||
                                    location.pathname.startsWith('/collections') ||
                                    location.pathname.startsWith('/admin')
       
+      // Only load filter metadata (tags, sources, types) on pages that use them
+      const needsFilterMetadata = needsFullProductList
+      
       try {
-        // Always load metadata (types, sources, tags) even on detail pages
-        // as they're needed for filters and forms
-        const metadataResults = await Promise.allSettled([
-          APIService.getProductSources(),
-          APIService.getProductTypes(),
-          APIService.getPopularTags(10),
-        ])
-        
-        const loadedSources = metadataResults[0].status === 'fulfilled' ? metadataResults[0].value : []
-        const loadedTypes = metadataResults[1].status === 'fulfilled' ? metadataResults[1].value : []
-        const loadedTags = metadataResults[2].status === 'fulfilled' ? metadataResults[2].value : []
-        
-        setAllProductSources(loadedSources)
-        setAllProductTypes(loadedTypes)
-        setPopularTags(loadedTags)
+        // Load metadata only if needed (search, collections, admin pages)
+        if (needsFilterMetadata) {
+          const metadataResults = await Promise.allSettled([
+            APIService.getProductSources(),
+            APIService.getProductTypes(),
+            APIService.getPopularTags(10),
+          ])
+          
+          const loadedSources = metadataResults[0].status === 'fulfilled' ? metadataResults[0].value : []
+          const loadedTypes = metadataResults[1].status === 'fulfilled' ? metadataResults[1].value : []
+          const loadedTags = metadataResults[2].status === 'fulfilled' ? metadataResults[2].value : []
+          
+          setAllProductSources(loadedSources)
+          setAllProductTypes(loadedTypes)
+          setPopularTags(loadedTags)
+        } else if (location.pathname === '/') {
+          // On homepage, just load blog posts and product samples asynchronously
+          setDataLoaded(true)
+          setIsSearching(false)
+          
+          Promise.all([
+            APIService.getAllProducts({ limit: 50 }),
+            APIService.getAllRatings(),
+            APIService.getAllBlogPosts(false),
+          ])
+            .then(([products, ratings, blogPosts]) => {
+              setProducts(products)
+              setRatings(ratings)
+              setBlogPosts(blogPosts)
+            })
+            .catch(error => {
+              console.warn('[App] Failed to load homepage data:', error)
+            })
+          return
+        } else {
+          // For other pages (detail pages), skip loading
+          setDataLoaded(true)
+          setIsSearching(false)
+          return
+        }
 
         if (!needsFullProductList) {
           // For product detail pages, skip product list loading - page will fetch what it needs
@@ -1390,42 +1422,39 @@ function App() {
           offset,
           sortBy,
           sortOrder,
+          search: searchQuery,
+          types: selectedTypes,
+          sources: selectedSources,
+          tags: selectedTags,
+          minRating,
         })
         
         console.log('[App] Data loaded:', {
           products: loadedProducts.length,
           totalCount,
-          types: loadedTypes,
-          sources: loadedSources,
-          tags: loadedTags,
         })
         
-        // Note: Frontend no longer seeds data - backend handles all seeding
         setProducts(loadedProducts)
         setTotalProductCount(totalCount)
         setCurrentPage(1)
         
-        // Metadata already set above, no need to set again
         setDataLoaded(true)
         setIsSearching(false)
         
-        // Load ratings, discussions, and blog posts asynchronously (needed for home page display)
-        // Only do this on home page
-        if (location.pathname === '/') {
-          Promise.all([
-            APIService.getAllRatings(),
-            APIService.getAllDiscussions(),
-            APIService.getAllBlogPosts(false),
-          ])
-            .then(([ratings, discussions, blogPosts]) => {
-              setRatings(ratings)
-              setDiscussions(discussions)
-              setBlogPosts(blogPosts)
-            })
-            .catch(error => {
-              console.warn('[App] Failed to load ratings/discussions/blog posts:', error)
-            })
-        }
+        // Load ratings and discussions asynchronously
+        Promise.all([
+          APIService.getAllRatings(),
+          APIService.getAllDiscussions(),
+          APIService.getAllBlogPosts(false),
+        ])
+          .then(([ratings, discussions, blogPosts]) => {
+            setRatings(ratings)
+            setDiscussions(discussions)
+            setBlogPosts(blogPosts)
+          })
+          .catch(error => {
+            console.warn('[App] Failed to load ratings/discussions/blog posts:', error)
+          })
       } catch (error) {
         console.error('Failed to load data:', error)
         setDataLoaded(true)
@@ -1434,7 +1463,7 @@ function App() {
     }
     
     loadData()
-  }, [location.pathname])
+  }, [location.pathname, searchQuery, selectedTypes, selectedSources, selectedTags, minRating, sortBy, sortOrder, includeBanned, pageSize])
 
   // Use AuthContext (supports both dev mode and production)
   const { user: authUser, loading: authLoading, getAccessToken, signIn, signOut } = useAuth()
@@ -1452,9 +1481,9 @@ function App() {
       return // Wait for initial load
     }
 
-    // Only run on home page
-    if (location.pathname !== '/') {
-      console.log('[App.fetchEffect] Skipping - not on home page')
+    // Only run on home/products pages
+    if (location.pathname !== '/' && location.pathname !== '/products') {
+      console.log('[App.fetchEffect] Skipping - not on home or products page')
       return
     }
 
@@ -1678,15 +1707,66 @@ function App() {
         }
 
         // Account doesn't exist yet — create it using minimal info from auth
-        const createUsername = authUser.email ? authUser.email.split('@')[0] : 'user'
-        console.log('📨 [App] Creating user account...', { username: createUsername, email: authUser.email })
+        // Priority: preferred_username (from GitHub via Supabase) > user_name > email > default
+        let createUsername = 'user'
         
-        account = await APIService.createOrUpdateUserAccount(
-          createUsername,
-          createUsername,
-          undefined, // avatar from auth not guaranteed
-          authUser.email
-        )
+        // Check Supabase user_metadata for GitHub username fields
+        const preferredUsername = authUser.user_metadata?.preferred_username
+        const userName = authUser.user_metadata?.user_name
+        
+        if (preferredUsername && typeof preferredUsername === 'string') {
+          createUsername = preferredUsername
+        } else if (userName && typeof userName === 'string') {
+          createUsername = userName
+        } else if (authUser.email && typeof authUser.email === 'string' && authUser.email.includes('@')) {
+          createUsername = authUser.email.split('@')[0]
+        } else if (authUser.email) {
+          createUsername = authUser.email
+        }
+        
+        // Ensure username is safe by removing special characters and limiting length
+        createUsername = createUsername.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 20)
+        
+        console.log('📨 [App] Creating user account...', { username: createUsername, email: authUser.email, source: preferredUsername ? 'preferred_username' : userName ? 'user_name' : 'email/default' })
+        
+        // Try to create account; if username conflict, retry with random suffix
+        // Re-use account variable declared earlier in the scope
+        let usernameToCreate = createUsername
+        let retries = 0
+        const maxRetries = 3
+        
+        while (retries < maxRetries) {
+          try {
+            account = await APIService.createOrUpdateUserAccount(
+              usernameToCreate,
+              usernameToCreate,
+              undefined, // avatar from auth not guaranteed
+              authUser.email
+            )
+            // Success! Break out of retry loop
+            break
+          } catch (error: any) {
+            // Check if this is a uniqueness constraint error (409 Conflict or contains "unique" in message)
+            const isUniqueError = error?.status === 409 || (error?.message && error.message.toLowerCase().includes('unique'))
+            
+            if (isUniqueError && retries < maxRetries - 1) {
+              // Username taken - append random suffix and retry
+              retries++
+              const randomSuffix = Math.random().toString(36).substring(2, 6)
+              usernameToCreate = `${createUsername.slice(0, 16)}_${randomSuffix}`
+              console.log('📨 [App] Username taken, retrying with:', usernameToCreate)
+              continue
+            } else {
+              // Not a uniqueness error or out of retries - rethrow
+              throw error
+            }
+          }
+        }
+        
+        if (!account) {
+          throw new Error('Failed to create user account after retries')
+        }
+        
         userAccountFetchRef.current = authUser.id
 
         const userData = {
@@ -1708,6 +1788,12 @@ function App() {
         }
       } catch (error) {
         console.error('Failed to load user account:', error)
+        // Show user-friendly error message
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create account'
+        toast.error(`Account setup failed: ${errorMessage}`)
+        setShowSignup(false)
+        setUser(null)
+        setUserAccount(null)
       }
     }
     fetchUser()
@@ -2407,7 +2493,8 @@ function App() {
       {showSignup && user ? (
         <UserSignup
           user={{
-            username: user.username,
+            id: user.id,
+            username: user.username || '',
             avatarUrl: user.avatarUrl || userAccount?.avatarUrl || ''
           }}
           onComplete={handleCompleteSignup}
@@ -2453,7 +2540,15 @@ function App() {
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/" element={
-                <ProductListPage
+                <HomePage
+                  products={products}
+                  blogPosts={blogPosts}
+                  ratings={ratings}
+                  onRate={handleRate}
+                />
+              } />
+              <Route path="/products" element={
+                <SearchPage
                   products={products}
                   ratings={ratings}
                   user={user}

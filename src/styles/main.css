@@ -30,6 +30,35 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Outfit', system-ui, sans-serif;
   }
+
+  /* Ensure clickable elements show the pointer cursor */
+  button,
+  a,
+  [role="button"],
+  [role="tab"],
+  [role="radio"],
+  [role="checkbox"],
+  [role="link"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="checkbox"],
+  input[type="radio"],
+  select,
+  label[for],
+  textarea {
+    cursor: pointer;
+  }
+
+  /* Disabled elements should show not-allowed cursor */
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  a[aria-disabled="true"],
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    cursor: not-allowed;
+  }
   
   .prose {
     color: var(--foreground);

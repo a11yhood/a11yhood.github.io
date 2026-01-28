@@ -1,5 +1,5 @@
 {
-    "name": "a11yhood-frontend",
+    "name": "a11yhood",
     "private": true,
     "version": "0.0.0",
     "type": "module",
@@ -14,7 +14,7 @@
         "test:ui": "vitest --ui",
         "test:run": "vitest run",
         "test:coverage": "vitest run --coverage",
-        "build:ghpages": "VITE_BASE_URL=/a11yhood-frontend/ npm run build"
+        "build:ghpages": "VITE_BASE_URL=/ npm run build"
     },
     "dependencies": {
         "@fortawesome/fontawesome-svg-core": "^7.1.0",

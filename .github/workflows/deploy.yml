@@ -3,10 +3,10 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - production
+      - gh-pages
   pull_request:
     branches:
-      - production
+      - gh-pages
   workflow_dispatch:
 
 permissions:
@@ -55,7 +55,7 @@ jobs:
           path: './dist'
 
   deploy:
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production')
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/gh-pages'
     needs: build
     runs-on: ubuntu-latest
     environment:

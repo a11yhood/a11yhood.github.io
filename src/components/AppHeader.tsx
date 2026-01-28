@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { UserCircle, SignOut, ChartBar, Users, FileText } from '@phosphor-icons/react'
+import { UserCircle, SignOut, ChartBar, Users, FileText, MagnifyingGlass } from '@phosphor-icons/react'
 import { ProductSubmission, ProductSubmissionRef } from '@/components/ProductSubmission'
 import { RequestSourceDialog } from '@/components/RequestSourceDialog'
 import { UserData, UserAccount } from '@/lib/types'
@@ -9,7 +9,7 @@ import { APIService } from '@/lib/api'
 import { toast } from 'sonner'
 import logoImage from '@/assets/images/ahood-small.png'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faLayerGroup, faNewspaper, faUniversalAccess } from '@fortawesome/free-solid-svg-icons'
+import { faLayerGroup, faNewspaper } from '@fortawesome/free-solid-svg-icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -99,24 +99,28 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
             >
               <img src={logoImage} alt="a11yhood" className="h-[18px] w-auto flex-shrink-0" />
             </button>
-            <Button
-              variant={location.pathname.startsWith('/about') ? "default" : "ghost"}
-              size="sm"
-              onClick={() => navigate('/about')}
-              className="flex items-center gap-2"
+            <Link
+              to="/about"
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                location.pathname.startsWith('/about') 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'hover:bg-accent hover:text-accent-foreground'
+              }`}
             >
               <FileText size={18} />
               <span className="hidden sm:inline">About</span>
-            </Button>
-            <Button
-              variant={location.pathname.startsWith('/blog') ? "default" : "ghost"}
-              size="sm"
-              onClick={() => navigate('/blog')}
-              className="flex items-center gap-2"
+            </Link>
+            <Link
+              to="/blog"
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                location.pathname.startsWith('/blog') 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'hover:bg-accent hover:text-accent-foreground'
+              }`}
             >
               <FontAwesomeIcon icon={faNewspaper} className="w-[18px] h-[18px]" />
               <span className="hidden sm:inline">News</span>
-            </Button>
+            </Link>
           </div>
 
           <div className="flex items-center gap-4">
@@ -127,25 +131,29 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                 Dev Mode
               </span>
             )}
-            <Button
-              variant={location.pathname.startsWith('/collections') ? "default" : "ghost"}
-              size="sm"
-              onClick={() => navigate('/collections')}
-              className="flex items-center gap-2"
+            <Link
+              to="/collections"
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                location.pathname.startsWith('/collections') 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'hover:bg-accent hover:text-accent-foreground'
+              }`}
             >
               <FontAwesomeIcon icon={faLayerGroup} className="w-[18px] h-[18px]" />
               <span className="hidden sm:inline">Collections</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/')}
-              className="flex items-center gap-2"
+            </Link>
+            <Link
+              to="/products"
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                location.pathname.startsWith('/products') 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'hover:bg-accent hover:text-accent-foreground'
+              }`}
               aria-label="Search products"
             >
-              <FontAwesomeIcon icon={faUniversalAccess} className="w-[18px] h-[18px]" />
+              <MagnifyingGlass size={18} />
               <span className="hidden sm:inline">Search</span>
-            </Button>
+            </Link>
             {user ? (
               <div className="flex items-center gap-3">
                 <ProductSubmission ref={productSubmissionRef} user={user} onSubmit={async (productData) => {
