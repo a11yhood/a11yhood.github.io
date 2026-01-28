@@ -137,32 +137,21 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
     setUrlCheckState('checking')
 
     try {
-      // Call load-url endpoint which checks DB first, then scrapes if needed
+      // First, check if product already exists by URL using the correct API endpoint
+      const existsResult = await APIService.productExistsByUrl(normalized)
+      
+      if (existsResult.exists && existsResult.product) {
+        // Product already exists in database - show it
+        setExistingProduct(existsResult.product)
+        setUrlCheckState('exists')
+        return
+      }
+
+      // Product doesn't exist - try to scrape it
       const scrapeResult = await APIService.loadUrl(normalized)
       
       if (scrapeResult.success && scrapeResult.product) {
         const p = scrapeResult.product as any
-        
-        // If product came from database (already exists), show it
-        if (scrapeResult.source === 'database') {
-          const normalized = {
-            id: p.id,
-            slug: p.slug,
-            name: p.name,
-            type: p.type || p.category,
-            source: p.source,
-            sourceUrl: p.sourceUrl || p.url,
-            description: p.description,
-            tags: p.tags || [],
-            createdAt: p.createdAt || Date.now(),
-            origin: 'user-submitted',
-            imageUrl: p.imageUrl || p.image,
-            ownerIds: p.ownerIds || [],
-          } as Product
-          setExistingProduct(normalized)
-          setUrlCheckState('exists')
-          return
-        }
         
         // Product was scraped - pre-fill form with scraped data
         setSourceUrl(normalized)
