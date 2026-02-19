@@ -1,0 +1,32 @@
+[workspace]
+authors = ["tonyfast <tony.fast@uw.edu>"]
+channels = ["conda-forge"]
+name = "a11yhood.github.io"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks.install-gems]
+description = "install ruby gems and github pages dependencies"
+cmd = ".pixi/envs/{{ pixi.environment.name }}/bin/gem install github-pages"
+
+[tasks.install-pages]
+description = "install ruby gems and github pages dependencies"
+cmd = ".pixi/envs/{{ pixi.environment.name }}/bin/bundle install"
+depends-on = ["install-gems"]
+
+[tasks.serve]
+description = "serve the website locally"
+cmd = ".pixi/envs/{{ pixi.environment.name }}/bin/bundle exec jekyll serve --livereload"
+depends-on = ["install-gems"]
+
+[tasks.build]
+description = "build the website for production"
+cmd = ".pixi/envs/{{ pixi.environment.name }}/bin/bundle exec jekyll build"
+depends-on = ["install-gems"]
+# outputs = ["_site/**/*"]
+
+[dependencies]
+ruby = ">=3.4.8,<4"
+make = ">=4.4.1,<5"
+gcc = ">=15.2.0,<15.3"
+clangxx = ">=21.1.8,<22"
