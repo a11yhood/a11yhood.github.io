@@ -271,8 +271,6 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
       {errors.length > 0 && (
         <div
           ref={errorSummaryRef}
-          role="alert"
-          aria-live="assertive"
           tabIndex={-1}
           className="border border-destructive/40 bg-destructive/5 text-destructive rounded-md p-4 space-y-2"
         >

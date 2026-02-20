@@ -153,8 +153,6 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
           {errors.length > 0 && (
             <div
               ref={errorSummaryRef}
-              role="alert"
-              aria-live="assertive"
               tabIndex={-1}
               className="border border-destructive/40 bg-destructive/5 text-destructive rounded-md p-4 space-y-2 mb-4"
             >
@@ -273,7 +271,7 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
                 </div>
               </label>
               {formData.imageUrl && (
-                <p className="text-xs text-muted-foreground" aria-live="polite">
+                <p className="text-xs text-muted-foreground">
                   Alt text is required for accessibility and will be saved with the image.
                 </p>
               )}

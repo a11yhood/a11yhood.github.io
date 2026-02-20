@@ -70,11 +70,6 @@ export function StarRating({
 
   return (
     <div className={cn('flex items-center gap-1', className)}>
-      {!readonly && onChange && (
-        <div className="sr-only" aria-live="polite" aria-atomic="true">
-          {value > 0 && `Rating: ${value} out of 5 stars`}
-        </div>
-      )}
       <div
         className="flex items-center gap-0.5"
         role="radiogroup"

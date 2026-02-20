@@ -93,9 +93,6 @@ export function ProductFilters({
 
   return (
     <Card className="p-4 lg:p-6 sticky top-6 max-h-[calc(100vh-120px)] overflow-y-auto lg:max-h-none" role="search">
-      <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {hasActiveFilters ? `Filters active: ${selectedTypes.length + selectedTags.length + selectedSources.length + (minRating > 0 ? 1 : 0) + (updatedSince ? 1 : 0)} filters applied` : 'No filters active'}
-      </div>
       <div className="mb-3 lg:mb-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">Search</h2>

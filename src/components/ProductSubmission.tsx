@@ -391,7 +391,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
         </DialogHeader>
 
         {errors.urlToCheck && (
-          <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+          <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {errors.urlToCheck}
           </div>
         )}
@@ -425,7 +425,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                 </Button>
               </div>
               {errors.urlToCheck && (
-                <p id="url-check-error" className="text-sm text-destructive" role="alert">{errors.urlToCheck}</p>
+                <p id="url-check-error" className="text-sm text-destructive">{errors.urlToCheck}</p>
               )}
               <p id="url-check-help" className="text-sm text-muted-foreground">
                 Enter a URL to check if it's already in our database or if we can automatically fetch its details.
@@ -435,7 +435,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
         )}
 
         {urlCheckState === 'checking' && (
-          <div className="flex flex-col items-center justify-center py-8 space-y-4" role="status" aria-live="polite">
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" aria-hidden="true"></div>
             <p className="text-muted-foreground">Checking URL...</p>
           </div>
@@ -515,8 +515,6 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
             {Object.entries(errors).filter(([key]) => ['name', 'type', 'sourceUrl', 'description', 'imageAlt'].includes(key)).length > 0 && (
               <div
                 ref={errorSummaryRef}
-                role="alert"
-                aria-live="assertive"
                 tabIndex={-1}
                 className="border border-destructive/50 bg-destructive/5 text-destructive rounded-md p-4 space-y-2"
               >
@@ -576,7 +574,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                   aria-describedby={errors.name ? 'name-error' : undefined}
                 />
                 {errors.name && (
-                  <p id="name-error" className="text-sm text-destructive" role="alert">
+                  <p id="name-error" className="text-sm text-destructive">
                     {errors.name}
                   </p>
                 )}
@@ -618,7 +616,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                 </Select>
                 <input type="hidden" name="type" value={type} />
                 {errors.type && (
-                  <p id="type-error" className="text-sm text-destructive" role="alert">
+                  <p id="type-error" className="text-sm text-destructive">
                     {errors.type}
                   </p>
                 )}
@@ -649,7 +647,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                   aria-describedby={errors.sourceUrl ? 'url-error' : undefined}
                 />
                 {errors.sourceUrl && (
-                  <p id="url-error" className="text-sm text-destructive" role="alert">
+                  <p id="url-error" className="text-sm text-destructive">
                     {errors.sourceUrl}
                   </p>
                 )}
@@ -679,7 +677,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                   aria-describedby={errors.description ? 'description-error' : undefined}
                 />
                 {errors.description && (
-                  <p id="description-error" className="text-sm text-destructive" role="alert">
+                  <p id="description-error" className="text-sm text-destructive">
                     {errors.description}
                   </p>
                 )}
@@ -729,7 +727,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                   imageAltError={errors.imageAlt}
                 />
                 {errors.imageAlt && (
-                  <p className="text-sm text-destructive" role="alert">{errors.imageAlt}</p>
+                  <p className="text-sm text-destructive">{errors.imageAlt}</p>
                 )}
               </div>
             </fieldset>

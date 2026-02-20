@@ -140,7 +140,7 @@ function DiscussionItem({
                   </Button>
                 </div>
                 {editError && (
-                  <p className="text-sm text-destructive" role="alert">{editError}</p>
+                  <p className="text-sm text-destructive">{editError}</p>
                 )}
               </div>
             ) : (
@@ -396,9 +396,9 @@ export function DiscussionSection({
         </Card>
       )}
 
-      <div className="space-y-4" aria-live="polite">
+      <div className="space-y-4">
         {topLevelDiscussions.length === 0 ? (
-          <Card className="p-8 text-center" role="status">
+          <Card className="p-8 text-center">
             <p className="text-muted-foreground">
               No discussions yet. Start the conversation!
             </p>

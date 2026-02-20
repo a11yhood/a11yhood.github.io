@@ -77,8 +77,6 @@ export function EditCollectionDialog({
           {errors.length > 0 && (
             <div
               ref={errorSummaryRef}
-              role="alert"
-              aria-live="assertive"
               tabIndex={-1}
               className="border border-destructive/40 bg-destructive/5 text-destructive rounded-md p-4 space-y-2 mb-4"
             >
@@ -117,7 +115,7 @@ export function EditCollectionDialog({
                 aria-describedby={errors.some((e) => e.id === 'edit-collection-name') ? 'edit-collection-name-error' : undefined}
               />
               {errors.find((e) => e.id === 'edit-collection-name') && (
-                <p id="edit-collection-name-error" className="text-sm text-destructive" role="alert">
+                <p id="edit-collection-name-error" className="text-sm text-destructive">
                   Collection name is required.
                 </p>
               )}
