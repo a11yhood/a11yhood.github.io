@@ -1,3 +1,1 @@
 gem 'github-pages'
-
-
