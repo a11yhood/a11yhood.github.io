@@ -28,12 +28,11 @@ depends-on = ["install-gems"]
 [dependencies]
 ruby = ">=3.4.8,<4"
 make = ">=4.4.1,<5"
-clangxx = ">=21.1.8,<22"
 c-compiler = ">=1.0.0,<2"
 cxx-compiler = ">=1.0.0,<2"
 
-[target.linux-64.dependencies]
-gxx_linux-64 = ">=11.4.0,<12"
+# [target.linux-64.dependencies]
+# gxx_linux-64 = ">=11.4.0,<12"
 
-[target.osx-arm64.dependencies]
-gcc = ">=15.2.0,<15.3"
+# [target.osx-arm64.dependencies]
+# gcc = ">=15.2.0,<15.3"
