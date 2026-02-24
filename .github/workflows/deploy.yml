@@ -32,6 +32,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - run: npm install rollup-linux-x64-gnu
       - name: Install dependencies
         run: npm ci
 
