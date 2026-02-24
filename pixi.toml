@@ -33,5 +33,5 @@ clangxx = ">=21.1.8,<22"
 [target.linux-64.dependencies]
 gxx_linux-64 = ">=11.4.0,<12"
 
-[target.mac-arm64.dependencies]
+[target.osx-arm64.dependencies]
 gcc = ">=15.2.0,<15.3"
