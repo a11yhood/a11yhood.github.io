@@ -2575,7 +2575,7 @@ function App() {
                     setInitialCollectionDescription(defaults.description ?? '')
                     setInitialCollectionProductSlugs(defaults.productSlugs ?? [])
                     setInitialCollectionIsPublic(defaults.isPublic ?? true)
-                    setShowCreateCollectionDialog(true)
+                    setShowCreateCollectionFromSearchDialog(true)
                   }}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
@@ -2714,6 +2714,9 @@ function App() {
                 open={showCreateCollectionFromSearchDialog}
                 onOpenChange={setShowCreateCollectionFromSearchDialog}
                 onCreateCollection={handleCreateCollectionFromSearch}
+                initialName={initialCollectionName}
+                initialDescription={initialCollectionDescription}
+                initialIsPublic={initialCollectionIsPublic}
                 title="Save Search Results as Collection"
                 description="Create a new collection from your current search and filter results"
                 username={user.username}
