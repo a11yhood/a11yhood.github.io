@@ -32,11 +32,10 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build:ghpages
 
-
       - uses: actions/upload-artifact@v4
         with:
           name: vite-site-${{ github.event.number }}
-          path: site/
+          path: dist/
 
   deploy-preview:
     needs: build
@@ -50,6 +49,7 @@ jobs:
         with:
           name: vite-site-${{ github.event.number }}
           path: draft/${{ github.event.number }}/
+      - run: mv draft/${{ github.event.number }}/dist draft/${{ github.event.number }}/html
       - name: Commit and push preview
         run: |
           git config user.name "github-actions[bot]"
