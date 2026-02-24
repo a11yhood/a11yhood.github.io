@@ -22,7 +22,7 @@ depends-on = ["install-gems"]
 [tasks.build]
 description = "build the website for production"
 cmd = ".pixi/envs/{{ pixi.environment.name }}/bin/bundle exec jekyll build"
-depends-on = ["install-gems"]
+depends-on = ["install-pages"]
 # outputs = ["_site/**/*"]
 
 [dependencies]
