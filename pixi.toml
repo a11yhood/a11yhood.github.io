@@ -2,7 +2,7 @@
 authors = ["tonyfast <tony.fast@uw.edu>"]
 channels = ["conda-forge"]
 name = "a11yhood.github.io"
-platforms = ["osx-arm64"]
+platforms = ["osx-arm64", "linux-64"]
 version = "0.1.0"
 
 [tasks.install-gems]
