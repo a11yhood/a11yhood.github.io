@@ -49,6 +49,7 @@ jobs:
         with:
           name: vite-site-${{ github.event.number }}
           path: draft/${{ github.event.number }}/
+      - run: ls -lathr draft/${{ github.event.number }}/    
       - run: mv draft/${{ github.event.number }}/dist draft/${{ github.event.number }}/html
       - name: Commit and push preview
         run: |
