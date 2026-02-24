@@ -1,7 +1,13 @@
 #!/bin/bash
 # Start local development frontend for a11yhood
 # This script starts the frontend in dev mode (port 5173)
-# Backend must be running separately on port 8001
+# Uses Vite's dev server with built-in proxy support
+# Backend must be running separately on port 8000 (test database)
+# 
+# Environment: DEVELOPMENT with local test database
+# Frontend Port: 5173 (http://localhost:5173 or https://localhost:5173)
+# Backend Port: 8000 (HTTP - test backend with local DB)
+# API requests: Proxied through Vite dev server (no CORS issues)
 # 
 # Usage:
 #   ./start-dev.sh              # Normal start
@@ -41,23 +47,30 @@ done
 if [ "$HELP" = true ]; then
   echo "Usage: ./start-dev.sh [OPTIONS]"
   echo ""
-  echo "Starts local development frontend (backend must be running separately on port 8000)"
+  echo "Starts local development frontend with hot reload (port 5173)"
+  echo ""
+  echo "ENVIRONMENT: Development Testing"
+  echo "  Backend: http://localhost:8000 (test backend + local test database)"
+  echo "  Database: Local test database (not Supabase)"
+  echo "  Use Case: Development and testing with instant hot reload"
   echo ""
   echo "Prerequisites:"
-  echo "  - Backend server running on port 8000"
+  echo "  - Backend server running on port 8000 with test database configured"
   echo "  - .env.local configured with development settings"
   echo ""
   echo "Options:"
   echo "  --help       Show this help message"
   echo ""
   echo "The frontend will run in dev mode with hot reload on port 5173"
+  echo "API requests are proxied through Vite dev server (no CORS issues)"
   exit 0
 fi
 
 # Don't exit on error, handle errors gracefully
 set +e
 
-echo -e "${BLUE}🚀 Starting a11yhood local development frontend...${NC} (t=0s)"
+echo -e "${BLUE}🚀 Starting a11yhood DEVELOPMENT frontend...${NC} (t=0s)"
+echo -e "${YELLOW}📊 Using TEST DATABASE (local, not Supabase)${NC}"
 echo ""
 
 # Kill any existing frontend processes
@@ -70,8 +83,8 @@ sleep 2
 echo -e "${BLUE}🔍 Checking backend server (port 8000)...${NC} (t=$(ts))"
 if ! curl -s http://localhost:8000/health > /dev/null 2>&1; then
   echo -e "${RED}✗ Error: Backend server not running on port 8000${NC}"
-  echo "   Please ensure the dev backend is running at http://localhost:8000"
-  echo "   The backend should be started separately"
+  echo "   Please ensure the test backend is running at http://localhost:8000"
+  echo "   The backend should be started separately with test database"
   exit 1
 fi
 echo -e "${GREEN}✓ Backend is ready at port 8000${NC} (t=$(ts))"
