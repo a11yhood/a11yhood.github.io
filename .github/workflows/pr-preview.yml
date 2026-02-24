@@ -14,12 +14,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: prefix-dev/setup-pixi@v0.8.8
-      - name: Build Jekyll site
-        run: pixi run build
+      - name: Build Vite site
+        run: pixi run build-vite
+      - name: Install dependencies
+        run: pixi shell npm ci
+      - name: Run tests
+        env:
+          CI: true
+        run: pixi shell npm run test:run
+      - name: Build for GitHub Pages
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_DEV_MODE: ${{ secrets.VITE_DEV_MODE }}
+          VITE_ENV: ${{ secrets.VITE_ENV }}
+          VITE_LOG_LEVEL: ${{ secrets.VITE_LOG_LEVEL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: pixi shell npm run build:ghpages
+
       - uses: actions/upload-artifact@v4
         with:
-          name: jekyll-site-${{ github.event.number }}
-          path: _site/
+          name: vite-site-${{ github.event.number }}
+          path: dist/
 
   deploy-preview:
     needs: build
@@ -31,7 +47,7 @@ jobs:
           fetch-depth: 1
       - uses: actions/download-artifact@v4
         with:
-          name: jekyll-site-${{ github.event.number }}
+          name: vite-site-${{ github.event.number }}
           path: draft/${{ github.event.number }}/
 
       - name: Commit and push preview
