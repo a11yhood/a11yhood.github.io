@@ -17,11 +17,11 @@ jobs:
       - name: Build Vite site
         run: pixi run build-vite
       - name: Install dependencies
-        run: pixi shell npm ci
+        run: pixi run npm ci
       - name: Run tests
         env:
           CI: true
-        run: pixi shell npm run test:run
+        run: pixi run npm run test:run
       - name: Build for GitHub Pages
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
@@ -30,7 +30,7 @@ jobs:
           VITE_LOG_LEVEL: ${{ secrets.VITE_LOG_LEVEL }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        run: pixi shell npm run build:ghpages
+        run: pixi run npm run build:ghpages
 
       - uses: actions/upload-artifact@v4
         with:
