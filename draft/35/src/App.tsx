@@ -1374,19 +1374,12 @@ function App() {
           setAllProductTypes(loadedTypes)
           setPopularTags(loadedTags)
         } else if (location.pathname === '/') {
-          // On homepage, load initial products with default parameters
-          // The fetchProducts effect will handle any filter changes (including admin's includeBanned)
+          // On homepage, just load blog posts and product samples asynchronously
           setDataLoaded(true)
           setIsSearching(false)
           
           Promise.all([
-            APIService.getAllProducts({ 
-              limit: 50,
-              // Use defaults that match the initial state - fetchProducts will re-fetch if needed
-              includeBanned: false,
-              sortBy: 'created_at',
-              sortOrder: 'desc',
-            }),
+            APIService.getAllProducts({ limit: 50 }),
             APIService.getAllRatings(),
             APIService.getAllBlogPosts(false),
           ])
@@ -1416,20 +1409,24 @@ function App() {
         // First fetch shared metadata (sources/types/tags) so we can fan-out product fetches per source
         // Use Promise.allSettled so that failures in one endpoint don't block others
         const results = await Promise.allSettled([
-          APIService.getProductCount({ includeBanned: false }),
+          APIService.getProductCount({ includeBanned }),
         ])
         
         const totalCount = results[0].status === 'fulfilled' ? results[0].value : 0
 
-        // Fetch first page of products with default filters
-        // The fetchProducts effect will handle applying actual current filter values
-        const offset = 0 // page 1
+        // Fetch first page of products with pagination
+        const offset = (1 - 1) * pageSize // page 1, so offset = 0
         const loadedProducts = await APIService.getAllProducts({ 
-          includeBanned: false,
+          includeBanned,
           limit: pageSize,
           offset,
-          sortBy: 'created_at',
-          sortOrder: 'desc',
+          sortBy,
+          sortOrder,
+          search: searchQuery,
+          types: selectedTypes,
+          sources: selectedSources,
+          tags: selectedTags,
+          minRating,
         })
         
         console.log('[App] Data loaded:', {
@@ -1466,7 +1463,7 @@ function App() {
     }
     
     loadData()
-  }, [location.pathname])
+  }, [location.pathname, searchQuery, selectedTypes, selectedSources, selectedTags, minRating, sortBy, sortOrder, includeBanned, pageSize])
 
   // Use AuthContext (supports both dev mode and production)
   const { user: authUser, loading: authLoading, getAccessToken, signIn, signOut } = useAuth()
