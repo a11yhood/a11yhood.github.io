@@ -30,7 +30,8 @@ jobs:
           VITE_LOG_LEVEL: ${{ secrets.VITE_LOG_LEVEL }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        run: npm run build:ghpages
+          VITE_BASE_URL: /draft/${{ github.event.number }}/
+        run: npx vite build
 
       - uses: actions/upload-artifact@v4
         with:
