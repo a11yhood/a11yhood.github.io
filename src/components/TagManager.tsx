@@ -59,9 +59,20 @@ export function TagManager({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (tagInput.trim()) {
-      handleAddTag(tagInput)
+    if (!tagInput.trim()) return
+    const newTags = tagInput
+      .split(',')
+      .map((t) => t.trim().toLowerCase())
+      .filter((t, i, arr) => t && arr.indexOf(t) === i && !currentTags.some((c) => c.toLowerCase() === t))
+    if (newTags.length === 0) {
+      toast.error('No new tags to add')
+      return
     }
+    newTags.forEach((tag) => onAddTag(tag))
+    setTagInput('')
+    setSuggestions([])
+    setIsAdding(false)
+    toast.success(newTags.length === 1 ? 'Tag added successfully' : `${newTags.length} tags added successfully`)
   }
 
   return (
@@ -92,7 +103,7 @@ export function TagManager({
               <div className="space-y-2">
                 <Input
                   id="tag-input"
-                  placeholder="Enter tag name..."
+                  placeholder="Enter tag name(s), comma-separated..."
                   value={tagInput}
                   onChange={(e) => handleInputChange(e.target.value)}
                   autoFocus

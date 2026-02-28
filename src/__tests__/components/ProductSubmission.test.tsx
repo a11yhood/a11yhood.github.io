@@ -935,5 +935,110 @@ describe('ProductSubmission', () => {
     })
   })
 
+  describe('Tag Entry', () => {
+    async function openFormWithUrl(url = 'https://example.com/tag-test') {
+      fireEvent.click(screen.getByText('Submit Product'))
+      await waitFor(() => {
+        expect(screen.getByLabelText('Product URL')).toBeInTheDocument()
+      })
+      const urlInput = screen.getByLabelText('Product URL')
+      fireEvent.change(urlInput, { target: { value: url } })
+      fireEvent.click(screen.getByRole('button', { name: /Check/i }))
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Product Name/i)).toBeInTheDocument()
+      })
+    }
+
+    it('should add a single tag when Enter is pressed', async () => {
+      render(
+        <ProductSubmission
+          user={mockUser}
+          onSubmit={mockOnSubmit}
+          onRequestOwnership={mockOnRequestOwnership}
+        />
+      )
+      await openFormWithUrl()
+
+      const tagInput = screen.getByPlaceholderText(/Add tags/i)
+      fireEvent.change(tagInput, { target: { value: 'grip' } })
+      fireEvent.keyDown(tagInput, { key: 'Enter' })
+
+      await waitFor(() => {
+        expect(screen.getByText('grip')).toBeInTheDocument()
+      })
+    })
+
+    it('should add multiple comma-separated tags at once', async () => {
+      render(
+        <ProductSubmission
+          user={mockUser}
+          onSubmit={mockOnSubmit}
+          onRequestOwnership={mockOnRequestOwnership}
+        />
+      )
+      await openFormWithUrl()
+
+      const tagInput = screen.getByPlaceholderText(/Add tags/i)
+      fireEvent.change(tagInput, { target: { value: 'grip, eating utensils, dexterity' } })
+      fireEvent.keyDown(tagInput, { key: 'Enter' })
+
+      await waitFor(() => {
+        expect(screen.getByText('grip')).toBeInTheDocument()
+        expect(screen.getByText('eating utensils')).toBeInTheDocument()
+        expect(screen.getByText('dexterity')).toBeInTheDocument()
+      })
+    })
+
+    it('should add comma-separated tags when Add button is clicked', async () => {
+      render(
+        <ProductSubmission
+          user={mockUser}
+          onSubmit={mockOnSubmit}
+          onRequestOwnership={mockOnRequestOwnership}
+        />
+      )
+      await openFormWithUrl()
+
+      const tagInput = screen.getByPlaceholderText(/Add tags/i)
+      fireEvent.change(tagInput, { target: { value: 'rubber tubing, forks' } })
+      fireEvent.click(screen.getByRole('button', { name: /^Add$/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText('rubber tubing')).toBeInTheDocument()
+        expect(screen.getByText('forks')).toBeInTheDocument()
+      })
+    })
+
+    it('should not add duplicate tags from comma-separated input', async () => {
+      render(
+        <ProductSubmission
+          user={mockUser}
+          onSubmit={mockOnSubmit}
+          onRequestOwnership={mockOnRequestOwnership}
+        />
+      )
+      await openFormWithUrl()
+
+      const tagInput = screen.getByPlaceholderText(/Add tags/i)
+
+      // Add "grip" once
+      fireEvent.change(tagInput, { target: { value: 'grip' } })
+      fireEvent.keyDown(tagInput, { key: 'Enter' })
+      await waitFor(() => {
+        expect(screen.getByText('grip')).toBeInTheDocument()
+      })
+
+      // Try to add "grip" again — it should be skipped (already in list)
+      fireEvent.change(tagInput, { target: { value: 'grip' } })
+      fireEvent.keyDown(tagInput, { key: 'Enter' })
+
+      // Still only one "Remove grip tag" button should exist
+      await waitFor(() => {
+        const removeButtons = screen.getAllByRole('button', { name: /Remove grip tag/i })
+        expect(removeButtons).toHaveLength(1)
+      })
+    })
+  })
+
   // Additional URLs during submission removed: tests deleted
 })
