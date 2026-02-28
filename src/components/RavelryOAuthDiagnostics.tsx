@@ -79,7 +79,7 @@ export function RavelryOAuthDiagnostics() {
 
   const handleTestCallback = async () => {
     try {
-      toast.info('Testing OAuth callback detection...', { duration: 2000 })
+      toast.info('Testing OAuth callback detection...')
       
       const testCode = 'test-authorization-code-' + Date.now()
       const testUrl = `${window.location.origin}/admin?code=${testCode}`
