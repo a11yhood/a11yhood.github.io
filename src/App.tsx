@@ -2154,12 +2154,12 @@ function App() {
     }
   }
 
-  const handleAddTag = async (productSlug: string, tag: string) => {
+  const handleAddTag = async (productIdOrSlug: string, tag: string) => {
     if (!user) return
 
     try {
       const normalizedTag = tag.trim().toLowerCase()
-      const product = products?.find(p => p.slug === productSlug)
+      const product = products?.find(p => p.id === productIdOrSlug || p.slug === productIdOrSlug)
       
       if (!product) return
       
@@ -2169,7 +2169,7 @@ function App() {
       }
       
       const updatedProduct = await APIService.updateProduct(
-        productSlug,
+        productIdOrSlug,
         { tags: [...product.tags, normalizedTag] },
         user.id
       )
@@ -2177,7 +2177,7 @@ function App() {
       if (updatedProduct) {
         setProducts((currentProducts) => {
           const current = currentProducts || []
-          return current.map((p) => p.id === productSlug ? updatedProduct : p)
+          return current.map((p) => p.id === productIdOrSlug ? updatedProduct : p)
         })
         
         if (user?.id && product.id) {
@@ -2313,7 +2313,7 @@ function App() {
 
   const handleEditProduct = async (updatedProduct: Product) => {
     try {
-      await APIService.updateProduct(updatedProduct.slug, updatedProduct, user?.username)
+      await APIService.updateProduct(updatedProduct.id, updatedProduct, user?.username)
       
       setProducts((currentProducts) =>
         (currentProducts || []).map(p =>
