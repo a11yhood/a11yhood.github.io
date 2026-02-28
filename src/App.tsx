@@ -1738,7 +1738,7 @@ function App() {
         while (retries < maxRetries) {
           try {
             account = await APIService.createOrUpdateUserAccount(
-              usernameToCreate,
+              authUser.id,
               usernameToCreate,
               undefined, // avatar from auth not guaranteed
               authUser.email
@@ -2392,6 +2392,10 @@ function App() {
   const handleCreateCollection = async (collectionData: CollectionCreateInput) => {
     try {
       const { productSlugs = [], ...rest } = collectionData
+      console.debug('[CreateCollection] Payload being sent:', {
+        ...rest,
+        productSlugs,
+      })
       const newCollection = await APIService.createCollection({
         ...rest,
         productSlugs: [], // Create with empty array, then add products
@@ -2412,7 +2416,7 @@ function App() {
 
   const handleCreateCollectionFromSearch = async (collectionData: CollectionCreateInput) => {
     try {
-      const newCollection = await APIService.createCollectionFromSearch({
+      const payload: any = {
         name: collectionData.name,
         description: collectionData.description,
         isPublic: collectionData.isPublic,
@@ -2421,14 +2425,27 @@ function App() {
         types: selectedTypes.length > 0 ? selectedTypes : undefined,
         tags: selectedTags.length > 0 ? selectedTags : undefined,
         minRating: minRating > 0 ? minRating : undefined,
-        createdBy: collectionData.username,
-      })
+      }
+      // Only include tagsMode if tags are actually present
+      if (selectedTags.length > 0) {
+        payload.tagsMode = 'or'
+      }
+      console.debug('[CreateCollectionFromSearch] Payload being sent:', payload)
+      const newCollection = await APIService.createCollectionFromSearch(payload)
       setCollections((current) => [newCollection, ...current])
       setShowCreateCollectionFromSearchDialog(false)
       toast.success('Collection created from search results!')
-    } catch (error) {
-      console.error('Failed to create collection from search:', error)
-      toast.error('Failed to create collection from search')
+    } catch (error: any) {
+      console.error('[CreateCollectionFromSearch] Error response:', {
+        message: error.message,
+        status: error.status,
+        detail: error.data?.detail,
+        type: error.data?.type,
+        debugInfo: error.data?.debug_info,
+        fullData: error.data
+      })
+      const errorDetail = error.data?.detail || error.message || 'Failed to create collection from search'
+      toast.error(errorDetail)
     }
   }
 
