@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { PencilSimple } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import {
@@ -39,6 +39,14 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
   const [tagInput, setTagInput] = useState('')
   const [errors, setErrors] = useState<{ id: string; message: string }[]>([])
   const errorSummaryRef = useRef<HTMLDivElement>(null)
+
+  // Sync product data into formData when dialog opens or product changes
+  useEffect(() => {
+    if (open) {
+      setFormData(product)
+      setTagInput('')
+    }
+  }, [open, product])
 
   const isEditor = userAccount?.id && product.editorIds?.includes(userAccount.id)
   const canEdit = userAccount?.role === 'admin' || userAccount?.role === 'moderator' || !!isEditor
