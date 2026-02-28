@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { StarRating } from './StarRating'
-import { Product, Rating, UserData, UserAccount } from '@/lib/types'
+import { Product, Rating, UserData, UserAccount, Collection } from '@/lib/types'
 import { cn, formatSourceLabel, getSourceIcon, calculateAverageRating, formatRelativeTime } from '@/lib/utils'
 import { Trash, ArrowUpRight, Prohibit, CheckCircle } from '@phosphor-icons/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -34,6 +34,7 @@ import MarkdownText from '@/components/ui/MarkdownText'
 type ProductCardProps = {
   product: Product
   ratings: Rating[]
+  collections?: Collection[]
   href?: string
   onNavigate?: () => void
   onClick?: () => void
@@ -46,13 +47,17 @@ type ProductCardProps = {
   onToggleBan?: () => void
 }
 
-export const ProductCard = memo(function ProductCard({ product, ratings, href, onNavigate, onClick, onDelete, user, onRate, userAccount, showBannedBadge, canModerate, onToggleBan }: ProductCardProps) {
+export const ProductCard = memo(function ProductCard({ product, ratings, collections, href, onNavigate, onClick, onDelete, user, onRate, userAccount, showBannedBadge, canModerate, onToggleBan }: ProductCardProps) {
   const [imageError, setImageError] = useState(false)
   // Only filter and compute ratings for this specific product to avoid unnecessary work
   const productRatings = useMemo(() => ratings.filter((r) => r.productId === product.id), [ratings, product.id])
   const averageRating = useMemo(() => calculateAverageRating(product.sourceRating, productRatings, product.id), [product.sourceRating, productRatings, product.id])
   const displayRating = Number.isFinite(averageRating) ? averageRating : 0
   const userRating = useMemo(() => user ? productRatings.find((r) => r.userId === user.id)?.rating : undefined, [user, productRatings])
+  const productCollections = useMemo(
+    () => collections ? collections.filter((c) => product.slug && (c.productSlugs ?? []).includes(product.slug)) : [],
+    [collections, product.slug]
+  )
 
   // Support both snake_case and camelCase from API
   const updatedTs = (product as any).source_last_updated ?? (product as any).sourceLastUpdated
@@ -288,6 +293,25 @@ export const ProductCard = memo(function ProductCard({ product, ratings, href, o
               </div>
             </div>
           )}
+
+          {productCollections.length > 0 && (
+            <div className="pt-2 border-t border-border">
+              <p className="text-xs text-muted-foreground mb-1">In collections:</p>
+              <ul className="flex flex-wrap gap-1">
+                {productCollections.map((c) => (
+                  <li key={c.id}>
+                    <a
+                      href={`/collections/${c.slug || c.id}`}
+                      className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded-sm hover:bg-secondary/80 transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {c.name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </Card>
@@ -307,6 +331,9 @@ export const ProductCard = memo(function ProductCard({ product, ratings, href, o
   const prevProductRatings = prevProps.ratings.filter(r => r.productId === prevProps.product.id)
   const nextProductRatings = nextProps.ratings.filter(r => r.productId === nextProps.product.id)
   if (prevProductRatings.length !== nextProductRatings.length) return false
+
+  // Compare collections containing this product
+  if (prevProps.collections !== nextProps.collections) return false
   
   // If all checks pass, skip re-render
   return true

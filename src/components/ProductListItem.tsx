@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from 'react'
 import { StarRating } from './StarRating'
-import { Product, Rating, UserData } from '@/lib/types'
+import { Product, Rating, UserData, Collection } from '@/lib/types'
 import { cn, formatSourceLabel, getSourceIcon, calculateAverageRating, formatRelativeTime } from '@/lib/utils'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +11,7 @@ import { Prohibit, Trash } from '@phosphor-icons/react'
 type ProductListItemProps = {
   product: Product
   ratings: Rating[]
+  collections?: Collection[]
   href?: string
   onNavigate?: () => void
   user?: UserData | null
@@ -21,11 +22,15 @@ type ProductListItemProps = {
   onDelete?: (productId: string) => void
 }
 
-export const ProductListItem = memo(function ProductListItem({ product, ratings, href, onNavigate, user, onRate, showBannedBadge, canModerate, onToggleBan, onDelete }: ProductListItemProps) {
+export const ProductListItem = memo(function ProductListItem({ product, ratings, collections, href, onNavigate, user, onRate, showBannedBadge, canModerate, onToggleBan, onDelete }: ProductListItemProps) {
   const [imageError, setImageError] = useState(false)
   const productRatings = useMemo(() => ratings.filter((r) => r.productId === product.id), [ratings, product.id])
   const averageRating = useMemo(() => calculateAverageRating(product.sourceRating, productRatings, product.id), [product.sourceRating, productRatings, product.id])
   const userRating = useMemo(() => user ? productRatings.find((r) => r.userId === user.id)?.rating : undefined, [user, productRatings])
+  const productCollections = useMemo(
+    () => collections ? collections.filter((c) => product.slug && (c.productSlugs ?? []).includes(product.slug)) : [],
+    [collections, product.slug]
+  )
 
   const handleRate = (rating: number) => {
     if (onRate) {
@@ -227,6 +232,25 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
             </Button>
           )}
         </div>
+
+        {productCollections.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs text-muted-foreground">In collections:</span>
+            <ul className="flex flex-wrap gap-1">
+              {productCollections.map((c) => (
+                <li key={c.id}>
+                  <a
+                    href={`/collections/${c.slug || c.id}`}
+                    className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded-sm hover:bg-secondary/80 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {c.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -242,6 +266,9 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
   const prevProductRatings = prevProps.ratings.filter(r => r.productId === prevProps.product.id)
   const nextProductRatings = nextProps.ratings.filter(r => r.productId === nextProps.product.id)
   if (prevProductRatings.length !== nextProductRatings.length) return false
+
+  // Compare collections containing this product
+  if (prevProps.collections !== nextProps.collections) return false
   
   // If all checks pass, skip re-render
   return true

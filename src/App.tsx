@@ -455,6 +455,7 @@ export function ProductListPage({
                   key={product.id}
                   product={product}
                   ratings={ratings}
+                  collections={collections}
                   href={`/product/${product.slug ?? product.id}`}
                   onNavigate={() => navigate(`/product/${product.slug ?? product.id}`)}
                   user={user}
@@ -473,6 +474,7 @@ export function ProductListPage({
                   key={product.id}
                   product={product}
                   ratings={ratings}
+                  collections={collections}
                   href={`/product/${product.slug ?? product.id}`}
                   onNavigate={() => navigate(`/product/${product.slug ?? product.id}`)}
                   onDelete={onDeleteProduct}

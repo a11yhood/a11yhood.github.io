@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Link as LinkIcon, Trash, FolderOpen, Plus, Prohibit, CheckCircle } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -69,6 +70,7 @@ export function ProductDetail({
   autoOpenEdit,
   autoOpenOwnershipRequest,
 }: ProductDetailProps) {
+  const navigate = useNavigate()
   const [imageError, setImageError] = useState(false)
   const shouldShowImage = !!product.imageUrl && !imageError
   const canModerate = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
@@ -346,6 +348,30 @@ export function ProductDetail({
           </CollapsibleCard>
         </div>
       </div>
+
+      {userCollections.length > 0 && (() => {
+        const productCollections = userCollections.filter(
+          (c) => product.slug && (c.productSlugs ?? []).includes(product.slug)
+        )
+        return productCollections.length > 0 ? (
+          <CollapsibleCard title={`In Collections (${productCollections.length})`} defaultOpen>
+            <ul className="space-y-2">
+              {productCollections.map((collection) => (
+                <li key={collection.id}>
+                  <a
+                    href={`/collections/${collection.slug || collection.id}`}
+                    className="flex items-center gap-2 text-sm text-primary hover:underline"
+                    onClick={(e) => { e.preventDefault(); navigate(`/collections/${collection.slug || collection.id}`) }}
+                  >
+                    <FolderOpen size={14} />
+                    {collection.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </CollapsibleCard>
+        ) : null
+      })()}
 
       {user && onAddToCollection && onRemoveFromCollection && (
         <AddToCollectionDialog
