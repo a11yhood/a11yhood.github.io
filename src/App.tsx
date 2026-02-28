@@ -881,7 +881,7 @@ function BlogPostPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userA
   )
 }
 
-function CollectionsPage({ 
+export function CollectionsPage({ 
   collections, 
   products, 
   user,
@@ -916,7 +916,7 @@ function CollectionsPage({
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-3xl font-bold">My Collections</h1>
         <div className="flex items-center gap-2">
-          <Button onClick={onCreateCollection}>Create Collection</Button>
+          {user && <Button onClick={onCreateCollection}>Create Collection</Button>}
           <Button variant="ghost" onClick={() => navigate('/')}>
             ← Back to Products
           </Button>
