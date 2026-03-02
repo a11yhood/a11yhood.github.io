@@ -100,17 +100,26 @@ class APIError extends Error {
 async function handleResponse<T>(response: Response): Promise<T> {
   const isCountRequest = response.url.includes('/products/count')
   const isDeleteRequest = response.url.includes('/disconnect') || response.url.includes('/delete')
+  const contentType = response.headers.get('content-type') || ''
   
   console.log('[API.handleResponse] Processing response:', {
     url: response.url,
     status: response.status,
     statusText: response.statusText,
     ok: response.ok,
-    contentType: response.headers.get('content-type'),
+    contentType,
   })
   
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: response.statusText }))
+    let errorData: any = { message: response.statusText }
+
+    if (contentType.includes('application/json')) {
+      errorData = await response.json().catch(() => ({ message: response.statusText }))
+    } else {
+      const errorText = await response.text().catch(() => '')
+      errorData = { message: errorText?.trim() || response.statusText }
+    }
+
     // FastAPI returns errors with 'detail' field, fallback to 'message' for other APIs
     const errorMessage = errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`
     console.error('[API.handleResponse] Error response:', {
@@ -185,6 +194,7 @@ async function request<T>(
 
   // Convert body to snake_case if present
   const processedOptions = { ...options }
+  let payloadPreview: string | null = null
   if (processedOptions.body && typeof processedOptions.body === 'string') {
     try {
       const bodyObj = JSON.parse(processedOptions.body)
@@ -192,8 +202,28 @@ async function request<T>(
       console.debug('[API] Body conversion - camelCase:', bodyObj)
       console.debug('[API] Body conversion - snake_case:', snakeCaseBody)
       processedOptions.body = JSON.stringify(snakeCaseBody)
+      payloadPreview = processedOptions.body
     } catch {
       // If body is not JSON, leave it as is
+      payloadPreview = String(processedOptions.body)
+    }
+  }
+
+  // Log the final request payload
+  if (processedOptions.body) {
+    try {
+      const parsedBody = JSON.parse(processedOptions.body)
+      console.debug(`[API] ${endpoint} - Final JSON being sent:`, parsedBody)
+      const method = (options.method || 'GET').toUpperCase()
+      if (endpoint.startsWith('/collections') && (method === 'POST' || method === 'PUT')) {
+        console.info(`[API] ${method} ${endpoint} payload: ${JSON.stringify(parsedBody)}`)
+      }
+    } catch {
+      console.debug(`[API] ${endpoint} - Final payload being sent:`, processedOptions.body)
+      const method = (options.method || 'GET').toUpperCase()
+      if (endpoint.startsWith('/collections') && (method === 'POST' || method === 'PUT')) {
+        console.info(`[API] ${method} ${endpoint} payload: ${String(processedOptions.body)}`)
+      }
     }
   }
 
@@ -211,7 +241,10 @@ async function request<T>(
   
   const endTime = performance.now()
   const duration = endTime - startTime
-  console.info(`[API] ${options.method || 'GET'} ${endpoint}: ${duration.toFixed(1)}ms`)
+  const method = (options.method || 'GET').toUpperCase()
+  const includePayload = !!payloadPreview && (method === 'POST' || method === 'PUT' || method === 'PATCH')
+  const payloadSuffix = includePayload ? ` payload=${payloadPreview}` : ''
+  console.info(`[API] ${method} ${endpoint}: ${duration.toFixed(1)}ms${payloadSuffix}`)
   
   return result
 }
@@ -254,14 +287,14 @@ export class APIService {
   }
 
   static async createOrUpdateUserAccount(
+    userId: string,
     username: string,
-    login: string,
-    avatarUrl: string,
+    avatarUrl?: string,
     email?: string
   ): Promise<UserAccount> {
-    return request<UserAccount>(`/users/${encodeURIComponent(username)}` , {
+    return request<UserAccount>(`/users/${encodeURIComponent(userId)}` , {
       method: 'PUT',
-      body: JSON.stringify({ username: login, avatarUrl, email }),
+      body: JSON.stringify({ username, avatarUrl, email }),
     })
   }
 
@@ -995,8 +1028,8 @@ export class APIService {
       sources?: string[]
       types?: string[]
       tags?: string[]
+      tagsMode?: string
       minRating?: number
-      createdBy?: string
     }
   ): Promise<Collection> {
     return request<Collection>('/collections/from-search', {
