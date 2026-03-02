@@ -10,6 +10,7 @@
  * product-specific ratings change.
  */
 import { memo, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -192,8 +193,8 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
           />
 
           <h4 className="sr-only">Tags</h4>
-	  <ul>
-          {product.tags && product.tags.length > 0 && (
+	  {product.tags && product.tags.length > 0 && (
+	  <ul className="flex flex-wrap gap-2">
             <li className="flex flex-wrap gap-2">
               {Array.from(new Set(product.tags)).slice(0, 10).map((tag) => (
                 <Badge key={tag} variant="secondary" className="text-xs">
@@ -204,8 +205,8 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
                 <span className="text-xs text-muted-foreground">...</span>
               )}
             </li>
-          )}
 	  </ul>
+	  )}
 	  
           {productCollections.length > 0 && (
             <>
@@ -216,14 +217,14 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
               <ul className="flex flex-wrap gap-2 -mt-1">
                 {productCollections.map((c) => (
                   <li key={c.id}>
-                    <a
-                      href={`/collections/${c.slug || c.id}`}
+                    <Link
+                      to={`/collections/${c.slug || c.id}`}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
                         {c.name}
                       </Badge>
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>

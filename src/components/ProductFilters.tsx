@@ -87,10 +87,6 @@ export function ProductFilters({
     ? safeTags.filter(tag => tag.toLowerCase().includes(tagSearch.toLowerCase()))
     : safeTags.slice(0, 20)
 
-  if (tagSearch) {
-    console.log('[ProductFilters] Tag search:', tagSearch, 'found:', filteredTags.length, 'matching tags:', filteredTags.slice(0, 10))
-  }
-
   return (
     <Card className="p-4 lg:p-6 sticky top-6 max-h-[calc(100vh-120px)] overflow-y-auto lg:max-h-none" role="search">
       <div aria-live="polite" aria-atomic="true" className="sr-only">

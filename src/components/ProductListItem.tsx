@@ -1,4 +1,5 @@
 import { memo, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { StarRating } from './StarRating'
 import { Product, Rating, UserData, Collection } from '@/lib/types'
 import { cn, formatSourceLabel, getSourceIcon, calculateAverageRating, formatRelativeTime } from '@/lib/utils'
@@ -41,7 +42,8 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (onDelete) {
-      onDelete(product.id)
+      const targetId = product.slug || product.id
+      onDelete(targetId)
     }
   }
 
@@ -242,14 +244,14 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
             <ul className="flex flex-wrap gap-1">
               {productCollections.map((c) => (
                 <li key={c.id}>
-                  <a
-                    href={`/collections/${c.slug || c.id}`}
+                  <Link
+                    to={`/collections/${c.slug || c.id}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
                       {c.name}
                     </Badge>
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
