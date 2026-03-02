@@ -54,7 +54,7 @@ export function GitHubSettings({ onAuthComplete, products = [], onProductsUpdate
   const handleRunGitHubScraper = async () => {
     setIsScrapingAfterAuth(true)
     try {
-      toast.info('Starting GitHub scraper...', { duration: 2000 })
+      toast.info('Starting GitHub scraper...')
       
       // Call backend API to trigger scraper
       await APIService.triggerScraper('github', false)
@@ -134,7 +134,7 @@ export function GitHubSettings({ onAuthComplete, products = [], onProductsUpdate
       setShowSetupForm(false)
       setAccessToken('')
       setAppNameInput('')
-      toast.success('Personal Access Token saved successfully!', { duration: 5000 })
+      toast.success('Personal Access Token saved successfully!')
     } catch (error) {
       console.error('[GitHub] ✗ Save credentials error:', error)
       if (error instanceof Error) {
