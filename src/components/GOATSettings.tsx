@@ -53,7 +53,7 @@ export function GOATSettings({ onAuthComplete, products = [], onProductsUpdate }
   const handleRunGOATScraper = async () => {
     setIsScrapingAfterAuth(true)
     try {
-      toast.info('Starting GOAT scraper...', { duration: 2000 })
+      toast.info('Starting GOAT scraper...')
       
       await APIService.triggerScraper('goat', false)
       
@@ -129,7 +129,7 @@ export function GOATSettings({ onAuthComplete, products = [], onProductsUpdate }
       setShowSetupForm(false)
       setAccessToken('')
       setAppNameInput('')
-      toast.success('Access Token saved successfully!', { duration: 5000 })
+      toast.success('Access Token saved successfully!')
     } catch (error) {
       console.error('[GOAT] ✗ Save credentials error:', error)
       if (error instanceof Error) {

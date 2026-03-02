@@ -189,3 +189,21 @@ export type UserRequest = {
   reviewerNote?: string
   productId?: string
 }
+
+export type SupportedSource = {
+  id: string
+  domain: string
+  name: string
+  description?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type ScraperJob = {
+  id: string
+  name: string
+  source: string
+  nextRunTime?: string
+  lastRunTime?: string
+  status?: string
+}

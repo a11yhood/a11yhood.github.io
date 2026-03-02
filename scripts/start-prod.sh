@@ -88,8 +88,8 @@ set -a
 [ -f .env.production.local ] && source .env.production.local
 set +a
 
-# Get backend URL from VITE_API_URL or default to localhost:8001
-BACKEND_URL="${VITE_API_URL:-https://localhost:8001}"
+# Get backend URL from VITE_BACKEND_URL, fallback to VITE_API_URL or default to localhost:8001
+BACKEND_URL="${VITE_BACKEND_URL:-${VITE_API_URL:-http://localhost:8001}}"
 
 # Verify backend is running
 echo -e "${BLUE}🔍 Checking backend server at ${BACKEND_URL}...${NC} (t=$(ts))"
@@ -152,13 +152,14 @@ echo -e "${GREEN}✓ Frontend started (PID: $FRONTEND_PID)${NC} (t=$(ts))"
 # Get frontend URL and port from environment or default
 FRONTEND_PORT="${VITE_FRONTEND_PORT:-4173}"
 FRONTEND_HOST="${VITE_FRONTEND_HOST:-localhost}"
-FRONTEND_URL="http://${FRONTEND_HOST}:${FRONTEND_PORT}"
+FRONTEND_PROTOCOL="${VITE_FRONTEND_PROTOCOL:-https}"
+FRONTEND_URL="${FRONTEND_PROTOCOL}://${FRONTEND_HOST}:${FRONTEND_PORT}"
 
 # Wait for frontend to be ready
 echo -e "${BLUE}⏳ Waiting for frontend to be ready...${NC}"
 RETRIES=0
 MAX_RETRIES=30
-until curl -s ${FRONTEND_URL} > /dev/null 2>&1; do
+until curl -s -k ${FRONTEND_URL} > /dev/null 2>&1; do
   RETRIES=$((RETRIES+1))
   if [ $RETRIES -ge $MAX_RETRIES ]; then
     echo -e "${RED}✗ Frontend failed to start after ${MAX_RETRIES} seconds${NC}"
