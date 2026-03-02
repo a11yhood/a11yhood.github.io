@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { PencilSimple } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import {
@@ -39,6 +39,14 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
   const [tagInput, setTagInput] = useState('')
   const [errors, setErrors] = useState<{ id: string; message: string }[]>([])
   const errorSummaryRef = useRef<HTMLDivElement>(null)
+
+  // Sync product data into formData when dialog opens or product changes
+  useEffect(() => {
+    if (open) {
+      setFormData(product)
+      setTagInput('')
+    }
+  }, [open, product])
 
   const isEditor = userAccount?.id && product.editorIds?.includes(userAccount.id)
   const canEdit = userAccount?.role === 'admin' || userAccount?.role === 'moderator' || !!isEditor
@@ -104,12 +112,20 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
   }
 
   const handleAddTag = () => {
-    const tag = tagInput.trim().toLowerCase()
     const currentTags = formData.tags || []
-    if (tag && !currentTags.includes(tag)) {
+    const seen = new Set(currentTags.map((t) => t.toLowerCase()))
+    const newTags: string[] = []
+    for (const raw of tagInput.split(',')) {
+      const t = raw.trim().toLowerCase()
+      if (t && !seen.has(t)) {
+        seen.add(t)
+        newTags.push(t)
+      }
+    }
+    if (newTags.length > 0) {
       setFormData({
         ...formData,
-        tags: [...currentTags, tag],
+        tags: [...currentTags, ...newTags],
       })
       setTagInput('')
     }
@@ -289,7 +305,7 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Add a tag and press Enter"
+                    placeholder="Add tags (press Enter or use commas)"
                     autoComplete="off"
                   />
                   <Button type="button" variant="secondary" onClick={handleAddTag} disabled={!tagInput.trim()}>

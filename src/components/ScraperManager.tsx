@@ -182,8 +182,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
       toast.info(
         testMode 
           ? `Starting test scrape (5 products)${specificSource ? ` from ${specificSource}` : ''}...` 
-          : specificSource ? `Starting ${specificSource} scraper...` : 'Starting all scrapers...', 
-        { duration: 2000 }
+          : specificSource ? `Starting ${specificSource} scraper...` : 'Starting all scrapers...'
       )
       
       const results = await Promise.all(

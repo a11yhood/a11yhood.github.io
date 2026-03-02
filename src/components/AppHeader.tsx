@@ -64,8 +64,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
           
           if (existingRequest) {
             toast.info(
-              `You already have a pending request for "${domain}". A moderator will review it soon.`,
-              { duration: 5000 }
+              `You already have a pending request for "${domain}". A moderator will review it soon.`
             )
             return
           }
@@ -78,8 +77,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
       // Keep submission dialog open so users see the inline error before requesting a new source
       setRequestSource({ domain, url })
       toast.info(
-        `The domain "${domain}" is not yet in our allowed sources. Would you like to request it?`,
-        { duration: 5000 }
+        `The domain "${domain}" is not yet in our allowed sources. Would you like to request it?`
       )
     }
 
@@ -183,8 +181,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                           const domain = new URL(url).hostname
                           setRequestSourceDomain(domain)
                           toast.info(
-                            `The domain "${domain}" is not yet in our allowed sources. Would you like to request it?`,
-                            { duration: 5000 }
+                            `The domain "${domain}" is not yet in our allowed sources. Would you like to request it?`
                           )
                         } catch {
                           toast.error('Invalid URL format')
