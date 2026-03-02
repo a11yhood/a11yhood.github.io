@@ -72,7 +72,7 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
   const handleRunRavelryScraper = async () => {
     setIsScrapingAfterAuth(true)
     try {
-      toast.info('Starting Ravelry scraper...', { duration: 2000 })
+      toast.info('Starting Ravelry scraper...')
       
       // Call backend API to trigger scraper
       await APIService.triggerScraper('ravelry', false)
@@ -157,7 +157,7 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
       setShowSetupForm(false)
       setClientId('')
       setClientSecret('')
-      toast.success('Credentials saved! Now click "Authorize with Ravelry" to complete setup.', { duration: 5000 })
+      toast.success('Credentials saved! Now click "Authorize with Ravelry" to complete setup.')
     } catch (error) {
       console.error('[Ravelry] ✗ Save credentials error:', error)
       if (error instanceof Error) {
@@ -201,7 +201,7 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
       console.log('[Ravelry] → Target URL:', authUrl)
       console.log('[Ravelry] → Using same-window redirect for better OAuth callback handling')
       
-      toast.info('Redirecting to Ravelry for authorization...', { duration: 3000 })
+      toast.info('Redirecting to Ravelry for authorization...')
       
       setTimeout(() => {
         window.location.href = authUrl

@@ -7,7 +7,7 @@
  * 
  * Security: Never bypasses backend validation; all authorization enforced server-side.
  */
-import { UserAccount, UserActivity, Product, Rating, Discussion, ScrapingLog, BlogPost, Collection, CollectionCreateInput, UserRequest } from './types'
+import { UserAccount, UserActivity, Product, Rating, Discussion, ScrapingLog, BlogPost, Collection, CollectionCreateInput, UserRequest, SupportedSource, ScraperJob } from './types'
 import { ProductUrl, ProductUrlCreate, ProductUrlUpdate } from '../types/product-url'
 
 // Use relative path for dev/preview (Vite proxy will handle it), or explicit URL if configured
@@ -276,8 +276,14 @@ export class APIService {
     })
   }
   
-  static async getUserAccount(username: string): Promise<UserAccount | null> {
-    return request<UserAccount | null>(`/users/${encodeURIComponent(username)}`)
+  // Get user account by internal user ID (Supabase UUID)
+  static async getUserAccount(userId: string): Promise<UserAccount | null> {
+    return request<UserAccount | null>(`/users/${encodeURIComponent(userId)}`)
+  }
+
+  // Get user account by display username (e.g., GitHub login)
+  static async getUserByUsername(username: string): Promise<UserAccount | null> {
+    return request<UserAccount | null>(`/users/by-username/${encodeURIComponent(username)}`)
   }
 
   static async createOrUpdateUserAccount(
@@ -1187,6 +1193,44 @@ export class APIService {
   static async resetRequestsTable(): Promise<{ success: boolean }> {
     return request<{ success: boolean }>('/requests/reset', {
       method: 'POST',
+    })
+  }
+
+  static async getScheduledScrapers(): Promise<{ status: string; jobs: ScraperJob[] }> {
+    return request<{ status: string; jobs: ScraperJob[] }>('/scrapers/schedule')
+  }
+
+  // Supported Sources CRUD
+  static async getSupportedSources(): Promise<SupportedSource[]> {
+    return request<SupportedSource[]>('/supported-sources')
+  }
+
+  static async getSupportedSource(sourceId: string): Promise<SupportedSource | null> {
+    return request<SupportedSource | null>(`/supported-sources/${encodeURIComponent(sourceId)}`)
+  }
+
+  static async createSupportedSource(
+    source: Omit<SupportedSource, 'id' | 'createdAt' | 'updatedAt'>
+  ): Promise<SupportedSource> {
+    return request<SupportedSource>('/supported-sources', {
+      method: 'POST',
+      body: JSON.stringify(source),
+    })
+  }
+
+  static async updateSupportedSource(
+    sourceId: string,
+    updates: Partial<Omit<SupportedSource, 'id' | 'createdAt' | 'updatedAt'>>
+  ): Promise<SupportedSource | null> {
+    return request<SupportedSource | null>(`/supported-sources/${encodeURIComponent(sourceId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    })
+  }
+
+  static async deleteSupportedSource(sourceId: string): Promise<void> {
+    await request(`/supported-sources/${encodeURIComponent(sourceId)}`, {
+      method: 'DELETE',
     })
   }
 }

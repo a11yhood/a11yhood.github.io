@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ChatCircle } from '@phosphor-icons/react'
-import { LoginPrompt } from './LoginPrompt'
 import { Discussion, UserAccount, UserData } from '@/lib/types'
 import { formatDistanceToNow } from 'date-fns'
 import { Label } from '@/components/ui/label'
@@ -359,7 +358,7 @@ export function DiscussionSection({
       </div>
 
       {!user ? (
-        <LoginPrompt context="discuss" />
+        <p className="text-sm text-muted-foreground">Sign in to start a thread or reply.</p>
       ) : (
         <Card className="p-6" aria-labelledby="start-discussion-heading">
           <h3 id="start-discussion-heading" className="text-lg font-semibold mb-4">
