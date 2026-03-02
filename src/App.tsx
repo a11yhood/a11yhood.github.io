@@ -2450,9 +2450,12 @@ function App() {
       })
       let finalCollection = newCollection
       if (productSlugs && productSlugs.length > 0) {
-        const collectionSlug = newCollection.slug || newCollection.slug
-        const updated = await APIService.addMultipleProductsToCollection(collectionSlug, productSlugs)
-        if (updated) finalCollection = updated
+        const collectionSlug = newCollection.slug || newCollection.id
+        const results = await Promise.all(
+          productSlugs.map(productSlug => APIService.addProductToCollection(collectionSlug, productSlug))
+        )
+        const lastUpdated = results.filter(Boolean).pop()
+        if (lastUpdated) finalCollection = lastUpdated
       }
       setCollections((current) => [finalCollection, ...current])
       toast.success('Collection created successfully')
