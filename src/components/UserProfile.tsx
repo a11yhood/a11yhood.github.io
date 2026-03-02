@@ -371,7 +371,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                         </Badge></li>
                       ))}
                       {product.tags && product.tags.length > 3 && (
-                        <Badge variant="secondary" className="text-[11px]">+{product.tags.length - 3}</Badge>
+                        <li><Badge variant="secondary" className="text-[11px]">+{product.tags.length - 3}</Badge></li>
                       )}
                     </ul>
                     {product.sourceUrl && (

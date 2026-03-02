@@ -209,20 +209,20 @@ async function request<T>(
     }
   }
 
-  // Log the final request payload
-  if (processedOptions.body) {
+  // Log the final request payload only in dev mode (never in production to avoid leaking sensitive data)
+  if (import.meta.env.DEV && processedOptions.body) {
     try {
       const parsedBody = JSON.parse(processedOptions.body)
       console.debug(`[API] ${endpoint} - Final JSON being sent:`, parsedBody)
       const method = (options.method || 'GET').toUpperCase()
       if (endpoint.startsWith('/collections') && (method === 'POST' || method === 'PUT')) {
-        console.info(`[API] ${method} ${endpoint} payload: ${JSON.stringify(parsedBody)}`)
+        console.debug(`[API] ${method} ${endpoint} payload: ${JSON.stringify(parsedBody)}`)
       }
     } catch {
       console.debug(`[API] ${endpoint} - Final payload being sent:`, processedOptions.body)
       const method = (options.method || 'GET').toUpperCase()
       if (endpoint.startsWith('/collections') && (method === 'POST' || method === 'PUT')) {
-        console.info(`[API] ${method} ${endpoint} payload: ${String(processedOptions.body)}`)
+        console.debug(`[API] ${method} ${endpoint} payload: ${String(processedOptions.body)}`)
       }
     }
   }
@@ -242,9 +242,8 @@ async function request<T>(
   const endTime = performance.now()
   const duration = endTime - startTime
   const method = (options.method || 'GET').toUpperCase()
-  const includePayload = !!payloadPreview && (method === 'POST' || method === 'PUT' || method === 'PATCH')
-  const payloadSuffix = includePayload ? ` payload=${payloadPreview}` : ''
-  console.info(`[API] ${method} ${endpoint}: ${duration.toFixed(1)}ms${payloadSuffix}`)
+  // Only log timing; never include payload in production logs to avoid leaking sensitive data
+  console.debug(`[API] ${method} ${endpoint}: ${duration.toFixed(1)}ms`)
   
   return result
 }

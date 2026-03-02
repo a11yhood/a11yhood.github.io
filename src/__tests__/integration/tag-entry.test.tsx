@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
@@ -24,6 +24,11 @@ describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
   beforeAll(async () => {
     // Ensure API calls use dev token
     APIService.setAuthTokenGetter(async () => authToken)
+  })
+
+  afterAll(() => {
+    // Restore global auth token getter to prevent test pollution
+    APIService.setAuthTokenGetter(async () => null)
   })
 
   async function openFormWithUrl(url?: string) {
