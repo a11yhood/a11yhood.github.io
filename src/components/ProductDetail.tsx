@@ -140,7 +140,7 @@ export function ProductDetail({
 
   const handleDelete = () => {
     const targetId = product.slug || product.id
-    if (onDelete && targetId && confirm(`Are you sure you want to delete "${product.name}"? This action cannot be undone.`)) {
+    if (onDelete && targetId) {
       onDelete(targetId)
       onBack()
     }

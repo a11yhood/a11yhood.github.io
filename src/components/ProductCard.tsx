@@ -73,11 +73,9 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
       canModerate
     })
     const targetId = product.slug || product.id
-    if (onDelete && targetId && confirm(`Are you sure you want to delete "${product.name}"?`)) {
-      console.log('[ProductCard.handleDelete] Confirmed, calling onDelete with ID:', targetId)
+    if (onDelete && targetId) {
+      console.log('[ProductCard.handleDelete] Calling onDelete with ID:', targetId)
       onDelete(targetId)
-    } else {
-      console.log('[ProductCard.handleDelete] Delete cancelled or onDelete not provided')
     }
   }
 

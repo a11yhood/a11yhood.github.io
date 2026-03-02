@@ -677,14 +677,14 @@ export class APIService {
     try {
       const result = await request<void>(endpoint, requestOptions)
       console.log('[API.deleteProduct] Delete successful:', {
-        productId,
+        productSlug,
         result,
         resultType: typeof result
       })
       return result
     } catch (error) {
       console.error('[API.deleteProduct] Delete failed:', {
-        productId,
+        productSlug,
         endpoint,
         error: error instanceof Error ? error.message : String(error),
         errorStatus: (error as any)?.status,

@@ -9,7 +9,7 @@ import type { Collection } from '@/lib/types'
 
 describe('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', () => {
   const testUserId = DEV_USERS.user.id
-  const testUsername = DEV_USERS.user.username || DEV_USERS.user.login
+  const testUsername = DEV_USERS.user.login
   let testProductSlug: string
   let testCollections: Collection[] = []
 
@@ -30,7 +30,7 @@ describe('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', () => {
     const collection1 = await APIService.createCollection({
       name: 'My Favorites',
       description: 'Products I love',
-      username: testUsername,
+      userName: testUsername,
       productSlugs: [],
       isPublic: true,
     })
@@ -38,7 +38,7 @@ describe('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', () => {
     const collection2 = await APIService.createCollection({
       name: 'Work Tools',
       description: 'Tools for work',
-      username: testUsername,
+      userName: testUsername,
       productSlugs: [testProductSlug],
       isPublic: false,
     })

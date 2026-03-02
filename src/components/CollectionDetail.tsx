@@ -156,7 +156,7 @@ export function CollectionDetail({
                   product={product}
                   ratings={ratings}
                   onClick={() => onSelectProduct(product.slug)}
-                  onDelete={onDeleteProduct}
+                  onDelete={onRemoveProduct}
                   userAccount={userAccount}
                 />
                 {isOwner && (
