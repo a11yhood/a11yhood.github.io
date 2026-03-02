@@ -7,7 +7,7 @@
 # Frontend Port: 4173 (https://localhost:4173)
 # Backend Port: 8001 (HTTPS - production backend with Supabase)
 # Database: Supabase (real production database)
-# API requests: Direct to backend (requires CORS configuration on backend)
+# API requests: Direct to backend
 # 
 # Usage:
 #   ./start-prod.sh        # Normal start
@@ -54,13 +54,12 @@ if [ "$HELP" = true ]; then
   echo "  Database: Supabase (real production database)"
   echo "  Use Case: Testing the production build with real database and OAuth"
   echo ""
-  echo "IMPORTANT - CORS Requirement:"
-  echo "  The backend MUST be configured to accept CORS from https://localhost:4173"
+  echo "IMPORTANT - cert Requirement:"
+  echo "  The backend MUST be configured to run as  https://localhost:4173"
   echo "  In preview mode, API requests are NOT proxied (unlike dev mode)"
-  echo "  See DEVELOPMENT.md for backend CORS configuration"
   echo ""
   echo "Prerequisites:"
-  echo "  - Backend server running on port 8001 (with CORS enabled)"
+  echo "  - Backend server running on port 8001"
   echo "  - .env.production.local configured with production settings"
   echo "  - Supabase credentials configured"
   echo ""
@@ -76,7 +75,6 @@ set +e
 
 echo -e "${BLUE}🚀 Starting a11yhood PRODUCTION environment...${NC} (t=0s)"
 echo -e "${YELLOW}📊 Using PRODUCTION Supabase database${NC}"
-echo -e "${YELLOW}⚠️  Backend must have CORS enabled for https://localhost:4173${NC}"
 echo ""
 
 # Kill any existing frontend processes
