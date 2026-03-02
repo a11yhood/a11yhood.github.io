@@ -6,7 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import MarkdownText from '@/components/ui/MarkdownText'
-import { Prohibit, Trash } from '@phosphor-icons/react'
+import { Prohibit, Trash, FolderOpen } from '@phosphor-icons/react'
 
 type ProductListItemProps = {
   product: Product
@@ -235,16 +235,20 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
 
         {productCollections.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs text-muted-foreground">In collections:</span>
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <FolderOpen size={12} />
+              Collections:
+            </span>
             <ul className="flex flex-wrap gap-1">
               {productCollections.map((c) => (
                 <li key={c.id}>
                   <a
                     href={`/collections/${c.slug || c.id}`}
-                    className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded-sm hover:bg-secondary/80 transition-colors"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {c.name}
+                    <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
+                      {c.name}
+                    </Badge>
                   </a>
                 </li>
               ))}

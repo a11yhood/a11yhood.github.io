@@ -16,7 +16,7 @@ import { Card } from '@/components/ui/card'
 import { StarRating } from './StarRating'
 import { Product, Rating, UserData, UserAccount, Collection } from '@/lib/types'
 import { cn, formatSourceLabel, getSourceIcon, calculateAverageRating, formatRelativeTime } from '@/lib/utils'
-import { Trash, ArrowUpRight, Prohibit, CheckCircle } from '@phosphor-icons/react'
+import { Trash, ArrowUpRight, Prohibit, CheckCircle, FolderOpen } from '@phosphor-icons/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import MarkdownText from '@/components/ui/MarkdownText'
 
@@ -209,6 +209,29 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
           )}
 	  </ul>
 	  
+          {productCollections.length > 0 && (
+            <>
+              <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <FolderOpen size={14} />
+                Collections
+              </h4>
+              <ul className="flex flex-wrap gap-2 -mt-1">
+                {productCollections.map((c) => (
+                  <li key={c.id}>
+                    <a
+                      href={`/collections/${c.slug || c.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
+                        {c.name}
+                      </Badge>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="shrink-0 text-xs">
               {product.type}
@@ -291,25 +314,6 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
                   size={20}
                 />
               </div>
-            </div>
-          )}
-
-          {productCollections.length > 0 && (
-            <div className="pt-2 border-t border-border">
-              <p className="text-xs text-muted-foreground mb-1">In collections:</p>
-              <ul className="flex flex-wrap gap-1">
-                {productCollections.map((c) => (
-                  <li key={c.id}>
-                    <a
-                      href={`/collections/${c.slug || c.id}`}
-                      className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded-sm hover:bg-secondary/80 transition-colors"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {c.name}
-                    </a>
-                  </li>
-                ))}
-              </ul>
             </div>
           )}
         </div>

@@ -1,9 +1,9 @@
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { UserCircle, Star, Tag as TagIcon, Chat } from '@phosphor-icons/react'
+import { UserCircle, Star, Tag as TagIcon, Chat, FolderOpen } from '@phosphor-icons/react'
 
 type LoginPromptProps = {
-  context: 'rate' | 'discuss' | 'tag'
+  context: 'rate' | 'discuss' | 'tag' | 'collection'
 }
 
 export function LoginPrompt({ context }: LoginPromptProps) {
@@ -22,6 +22,11 @@ export function LoginPrompt({ context }: LoginPromptProps) {
       icon: TagIcon,
       title: 'Sign in to add tags',
       description: 'Help improve product discoverability by adding relevant tags.',
+    },
+    collection: {
+      icon: FolderOpen,
+      title: 'Sign in to manage collections',
+      description: 'Create and organize collections of your favorite accessibility products.',
     },
   }
 
