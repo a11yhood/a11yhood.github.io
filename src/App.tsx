@@ -455,6 +455,7 @@ export function ProductListPage({
                   key={product.id}
                   product={product}
                   ratings={ratings}
+                  collections={collections}
                   href={`/product/${product.slug ?? product.id}`}
                   onNavigate={() => navigate(`/product/${product.slug ?? product.id}`)}
                   user={user}
@@ -473,6 +474,7 @@ export function ProductListPage({
                   key={product.id}
                   product={product}
                   ratings={ratings}
+                  collections={collections}
                   href={`/product/${product.slug ?? product.id}`}
                   onNavigate={() => navigate(`/product/${product.slug ?? product.id}`)}
                   onDelete={onDeleteProduct}
@@ -885,6 +887,7 @@ function CollectionsPage({
   collections, 
   products, 
   user,
+  userAccount,
   onDeleteCollection,
   onEditCollection,
   onCreateCollection
@@ -892,6 +895,7 @@ function CollectionsPage({
   collections: Collection[]
   products: Product[]
   user: UserData | null
+  userAccount: UserAccount | null
   onDeleteCollection: (collectionSlug: string) => void
   onEditCollection: (collection: Collection) => void
   onCreateCollection: () => void
@@ -911,30 +915,61 @@ function CollectionsPage({
     loadPublic()
   }, [])
 
+  // Filter to only show collections created by the current user
+  const myCollections = userAccount 
+    ? collections.filter(c => {
+        const match = c.username === userAccount.username || c.userId === userAccount.id
+        console.log('[CollectionsPage] Checking collection:', {
+          collectionName: c.name,
+          collectionUsername: c.username,
+          collectionUserId: c.userId,
+          userAccountUsername: userAccount.username,
+          userAccountId: userAccount.id,
+          match
+        })
+        return match
+      })
+    : []
+
+  console.log('[CollectionsPage] Total collections:', collections.length, 'My collections:', myCollections.length)
+
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">My Collections</h1>
-        <div className="flex items-center gap-2">
-          <Button onClick={onCreateCollection}>Create Collection</Button>
+      {user ? (
+        <>
+          <div className="mb-6 flex items-center justify-between">
+            <h1 className="text-3xl font-bold">My Collections</h1>
+            <div className="flex items-center gap-2">
+              <Button onClick={onCreateCollection}>Create Collection</Button>
+              <Button variant="ghost" onClick={() => navigate('/')}>
+                ← Back to Products
+              </Button>
+            </div>
+          </div>
+          <CollectionsList
+            collections={myCollections}
+            products={products}
+            onSelectCollection={(collection) => navigate(`/collections/${collection.slug || collection.id}`)}
+            onDeleteCollection={onDeleteCollection}
+            onEditCollection={onEditCollection}
+            currentUserId={user?.id}
+          />
+        </>
+      ) : (
+        <div className="mb-6 flex items-center justify-between">
+          <p className="text-lg text-muted-foreground">Log in to create your own collection</p>
           <Button variant="ghost" onClick={() => navigate('/')}>
             ← Back to Products
           </Button>
         </div>
-      </div>
-      <CollectionsList
-        collections={collections}
-        products={products}
-        onSelectCollection={(collection) => navigate(`/collections/${collection.slug || collection.id}`)}
-        onDeleteCollection={onDeleteCollection}
-        onEditCollection={onEditCollection}
-        currentUserId={user?.id}
-      />
+      )}
 
       <div className="mt-10">
         <h2 className="text-2xl font-semibold mb-4">Public Collections</h2>
         <CollectionsList
-          collections={publicCollections}
+          collections={publicCollections.filter(c => 
+            !userAccount || (c.userId !== userAccount.id && c.username !== userAccount.username)
+          )}
           products={products}
           onSelectCollection={(collection) => navigate(`/collections/${collection.slug || collection.id}`)}
           onDeleteCollection={() => { /* no-op for public */ }}
@@ -1359,20 +1394,25 @@ function App() {
       
       try {
         // Load metadata only if needed (search, collections, admin pages)
+        // Do not block initial product load on slow metadata endpoints.
         if (needsFilterMetadata) {
-          const metadataResults = await Promise.allSettled([
+          void Promise.allSettled([
             APIService.getProductSources(),
             APIService.getProductTypes(),
             APIService.getPopularTags(10),
           ])
-          
-          const loadedSources = metadataResults[0].status === 'fulfilled' ? metadataResults[0].value : []
-          const loadedTypes = metadataResults[1].status === 'fulfilled' ? metadataResults[1].value : []
-          const loadedTags = metadataResults[2].status === 'fulfilled' ? metadataResults[2].value : []
-          
-          setAllProductSources(loadedSources)
-          setAllProductTypes(loadedTypes)
-          setPopularTags(loadedTags)
+            .then((metadataResults) => {
+              const loadedSources = metadataResults[0].status === 'fulfilled' ? metadataResults[0].value : []
+              const loadedTypes = metadataResults[1].status === 'fulfilled' ? metadataResults[1].value : []
+              const loadedTags = metadataResults[2].status === 'fulfilled' ? metadataResults[2].value : []
+
+              setAllProductSources(loadedSources)
+              setAllProductTypes(loadedTypes)
+              setPopularTags(loadedTags)
+            })
+            .catch((error) => {
+              console.warn('[App] Failed to load product metadata:', error)
+            })
         } else if (location.pathname === '/') {
           // On homepage, load initial products with default parameters
           // The fetchProducts effect will handle any filter changes (including admin's includeBanned)
@@ -1939,23 +1979,30 @@ function App() {
     handleRavelryOAuth()
   }, [authLoading, authUser, oauthProcessed])
 
-  // Load collections for authenticated users
-
+  // Load collections for all users (public collections always, user collections on /collections pages)
   useEffect(() => {
     const loadCollections = async () => {
-      // Only load collections on pages that need them
-      const needsCollections = location.pathname.startsWith('/collections') || 
-                               location.pathname.startsWith('/product/')
-      
-      if (user && needsCollections) {
-        try {
-          const userCollections = await APIService.getUserCollections()
-          setCollections(userCollections)
-        } catch (error) {
-          // Silently handle 404 for collections endpoint (not yet implemented)
-          if (error instanceof Error && !error.message.includes('404')) {
-            console.error('Failed to load collections:', error)
+      try {
+        // Always load public collections so they appear on product pages
+        const publicCollections = await APIService.getPublicCollections()
+        
+        // Also load user's own collections if authenticated and on a page that needs them
+        const isCollectionPage = location.pathname.startsWith('/collections') && !location.pathname.startsWith('/collections/') || location.pathname === '/collections'
+        const userCollections = (user && isCollectionPage) ? await APIService.getUserCollections() : []
+        
+        // Combine public and user collections (avoiding duplicates)
+        const allCollections = [...userCollections]
+        publicCollections.forEach(pub => {
+          if (!allCollections.some(c => c.id === pub.id)) {
+            allCollections.push(pub)
           }
+        })
+        
+        setCollections(allCollections)
+      } catch (error) {
+        // Silently handle errors - collections are optional
+        if (error instanceof Error && !error.message.includes('404')) {
+          console.debug('Failed to load collections:', error)
         }
       }
     }
@@ -2639,6 +2686,7 @@ function App() {
                   collections={collections}
                   products={(isAdmin || isModerator) && includeBanned ? (products || []) : (products || []).filter((p) => !p.banned)}
                   user={user}
+                  userAccount={userAccount}
                   onDeleteCollection={handleDeleteCollection}
                   onEditCollection={(collection) => {
                     setEditingCollection(collection)
