@@ -30,7 +30,7 @@ describe('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', () => {
     const collection1 = await APIService.createCollection({
       name: 'My Favorites',
       description: 'Products I love',
-      userName: testUsername,
+      username: testUsername,
       productSlugs: [],
       isPublic: true,
     })
@@ -38,7 +38,7 @@ describe('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', () => {
     const collection2 = await APIService.createCollection({
       name: 'Work Tools',
       description: 'Tools for work',
-      userName: testUsername,
+      username: testUsername,
       productSlugs: [testProductSlug],
       isPublic: false,
     })
