@@ -918,12 +918,10 @@ function CollectionsPage({
   // Filter to only show collections created by the current user
   const myCollections = userAccount 
     ? collections.filter(c => {
-        const match = c.username === userAccount.username || c.userId === userAccount.id
+        const match = c.userId === userAccount.id
         console.log('[CollectionsPage] Checking collection:', {
           collectionName: c.name,
-          collectionUsername: c.username,
           collectionUserId: c.userId,
-          userAccountUsername: userAccount.username,
           userAccountId: userAccount.id,
           match
         })
@@ -968,7 +966,7 @@ function CollectionsPage({
         <h2 className="text-2xl font-semibold mb-4">Public Collections</h2>
         <CollectionsList
           collections={publicCollections.filter(c => 
-            !userAccount || (c.userId !== userAccount.id && c.username !== userAccount.username)
+            !userAccount || c.userId !== userAccount.id
           )}
           products={products}
           onSelectCollection={(collection) => navigate(`/collections/${collection.slug || collection.id}`)}
