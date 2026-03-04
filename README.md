@@ -1,6 +1,6 @@
 # A11yhood - Accessible Product Reviews
 
-a little bit of text
+a little bit of text that is preferred
 
 A community platform for discovering, reviewing, and discussing open-source assistive technologies. A11yhood serves as a central hub for disabled makers, developers, and contributors to find, use, and contribute to accessibility projects.
 
