@@ -1239,9 +1239,9 @@ function App() {
   // Filter states - initialize from URL params
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
   const [searchInputValue, setSearchInputValue] = useState(searchParams.get('q') || '')
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([])
-  const [selectedSources, setSelectedSources] = useState<string[]>([])
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(() => searchParams.getAll('type'))
+  const [selectedSources, setSelectedSources] = useState<string[]>(() => searchParams.getAll('source'))
+  const [selectedTags, setSelectedTags] = useState<string[]>(() => searchParams.getAll('tag'))
   const [minRating, setMinRating] = useState(0)
   const [updatedSince, setUpdatedSince] = useState<string | null>(null) // ISO date string
   const [committedUpdatedSince, setCommittedUpdatedSince] = useState<string | null>(null)
@@ -1255,21 +1255,36 @@ function App() {
   const userAccountFetchRef = useRef<string | null>(null) // Track which user we've fetched account for
 
   const handleTypeToggle = (type: string) => {
-    setSelectedTypes((current) =>
-      current.includes(type) ? current.filter((t) => t !== type) : [...current, type]
-    )
+    const newTypes = selectedTypes.includes(type)
+      ? selectedTypes.filter((t) => t !== type)
+      : [...selectedTypes, type]
+    setSelectedTypes(newTypes)
+    const newParams = new URLSearchParams(searchParams)
+    newParams.delete('type')
+    newTypes.forEach((t) => newParams.append('type', t))
+    setSearchParams(newParams, { replace: true })
   }
 
   const handleSourceToggle = (source: string) => {
-    setSelectedSources((current) =>
-      current.includes(source) ? current.filter((s) => s !== source) : [...current, source]
-    )
+    const newSources = selectedSources.includes(source)
+      ? selectedSources.filter((s) => s !== source)
+      : [...selectedSources, source]
+    setSelectedSources(newSources)
+    const newParams = new URLSearchParams(searchParams)
+    newParams.delete('source')
+    newSources.forEach((s) => newParams.append('source', s))
+    setSearchParams(newParams, { replace: true })
   }
 
   const handleTagToggle = (tag: string) => {
-    setSelectedTags((current) =>
-      current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag]
-    )
+    const newTags = selectedTags.includes(tag)
+      ? selectedTags.filter((t) => t !== tag)
+      : [...selectedTags, tag]
+    setSelectedTags(newTags)
+    const newParams = new URLSearchParams(searchParams)
+    newParams.delete('tag')
+    newTags.forEach((t) => newParams.append('tag', t))
+    setSearchParams(newParams, { replace: true })
   }
 
   const handleClearFilters = () => {
@@ -1280,9 +1295,12 @@ function App() {
     setUpdatedSince(null)
     setSearchQuery('')
     setSearchInputValue('')
-    // Clear search from URL
+    // Clear search and filter params from URL
     const newParams = new URLSearchParams(searchParams)
     newParams.delete('q')
+    newParams.delete('tag')
+    newParams.delete('type')
+    newParams.delete('source')
     setSearchParams(newParams, { replace: true })
   }
 
@@ -1342,11 +1360,13 @@ function App() {
 
   // Sync search query from URL params when navigating to /products
   useEffect(() => {
+    if (location.pathname !== '/products') return
     const urlQuery = searchParams.get('q') || ''
-    if (location.pathname === '/products' && urlQuery !== searchQuery) {
-      setSearchQuery(urlQuery)
-      setSearchInputValue(urlQuery)
-    }
+    setSearchQuery(urlQuery)
+    setSearchInputValue(urlQuery)
+    setSelectedTags(searchParams.getAll('tag'))
+    setSelectedTypes(searchParams.getAll('type'))
+    setSelectedSources(searchParams.getAll('source'))
   }, [searchParams, location.pathname])
 
   // Combine filtered tags with tags from current page of products, plus any selected tags
