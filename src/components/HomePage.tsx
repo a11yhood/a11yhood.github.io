@@ -1,6 +1,6 @@
 /**
  * HomePage component - New homepage with random products, blog roll, and quick search
- * Shows 3 randomly selected products (one from each platform), recent blog posts, and search sidebar
+ * Shows 3 randomly selected featured products, recent blog posts, and a quick search sidebar
  */
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -19,35 +19,23 @@ type HomePageProps = {
 }
 
 /**
- * Get a random product from a specific source, optionally filtered by rating range
+ * The tag used to designate products suitable for the homepage random feed.
+ * Only products carrying this tag will be sampled.
  */
-function getRandomProductFromSource(products: Product[], sourceKeyword: string, minRating?: number): Product | null {
-  const sourceProducts = products.filter(p => {
-    // Flexible source matching - check if source contains the keyword
-    const productSource = (p.source || '').toLowerCase().trim()
-    const keyword = sourceKeyword.toLowerCase().trim()
-    
-    // Match if source contains the keyword anywhere
-    if (!productSource.includes(keyword)) {
-      return false
-    }
-    
-    // Optional: filter by minimum rating if provided
-    // Only filter if minRating is specified, otherwise accept all
-    if (minRating !== undefined && minRating > 0) {
-      const rating = p.sourceRating || 0
-      if (rating < minRating) {
-        return false
-      }
-    }
-    
-    return true
-  })
-  
-  if (sourceProducts.length === 0) return null
-  
-  const randomIndex = Math.floor(Math.random() * sourceProducts.length)
-  return sourceProducts[randomIndex]
+const FEATURED_TAG = 'featured'
+
+/**
+ * Pick `count` unique random products from `pool`.
+ * Returns as many as are available when the pool is smaller than `count`.
+ */
+function pickUniqueRandom(pool: Product[], count: number): Product[] {
+  if (pool.length === 0) return []
+  const shuffled = [...pool]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled.slice(0, count)
 }
 
 export function HomePage({ products, blogPosts, ratings, onRate }: HomePageProps) {
@@ -66,31 +54,19 @@ export function HomePage({ products, blogPosts, ratings, onRate }: HomePageProps
     const countChanged = Math.abs(currentCount - productCountRef.current) > Math.max(10, currentCount * 0.1)
     
     if (!hasMountedRef.current || becameAvailable || countChanged) {
-      // Try to get products from specific sources, fall back to any product if not available
-      let ravelryProduct = getRandomProductFromSource(products, 'ravelry')
-      let githubProduct = getRandomProductFromSource(products, 'github')
-      let thingiverseProduct = getRandomProductFromSource(products, 'thingiverse')
-      
-      // Fallback: if a source isn't available, get any random product
-      if (!ravelryProduct && products.length > 0) {
-        ravelryProduct = products[Math.floor(Math.random() * products.length)]
-      }
-      if (!githubProduct && products.length > 0) {
-        // Get a different product than Ravelry
-        const available = products.filter(p => p.id !== ravelryProduct?.id)
-        if (available.length > 0) {
-          githubProduct = available[Math.floor(Math.random() * available.length)]
-        }
-      }
-      if (!thingiverseProduct && products.length > 0) {
-        // Get a different product than the first two
-        const available = products.filter(p => p.id !== ravelryProduct?.id && p.id !== githubProduct?.id)
-        if (available.length > 0) {
-          thingiverseProduct = available[Math.floor(Math.random() * available.length)]
-        }
-      }
-      
-      setRandomProducts([ravelryProduct, githubProduct, thingiverseProduct])
+      // Constrain the random pool to featured products; fall back to all products
+      // if there are fewer than 3 featured items available.
+      const featuredPool = products.filter(p => p.tags?.includes(FEATURED_TAG))
+      const pool = featuredPool.length >= 3 ? featuredPool : products
+
+      const picked = pickUniqueRandom(pool, 3)
+      const selected: (Product | null)[] = [
+        picked[0] ?? null,
+        picked[1] ?? null,
+        picked[2] ?? null,
+      ]
+
+      setRandomProducts(selected)
       productCountRef.current = currentCount
       hasMountedRef.current = true
     }
@@ -161,13 +137,12 @@ export function HomePage({ products, blogPosts, ratings, onRate }: HomePageProps
           <h2 className="text-2xl font-bold mb-4">Random Products</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {randomProducts.map((product, idx) => {
-              const sources = ['Ravelry', 'GitHub', 'Thingiverse']
               if (!product) {
                 return (
                   <Card key={idx} className="opacity-50">
                     <CardHeader>
                       <CardTitle className="text-sm text-muted-foreground">
-                        No {sources[idx]} products available
+                        No featured products available
                       </CardTitle>
                     </CardHeader>
                   </Card>
