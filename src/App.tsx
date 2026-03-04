@@ -1416,15 +1416,18 @@ function App() {
           // The fetchProducts effect will handle any filter changes (including admin's includeBanned)
           setDataLoaded(true)
           setIsSearching(false)
-          
+
+          const homeFeaturedParams = {
+            limit: 50,
+            tags: ['featured'],
+            // Keep false on homepage to match requirement
+            includeBanned: false,
+            sortBy: 'created_at' as const,
+            sortOrder: 'desc' as const,
+          }
+
           Promise.all([
-            APIService.getAllProducts({ 
-              limit: 50,
-              // Use defaults that match the initial state - fetchProducts will re-fetch if needed
-              includeBanned: false,
-              sortBy: 'created_at',
-              sortOrder: 'desc',
-            }),
+            APIService.getAllProducts(homeFeaturedParams),
             APIService.getAllRatings(),
             APIService.getAllBlogPosts(false),
           ])
@@ -1529,10 +1532,10 @@ function App() {
     }
 
     // Check if this is the initial load with no filters (skip to avoid duplicate from initial load)
-    const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 && 
+        const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 && 
                 selectedTypes.length === 0 && selectedTags.length === 0 && 
                 minRating === 0 && committedUpdatedSince === null &&
-                sortBy === 'created_at' && sortOrder === 'desc' && !sortHasChanged
+          sortBy === 'created_at' && sortOrder === 'desc' && !sortHasChanged
     
     if (isInitialLoad) {
       console.log('[App.fetchEffect] Skipping - using data from initial load')
@@ -1576,6 +1579,8 @@ function App() {
             ]))
           : selectedSources
 
+        const requiredHomeTags = location.pathname === '/' ? ['featured'] : undefined
+
         const params = {
           includeBanned,
           search: searchQuery || undefined,
@@ -1583,7 +1588,7 @@ function App() {
           offset,
           sources: effectiveSources.length > 0 ? effectiveSources : undefined,
           types: selectedTypes.length > 0 ? selectedTypes : undefined,
-          tags: selectedTags.length > 0 ? selectedTags : undefined,
+          tags: selectedTags.length > 0 ? selectedTags : requiredHomeTags,
           minRating: minRating || undefined,
           updatedSince: updatedSinceISO,
           sortBy,

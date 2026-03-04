@@ -62,15 +62,10 @@ export function HomePage({ products, blogPosts, ratings, onRate }: HomePageProps
   useEffect(() => {
     // Only run once on mount or if product count changes by more than 10%
     const currentCount = products.length
+    const becameAvailable = productCountRef.current === 0 && currentCount > 0
     const countChanged = Math.abs(currentCount - productCountRef.current) > Math.max(10, currentCount * 0.1)
     
-    if (!hasMountedRef.current || countChanged) {
-      // Debug: log available sources
-      if (!hasMountedRef.current) {
-        const uniqueSources = [...new Set(products.map(p => p.source).filter(Boolean))]
-        console.log('[HomePage] Available sources:', uniqueSources)
-      }
-      
+    if (!hasMountedRef.current || becameAvailable || countChanged) {
       // Try to get products from specific sources, fall back to any product if not available
       let ravelryProduct = getRandomProductFromSource(products, 'ravelry')
       let githubProduct = getRandomProductFromSource(products, 'github')
@@ -94,12 +89,6 @@ export function HomePage({ products, blogPosts, ratings, onRate }: HomePageProps
           thingiverseProduct = available[Math.floor(Math.random() * available.length)]
         }
       }
-      
-      console.log('[HomePage] Random products:', {
-        ravelry: ravelryProduct?.name || 'Not found',
-        github: githubProduct?.name || 'Not found',
-        thingiverse: thingiverseProduct?.name || 'Not found'
-      })
       
       setRandomProducts([ravelryProduct, githubProduct, thingiverseProduct])
       productCountRef.current = currentCount
