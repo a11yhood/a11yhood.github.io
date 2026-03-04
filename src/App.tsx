@@ -1236,12 +1236,17 @@ function App() {
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
   const [thingiverseAuthTimestamp, setThingiverseAuthTimestamp] = useState(0)
   
+  // Helper to normalize URL param arrays: filter empty strings and deduplicate
+  const normalizeParamArray = (params: string[]): string[] => {
+    return Array.from(new Set(params.filter(Boolean)))
+  }
+  
   // Filter states - initialize from URL params
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
   const [searchInputValue, setSearchInputValue] = useState(searchParams.get('q') || '')
-  const [selectedTypes, setSelectedTypes] = useState<string[]>(() => searchParams.getAll('type'))
-  const [selectedSources, setSelectedSources] = useState<string[]>(() => searchParams.getAll('source'))
-  const [selectedTags, setSelectedTags] = useState<string[]>(() => searchParams.getAll('tag'))
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(() => normalizeParamArray(searchParams.getAll('type')))
+  const [selectedSources, setSelectedSources] = useState<string[]>(() => normalizeParamArray(searchParams.getAll('source')))
+  const [selectedTags, setSelectedTags] = useState<string[]>(() => normalizeParamArray(searchParams.getAll('tag')))
   const [minRating, setMinRating] = useState(0)
   const [updatedSince, setUpdatedSince] = useState<string | null>(null) // ISO date string
   const [committedUpdatedSince, setCommittedUpdatedSince] = useState<string | null>(null)
@@ -1255,36 +1260,42 @@ function App() {
   const userAccountFetchRef = useRef<string | null>(null) // Track which user we've fetched account for
 
   const handleTypeToggle = (type: string) => {
-    const newTypes = selectedTypes.includes(type)
-      ? selectedTypes.filter((t) => t !== type)
-      : [...selectedTypes, type]
-    setSelectedTypes(newTypes)
-    const newParams = new URLSearchParams(searchParams)
-    newParams.delete('type')
-    newTypes.forEach((t) => newParams.append('type', t))
-    setSearchParams(newParams, { replace: true })
+    setSelectedTypes((currentTypes) => {
+      const nextTypes = currentTypes.includes(type)
+        ? currentTypes.filter((t) => t !== type)
+        : [...currentTypes, type]
+      const newParams = new URLSearchParams(searchParams)
+      newParams.delete('type')
+      nextTypes.forEach((t) => newParams.append('type', t))
+      setSearchParams(newParams, { replace: true })
+      return nextTypes
+    })
   }
 
   const handleSourceToggle = (source: string) => {
-    const newSources = selectedSources.includes(source)
-      ? selectedSources.filter((s) => s !== source)
-      : [...selectedSources, source]
-    setSelectedSources(newSources)
-    const newParams = new URLSearchParams(searchParams)
-    newParams.delete('source')
-    newSources.forEach((s) => newParams.append('source', s))
-    setSearchParams(newParams, { replace: true })
+    setSelectedSources((currentSources) => {
+      const nextSources = currentSources.includes(source)
+        ? currentSources.filter((s) => s !== source)
+        : [...currentSources, source]
+      const newParams = new URLSearchParams(searchParams)
+      newParams.delete('source')
+      nextSources.forEach((s) => newParams.append('source', s))
+      setSearchParams(newParams, { replace: true })
+      return nextSources
+    })
   }
 
   const handleTagToggle = (tag: string) => {
-    const newTags = selectedTags.includes(tag)
-      ? selectedTags.filter((t) => t !== tag)
-      : [...selectedTags, tag]
-    setSelectedTags(newTags)
-    const newParams = new URLSearchParams(searchParams)
-    newParams.delete('tag')
-    newTags.forEach((t) => newParams.append('tag', t))
-    setSearchParams(newParams, { replace: true })
+    setSelectedTags((currentTags) => {
+      const nextTags = currentTags.includes(tag)
+        ? currentTags.filter((t) => t !== tag)
+        : [...currentTags, tag]
+      const newParams = new URLSearchParams(searchParams)
+      newParams.delete('tag')
+      nextTags.forEach((t) => newParams.append('tag', t))
+      setSearchParams(newParams, { replace: true })
+      return nextTags
+    })
   }
 
   const handleClearFilters = () => {
@@ -1364,9 +1375,24 @@ function App() {
     const urlQuery = searchParams.get('q') || ''
     setSearchQuery(urlQuery)
     setSearchInputValue(urlQuery)
-    setSelectedTags(searchParams.getAll('tag'))
-    setSelectedTypes(searchParams.getAll('type'))
-    setSelectedSources(searchParams.getAll('source'))
+    
+    // Only update filter states when the normalized URL params actually differ from current state
+    const urlTags = normalizeParamArray(searchParams.getAll('tag'))
+    const urlTypes = normalizeParamArray(searchParams.getAll('type'))
+    const urlSources = normalizeParamArray(searchParams.getAll('source'))
+    
+    setSelectedTags(current => {
+      const changed = current.length !== urlTags.length || !current.every((tag, i) => tag === urlTags[i])
+      return changed ? urlTags : current
+    })
+    setSelectedTypes(current => {
+      const changed = current.length !== urlTypes.length || !current.every((type, i) => type === urlTypes[i])
+      return changed ? urlTypes : current
+    })
+    setSelectedSources(current => {
+      const changed = current.length !== urlSources.length || !current.every((source, i) => source === urlSources[i])
+      return changed ? urlSources : current
+    })
   }, [searchParams, location.pathname])
 
   // Combine filtered tags with tags from current page of products, plus any selected tags
