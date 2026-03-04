@@ -651,7 +651,7 @@ function ProductDetailPage({
       onBack={() => navigate('/')}
       onRate={(rating) => onRate(product.id, rating)}
       onDiscuss={(content, parentId) => onDiscuss(product.id, content, parentId)}
-      onAddTag={(tag) => onAddTag(product.id, tag)}
+      onAddTag={(tag) => onAddTag(product.slug ?? product.id, tag)}
       onAddToCollection={onAddToCollection}
       onRemoveFromCollection={onRemoveFromCollection}
       onCreateCollection={onCreateCollection}
@@ -2204,7 +2204,7 @@ function App() {
 
     try {
       const normalizedTag = tag.trim().toLowerCase()
-      const product = products?.find(p => p.slug === productSlug)
+      const product = products?.find(p => p.slug === productSlug || p.id === productSlug)
       
       if (!product) return
       
@@ -2222,7 +2222,7 @@ function App() {
       if (updatedProduct) {
         setProducts((currentProducts) => {
           const current = currentProducts || []
-          return current.map((p) => p.id === productSlug ? updatedProduct : p)
+          return current.map((p) => (p.slug === productSlug || p.id === productSlug) ? updatedProduct : p)
         })
         
         if (user?.id && product.id) {
