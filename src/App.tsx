@@ -570,7 +570,7 @@ function ProductDetailPage({
   userCollections: Collection[]
   onRate: (productId: string, rating: number) => void
   onDiscuss: (productId: string, content: string, parentId?: string) => void
-  onAddTag: (productId: string, tag: string) => void
+  onAddTag: (productId: string, tag: string, productObj?: Product) => void
   onAddToCollection: (collectionSlug: string) => Promise<void>
   onRemoveFromCollection: (collectionSlug: string) => Promise<void>
   onCreateCollection: (data: Omit<Collection, 'id' | 'createdAt' | 'updatedAt'>) => void
@@ -651,7 +651,7 @@ function ProductDetailPage({
       onBack={() => navigate('/')}
       onRate={(rating) => onRate(product.id, rating)}
       onDiscuss={(content, parentId) => onDiscuss(product.id, content, parentId)}
-      onAddTag={(tag) => onAddTag(product.id, tag)}
+      onAddTag={(tag) => onAddTag(product.slug ?? product.id, tag, product)}
       onAddToCollection={onAddToCollection}
       onRemoveFromCollection={onRemoveFromCollection}
       onCreateCollection={onCreateCollection}
@@ -698,7 +698,7 @@ function ProductDetailPageWrapper({
   userCollections: Collection[]
   onRate: (productId: string, rating: number) => void
   onDiscuss: (productId: string, content: string, parentId?: string) => void
-  onAddTag: (productId: string, tag: string) => void
+  onAddTag: (productId: string, tag: string, productObj?: Product) => void
   onCollectionsChange: (collections: Collection[] | ((current: Collection[]) => Collection[])) => void
   onCreateCollection: (data: CollectionCreateInput) => void
   onDelete: (productId: string) => void
@@ -2204,14 +2204,20 @@ function App() {
     }
   }
 
-  const handleAddTag = async (productSlug: string, tag: string) => {
-    if (!user) return
+  const handleAddTag = async (productSlug: string, tag: string, productObj?: Product) => {
+    if (!user) {
+      return
+    }
 
     try {
       const normalizedTag = tag.trim().toLowerCase()
-      const product = products?.find(p => p.slug === productSlug)
       
-      if (!product) return
+      // Use provided product object if available, otherwise look it up
+      let product = productObj || products?.find(p => p.slug === productSlug || p.id === productSlug)
+      
+      if (!product) {
+        return
+      }
       
       if (product.tags.some((t) => t.toLowerCase() === normalizedTag)) {
         toast.info('Tag already exists')
@@ -2221,13 +2227,13 @@ function App() {
       const updatedProduct = await APIService.updateProduct(
         productSlug,
         { tags: [...product.tags, normalizedTag] },
-        user.id
+        user?.username
       )
       
       if (updatedProduct) {
         setProducts((currentProducts) => {
           const current = currentProducts || []
-          return current.map((p) => p.id === productSlug ? updatedProduct : p)
+          return current.map((p) => (p.slug === productSlug || p.id === productSlug) ? updatedProduct : p)
         })
         
         if (user?.id && product.id) {

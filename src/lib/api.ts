@@ -634,7 +634,7 @@ export class APIService {
     console.log('[API.updateProduct] EditorId:', editorId)
     
     // Extract only editable fields that match backend's ProductUpdate schema
-    const editableUpdates: Partial<Product> = {
+    const editableUpdates: Partial<Product & { editorId?: string }> = {
       name: updates.name,
       description: updates.description,
       source: updates.source,
@@ -644,6 +644,12 @@ export class APIService {
       imageAlt: updates.imageAlt,
       tags: updates.tags,
     }
+    
+    // Include editorId if provided
+    if (editorId) {
+      editableUpdates.editorId = editorId
+    }
+    
     // Remove undefined fields
     Object.keys(editableUpdates).forEach(key => {
       if (editableUpdates[key as keyof typeof editableUpdates] === undefined) {

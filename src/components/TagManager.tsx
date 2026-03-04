@@ -53,7 +53,6 @@ export function TagManager({
     setTagInput('')
     setSuggestions([])
     setIsAdding(false)
-    toast.success('Tag added successfully')
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -71,7 +70,6 @@ export function TagManager({
     setTagInput('')
     setSuggestions([])
     setIsAdding(false)
-    toast.success(newTags.length === 1 ? 'Tag added successfully' : `${newTags.length} tags added successfully`)
   }
 
   return (
