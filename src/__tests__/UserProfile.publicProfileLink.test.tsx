@@ -8,7 +8,7 @@ describe('UserProfile public profile link', () => {
   it('shows View Public Profile linking to /profile/:username', async () => {
     const userAccount = {
       id: 'u1',
-      username: 'Alice',
+      displayName: 'Alice',
       username: 'alice',
       role: 'user',
       createdAt: Date.now(),
