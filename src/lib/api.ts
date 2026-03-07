@@ -150,14 +150,13 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
   
   // Special logging for product update responses
-  if (response.url.includes('/products/') && response.status === 200) {
-    const method = response.headers.get('X-Request-Method') || 'unknown'
+  if (response.url.includes('/products/') && response.status === 200 && data && typeof data === 'object') {
     logger.debug('[API.handleResponse] 🖼️ Product update response:', {
       url: response.url,
       hasImageUrl: 'image_url' in data,
       hasImageAlt: 'image_alt' in data,
-      imageUrl: data.image_url,
-      imageAlt: data.image_alt,
+      imageUrl: (data as any).image_url,
+      imageAlt: (data as any).image_alt,
       rawData: data
     })
   }
