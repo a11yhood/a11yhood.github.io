@@ -108,9 +108,12 @@ describe('updateProduct UUID enforcement', () => {
     // Verify updateProduct was called with the UUID, not the slug
     await waitFor(() => {
       expect(APIService.updateProduct).toHaveBeenCalled()
-      const firstArg = vi.mocked(APIService.updateProduct).mock.calls[0][0]
+      const [firstArg, , thirdArg] = vi.mocked(APIService.updateProduct).mock.calls[0]
       expect(firstArg).toBe(PRODUCT_UUID)
       expect(firstArg).not.toBe(PRODUCT_SLUG)
+      // editorId must be the user UUID, not the username
+      expect(thirdArg).toBe(DEV_USERS.admin.id)
+      expect(thirdArg).not.toBe(DEV_USERS.admin.login)
     })
   })
 
@@ -137,9 +140,12 @@ describe('updateProduct UUID enforcement', () => {
     // Verify updateProduct was called with the UUID
     await waitFor(() => {
       expect(APIService.updateProduct).toHaveBeenCalled()
-      const firstArg = vi.mocked(APIService.updateProduct).mock.calls[0][0]
+      const [firstArg, , thirdArg] = vi.mocked(APIService.updateProduct).mock.calls[0]
       expect(firstArg).toBe(PRODUCT_UUID)
       expect(firstArg).not.toBe(PRODUCT_SLUG)
+      // editorId must be the user UUID, not the username
+      expect(thirdArg).toBe(DEV_USERS.admin.id)
+      expect(thirdArg).not.toBe(DEV_USERS.admin.login)
     })
   })
 })

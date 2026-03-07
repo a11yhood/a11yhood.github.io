@@ -2279,7 +2279,7 @@ function App() {
       const updatedProduct = await APIService.updateProduct(
         product.id,
         { tags: [...product.tags, normalizedTag] },
-        user?.username
+        user?.id
       )
       
       if (updatedProduct) {
@@ -2428,7 +2428,7 @@ function App() {
         imageAlt: updatedProduct.imageAlt
       })
       
-      const savedProduct = await APIService.updateProduct(updatedProduct.id, updatedProduct, user?.username)
+      const savedProduct = await APIService.updateProduct(updatedProduct.id, updatedProduct, user?.id)
       
       logger.debug('[App.handleEditProduct] Product saved, response:', {
         savedProduct,
