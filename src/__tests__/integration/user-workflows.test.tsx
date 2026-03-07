@@ -363,7 +363,7 @@ describe('Product Management Request Workflow', () => {
       expect(screen.queryByText(/no managers yet/i)).toBeNull()
     })
 
-    const displayName = userAccount?.displayName || userAccount?.username || userAccount?.username
+    const displayName = userAccount?.displayName || userAccount?.username || userAccount?.id
     if (displayName) {
       await waitFor(() => {
         const matches = screen.queryAllByText(new RegExp(displayName, 'i'))
