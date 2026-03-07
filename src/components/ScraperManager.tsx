@@ -1136,15 +1136,26 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                       console.error('Error details:', apiError)
                       console.error('Error message:', apiError instanceof Error ? apiError.message : String(apiError))
                       console.error('Full error object:', JSON.stringify(apiError, null, 2))
-                      
+
+                      // Fetch ALL products for this source from the backend (not just what is loaded)
+                      const allBackendProducts = await APIService.getProductsBySource(sourceToDelete || '', { includeBanned: true })
+                      console.log(`[ScraperManager] Fallback: deleting ${allBackendProducts.length} backend products for source: ${sourceToDelete}`)
+
                       await Promise.all(
-                        productsToDelete.map(p => APIService.deleteProduct(p.slug || p.id))
+                        allBackendProducts.map(p => APIService.deleteProduct(p.slug || p.id))
                       )
 
-                      const updatedProducts = products.filter(
-                        p => !(typeof p.source === 'string' && normalizeSource(p.source) === normalizedSourceToDelete),
-                      )
-                      onProductsUpdate(updatedProducts)
+                      // Reload all products from backend to reflect the deletion
+                      try {
+                        const allProducts = await APIService.getAllProducts({ includeBanned: true })
+                        onProductsUpdate(allProducts)
+                      } catch (reloadError) {
+                        console.warn('[ScraperManager] Failed to reload products after fallback delete, using local filter:', reloadError)
+                        const updatedProducts = products.filter(
+                          p => !(typeof p.source === 'string' && normalizeSource(p.source) === normalizedSourceToDelete),
+                        )
+                        onProductsUpdate(updatedProducts)
+                      }
                       toast.success('Deleted products from selected source')
                     }
                   }
