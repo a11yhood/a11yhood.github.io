@@ -20,13 +20,13 @@ vi.mock('sonner', () => ({
 
 const mockUser: UserData = {
   id: '123',
-  login: 'testuser',
+  username: 'testuser',
   avatarUrl: 'https://example.com/avatar.jpg',
 }
 
 const mockUser2: UserData = {
   id: '456',
-  login: 'testuser2',
+  username: 'testuser2',
   avatarUrl: 'https://example.com/avatar2.jpg',
 }
 

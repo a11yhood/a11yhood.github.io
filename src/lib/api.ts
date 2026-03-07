@@ -303,7 +303,7 @@ export class APIService {
     return request<UserAccount | null>(`/users/${encodeURIComponent(userId)}`)
   }
 
-  // Get user account by display username (e.g., GitHub login)
+  // Get user account by display username (canonical frontend/backend identity)
   static async getUserByUsername(username: string): Promise<UserAccount | null> {
     return request<UserAccount | null>(`/users/by-username/${encodeURIComponent(username)}`)
   }

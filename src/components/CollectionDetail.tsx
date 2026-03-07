@@ -2,16 +2,19 @@ import { Collection, Product, Rating, UserAccount } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { ArrowLeft, Lock, LockOpen, Trash, Share } from '@phosphor-icons/react'
+import { ArrowLeft, Lock, LockOpen, Trash, Pencil } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
 import { formatDistanceToNow } from 'date-fns'
-import { toast } from 'sonner'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { APIService } from '@/lib/api'
+import { useNavigate } from 'react-router-dom'
+import { getProductsPathForTag } from '@/lib/tagRoutes'
+import MarkdownText from '@/components/ui/MarkdownText'
 
 type CollectionDetailProps = {
   collection: Collection
   ratings: Rating[]
+  products?: Product[]
   onBack: () => void
   onRemoveProduct: (productSlug: string) => void
   onSelectProduct: (productSlug: string) => void
@@ -19,11 +22,14 @@ type CollectionDetailProps = {
   userAccount?: UserAccount | null
   onDeleteProduct: (productSlug: string) => void
   onTogglePrivacy?: (nextPublic: boolean) => Promise<void> | void
+  onDeleteCollection?: () => void
+  onEditCollection?: () => void
 }
 
 export function CollectionDetail({
   collection,
   ratings,
+  products: globalProducts,
   onBack,
   onRemoveProduct,
   onSelectProduct,
@@ -31,11 +37,47 @@ export function CollectionDetail({
   userAccount,
   onDeleteProduct,
   onTogglePrivacy,
+  onDeleteCollection,
+  onEditCollection,
 }: CollectionDetailProps) {
+  const navigate = useNavigate()
   const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  // Monotonically-increasing ID for the active load cycle. Incremented at the
+  // start of each new load and again in the effect cleanup so that in-flight
+  // callbacks from a superseded cycle can detect they are stale and bail out
+  // before touching state.
+  const loadIdRef = useRef(0)
+
+  // Stable key derived from the sorted slug list so the effect only re-runs
+  // when the actual set of slugs changes, not on every parent re-render that
+  // creates a new array reference.
+  const slugKey = useMemo(
+    () => (collection.productSlugs ?? []).slice().sort().join(','),
+    [collection.productSlugs]
+  )
+
+  // Derive top tags from the collection's products, sorted by frequency
+  const topTags = useMemo(() => {
+    const tagCounts = new Map<string, number>()
+    collectionProducts.forEach(product => {
+      product.tags?.forEach(tag => {
+        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+      })
+    })
+    return Array.from(tagCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([tag]) => tag)
+  }, [collectionProducts])
 
   useEffect(() => {
+    // Capture the ID for this load cycle.  Any async callback that resolves
+    // after the cycle is superseded (slugKey/globalProducts changed, or the
+    // component unmounted) will see loadIdRef.current !== loadId and bail out.
+    loadIdRef.current++
+    const loadId = loadIdRef.current
+
     const loadCollectionProducts = async () => {
       if (!collection.productSlugs || collection.productSlugs.length === 0) {
         setCollectionProducts([])
@@ -43,27 +85,71 @@ export function CollectionDetail({
       }
 
       setIsLoading(true)
+      setCollectionProducts([])
+
       try {
-        const products = await Promise.all(
-          collection.productSlugs.map(slug => APIService.getProduct(slug))
+        // First, try to get products from the global state (already loaded)
+        if (globalProducts && globalProducts.length > 0) {
+          const foundProducts = collection.productSlugs
+            .map(slug => globalProducts.find(p => p.slug === slug))
+            .filter(p => p !== undefined) as Product[]
+          
+          // If we found all products in global state, use them
+          if (foundProducts.length === collection.productSlugs.length) {
+            console.log('[CollectionDetail] Using cached global products, avoiding API calls')
+            if (loadIdRef.current === loadId) {
+              setCollectionProducts(foundProducts)
+              setIsLoading(false)
+            }
+            return
+          }
+        }
+
+        // Fallback: fetch individually with incremental loading for better UX
+        console.log(`[CollectionDetail] Fetching ${collection.productSlugs.length} products individually`)
+
+        await Promise.allSettled(
+          collection.productSlugs.map(async (slug, index) => {
+            try {
+              const product = await APIService.getProduct(slug)
+              // Bail out if this cycle was superseded before updating state
+              if (loadIdRef.current !== loadId) return
+              if (product !== null) {
+                // Insert product at its slug index to preserve collection order while streaming
+                setCollectionProducts(prev => {
+                  const next = [...prev]
+                  next[index] = product
+                  return next
+                })
+              }
+            } catch (error) {
+              console.error('[CollectionDetail] Error loading product:', slug, error)
+            }
+          })
         )
-        setCollectionProducts(products.filter(p => p !== null))
+
+        // All fetches have settled — mark loading complete if still the active cycle
+        if (loadIdRef.current === loadId) {
+          setIsLoading(false)
+        }
       } catch (error) {
         console.error('[CollectionDetail] Error loading products:', error)
-        setCollectionProducts([])
-      } finally {
-        setIsLoading(false)
+        if (loadIdRef.current === loadId) {
+          setCollectionProducts([])
+          setIsLoading(false)
+        }
       }
     }
 
     loadCollectionProducts()
-  }, [collection.productSlugs])
 
-  const handleShare = () => {
-    const url = `${window.location.origin}/collections/${collection.slug || collection.id}`
-    navigator.clipboard.writeText(url)
-    toast.success('Collection link copied to clipboard')
-  }
+    return () => {
+      // Invalidate this cycle: any still-running callbacks will check
+      // loadIdRef.current and skip state updates.
+      loadIdRef.current++
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slugKey, globalProducts])
 
   return (
     <div>
@@ -102,26 +188,43 @@ export function CollectionDetail({
                 )}
               </div>
             </div>
-            {collection.isPublic && (
-              <Button variant="outline" size="sm" onClick={handleShare}>
-                <Share size={18} className="mr-2" />
-                Share
-              </Button>
-            )}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {isOwner && onEditCollection && (
+                <Button variant="outline" size="sm" onClick={onEditCollection} aria-label="Edit collection">
+                  <Pencil size={18} className="mr-2" />
+                  Edit
+                </Button>
+              )}
+              {isOwner && onDeleteCollection && (
+                <Button variant="destructive" size="sm" onClick={onDeleteCollection} aria-label="Delete collection">
+                  <Trash size={18} className="mr-2" />
+                  Delete
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           {collection.description && (
-            <p className="text-muted-foreground mb-4">{collection.description}</p>
+            <MarkdownText text={collection.description} className="text-muted-foreground mb-4" />
+          )}
+          {topTags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {topTags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="text-xs">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
           )}
           <div className="flex flex-wrap gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Created by:</span>{' '}
-              <span className="font-medium">{collection.userName}</span>
+              <span className="font-medium">{collection.username}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Products:</span>{' '}
-              <span className="font-medium">{collectionProducts.length}</span>
+              <span className="font-medium">{collection.productSlugs?.length ?? collectionProducts.length}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Updated:</span>{' '}
@@ -133,11 +236,11 @@ export function CollectionDetail({
         </CardContent>
       </Card>
 
-      {isLoading ? (
+      {isLoading && collectionProducts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground mb-2">Loading products...</p>
         </div>
-      ) : collectionProducts.length === 0 ? (
+      ) : !isLoading && collectionProducts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground mb-2">This collection is empty</p>
           <p className="text-sm text-muted-foreground">
@@ -147,7 +250,7 @@ export function CollectionDetail({
       ) : (
         <div>
           <h3 className="text-xl font-semibold mb-4">
-            Products ({collectionProducts.length})
+            Products ({collectionProducts.length}{isLoading ? '…' : ''})
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {collectionProducts.map((product) => (
@@ -155,6 +258,7 @@ export function CollectionDetail({
                 <ProductCard
                   product={product}
                   ratings={ratings}
+                  onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
                   onClick={() => onSelectProduct(product.slug)}
                   onDelete={onRemoveProduct}
                   userAccount={userAccount}
