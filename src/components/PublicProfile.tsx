@@ -22,6 +22,7 @@ export function PublicProfile({ username }: { username: string }) {
   const [managedProducts, setManagedProducts] = useState<Product[]>([])
   const [userCollections, setUserCollections] = useState<Collection[]>([])
   const [collectionImages, setCollectionImages] = useState<Record<string, { imageUrl: string; imageAlt?: string; name: string }>>({})
+  const [collectionImageErrors, setCollectionImageErrors] = useState<Record<string, boolean>>({})
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -304,7 +305,7 @@ export function PublicProfile({ username }: { username: string }) {
           <CardContent>
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
               {userCollections.map((collection) => {
-                const img = collectionImages[collection.id]
+                const img = collectionImageErrors[collection.id] ? undefined : collectionImages[collection.id]
                 return (
                   <Card 
                     key={collection.id}
@@ -317,6 +318,7 @@ export function PublicProfile({ username }: { username: string }) {
                           src={img.imageUrl}
                           alt={img.imageAlt || `${img.name} image`}
                           className="w-full h-full object-cover object-center"
+                          onError={() => setCollectionImageErrors(prev => ({ ...prev, [collection.id]: true }))}
                         />
                       ) : (
                         <FolderOpen size={40} className="text-muted-foreground/30" aria-hidden="true" />
