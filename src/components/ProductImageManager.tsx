@@ -1,7 +1,6 @@
 import { useState, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Link as LinkIcon, Trash } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { logger } from '@/lib/logger'
