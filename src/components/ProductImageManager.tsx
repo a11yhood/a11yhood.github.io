@@ -63,15 +63,16 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
   }, [imageUrl, imageAlt])
 
   const handleUrlSubmit = useCallback(() => {
-    if (!urlInput.trim()) {
+    const trimmedUrl = urlInput.trim()
+    if (!trimmedUrl) {
       toast.error('Please enter an image URL')
       return
     }
 
     try {
-      new URL(urlInput)
-      const normalizedUrl = normalizeImageUrl(urlInput)
-      if (normalizedUrl !== urlInput) {
+      new URL(trimmedUrl)
+      const normalizedUrl = normalizeImageUrl(trimmedUrl)
+      if (normalizedUrl !== trimmedUrl) {
         toast.info('GitHub image URL converted to a direct image link')
       }
       setUrlInput(normalizedUrl)

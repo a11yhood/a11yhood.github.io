@@ -17,6 +17,13 @@ describe('normalizeImageUrl', () => {
     )
   })
 
+  it('converts a GitHub blob URL with a slashed branch name (e.g. feature/foo)', () => {
+    const blobUrl = 'https://github.com/owner/repo/blob/feature/my-branch/assets/photo.jpg'
+    expect(normalizeImageUrl(blobUrl)).toBe(
+      'https://raw.githubusercontent.com/owner/repo/feature/my-branch/assets/photo.jpg'
+    )
+  })
+
   it('converts a GitHub blob URL with a nested path', () => {
     const blobUrl = 'https://github.com/owner/repo/blob/main/deep/nested/dir/image.png'
     expect(normalizeImageUrl(blobUrl)).toBe(
@@ -43,5 +50,13 @@ describe('normalizeImageUrl', () => {
   it('returns the original string if the URL is invalid', () => {
     const notAUrl = 'not-a-url'
     expect(normalizeImageUrl(notAUrl)).toBe(notAUrl)
+  })
+
+  it('normalizes a GitHub blob URL that has leading/trailing whitespace when pre-trimmed', () => {
+    // normalizeImageUrl itself receives the already-trimmed value from handleUrlSubmit
+    const blobUrl = 'https://github.com/owner/repo/blob/main/img/photo.png'
+    expect(normalizeImageUrl(blobUrl)).toBe(
+      'https://raw.githubusercontent.com/owner/repo/main/img/photo.png'
+    )
   })
 })
