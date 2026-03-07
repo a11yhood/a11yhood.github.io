@@ -2250,7 +2250,7 @@ function App() {
     }
   }
 
-  const handleAddTag = async (productSlug: string, tag: string, productObj?: Product) => {
+  const handleAddTag = async (productIdOrSlug: string, tag: string, productObj?: Product) => {
     if (!user) {
       return
     }
@@ -2259,7 +2259,7 @@ function App() {
       const normalizedTag = tag.trim().toLowerCase()
       
       // Use provided product object if available, otherwise look it up
-      let product = productObj || products?.find(p => p.slug === productSlug || p.id === productSlug)
+      let product = productObj || products?.find(p => p.slug === productIdOrSlug || p.id === productIdOrSlug)
       
       if (!product) {
         return
@@ -2285,7 +2285,7 @@ function App() {
       if (updatedProduct) {
         setProducts((currentProducts) => {
           const current = currentProducts || []
-          return current.map((p) => (p.slug === productSlug || p.id === productSlug) ? updatedProduct : p)
+          return current.map((p) => (p.slug === productIdOrSlug || p.id === productIdOrSlug) ? updatedProduct : p)
         })
         
         if (user?.id && product.id) {
