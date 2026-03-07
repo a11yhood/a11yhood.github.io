@@ -2250,7 +2250,7 @@ function App() {
     }
   }
 
-  const handleAddTag = async (productSlug: string, tag: string, productObj?: Product) => {
+  const handleAddTag = async (productIdOrSlug: string, tag: string, productObj?: Product) => {
     if (!user) {
       return
     }
@@ -2259,7 +2259,7 @@ function App() {
       const normalizedTag = tag.trim().toLowerCase()
       
       // Use provided product object if available, otherwise look it up
-      let product = productObj || products?.find(p => p.slug === productSlug || p.id === productSlug)
+      let product = productObj || products?.find(p => p.slug === productIdOrSlug || p.id === productIdOrSlug)
       
       if (!product) {
         return
@@ -2269,9 +2269,15 @@ function App() {
         toast.info('Tag already exists')
         return
       }
+
+      if (!product.id) {
+        console.error('[App.handleAddTag] Product is missing UUID id; cannot update via PATCH endpoint')
+        toast.error('Failed to add tag: product identifier not found')
+        return
+      }
       
       const updatedProduct = await APIService.updateProduct(
-        productSlug,
+        product.id,
         { tags: [...product.tags, normalizedTag] },
         user?.username
       )
@@ -2279,7 +2285,7 @@ function App() {
       if (updatedProduct) {
         setProducts((currentProducts) => {
           const current = currentProducts || []
-          return current.map((p) => (p.slug === productSlug || p.id === productSlug) ? updatedProduct : p)
+          return current.map((p) => (p.slug === productIdOrSlug || p.id === productIdOrSlug) ? updatedProduct : p)
         })
         
         if (user?.id && product.id) {
@@ -2415,7 +2421,7 @@ function App() {
 
   const handleEditProduct = async (updatedProduct: Product) => {
     try {
-      await APIService.updateProduct(updatedProduct.slug, updatedProduct, user?.username)
+      await APIService.updateProduct(updatedProduct.id, updatedProduct, user?.username)
       
       setProducts((currentProducts) =>
         (currentProducts || []).map(p =>
