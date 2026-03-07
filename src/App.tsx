@@ -1411,7 +1411,9 @@ function App() {
   const [minRating, setMinRating] = useState(0)
   const [updatedSince, setUpdatedSince] = useState<string | null>(null) // ISO date string
   const [committedUpdatedSince, setCommittedUpdatedSince] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<'rating' | 'updated_at' | 'created_at'>('created_at')
+  const [sortBy, setSortBy] = useState<'rating' | 'updated_at' | 'created_at'>(
+    location.pathname === '/products' ? 'rating' : 'created_at'
+  )
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [sortHasChanged, setSortHasChanged] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
@@ -1490,6 +1492,21 @@ function App() {
     setSortHasChanged(true) // Mark that sort has been explicitly changed
     setCurrentPage(1) // Reset to first page when sorting changes
   }
+
+  // Keep default sorting route-aware unless the user explicitly picks a sort.
+  useEffect(() => {
+    if (sortHasChanged) {
+      return
+    }
+
+    const defaultSortByForRoute: 'rating' | 'created_at' =
+      location.pathname === '/products' ? 'rating' : 'created_at'
+
+    if (sortBy !== defaultSortByForRoute || sortOrder !== 'desc') {
+      setSortBy(defaultSortByForRoute)
+      setSortOrder('desc')
+    }
+  }, [location.pathname, sortHasChanged, sortBy, sortOrder])
 
   // Debounce the updatedSince input so we only fire requests after user pauses typing
   useEffect(() => {
@@ -1682,7 +1699,7 @@ function App() {
           sources: initialUrlSources.length > 0 ? initialUrlSources : undefined,
           types: initialUrlTypes.length > 0 ? initialUrlTypes : undefined,
           tags: initialUrlTags.length > 0 ? initialUrlTags : undefined,
-          sortBy: 'created_at' as const,
+          sortBy: 'rating' as const,
           sortOrder: 'desc' as const,
         }
 
@@ -1753,10 +1770,12 @@ function App() {
     }
 
     // Check if this is the initial load with no filters (skip to avoid duplicate from initial load)
-        const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 && 
-                selectedTypes.length === 0 && selectedTags.length === 0 && 
-                minRating === 0 && committedUpdatedSince === null &&
-          sortBy === 'created_at' && sortOrder === 'desc' && !sortHasChanged
+    const defaultSortByForRoute: 'rating' | 'created_at' =
+      location.pathname === '/products' ? 'rating' : 'created_at'
+    const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 &&
+      selectedTypes.length === 0 && selectedTags.length === 0 &&
+      minRating === 0 && committedUpdatedSince === null &&
+      sortBy === defaultSortByForRoute && sortOrder === 'desc' && !sortHasChanged
     
     if (isInitialLoad) {
       console.log('[App.fetchEffect] Skipping - using data from initial load')
