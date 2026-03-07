@@ -2616,7 +2616,7 @@ function App() {
   const handleDeleteCollection = async (collectionSlug: string) => {
     try {
       await APIService.deleteCollection(collectionSlug)
-      setCollections((current) => current.filter((c) => c.slug !== collectionSlug))
+      setCollections((current) => current.filter((c) => c.slug !== collectionSlug && c.id !== collectionSlug))
       toast.success('Collection deleted successfully')
     } catch (error) {
       console.error('Failed to delete collection:', error)

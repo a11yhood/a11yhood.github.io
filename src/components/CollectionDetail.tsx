@@ -165,7 +165,7 @@ export function CollectionDetail({
           <div className="flex flex-wrap gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Created by:</span>{' '}
-              <span className="font-medium">{collection.userName}</span>
+              <span className="font-medium">{collection.username}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Products:</span>{' '}
