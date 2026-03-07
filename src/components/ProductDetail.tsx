@@ -80,34 +80,50 @@ export function ProductDetail({
   const isEditor = !!userAccount?.id && (product.editorIds?.includes(userAccount.id) || false)
   const [showAddToCollectionDialog, setShowAddToCollectionDialog] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
+  const prevShowAddToCollectionDialogRef = useRef(false)
 
-  // Load collections lazily (user's own + all public collections)
-  useEffect(() => {
-    const loadCollections = async () => {
-      try {
-        const [userCollections, publicCollections] = await Promise.all([
-          user ? APIService.getUserCollections() : Promise.resolve([]),
-          APIService.getPublicCollections(),
-        ])
-        // Combine user's collections with public collections (avoid duplicates by ID)
-        const allCollections = [...userCollections]
-        publicCollections.forEach(pub => {
-          if (!allCollections.some(c => c.id === pub.id)) {
-            allCollections.push(pub)
-          }
-        })
-        setLocalCollections(allCollections)
-        collectionLoadStartedRef.current = true
-      } catch (error) {
-        // Silently handle errors - collections are optional
-        console.debug('Failed to load collections:', error)
-      }
+  // Load collections function (extracted for reuse)
+  const loadCollections = async () => {
+    if (!user) return
+    try {
+      const [userCollections, publicCollections] = await Promise.all([
+        APIService.getUserCollections(),
+        APIService.getPublicCollections(),
+      ])
+      // Combine user's collections with public collections (avoid duplicates by ID)
+      const allCollections = [...userCollections]
+      publicCollections.forEach(pub => {
+        if (!allCollections.some(c => c.id === pub.id)) {
+          allCollections.push(pub)
+        }
+      })
+      setLocalCollections(allCollections)
+      collectionLoadStartedRef.current = true
+    } catch (error) {
+      // Silently handle errors - collections are optional
+      console.debug('Failed to load collections:', error)
     }
-    
-    // Load collections on mount and whenever user state changes
+  }
+
+  // Load collections on mount and whenever user state changes
+  useEffect(() => {
     collectionLoadStartedRef.current = false
     loadCollections()
   }, [user])
+
+  // Refresh collections when add-to-collection dialog opens or closes
+  useEffect(() => {
+    if (user) {
+      if (showAddToCollectionDialog && !prevShowAddToCollectionDialogRef.current) {
+        // Dialog is opening - refresh to get latest data
+        loadCollections()
+      } else if (!showAddToCollectionDialog && prevShowAddToCollectionDialogRef.current) {
+        // Dialog is closing - refresh to reflect any changes made
+        loadCollections()
+      }
+    }
+    prevShowAddToCollectionDialogRef.current = showAddToCollectionDialog
+  }, [showAddToCollectionDialog, user])
 
   console.log('[ProductDetail] Filtering ratings:', {
     productId: product.id,
@@ -381,14 +397,22 @@ export function ProductDetail({
         </div>
       </div>
 
-      {user && onAddToCollection && onRemoveFromCollection && (
+      {user && (
         <AddToCollectionDialog
           open={showAddToCollectionDialog}
           onOpenChange={setShowAddToCollectionDialog}
-          collections={userCollections}
+          collections={localCollections}
           productSlug={product.slug}
-          onAddToCollection={onAddToCollection}
-          onRemoveFromCollection={onRemoveFromCollection}
+          onAddToCollection={async (collectionSlug) => {
+            await onAddToCollection(collectionSlug)
+            // Refresh collections after adding
+            await loadCollections()
+          }}
+          onRemoveFromCollection={async (collectionSlug) => {
+            await onRemoveFromCollection(collectionSlug)
+            // Refresh collections after removing
+            await loadCollections()
+          }}
           onCreateNew={() => {
             setShowAddToCollectionDialog(false)
             setShowCreateCollectionDialog(true)
@@ -400,9 +424,11 @@ export function ProductDetail({
         <CreateCollectionDialog
           open={showCreateCollectionDialog}
           onOpenChange={setShowCreateCollectionDialog}
-          onCreateCollection={(collectionData) => {
-            onCreateCollection(collectionData)
+          onCreateCollection={async (collectionData) => {
+            await onCreateCollection(collectionData)
             setShowCreateCollectionDialog(false)
+            // Refresh collections list after creating a new one
+            await loadCollections()
           }}
           initialProductSlugs={[product.slug]}
           username={user.login}

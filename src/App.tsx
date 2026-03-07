@@ -456,8 +456,10 @@ export function ProductListPage({
                   product={product}
                   ratings={ratings}
                   collections={collections}
+                  selectedTags={selectedTags}
                   href={`/product/${product.slug ?? product.id}`}
                   onNavigate={() => navigate(`/product/${product.slug ?? product.id}`)}
+                  onTagClick={onTagToggle}
                   user={user}
                   onRate={onRate}
                   showBannedBadge={canViewBanned}
@@ -475,8 +477,10 @@ export function ProductListPage({
                   product={product}
                   ratings={ratings}
                   collections={collections}
+                  selectedTags={selectedTags}
                   href={`/product/${product.slug ?? product.id}`}
                   onNavigate={() => navigate(`/product/${product.slug ?? product.id}`)}
+                  onTagClick={onTagToggle}
                   onDelete={onDeleteProduct}
                   user={user}
                   onRate={onRate}
@@ -947,7 +951,11 @@ function CollectionsPage({
           <CollectionsList
             collections={myCollections}
             products={products}
-            onSelectCollection={(collection) => navigate(`/collections/${collection.slug || collection.id}`)}
+            onSelectCollection={(collection) =>
+              navigate(`/collections/${collection.slug || collection.id}`, {
+                state: { collectionSnapshot: collection },
+              })
+            }
             onDeleteCollection={onDeleteCollection}
             onEditCollection={onEditCollection}
             currentUserId={user?.id}
@@ -969,7 +977,11 @@ function CollectionsPage({
             !userAccount || c.userId !== userAccount.id
           )}
           products={products}
-          onSelectCollection={(collection) => navigate(`/collections/${collection.slug || collection.id}`)}
+          onSelectCollection={(collection) =>
+            navigate(`/collections/${collection.slug || collection.id}`, {
+              state: { collectionSnapshot: collection },
+            })
+          }
           onDeleteCollection={() => { /* no-op for public */ }}
           currentUserId={user?.id}
         />
@@ -981,28 +993,40 @@ function CollectionsPage({
 function CollectionDetailPage({ 
   collections,
   ratings,
+  products,
   user,
   userAccount,
   onRemoveProductFromCollection,
-  onDeleteProduct
+  onDeleteProduct,
+  onDeleteCollection,
+  onEditCollection,
 }: {
   collections: Collection[]
   ratings: Rating[]
+  products: Product[]
   user: UserData | null
   userAccount: UserAccount | null
   onRemoveProductFromCollection: (collectionSlug: string, productSlug: string) => void
   onDeleteProduct: (productId: string) => void
+  onDeleteCollection?: (collectionSlug: string) => void
+  onEditCollection?: (collection: Collection) => void
 }) {
   const { collectionSlug } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const state = location.state as { collectionSnapshot?: Collection } | null
   
-  // Try to find by slug first, then by ID
-  const collection = collections.find(c => c.slug === collectionSlug || c.slug === collectionSlug)
+  // Try to find by slug first, then by ID.
+  const collection = collections.find(c => c.slug === collectionSlug || c.id === collectionSlug)
+  const snapshotCollection = state?.collectionSnapshot &&
+    (state.collectionSnapshot.slug === collectionSlug || state.collectionSnapshot.id === collectionSlug)
+    ? state.collectionSnapshot
+    : null
   const [externalCollection, setExternalCollection] = useState<Collection | null>(null)
 
-  // Refetch collection if it's loaded externally (not from main collections list)
+  // Explicit refresh for post-mutation actions.
   const refetchExternalCollection = async () => {
-    if (!collection && collectionSlug) {
+    if (collectionSlug) {
       try {
         const fetched = await APIService.getCollection(collectionSlug)
         setExternalCollection(fetched)
@@ -1014,7 +1038,9 @@ function CollectionDetailPage({
 
   useEffect(() => {
     const load = async () => {
-      if (!collection && collectionSlug) {
+      // Avoid extra backend call when we already have collection data from
+      // list state or route-state snapshot.
+      if (!collection && !snapshotCollection && collectionSlug) {
         try {
           const fetched = await APIService.getCollection(collectionSlug)
           setExternalCollection(fetched)
@@ -1024,9 +1050,9 @@ function CollectionDetailPage({
       }
     }
     load()
-  }, [collection, collectionSlug])
+  }, [collection, snapshotCollection, collectionSlug])
 
-  const effectiveCollection = collection || externalCollection || null
+  const effectiveCollection = externalCollection || snapshotCollection || collection || null
 
   if (!effectiveCollection) {
     return (
@@ -1043,6 +1069,7 @@ function CollectionDetailPage({
     <CollectionDetail
       collection={effectiveCollection}
       ratings={ratings}
+      products={products}
       onBack={() => navigate('/collections')}
       onRemoveProduct={async (productSlug) => {
         onRemoveProductFromCollection(effectiveCollection.slug || effectiveCollection.id, productSlug)
@@ -1053,6 +1080,11 @@ function CollectionDetailPage({
       isOwner={user?.id === effectiveCollection.userId}
       userAccount={userAccount}
       onDeleteProduct={onDeleteProduct}
+      onDeleteCollection={onDeleteCollection ? async () => {
+        await onDeleteCollection(effectiveCollection.slug || effectiveCollection.id)
+        navigate('/collections')
+      } : undefined}
+      onEditCollection={onEditCollection ? () => onEditCollection(effectiveCollection) : undefined}
       onTogglePrivacy={async (nextPublic) => {
         try {
           const updated = await APIService.updateCollection(effectiveCollection.id, { isPublic: nextPublic })
@@ -1230,7 +1262,7 @@ function App() {
   const [showSignup, setShowSignup] = useState(false)
   const [isNewUser, setIsNewUser] = useState(false)
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
-  const [oauthProcessed, setOauthProcessed] = useState(false)
+  const oauthProcessedRef = useRef(false)
   const [ravelryAuthTimestamp, setRavelryAuthTimestamp] = useState(0)
   const isTestEnv = import.meta.env.MODE === 'test'
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
@@ -1437,14 +1469,14 @@ function App() {
       // Only load all products on pages that need the full list
       const needsFullProductList = location.pathname === '/products' || 
                                    location.pathname === '/submit' ||
-                                   location.pathname.startsWith('/collections') ||
                                    location.pathname.startsWith('/admin')
       
       // Only load filter metadata (tags, sources, types) on pages that use them
+      // Don't load on collection detail pages (/collections/:slug)
       const needsFilterMetadata = needsFullProductList
       
       try {
-        // Load metadata only if needed (search, collections, admin pages)
+        // Load metadata only if needed (search, admin pages)
         // Do not block initial product load on slow metadata endpoints.
         if (needsFilterMetadata) {
           void Promise.allSettled([
@@ -1507,24 +1539,32 @@ function App() {
           return
         }
 
-        // First fetch shared metadata (sources/types/tags) so we can fan-out product fetches per source
-        // Use Promise.allSettled so that failures in one endpoint don't block others
-        const results = await Promise.allSettled([
-          APIService.getProductCount({ includeBanned: false }),
-        ])
-        
-        const totalCount = results[0].status === 'fulfilled' ? results[0].value : 0
+        // Build initial fetch params from URL when landing on /products so we don't
+        // briefly show unfiltered results before URL-driven filters are applied.
+        const initialUrlQuery = location.pathname === '/products' ? (searchParams.get('q') || '') : ''
+        const initialUrlTypes = location.pathname === '/products' ? normalizeParamArray(searchParams.getAll('type')) : []
+        const initialUrlSources = location.pathname === '/products' ? normalizeParamArray(searchParams.getAll('source')) : []
+        const initialUrlTags = location.pathname === '/products' ? normalizeParamArray(searchParams.getAll('tag')) : []
 
-        // Fetch first page of products with default filters
-        // The fetchProducts effect will handle applying actual current filter values
-        const offset = 0 // page 1
-        const loadedProducts = await APIService.getAllProducts({ 
+        const initialProductParams = {
           includeBanned: false,
+          search: initialUrlQuery || undefined,
           limit: pageSize,
-          offset,
-          sortBy: 'created_at',
-          sortOrder: 'desc',
-        })
+          offset: 0,
+          sources: initialUrlSources.length > 0 ? initialUrlSources : undefined,
+          types: initialUrlTypes.length > 0 ? initialUrlTypes : undefined,
+          tags: initialUrlTags.length > 0 ? initialUrlTags : undefined,
+          sortBy: 'created_at' as const,
+          sortOrder: 'desc' as const,
+        }
+
+        const [countResult, productsResult] = await Promise.allSettled([
+          APIService.getProductCount(initialProductParams),
+          APIService.getAllProducts(initialProductParams),
+        ])
+
+        const loadedProducts = productsResult.status === 'fulfilled' ? productsResult.value : []
+        const totalCount = countResult.status === 'fulfilled' ? countResult.value : loadedProducts.length
         
         console.log('[App] Data loaded:', {
           products: loadedProducts.length,
@@ -1914,18 +1954,18 @@ function App() {
       
       console.log('[App OAuth] → Code in URL:', code ? `YES (${code.substring(0, 10)}...)` : 'NO')
       console.log('[App OAuth] → Is OAuth callback:', isCallback)
-      console.log('[App OAuth] → oauthProcessed flag:', oauthProcessed)
+      console.log('[App OAuth] → oauthProcessed flag:', oauthProcessedRef.current)
       console.log('[App OAuth] → authUser:', authUser ? `${authUser.username}` : 'null')
       console.log('[App OAuth] → authLoading:', authLoading)
       
       // If this is a fresh callback, reset the processed flag
-      if (isCallback && oauthProcessed) {
+      if (isCallback && oauthProcessedRef.current) {
         console.log('[App OAuth] → Fresh callback detected, resetting oauthProcessed flag')
-        setOauthProcessed(false)
+        oauthProcessedRef.current = false
         return // Return and let next render process it
       }
       
-      if (oauthProcessed && !isCallback) {
+      if (oauthProcessedRef.current && !isCallback) {
         console.log('[App OAuth] → Already processed and no callback params, skipping')
         return
       }
@@ -1943,7 +1983,7 @@ function App() {
         if (code) {
           console.warn('[App OAuth] ⚠️  Ravelry OAuth callback received but user not logged in')
           toast.error('Please sign in with GitHub first, then authorize Ravelry.')
-          setOauthProcessed(true)
+          oauthProcessedRef.current = true
           window.history.replaceState({}, document.title, '/admin')
         }
         return
@@ -1960,12 +2000,12 @@ function App() {
         
         toast.error(`OAuth Error: ${errorParam}${errorDesc ? ` - ${errorDesc}` : ''}`)
         window.history.replaceState({}, document.title, '/admin')
-        setOauthProcessed(true)
+        oauthProcessedRef.current = true
         return
       }
       
       if (code && window.location.pathname === '/admin') {
-        setOauthProcessed(true)
+        oauthProcessedRef.current = true
         
         console.log('[App OAuth] ========== OAUTH CALLBACK DETECTED ==========')
         console.log('[App OAuth] → Authorization code received:', code.substring(0, 10) + '...')
@@ -2033,18 +2073,22 @@ function App() {
     }
 
     handleRavelryOAuth()
-  }, [authLoading, authUser, oauthProcessed])
+  }, [authLoading, authUser])
 
   // Load collections for all users (public collections always, user collections on /collections pages)
   useEffect(() => {
     const loadCollections = async () => {
       try {
-        // Always load public collections so they appear on product pages
-        const publicCollections = await APIService.getPublicCollections()
+        // Only load public collections on pages that need them (currently collections list)
+        // Skip on collection detail pages (/collections/:slug) and other routes
+        const needsPublicCollections = 
+          location.pathname === '/collections'
         
-        // Also load user's own collections if authenticated and on a page that needs them
-        const isCollectionPage = location.pathname.startsWith('/collections') && !location.pathname.startsWith('/collections/') || location.pathname === '/collections'
-        const userCollections = (user && isCollectionPage) ? await APIService.getUserCollections() : []
+        const publicCollections = needsPublicCollections ? await APIService.getPublicCollections() : []
+        
+        // Load user's own collections only on the collections list page
+        const isCollectionsListPage = location.pathname === '/collections'
+        const userCollections = (user && isCollectionsListPage) ? await APIService.getUserCollections() : []
         
         // Combine public and user collections (avoiding duplicates)
         const allCollections = [...userCollections]
@@ -2612,7 +2656,7 @@ function App() {
   const handleDeleteCollection = async (collectionSlug: string) => {
     try {
       await APIService.deleteCollection(collectionSlug)
-      setCollections((current) => current.filter((c) => c.slug !== collectionSlug))
+      setCollections((current) => current.filter((c) => c.slug !== collectionSlug && c.id !== collectionSlug))
       toast.success('Collection deleted successfully')
     } catch (error) {
       console.error('Failed to delete collection:', error)
@@ -2808,10 +2852,16 @@ function App() {
                 <CollectionDetailPage
                   collections={collections}
                   ratings={ratings}
+                  products={products}
                   user={user}
                   userAccount={userAccount}
                   onRemoveProductFromCollection={handleRemoveProductFromCollection}
                   onDeleteProduct={handleDeleteProduct}
+                  onDeleteCollection={handleDeleteCollection}
+                  onEditCollection={(collection) => {
+                    setEditingCollection(collection)
+                    setShowEditCollectionDialog(true)
+                  }}
                 />
               } />
               <Route path="/account/:username" element={
