@@ -64,6 +64,7 @@ export function CollectionsList({
             tabIndex={0}
             aria-label={`View collection: ${collection.name}`}
             onKeyDown={(e) => {
+              if (e.target !== e.currentTarget) return
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
                 onSelectCollection(collection)
