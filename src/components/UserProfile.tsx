@@ -56,7 +56,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
 
   useEffect(() => {
     const loadStats = async () => {
-      const userStats = await APIService.getUserStats(userAccount.id)
+      const userStats = await APIService.getUserStats(userAccount.username || userAccount.id)
       setStats(userStats)
     }
     loadStats()
@@ -103,8 +103,12 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
   }, [userAccount.id, userAccount.role])
 
   const handleSave = async () => {
+    if (!userAccount.username) {
+      toast.error('Cannot update profile: username is missing')
+      return
+    }
     try {
-      await APIService.updateUserProfile(userAccount.githubId, {
+      await APIService.updateUserProfile(userAccount.username, {
         displayName: displayName.trim() || undefined,
         bio: bio.trim() || undefined,
         location: location.trim() || undefined,
@@ -175,10 +179,12 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                       Website
                     </a>
                   )}
-                  <div className="flex items-center gap-1">
-                    <CalendarBlank size={16} />
-                    Joined {formatDate(userAccount.createdAt)}
-                  </div>
+                  {userAccount.createdAt && (
+                    <div className="flex items-center gap-1">
+                      <CalendarBlank size={16} />
+                      Joined {formatDate(new Date(userAccount.createdAt).getTime())}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

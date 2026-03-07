@@ -84,10 +84,16 @@ export type UserData = {
 export type UserAccount = {
   id: string
   username?: string
+  login?: string
+  displayName?: string
   avatarUrl?: string
   email?: string
   role: 'user' | 'moderator' | 'admin'
-  createdAt?: string
+  bio?: string
+  location?: string
+  website?: string
+  preferences?: Record<string, any>
+  createdAt?: string | number
   joinedAt?: string
   lastActive?: string
 }

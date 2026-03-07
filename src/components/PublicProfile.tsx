@@ -9,7 +9,7 @@ import { APIService } from '@/lib/api'
 import { UserAccount, Product, Collection, BlogPost } from '@/lib/types'
 import { ProductCard } from '@/components/ProductCard'
 
-export function PublicProfile({ login }: { login: string }) {
+export function PublicProfile({ username }: { username: string }) {
   const navigate = useNavigate()
   const [account, setAccount] = useState<UserAccount | null>(null)
   const [stats, setStats] = useState({
@@ -29,20 +29,15 @@ export function PublicProfile({ login }: { login: string }) {
       setLoading(true)
       setError(null)
       try {
-        const acct = await APIService.getUserByUsername(login)
+        const acct = await APIService.getUserByUsername(username)
         if (acct) {
           setAccount(acct)
-          const s = await APIService.getUserStats(acct.id)
+          const s = await APIService.getUserStats(acct.username || acct.id)
           setStats(s)
           
           // Load products the user manages
           try {
-            const allProducts = await APIService.getAllProducts()
-            
-            const userManagedProducts = allProducts.filter((p) => {
-              const owners = p.ownerIds || []
-              return owners.includes(acct.id)
-            })
+            const userManagedProducts = await APIService.getProductsByOwner(acct.username || acct.id)
             setManagedProducts(userManagedProducts)
           } catch (e) {
             console.error('[PublicProfile] Failed to load products:', e)
@@ -77,7 +72,7 @@ export function PublicProfile({ login }: { login: string }) {
       }
     }
     load()
-  }, [login])
+  }, [username])
 
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading profile...</p>
@@ -102,12 +97,12 @@ export function PublicProfile({ login }: { login: string }) {
             <div className="flex items-start gap-4">
               <Avatar className="w-20 h-20">
                 <AvatarImage src={account.avatarUrl} alt={account.username} />
-                <AvatarFallback>{account.username.slice(0, 2).toUpperCase()}</AvatarFallback>
+                <AvatarFallback>{(account.username || account.login || '?').slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="space-y-2">
                 <div>
                   <CardTitle className="text-2xl flex items-center gap-2">
-                    {account.username}
+                    {account.displayName || account.username}
                     {account.role === 'moderator' && (
                       <Badge variant="secondary">Editor</Badge>
                     )}
@@ -115,8 +110,31 @@ export function PublicProfile({ login }: { login: string }) {
                       <Badge variant="default">Admin</Badge>
                     )}
                   </CardTitle>
+                  {account.displayName && account.username && (
+                    <p className="text-sm text-muted-foreground">@{account.username}</p>
+                  )}
                 </div>
+                {account.bio && (
+                  <CardDescription className="max-w-2xl">{account.bio}</CardDescription>
+                )}
                 <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                  {account.location && (
+                    <div className="flex items-center gap-1">
+                      <MapPin size={16} />
+                      {account.location}
+                    </div>
+                  )}
+                  {account.website && (
+                    <a
+                      href={account.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 hover:text-primary"
+                    >
+                      <Globe size={16} />
+                      Website
+                    </a>
+                  )}
                   {account.createdAt && (
                     <div className="flex items-center gap-1">
                       <CalendarBlank size={16} />
