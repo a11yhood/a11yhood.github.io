@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -142,9 +143,11 @@ export function TagManager({
         {currentTags && currentTags.length > 0 ? (
           currentTags.map((tag) => (
             <li key={tag}>
-              <Badge variant="secondary">
-                {tag}
-              </Badge>
+              <Link to={`/products?tag=${encodeURIComponent(tag)}`} aria-label={`View all products tagged with ${tag}`}>
+                <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/80 transition-colors">
+                  {tag}
+                </Badge>
+              </Link>
             </li>
           ))
         ) : (
