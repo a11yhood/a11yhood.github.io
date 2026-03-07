@@ -432,12 +432,12 @@ export function ProductListPage({
 
           <h2 className="sr-only">Search Results</h2>
 
-          {isSearching ? (
+          {isSearching && products.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24">
               <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
               <p className="text-muted-foreground">Loading results...</p>
             </div>
-          ) : products.length === 0 ? (
+          ) : !isSearching && products.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-lg text-muted-foreground">
                 No products found. Try adjusting your filters.
@@ -1396,9 +1396,10 @@ function App() {
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
   const [thingiverseAuthTimestamp, setThingiverseAuthTimestamp] = useState(0)
   
-  // Helper to normalize URL param arrays: filter empty strings and deduplicate
+  // Helper to normalize URL param arrays: filter empty strings, deduplicate, and sort so
+  // order differences between URL and state never cause spurious state updates.
   const normalizeParamArray = (params: string[]): string[] => {
-    return Array.from(new Set(params.filter(Boolean)))
+    return Array.from(new Set(params.filter(Boolean))).sort()
   }
   
   // Filter states - initialize from URL params
@@ -1410,7 +1411,9 @@ function App() {
   const [minRating, setMinRating] = useState(0)
   const [updatedSince, setUpdatedSince] = useState<string | null>(null) // ISO date string
   const [committedUpdatedSince, setCommittedUpdatedSince] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<'rating' | 'updated_at' | 'created_at'>('created_at')
+  const [sortBy, setSortBy] = useState<'rating' | 'updated_at' | 'created_at'>(
+    location.pathname === '/products' ? 'rating' : 'created_at'
+  )
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [sortHasChanged, setSortHasChanged] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
@@ -1490,6 +1493,21 @@ function App() {
     setCurrentPage(1) // Reset to first page when sorting changes
   }
 
+  // Keep default sorting route-aware unless the user explicitly picks a sort.
+  useEffect(() => {
+    if (sortHasChanged) {
+      return
+    }
+
+    const defaultSortByForRoute: 'rating' | 'created_at' =
+      location.pathname === '/products' ? 'rating' : 'created_at'
+
+    if (sortBy !== defaultSortByForRoute || sortOrder !== 'desc') {
+      setSortBy(defaultSortByForRoute)
+      setSortOrder('desc')
+    }
+  }, [location.pathname, sortHasChanged, sortBy, sortOrder])
+
   // Debounce the updatedSince input so we only fire requests after user pauses typing
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1533,24 +1551,30 @@ function App() {
   useEffect(() => {
     if (location.pathname !== '/products') return
     const urlQuery = searchParams.get('q') || ''
-    setSearchQuery(urlQuery)
-    setSearchInputValue(urlQuery)
+
+    // Guard primitives too — avoid enqueuing a state update when nothing changed.
+    setSearchQuery(current => current === urlQuery ? current : urlQuery)
+    setSearchInputValue(current => current === urlQuery ? current : urlQuery)
     
-    // Only update filter states when the normalized URL params actually differ from current state
+    // Only update filter states when the normalized URL params actually differ from current state.
+    // normalizeParamArray sorts the values, so order changes in the URL don't trigger spurious updates.
     const urlTags = normalizeParamArray(searchParams.getAll('tag'))
     const urlTypes = normalizeParamArray(searchParams.getAll('type'))
     const urlSources = normalizeParamArray(searchParams.getAll('source'))
     
     setSelectedTags(current => {
-      const changed = current.length !== urlTags.length || !current.every((tag, i) => tag === urlTags[i])
+      const sorted = [...current].sort()
+      const changed = sorted.length !== urlTags.length || !sorted.every((tag, i) => tag === urlTags[i])
       return changed ? urlTags : current
     })
     setSelectedTypes(current => {
-      const changed = current.length !== urlTypes.length || !current.every((type, i) => type === urlTypes[i])
+      const sorted = [...current].sort()
+      const changed = sorted.length !== urlTypes.length || !sorted.every((type, i) => type === urlTypes[i])
       return changed ? urlTypes : current
     })
     setSelectedSources(current => {
-      const changed = current.length !== urlSources.length || !current.every((source, i) => source === urlSources[i])
+      const sorted = [...current].sort()
+      const changed = sorted.length !== urlSources.length || !sorted.every((source, i) => source === urlSources[i])
       return changed ? urlSources : current
     })
   }, [searchParams, location.pathname])
@@ -1675,7 +1699,7 @@ function App() {
           sources: initialUrlSources.length > 0 ? initialUrlSources : undefined,
           types: initialUrlTypes.length > 0 ? initialUrlTypes : undefined,
           tags: initialUrlTags.length > 0 ? initialUrlTags : undefined,
-          sortBy: 'created_at' as const,
+          sortBy: 'rating' as const,
           sortOrder: 'desc' as const,
         }
 
@@ -1746,10 +1770,12 @@ function App() {
     }
 
     // Check if this is the initial load with no filters (skip to avoid duplicate from initial load)
-        const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 && 
-                selectedTypes.length === 0 && selectedTags.length === 0 && 
-                minRating === 0 && committedUpdatedSince === null &&
-          sortBy === 'created_at' && sortOrder === 'desc' && !sortHasChanged
+    const defaultSortByForRoute: 'rating' | 'created_at' =
+      location.pathname === '/products' ? 'rating' : 'created_at'
+    const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 &&
+      selectedTypes.length === 0 && selectedTags.length === 0 &&
+      minRating === 0 && committedUpdatedSince === null &&
+      sortBy === defaultSortByForRoute && sortOrder === 'desc' && !sortHasChanged
     
     if (isInitialLoad) {
       console.log('[App.fetchEffect] Skipping - using data from initial load')

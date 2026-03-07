@@ -397,12 +397,12 @@ export function ProductDetail({
         </div>
       </div>
 
-      {showAddToCollectionDialog && onAddToCollection && onRemoveFromCollection && (
+      {user && showAddToCollectionDialog && onAddToCollection && onRemoveFromCollection && (
         <AddToCollectionDialog
           open={showAddToCollectionDialog}
           onOpenChange={setShowAddToCollectionDialog}
           collections={localCollections}
-          productSlug={product.slug || product.id}
+          productSlug={product.slug}
           onAddToCollection={async (collectionSlug) => {
             await onAddToCollection(collectionSlug)
             // Refresh collections after adding

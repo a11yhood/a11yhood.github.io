@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { ArrowLeft, Lock, LockOpen, Trash, Pencil } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
 import { formatDistanceToNow } from 'date-fns'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { APIService } from '@/lib/api'
 import { useNavigate } from 'react-router-dom'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
@@ -43,6 +43,19 @@ export function CollectionDetail({
   const navigate = useNavigate()
   const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  // Monotonically-increasing ID for the active load cycle. Incremented at the
+  // start of each new load and again in the effect cleanup so that in-flight
+  // callbacks from a superseded cycle can detect they are stale and bail out
+  // before touching state.
+  const loadIdRef = useRef(0)
+
+  // Stable key derived from the sorted slug list so the effect only re-runs
+  // when the actual set of slugs changes, not on every parent re-render that
+  // creates a new array reference.
+  const slugKey = useMemo(
+    () => (collection.productSlugs ?? []).slice().sort().join(','),
+    [collection.productSlugs]
+  )
 
   // Derive top tags from the collection's products, sorted by frequency
   const topTags = useMemo(() => {
@@ -59,6 +72,12 @@ export function CollectionDetail({
   }, [collectionProducts])
 
   useEffect(() => {
+    // Capture the ID for this load cycle.  Any async callback that resolves
+    // after the cycle is superseded (slugKey/globalProducts changed, or the
+    // component unmounted) will see loadIdRef.current !== loadId and bail out.
+    loadIdRef.current++
+    const loadId = loadIdRef.current
+
     const loadCollectionProducts = async () => {
       if (!collection.productSlugs || collection.productSlugs.length === 0) {
         setCollectionProducts([])
@@ -66,6 +85,8 @@ export function CollectionDetail({
       }
 
       setIsLoading(true)
+      setCollectionProducts([])
+
       try {
         // First, try to get products from the global state (already loaded)
         if (globalProducts && globalProducts.length > 0) {
@@ -76,28 +97,59 @@ export function CollectionDetail({
           // If we found all products in global state, use them
           if (foundProducts.length === collection.productSlugs.length) {
             console.log('[CollectionDetail] Using cached global products, avoiding API calls')
-            setCollectionProducts(foundProducts)
-            setIsLoading(false)
+            if (loadIdRef.current === loadId) {
+              setCollectionProducts(foundProducts)
+              setIsLoading(false)
+            }
             return
           }
         }
 
-        // Fallback: fetch individually (guaranteed to work)
+        // Fallback: fetch individually with incremental loading for better UX
         console.log(`[CollectionDetail] Fetching ${collection.productSlugs.length} products individually`)
-        const products = await Promise.all(
-          collection.productSlugs.map(slug => APIService.getProduct(slug))
+
+        await Promise.allSettled(
+          collection.productSlugs.map(async (slug, index) => {
+            try {
+              const product = await APIService.getProduct(slug)
+              // Bail out if this cycle was superseded before updating state
+              if (loadIdRef.current !== loadId) return
+              if (product !== null) {
+                // Insert product at its slug index to preserve collection order while streaming
+                setCollectionProducts(prev => {
+                  const next = [...prev]
+                  next[index] = product
+                  return next
+                })
+              }
+            } catch (error) {
+              console.error('[CollectionDetail] Error loading product:', slug, error)
+            }
+          })
         )
-        setCollectionProducts(products.filter((p): p is Product => p !== null))
+
+        // All fetches have settled — mark loading complete if still the active cycle
+        if (loadIdRef.current === loadId) {
+          setIsLoading(false)
+        }
       } catch (error) {
         console.error('[CollectionDetail] Error loading products:', error)
-        setCollectionProducts([])
-      } finally {
-        setIsLoading(false)
+        if (loadIdRef.current === loadId) {
+          setCollectionProducts([])
+          setIsLoading(false)
+        }
       }
     }
 
     loadCollectionProducts()
-  }, [collection.productSlugs, globalProducts])
+
+    return () => {
+      // Invalidate this cycle: any still-running callbacks will check
+      // loadIdRef.current and skip state updates.
+      loadIdRef.current++
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slugKey, globalProducts])
 
   return (
     <div>
@@ -172,7 +224,7 @@ export function CollectionDetail({
             </div>
             <div>
               <span className="text-muted-foreground">Products:</span>{' '}
-              <span className="font-medium">{collectionProducts.length}</span>
+              <span className="font-medium">{collection.productSlugs?.length ?? collectionProducts.length}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Updated:</span>{' '}
@@ -184,11 +236,11 @@ export function CollectionDetail({
         </CardContent>
       </Card>
 
-      {isLoading ? (
+      {isLoading && collectionProducts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground mb-2">Loading products...</p>
         </div>
-      ) : collectionProducts.length === 0 ? (
+      ) : !isLoading && collectionProducts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground mb-2">This collection is empty</p>
           <p className="text-sm text-muted-foreground">
@@ -198,7 +250,7 @@ export function CollectionDetail({
       ) : (
         <div>
           <h3 className="text-xl font-semibold mb-4">
-            Products ({collectionProducts.length})
+            Products ({collectionProducts.length}{isLoading ? '…' : ''})
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {collectionProducts.map((product) => (
