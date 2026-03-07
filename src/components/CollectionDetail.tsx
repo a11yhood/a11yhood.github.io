@@ -2,12 +2,13 @@ import { Collection, Product, Rating, UserAccount } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { ArrowLeft, Lock, LockOpen, Trash, Share } from '@phosphor-icons/react'
+import { ArrowLeft, Lock, LockOpen, Trash, Share, Pencil } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 import { APIService } from '@/lib/api'
+import MarkdownText from '@/components/ui/MarkdownText'
 
 type CollectionDetailProps = {
   collection: Collection
@@ -19,6 +20,8 @@ type CollectionDetailProps = {
   userAccount?: UserAccount | null
   onDeleteProduct: (productSlug: string) => void
   onTogglePrivacy?: (nextPublic: boolean) => Promise<void> | void
+  onDeleteCollection?: () => void
+  onEditCollection?: () => void
 }
 
 export function CollectionDetail({
@@ -31,6 +34,8 @@ export function CollectionDetail({
   userAccount,
   onDeleteProduct,
   onTogglePrivacy,
+  onDeleteCollection,
+  onEditCollection,
 }: CollectionDetailProps) {
   const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -102,17 +107,40 @@ export function CollectionDetail({
                 )}
               </div>
             </div>
-            {collection.isPublic && (
-              <Button variant="outline" size="sm" onClick={handleShare}>
-                <Share size={18} className="mr-2" />
-                Share
-              </Button>
-            )}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {isOwner && onEditCollection && (
+                <Button variant="outline" size="sm" onClick={onEditCollection} aria-label="Edit collection">
+                  <Pencil size={18} className="mr-2" />
+                  Edit
+                </Button>
+              )}
+              {isOwner && onDeleteCollection && (
+                <Button variant="destructive" size="sm" onClick={onDeleteCollection} aria-label="Delete collection">
+                  <Trash size={18} className="mr-2" />
+                  Delete
+                </Button>
+              )}
+              {collection.isPublic && (
+                <Button variant="outline" size="sm" onClick={handleShare}>
+                  <Share size={18} className="mr-2" />
+                  Share
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           {collection.description && (
-            <p className="text-muted-foreground mb-4">{collection.description}</p>
+            <MarkdownText text={collection.description} className="text-muted-foreground mb-4" />
+          )}
+          {collection.tags && collection.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {collection.tags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="text-xs">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
           )}
           <div className="flex flex-wrap gap-4 text-sm">
             <div>

@@ -984,7 +984,9 @@ function CollectionDetailPage({
   user,
   userAccount,
   onRemoveProductFromCollection,
-  onDeleteProduct
+  onDeleteProduct,
+  onDeleteCollection,
+  onEditCollection,
 }: {
   collections: Collection[]
   ratings: Rating[]
@@ -992,6 +994,8 @@ function CollectionDetailPage({
   userAccount: UserAccount | null
   onRemoveProductFromCollection: (collectionSlug: string, productSlug: string) => void
   onDeleteProduct: (productId: string) => void
+  onDeleteCollection?: (collectionSlug: string) => void
+  onEditCollection?: (collection: Collection) => void
 }) {
   const { collectionSlug } = useParams()
   const navigate = useNavigate()
@@ -1053,6 +1057,11 @@ function CollectionDetailPage({
       isOwner={user?.id === effectiveCollection.userId}
       userAccount={userAccount}
       onDeleteProduct={onDeleteProduct}
+      onDeleteCollection={onDeleteCollection ? async () => {
+        await onDeleteCollection(effectiveCollection.slug || effectiveCollection.id)
+        navigate('/collections')
+      } : undefined}
+      onEditCollection={onEditCollection ? () => onEditCollection(effectiveCollection) : undefined}
       onTogglePrivacy={async (nextPublic) => {
         try {
           const updated = await APIService.updateCollection(effectiveCollection.id, { isPublic: nextPublic })
@@ -2784,6 +2793,11 @@ function App() {
                   userAccount={userAccount}
                   onRemoveProductFromCollection={handleRemoveProductFromCollection}
                   onDeleteProduct={handleDeleteProduct}
+                  onDeleteCollection={handleDeleteCollection}
+                  onEditCollection={(collection) => {
+                    setEditingCollection(collection)
+                    setShowEditCollectionDialog(true)
+                  }}
                 />
               } />
               <Route path="/account/:username" element={

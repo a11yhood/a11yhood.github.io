@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Trash, Lock, LockOpen, Pencil } from '@phosphor-icons/react'
 import { formatDistanceToNow } from 'date-fns'
+import MarkdownText from '@/components/ui/MarkdownText'
 
 type CollectionsListProps = {
   collections: Collection[]
@@ -41,7 +42,20 @@ export function CollectionsList({
         const isOwner = currentUserId === collection.userId
         
         return (
-          <Card key={collection.id} className="hover:shadow-md transition-shadow overflow-hidden">
+          <Card
+            key={collection.id}
+            className="hover:shadow-md transition-shadow overflow-hidden cursor-pointer"
+            onClick={() => onSelectCollection(collection)}
+            role="button"
+            tabIndex={0}
+            aria-label={`View collection: ${collection.name}`}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onSelectCollection(collection)
+              }
+            }}
+          >
             <CardHeader>
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
@@ -87,9 +101,10 @@ export function CollectionsList({
             </CardHeader>
             <CardContent>
               {collection.description && (
-                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                  {collection.description}
-                </p>
+                <MarkdownText
+                  text={collection.description}
+                  className="text-sm text-muted-foreground mb-3 line-clamp-2"
+                />
               )}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
@@ -113,13 +128,15 @@ export function CollectionsList({
                   )}
                 </div>
               )}
-              <Button
-                variant="outline"
-                className="w-full mt-4"
-                onClick={() => onSelectCollection(collection)}
-              >
-                View Collection
-              </Button>
+              {collection.tags && collection.tags.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {collection.tags.map((tag) => (
+                    <Badge key={tag} variant="outline" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         )
