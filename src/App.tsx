@@ -902,6 +902,10 @@ function CollectionsPage({
 }) {
   const navigate = useNavigate()
   const [publicCollections, setPublicCollections] = useState<Collection[]>([])
+  const [myPage, setMyPage] = useState(1)
+  const [publicPage, setPublicPage] = useState(1)
+  const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
+  const itemsPerPage = 12 // 3 columns x 4 rows
 
   useEffect(() => {
     const loadPublic = async () => {
@@ -931,6 +935,72 @@ function CollectionsPage({
 
   console.log('[CollectionsPage] Total collections:', collections.length, 'My collections:', myCollections.length)
 
+  // Paginate collections
+  const myStart = (myPage - 1) * itemsPerPage
+  const myEnd = myStart + itemsPerPage
+  const paginatedMyCollections = myCollections.slice(myStart, myEnd)
+  const myTotalPages = Math.ceil(myCollections.length / itemsPerPage)
+
+  const filteredPublicCollections = publicCollections.filter(c => 
+    !userAccount || c.userId !== userAccount.id
+  )
+  const publicStart = (publicPage - 1) * itemsPerPage
+  const publicEnd = publicStart + itemsPerPage
+  const paginatedPublicCollections = filteredPublicCollections.slice(publicStart, publicEnd)
+  const publicTotalPages = Math.ceil(filteredPublicCollections.length / itemsPerPage)
+
+  // Load first product from each visible collection for image display
+  useEffect(() => {
+    const loadCollectionImages = async () => {
+      const visibleCollections = [...paginatedMyCollections, ...paginatedPublicCollections]
+      
+      // Get first product slug from each visible collection
+      const firstProductSlugs = visibleCollections
+        .filter(c => c.productSlugs && c.productSlugs.length > 0)
+        .map(c => c.productSlugs[0])
+        .filter(slug => slug) // Remove any undefined/null
+
+      if (firstProductSlugs.length === 0) return
+
+      // Check which products we don't already have
+      const existingSlugs = new Set([...products, ...collectionProducts].map(p => p.slug))
+      const slugsToFetch = firstProductSlugs.filter(slug => !existingSlugs.has(slug))
+
+      if (slugsToFetch.length === 0) return
+
+      console.log('[CollectionsPage] Loading image products for visible collections:', {
+        visibleCollections: visibleCollections.length,
+        slugsToFetch: slugsToFetch.length
+      })
+
+      try {
+        // Fetch products in parallel
+        const results = await Promise.allSettled(
+          slugsToFetch.map(slug => APIService.getProductBySlug(slug))
+        )
+        
+        const newProducts: Product[] = []
+        results.forEach(result => {
+          if (result.status === 'fulfilled' && result.value) {
+            newProducts.push(result.value)
+          }
+        })
+
+        if (newProducts.length > 0) {
+          console.log('[CollectionsPage] Loaded image products:', newProducts.length)
+          setCollectionProducts(prev => [...prev, ...newProducts])
+        }
+      } catch (error) {
+        console.error('[CollectionsPage] Failed to load collection image products:', error)
+      }
+    }
+
+    loadCollectionImages()
+  }, [paginatedMyCollections, paginatedPublicCollections, products])
+
+  // Merge products from App and locally loaded collection products
+  const allProducts = [...products, ...collectionProducts]
+
   return (
     <div>
       {user ? (
@@ -945,13 +1015,34 @@ function CollectionsPage({
             </div>
           </div>
           <CollectionsList
-            collections={myCollections}
-            products={products}
+            collections={paginatedMyCollections}
+            products={allProducts}
             onSelectCollection={(collection) => navigate(`/collections/${collection.slug || collection.id}`)}
             onDeleteCollection={onDeleteCollection}
             onEditCollection={onEditCollection}
             currentUserId={user?.id}
           />
+          {myTotalPages > 1 && (
+            <div className="flex justify-center gap-2 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setMyPage(p => Math.max(1, p - 1))}
+                disabled={myPage === 1}
+              >
+                Previous
+              </Button>
+              <span className="flex items-center px-4">
+                Page {myPage} of {myTotalPages}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => setMyPage(p => Math.min(myTotalPages, p + 1))}
+                disabled={myPage === myTotalPages}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </>
       ) : (
         <div className="mb-6 flex items-center justify-between">
@@ -965,14 +1056,33 @@ function CollectionsPage({
       <div className="mt-10">
         <h2 className="text-2xl font-semibold mb-4">Public Collections</h2>
         <CollectionsList
-          collections={publicCollections.filter(c => 
-            !userAccount || c.userId !== userAccount.id
-          )}
-          products={products}
+          collections={paginatedPublicCollections}
+          products={allProducts}
           onSelectCollection={(collection) => navigate(`/collections/${collection.slug || collection.id}`)}
           onDeleteCollection={() => { /* no-op for public */ }}
           currentUserId={user?.id}
         />
+        {publicTotalPages > 1 && (
+          <div className="flex justify-center gap-2 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setPublicPage(p => Math.max(1, p - 1))}
+              disabled={publicPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="flex items-center px-4">
+              Page {publicPage} of {publicTotalPages}
+            </span>
+            <Button
+              variant="outline"
+              onClick={() => setPublicPage(p => Math.min(publicTotalPages, p + 1))}
+              disabled={publicPage === publicTotalPages}
+            >
+              Next
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )
