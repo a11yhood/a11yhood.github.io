@@ -43,9 +43,11 @@ export function CollectionDetail({
   const navigate = useNavigate()
   const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  // Ref to track how many fetches have completed for the current load cycle.
-  // Using a ref avoids stale-closure issues across concurrent async callbacks.
-  const completedRef = useRef(0)
+  // Monotonically-increasing ID for the active load cycle. Incremented at the
+  // start of each new load and again in the effect cleanup so that in-flight
+  // callbacks from a superseded cycle can detect they are stale and bail out
+  // before touching state.
+  const loadIdRef = useRef(0)
 
   // Stable key derived from the sorted slug list so the effect only re-runs
   // when the actual set of slugs changes, not on every parent re-render that
@@ -70,6 +72,12 @@ export function CollectionDetail({
   }, [collectionProducts])
 
   useEffect(() => {
+    // Capture the ID for this load cycle.  Any async callback that resolves
+    // after the cycle is superseded (slugKey/globalProducts changed, or the
+    // component unmounted) will see loadIdRef.current !== loadId and bail out.
+    loadIdRef.current++
+    const loadId = loadIdRef.current
+
     const loadCollectionProducts = async () => {
       if (!collection.productSlugs || collection.productSlugs.length === 0) {
         setCollectionProducts([])
@@ -78,7 +86,6 @@ export function CollectionDetail({
 
       setIsLoading(true)
       setCollectionProducts([])
-      completedRef.current = 0
 
       try {
         // First, try to get products from the global state (already loaded)
@@ -90,20 +97,23 @@ export function CollectionDetail({
           // If we found all products in global state, use them
           if (foundProducts.length === collection.productSlugs.length) {
             console.log('[CollectionDetail] Using cached global products, avoiding API calls')
-            setCollectionProducts(foundProducts)
-            setIsLoading(false)
+            if (loadIdRef.current === loadId) {
+              setCollectionProducts(foundProducts)
+              setIsLoading(false)
+            }
             return
           }
         }
 
         // Fallback: fetch individually with incremental loading for better UX
         console.log(`[CollectionDetail] Fetching ${collection.productSlugs.length} products individually`)
-        const total = collection.productSlugs.length
 
         await Promise.allSettled(
           collection.productSlugs.map(async (slug, index) => {
             try {
               const product = await APIService.getProduct(slug)
+              // Bail out if this cycle was superseded before updating state
+              if (loadIdRef.current !== loadId) return
               if (product !== null) {
                 // Insert product at its slug index to preserve collection order while streaming
                 setCollectionProducts(prev => {
@@ -114,22 +124,30 @@ export function CollectionDetail({
               }
             } catch (error) {
               console.error('[CollectionDetail] Error loading product:', slug, error)
-            } finally {
-              completedRef.current += 1
-              if (completedRef.current === total) {
-                setIsLoading(false)
-              }
             }
           })
         )
+
+        // All fetches have settled — mark loading complete if still the active cycle
+        if (loadIdRef.current === loadId) {
+          setIsLoading(false)
+        }
       } catch (error) {
         console.error('[CollectionDetail] Error loading products:', error)
-        setCollectionProducts([])
-        setIsLoading(false)
+        if (loadIdRef.current === loadId) {
+          setCollectionProducts([])
+          setIsLoading(false)
+        }
       }
     }
 
     loadCollectionProducts()
+
+    return () => {
+      // Invalidate this cycle: any still-running callbacks will check
+      // loadIdRef.current and skip state updates.
+      loadIdRef.current++
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slugKey, globalProducts])
 
