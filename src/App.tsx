@@ -432,12 +432,12 @@ export function ProductListPage({
 
           <h2 className="sr-only">Search Results</h2>
 
-          {isSearching ? (
+          {isSearching && products.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24">
               <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
               <p className="text-muted-foreground">Loading results...</p>
             </div>
-          ) : products.length === 0 ? (
+          ) : !isSearching && products.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-lg text-muted-foreground">
                 No products found. Try adjusting your filters.
