@@ -37,7 +37,7 @@ import { UserSignup } from '@/components/UserSignup'
 import { FeaturedBlogCarousel } from '@/components/FeaturedBlogCarousel'
 import { HomePage } from '@/components/HomePage'
 import { SearchPage } from '@/components/SearchPage'
-import { Product, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput } from '@/lib/types'
+import { Product, ProductUpdate, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput } from '@/lib/types'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { logger } from '@/lib/logger'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
@@ -2419,7 +2419,7 @@ function App() {
     }
   }
 
-  const handleEditProduct = async (updatedProduct: Product) => {
+  const handleEditProduct = async (updatedProduct: ProductUpdate) => {
     try {
       logger.debug('[App.handleEditProduct] Updating product:', {
         id: updatedProduct.id,
@@ -2436,8 +2436,13 @@ function App() {
         hasImageAlt: savedProduct?.imageAlt
       })
       
-      // Use the saved product from backend if available, otherwise use the form data
-      const productToUse = savedProduct || updatedProduct
+      // Use the saved product from backend if available; otherwise normalise null
+      // image fields back to undefined to keep Product state consistent.
+      const productToUse: Product = savedProduct || {
+        ...updatedProduct,
+        imageUrl: updatedProduct.imageUrl ?? undefined,
+        imageAlt: updatedProduct.imageAlt ?? undefined,
+      }
       
       setProducts((currentProducts) =>
         (currentProducts || []).map(p =>

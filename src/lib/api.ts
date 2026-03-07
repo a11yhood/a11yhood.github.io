@@ -7,7 +7,7 @@
  * 
  * Security: Never bypasses backend validation; all authorization enforced server-side.
  */
-import { UserAccount, UserActivity, Product, Rating, Discussion, ScrapingLog, BlogPost, Collection, CollectionCreateInput, UserRequest, SupportedSource, ScraperJob } from './types'
+import { UserAccount, UserActivity, Product, ProductUpdate, Rating, Discussion, ScrapingLog, BlogPost, Collection, CollectionCreateInput, UserRequest, SupportedSource, ScraperJob } from './types'
 import { logger } from './logger'
 import { ProductUrl, ProductUrlCreate, ProductUrlUpdate } from '../types/product-url'
 
@@ -650,14 +650,14 @@ export class APIService {
 
   static async updateProduct(
     productId: string,
-    updates: Partial<Product>,
+    updates: Partial<ProductUpdate>,
     editorId?: string
   ): Promise<Product | null> {
     logger.debug('[API.updateProduct] Raw updates received:', updates)
     logger.debug('[API.updateProduct] EditorId:', editorId)
     
     // Extract only editable fields that match backend's ProductUpdate schema
-    const editableUpdates: Partial<Product & { editorId?: string }> = {
+    const editableUpdates: Partial<ProductUpdate & { editorId?: string }> = {
       name: updates.name,
       description: updates.description,
       source: updates.source,

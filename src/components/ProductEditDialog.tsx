@@ -21,12 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Product, UserAccount } from '@/lib/types'
+import { Product, ProductUpdate, UserAccount } from '@/lib/types'
 import { ProductImageManager, ProductImageManagerRef } from './ProductImageManager'
 
 type ProductEditDialogProps = {
   product: Product
-  onSave: (updatedProduct: Product) => void | Promise<void>
+  onSave: (updatedProduct: ProductUpdate) => void | Promise<void>
   userAccount?: UserAccount | null
   autoOpen?: boolean
   allProductTypes?: string[]
@@ -34,7 +34,7 @@ type ProductEditDialogProps = {
 
 export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allProductTypes = [] }: ProductEditDialogProps) {
   const [open, setOpen] = useState(!!autoOpen)
-  const [formData, setFormData] = useState<Product>(product)
+  const [formData, setFormData] = useState<ProductUpdate>(product)
   const [tagInput, setTagInput] = useState('')
   const [errors, setErrors] = useState<{ id: string; message: string }[]>([])
   const [saving, setSaving] = useState(false)
@@ -81,7 +81,10 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Auto-submit any pending image data that user entered but didn't click "Add URL" for
+    // Collect any pending image data (URL typed but "Add URL" not clicked).
+    // getPendingImageData returns the URL even when alt text is empty so that
+    // validation below can surface the "alt text is required" error instead of
+    // silently dropping the URL.
     let finalImageData: { url: string | null | undefined, alt: string | null | undefined } = {
       url: formData.imageUrl,
       alt: formData.imageAlt
@@ -89,14 +92,13 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
     
     const pendingImage = imageManagerRef.current?.getPendingImageData()
     if (pendingImage) {
-      logger.debug('[ProductEditDialog.handleSubmit] Auto-submitting pending image:', pendingImage)
-      imageManagerRef.current?.submitPendingImage()
+      logger.debug('[ProductEditDialog.handleSubmit] Using pending image data for validation:', pendingImage)
       // Use the pending image data directly instead of waiting for state update
       finalImageData = { url: pendingImage.url, alt: pendingImage.alt }
     }
 
     // Create final form data with the correct image values
-    const finalFormData = {
+    const finalFormData: ProductUpdate = {
       ...formData,
       imageUrl: finalImageData.url,
       imageAlt: finalImageData.alt
@@ -142,10 +144,16 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
       return
     }
 
+    // Validation passed — if there was pending image data, sync the image
+    // manager's internal state so the preview is shown after save.
+    if (pendingImage) {
+      imageManagerRef.current?.submitPendingImage()
+    }
+
     setErrors([])
     setSaving(true)
     try {
-      await onSave(finalFormData as Product)
+      await onSave(finalFormData)
       setOpen(false)
     } catch {
       // Error feedback is handled by the onSave caller (e.g. App.tsx toast)
@@ -326,8 +334,8 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
                 <div className="mt-1">
                   <ProductImageManager
                     ref={imageManagerRef}
-                    imageUrl={formData.imageUrl}
-                    imageAlt={formData.imageAlt}
+                    imageUrl={formData.imageUrl ?? undefined}
+                    imageAlt={formData.imageAlt ?? undefined}
                     onImageChange={(imageUrl, imageAlt) => {
                       logger.debug('[ProductEditDialog] onImageChange callback:', { imageUrl, imageAlt })
                       setFormData(prev => {

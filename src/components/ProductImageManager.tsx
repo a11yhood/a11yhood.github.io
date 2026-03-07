@@ -88,12 +88,14 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
     getPendingImageData: () => {
-      // Check if there's unsaved image data (URL entered but not yet added)
-      if (!previewUrl && urlInput.trim() && altText.trim()) {
+      // Return pending URL data even if alt text is empty so the dialog's
+      // validation can catch the missing alt and show the appropriate error.
+      const trimmedUrl = urlInput.trim()
+      if (!previewUrl && trimmedUrl) {
         try {
           // Validate and normalize the URL before returning
-          new URL(urlInput)
-          const normalizedUrl = normalizeImageUrl(urlInput.trim())
+          new URL(trimmedUrl)
+          const normalizedUrl = normalizeImageUrl(trimmedUrl)
           return { url: normalizedUrl, alt: altText.trim() }
         } catch {
           // Invalid URL, return null
@@ -125,7 +127,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
     setAltText('')
     logger.debug('[ProductImageManager.handleRemoveImage] Calling onImageChange with null to clear fields')
     // Send null (not undefined) to explicitly clear the image fields
-    onImageChange(null as any, null as any)
+    onImageChange(null, null)
     toast.success('Image removed')
   }
 
