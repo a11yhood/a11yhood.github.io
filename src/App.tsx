@@ -2421,11 +2421,27 @@ function App() {
 
   const handleEditProduct = async (updatedProduct: Product) => {
     try {
-      await APIService.updateProduct(updatedProduct.id, updatedProduct, user?.username)
+      logger.debug('[App.handleEditProduct] Updating product:', {
+        id: updatedProduct.id,
+        slug: updatedProduct.slug,
+        imageUrl: updatedProduct.imageUrl,
+        imageAlt: updatedProduct.imageAlt
+      })
+      
+      const savedProduct = await APIService.updateProduct(updatedProduct.id, updatedProduct, user?.username)
+      
+      logger.debug('[App.handleEditProduct] Product saved, response:', {
+        savedProduct,
+        hasImageUrl: savedProduct?.imageUrl,
+        hasImageAlt: savedProduct?.imageAlt
+      })
+      
+      // Use the saved product from backend if available, otherwise use the form data
+      const productToUse = savedProduct || updatedProduct
       
       setProducts((currentProducts) =>
         (currentProducts || []).map(p =>
-          p.slug === updatedProduct.slug ? updatedProduct : p
+          p.slug === productToUse.slug || p.id === productToUse.id ? productToUse : p
         )
       )
       

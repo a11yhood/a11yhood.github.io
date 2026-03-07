@@ -1,16 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Link as LinkIcon, Trash } from '@phosphor-icons/react'
 import { toast } from 'sonner'
+import { logger } from '@/lib/logger'
 
 type ProductImageManagerProps = {
   imageUrl?: string
   imageAlt?: string
-  onImageChange: (imageUrl: string | undefined, imageAlt: string | undefined) => void
+  onImageChange: (imageUrl: string | undefined | null, imageAlt: string | undefined | null) => void
   disabled?: boolean
   imageAltError?: string
+}
+
+export type ProductImageManagerRef = {
+  getPendingImageData: () => { url: string; alt: string } | null
+  submitPendingImage: () => boolean
 }
 
 /**
@@ -34,18 +40,29 @@ export function normalizeImageUrl(url: string): string {
   }
 }
 
-export function ProductImageManager({
-  imageUrl,
-  imageAlt,
-  onImageChange,
-  disabled = false,
-  imageAltError,
-}: ProductImageManagerProps) {
+export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductImageManagerProps>((
+  {
+    imageUrl,
+    imageAlt,
+    onImageChange,
+    disabled = false,
+    imageAltError,
+  },
+  ref
+) => {
   const [urlInput, setUrlInput] = useState(imageUrl || '')
   const [altText, setAltText] = useState(imageAlt || '')
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(imageUrl)
 
-  const handleUrlSubmit = () => {
+  // Sync internal state when props change (e.g., when dialog opens with existing product data)
+  useEffect(() => {
+    logger.debug('[ProductImageManager] Props changed:', { imageUrl, imageAlt })
+    setUrlInput(imageUrl || '')
+    setAltText(imageAlt || '')
+    setPreviewUrl(imageUrl)
+  }, [imageUrl, imageAlt])
+
+  const handleUrlSubmit = useCallback(() => {
     if (!urlInput.trim()) {
       toast.error('Please enter an image URL')
       return
@@ -59,16 +76,44 @@ export function ProductImageManager({
       }
       setUrlInput(normalizedUrl)
       setPreviewUrl(normalizedUrl)
+      logger.debug('[ProductImageManager.handleUrlSubmit] Calling onImageChange:', { normalizedUrl, altText })
       onImageChange(normalizedUrl, altText)
       toast.success('Image URL added successfully')
     } catch {
       toast.error('Please enter a valid URL')
     }
-  }
+  }, [urlInput, altText, onImageChange])
+
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    getPendingImageData: () => {
+      // Check if there's unsaved image data (URL entered but not yet added)
+      if (!previewUrl && urlInput.trim() && altText.trim()) {
+        try {
+          // Validate and normalize the URL before returning
+          new URL(urlInput)
+          const normalizedUrl = normalizeImageUrl(urlInput.trim())
+          return { url: normalizedUrl, alt: altText.trim() }
+        } catch {
+          // Invalid URL, return null
+          return null
+        }
+      }
+      return null
+    },
+    submitPendingImage: () => {
+      if (!previewUrl && urlInput.trim()) {
+        handleUrlSubmit()
+        return true
+      }
+      return false
+    }
+  }), [previewUrl, urlInput, altText, handleUrlSubmit])
 
   const handleAltTextChange = (value: string) => {
     setAltText(value)
     if (previewUrl) {
+      logger.debug('[ProductImageManager.handleAltTextChange] Calling onImageChange:', { previewUrl, altText: value })
       onImageChange(previewUrl, value)
     }
   }
@@ -77,8 +122,19 @@ export function ProductImageManager({
     setPreviewUrl(undefined)
     setUrlInput('')
     setAltText('')
-    onImageChange(undefined, undefined)
+    logger.debug('[ProductImageManager.handleRemoveImage] Calling onImageChange with null to clear fields')
+    // Send null (not undefined) to explicitly clear the image fields
+    onImageChange(null as any, null as any)
     toast.success('Image removed')
+  }
+
+  const handleEditImage = () => {
+    logger.debug('[ProductImageManager.handleEditImage] Editing image - populating fields with current values')
+    // Pre-populate the URL input field with current value
+    // (altText already has the current value in state)
+    setUrlInput(previewUrl || '')
+    // Clear preview to show input mode
+    setPreviewUrl(undefined)
   }
 
   return (
@@ -86,7 +142,19 @@ export function ProductImageManager({
       {previewUrl ? (
         <div className="space-y-4">
           <div className="relative">
-            <div className="w-full aspect-video max-w-md bg-muted rounded-md overflow-hidden border">
+            <div 
+              className="w-full aspect-video max-w-md bg-muted rounded-md overflow-hidden border cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={handleEditImage}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  handleEditImage()
+                }
+              }}
+              aria-label="Click to edit image URL and alt text"
+            >
               <img
                 src={previewUrl}
                 alt={altText || 'Product preview'}
@@ -194,4 +262,4 @@ export function ProductImageManager({
       )}
     </div>
   )
-}
+})
