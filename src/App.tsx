@@ -203,9 +203,11 @@ export function ProductListPage({
   const allTags = useMemo(() => {
     const tagCounts = new Map<string, number>()
     products.forEach(product => {
-      (product.tags || []).filter(Boolean).forEach(tag => {
-        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
-      })
+      if (product && product.tags) {
+        product.tags.filter(Boolean).forEach(tag => {
+          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+        })
+      }
     })
     
     // Add filtered tags (from API) and selected tags with lower priority if not in current results
@@ -1401,9 +1403,11 @@ function App() {
     // Count tag frequencies in current products
     const tagCounts = new Map<string, number>()
     products.forEach(product => {
-      (product.tags || []).filter(Boolean).forEach(tag => {
-        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
-      })
+      if (product && product.tags) {
+        product.tags.filter(Boolean).forEach(tag => {
+          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+        })
+      }
     })
     
     // Add filtered tags and selected tags with lower priority if not in current results
