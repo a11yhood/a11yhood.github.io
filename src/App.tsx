@@ -903,6 +903,7 @@ function CollectionsPage({
   const [myPage, setMyPage] = useState(1)
   const [publicPage, setPublicPage] = useState(1)
   const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
+  const [loadedCollectionIds, setLoadedCollectionIds] = useState<Set<string>>(new Set())
   const itemsPerPage = 12 // 3 columns x 4 rows
 
   useEffect(() => {
@@ -947,54 +948,73 @@ function CollectionsPage({
   const paginatedPublicCollections = filteredPublicCollections.slice(publicStart, publicEnd)
   const publicTotalPages = Math.ceil(filteredPublicCollections.length / itemsPerPage)
 
-  // Load products from each visible collection for image display
+  // Reset loaded collections when pagination changes
   useEffect(() => {
-    const loadCollectionImages = async () => {
+    setLoadedCollectionIds(new Set())
+    setCollectionProducts([])
+  }, [myPage, publicPage])
+
+  // Load products from each visible collection for image display, one collection at a time
+  useEffect(() => {
+    const loadNextCollectionImages = async () => {
       const visibleCollections = [...paginatedMyCollections, ...paginatedPublicCollections]
       const MAX_IMAGE_PRODUCTS_PER_COLLECTION = 3
-      
-      // Get up to the first N product slugs from each visible collection
-      const candidateProductSlugs = visibleCollections
-        .flatMap(c => (c.productSlugs || []).slice(0, MAX_IMAGE_PRODUCTS_PER_COLLECTION))
-        .filter(slug => slug) // Remove any undefined/null
 
-      if (candidateProductSlugs.length === 0) return
+      // Find the first unloaded collection
+      const unloadedCollection = visibleCollections.find(c => !loadedCollectionIds.has(c.id))
+
+      if (!unloadedCollection) return
+
+      // Get up to the first N product slugs from this collection
+      const candidateProductSlugs = (unloadedCollection.productSlugs || [])
+        .slice(0, MAX_IMAGE_PRODUCTS_PER_COLLECTION)
+        .filter(slug => slug)
+
+      if (candidateProductSlugs.length === 0) {
+        // Mark as loaded even if no products
+        setLoadedCollectionIds(prev => new Set([...prev, unloadedCollection.id]))
+        return
+      }
 
       // Check which products we don't already have
       const existingSlugs = new Set([...products, ...collectionProducts].map(p => p.slug))
       const slugsToFetch = candidateProductSlugs.filter(slug => !existingSlugs.has(slug))
 
-      if (slugsToFetch.length === 0) return
-
-      console.log('[CollectionsPage] Loading image products for visible collections:', {
-        visibleCollections: visibleCollections.length,
+      console.log('[CollectionsPage] Loading image products for collection:', {
+        collectionName: unloadedCollection.name,
+        totalSlugs: candidateProductSlugs.length,
         slugsToFetch: slugsToFetch.length
       })
 
       try {
-        // Fetch products in parallel
-        const results = await Promise.allSettled(
-          slugsToFetch.map(slug => APIService.getProductBySlug(slug))
-        )
-        
-        const newProducts: Product[] = []
-        results.forEach(result => {
-          if (result.status === 'fulfilled' && result.value) {
-            newProducts.push(result.value)
-          }
-        })
+        if (slugsToFetch.length > 0) {
+          // Fetch products for this collection
+          const results = await Promise.allSettled(
+            slugsToFetch.map(slug => APIService.getProductBySlug(slug))
+          )
 
-        if (newProducts.length > 0) {
-          console.log('[CollectionsPage] Loaded image products:', newProducts.length)
-          setCollectionProducts(prev => [...prev, ...newProducts])
+          const newProducts: Product[] = []
+          results.forEach(result => {
+            if (result.status === 'fulfilled' && result.value) {
+              newProducts.push(result.value)
+            }
+          })
+
+          if (newProducts.length > 0) {
+            console.log('[CollectionsPage] Loaded image products for collection:', newProducts.length)
+            setCollectionProducts(prev => [...prev, ...newProducts])
+          }
         }
       } catch (error) {
         console.error('[CollectionsPage] Failed to load collection image products:', error)
+      } finally {
+        // Mark this collection as loaded
+        setLoadedCollectionIds(prev => new Set([...prev, unloadedCollection.id]))
       }
     }
 
-    loadCollectionImages()
-  }, [paginatedMyCollections, paginatedPublicCollections, products])
+    loadNextCollectionImages()
+  }, [paginatedMyCollections, paginatedPublicCollections, products, collectionProducts, loadedCollectionIds])
 
   // Merge products from App and locally loaded collection products
   const allProducts = [...products, ...collectionProducts]
