@@ -10,7 +10,7 @@ type TagManagerProps = {
   productId: string
   currentTags: string[]
   allTags: string[]
-  onAddTag: (tag: string) => void
+  onAddTag: (tag: string) => void | Promise<void>
   user: UserData | null
 }
 
@@ -55,7 +55,7 @@ export function TagManager({
     setIsAdding(false)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!tagInput.trim()) return
     const newTags = tagInput
@@ -66,7 +66,9 @@ export function TagManager({
       toast.error('No new tags to add')
       return
     }
-    newTags.forEach((tag) => onAddTag(tag))
+    for (const tag of newTags) {
+      await onAddTag(tag)
+    }
     setTagInput('')
     setSuggestions([])
     setIsAdding(false)

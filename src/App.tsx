@@ -1235,11 +1235,18 @@ function App() {
   const isTestEnv = import.meta.env.MODE === 'test'
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
   const [thingiverseAuthTimestamp, setThingiverseAuthTimestamp] = useState(0)
+
+  // Tracks optimistically-applied tags per product ID across sequential async handleAddTag calls
+  const pendingProductTagsRef = useRef<Map<string, string[]>>(new Map())
   
   // Helper to normalize URL param arrays: filter empty strings and deduplicate
   const normalizeParamArray = (params: string[]): string[] => {
     return Array.from(new Set(params.filter(Boolean)))
   }
+
+  // Helper for order-sensitive array equality
+  const arraysEqual = (a: string[], b: string[]): boolean =>
+    a.length === b.length && a.every((v, i) => v === b[i])
   
   // Filter states - initialize from URL params
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
@@ -1382,16 +1389,13 @@ function App() {
     const urlSources = normalizeParamArray(searchParams.getAll('source'))
     
     setSelectedTags(current => {
-      const changed = current.length !== urlTags.length || !current.every((tag, i) => tag === urlTags[i])
-      return changed ? urlTags : current
+      return arraysEqual(current, urlTags) ? current : urlTags
     })
     setSelectedTypes(current => {
-      const changed = current.length !== urlTypes.length || !current.every((type, i) => type === urlTypes[i])
-      return changed ? urlTypes : current
+      return arraysEqual(current, urlTypes) ? current : urlTypes
     })
     setSelectedSources(current => {
-      const changed = current.length !== urlSources.length || !current.every((source, i) => source === urlSources[i])
-      return changed ? urlSources : current
+      return arraysEqual(current, urlSources) ? current : urlSources
     })
   }, [searchParams, location.pathname])
 
@@ -2259,14 +2263,9 @@ function App() {
       const normalizedTag = tag.trim().toLowerCase()
       
       // Use provided product object if available, otherwise look it up
-      let product = productObj || products?.find(p => p.slug === productIdOrSlug || p.id === productIdOrSlug)
+      const product = productObj || products?.find(p => p.slug === productIdOrSlug || p.id === productIdOrSlug)
       
       if (!product) {
-        return
-      }
-      
-      if (product.tags.some((t) => t.toLowerCase() === normalizedTag)) {
-        toast.info('Tag already exists')
         return
       }
 
@@ -2275,30 +2274,57 @@ function App() {
         toast.error('Failed to add tag: product identifier not found')
         return
       }
-      
-      const updatedProduct = await APIService.updateProduct(
-        product.id,
-        { tags: [...product.tags, normalizedTag] },
-        user?.username
-      )
-      
-      if (updatedProduct) {
-        setProducts((currentProducts) => {
-          const current = currentProducts || []
-          return current.map((p) => (p.slug === productIdOrSlug || p.id === productIdOrSlug) ? updatedProduct : p)
-        })
-        
-        if (user?.id && product.id) {
-          APIService.logUserActivity({
-            userId: user.id,
-            type: 'tag',
-            productId: product.id,
-            timestamp: Date.now(),
-            metadata: { tag: normalizedTag },
-          }).catch(err => console.warn('Failed to log tag activity:', err))
+
+      // Read the latest known tags from the pending ref rather than product.tags (which may be a
+      // stale closure value).  TagManager now awaits each onAddTag call sequentially, so each
+      // successive call sees the tag list built by the previous one rather than all reading the
+      // same original snapshot.
+      const latestTags = pendingProductTagsRef.current.get(product.id) ?? product.tags
+
+      if (latestTags.some((t) => t.toLowerCase() === normalizedTag)) {
+        toast.info('Tag already exists')
+        return
+      }
+
+      const nextTags = [...latestTags, normalizedTag]
+      // Optimistically record the new tag list so the next sequential call sees it.
+      // Note: this ref-based strategy is correct for the sequential (one-at-a-time) flow
+      // produced by TagManager's for…of loop.  Genuinely concurrent calls from separate
+      // components could still race; a queue/lock would be needed to handle that case.
+      pendingProductTagsRef.current.set(product.id, nextTags)
+
+      try {
+        const updatedProduct = await APIService.updateProduct(
+          product.id,
+          { tags: nextTags },
+          user?.username
+        )
+
+        if (updatedProduct) {
+          // Sync pending state to the authoritative server response
+          pendingProductTagsRef.current.set(product.id, updatedProduct.tags)
+          setProducts((currentProducts) => {
+            const current = currentProducts || []
+            return current.map((p) => (p.slug === productIdOrSlug || p.id === productIdOrSlug) ? updatedProduct : p)
+          })
+          
+          if (user?.id && product.id) {
+            APIService.logUserActivity({
+              userId: user.id,
+              type: 'tag',
+              productId: product.id,
+              timestamp: Date.now(),
+              metadata: { tag: normalizedTag },
+            }).catch(err => console.warn('Failed to log tag activity:', err))
+          }
+          
+          toast.success('Tag added successfully')
         }
-        
-        toast.success('Tag added successfully')
+      } catch (error) {
+        // Roll back the optimistic ref update so the next sequential call starts from the
+        // last confirmed state rather than including the tag that failed to persist.
+        pendingProductTagsRef.current.set(product.id, latestTags)
+        throw error
       }
     } catch (error) {
       console.error('Failed to add tag:', error)
