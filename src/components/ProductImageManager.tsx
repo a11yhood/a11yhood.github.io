@@ -100,7 +100,7 @@ export function ProductImageManager({
               Provide a clear description of the image for users who cannot see it.
             </p>
             {imageAltError && (
-              <p id="image-alt-error" className="text-sm text-destructive" role="alert">{imageAltError}</p>
+              <p id="image-alt-error" className="text-sm text-destructive">{imageAltError}</p>
             )}
           </div>
         </div>

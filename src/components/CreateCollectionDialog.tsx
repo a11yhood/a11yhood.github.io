@@ -94,8 +94,6 @@ export function CreateCollectionDialog({
           {errors.length > 0 && (
             <div
               ref={errorSummaryRef}
-              role="alert"
-              aria-live="assertive"
               tabIndex={-1}
               className="border border-destructive/40 bg-destructive/5 text-destructive rounded-md p-4 space-y-2 mb-4"
             >
@@ -137,7 +135,7 @@ export function CreateCollectionDialog({
                 />
               </label>
               {errors.find((e) => e.id === 'collection-name') && (
-                <p id="collection-name-error" className="text-sm text-destructive" role="alert">
+                <p id="collection-name-error" className="text-sm text-destructive">
                   Collection name is required.
                 </p>
               )}

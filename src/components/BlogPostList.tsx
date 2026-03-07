@@ -17,7 +17,7 @@ type BlogPostListProps = {
 export function BlogPostList({ posts, onSelectPost, showReadMore = true }: BlogPostListProps) {
   if (posts.length === 0) {
     return (
-      <div className="text-center py-12" role="status">
+      <div className="text-center py-12">
         <p className="text-muted-foreground">No blog posts yet. Check back soon!</p>
       </div>
     )

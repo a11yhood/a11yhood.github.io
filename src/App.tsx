@@ -315,17 +315,6 @@ export function ProductListPage({
                 </div>
               )}
               
-              {/* Screen reader announcements */}
-              <div 
-                role="status" 
-                aria-live="polite" 
-                aria-atomic="true" 
-                className="sr-only"
-              >
-                {isSearching && 'Searching products'}
-                {!isSearching && products.length > 0 && `Showing ${products.length} products`}
-                {!isSearching && products.length === 0 && 'No products found'}
-              </div>
               {totalPages > 1 && (
                 <div className="flex items-center gap-2">
                   <Button
