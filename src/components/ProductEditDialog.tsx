@@ -21,13 +21,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Product, UserAccount } from '@/lib/types'
-import { formatRelativeTime } from '@/lib/utils'
 import { ProductImageManager } from './ProductImageManager'
-import { toast } from 'sonner'
 
 type ProductEditDialogProps = {
   product: Product
-  onSave: (updatedProduct: Product) => void
+  onSave: (updatedProduct: Product) => void | Promise<void>
   userAccount?: UserAccount | null
   autoOpen?: boolean
   allProductTypes?: string[]
@@ -38,6 +36,7 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
   const [formData, setFormData] = useState<Product>(product)
   const [tagInput, setTagInput] = useState('')
   const [errors, setErrors] = useState<{ id: string; message: string }[]>([])
+  const [saving, setSaving] = useState(false)
   const errorSummaryRef = useRef<HTMLDivElement>(null)
 
   // Sync product data into formData when dialog opens or product changes
@@ -70,7 +69,7 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
 
   if (!canEdit) return null
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     const validationErrors: { id: string; message: string }[] = []
@@ -106,9 +105,15 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
     }
 
     setErrors([])
-    onSave(formData)
-    setOpen(false)
-    toast.success('Product updated successfully')
+    setSaving(true)
+    try {
+      await onSave(formData)
+      setOpen(false)
+    } catch {
+      // Error feedback is handled by the onSave caller (e.g. App.tsx toast)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleAddTag = () => {
@@ -285,14 +290,10 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
                     imageUrl={formData.imageUrl}
                     imageAlt={formData.imageAlt}
                     onImageChange={(imageUrl, imageAlt) => setFormData({ ...formData, imageUrl, imageAlt })}
+                    imageAltError={errors.find(e => e.id === 'image-alt-text')?.message}
                   />
                 </div>
               </label>
-              {formData.imageUrl && (
-                <p className="text-xs text-muted-foreground" aria-live="polite">
-                  Alt text is required for accessibility and will be saved with the image.
-                </p>
-              )}
             </div>
 
             <div className="space-y-2">
@@ -337,10 +338,12 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit">Save Changes</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Saving…' : 'Save Changes'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

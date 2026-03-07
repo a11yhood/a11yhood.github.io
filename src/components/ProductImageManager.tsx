@@ -13,6 +13,27 @@ type ProductImageManagerProps = {
   imageAltError?: string
 }
 
+/**
+ * Convert a GitHub blob URL to a raw content URL so it can be used as an image src.
+ * e.g. https://github.com/owner/repo/blob/sha/path/img.png
+ *   -> https://raw.githubusercontent.com/owner/repo/sha/path/img.png
+ * Returns the original URL unchanged if it is not a recognised GitHub blob URL.
+ */
+export function normalizeImageUrl(url: string): string {
+  try {
+    const parsed = new URL(url)
+    if (parsed.hostname === 'github.com') {
+      const match = parsed.pathname.match(/^\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/)
+      if (match) {
+        return `https://raw.githubusercontent.com/${match[1]}/${match[2]}/${match[3]}/${match[4]}`
+      }
+    }
+    return url
+  } catch {
+    return url
+  }
+}
+
 export function ProductImageManager({
   imageUrl,
   imageAlt,
@@ -32,8 +53,13 @@ export function ProductImageManager({
 
     try {
       new URL(urlInput)
-      setPreviewUrl(urlInput)
-      onImageChange(urlInput, altText)
+      const normalizedUrl = normalizeImageUrl(urlInput)
+      if (normalizedUrl !== urlInput) {
+        toast.info('GitHub image URL converted to a direct image link')
+      }
+      setUrlInput(normalizedUrl)
+      setPreviewUrl(normalizedUrl)
+      onImageChange(normalizedUrl, altText)
       toast.success('Image URL added successfully')
     } catch {
       toast.error('Please enter a valid URL')
@@ -105,39 +131,65 @@ export function ProductImageManager({
           </div>
         </div>
       ) : (
-        <div className="space-y-2">
-          <label className="block text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
-            Image URL
-            <div className="flex gap-2 mt-1">
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <label className="block text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
+              Image URL
+              <div className="flex gap-2 mt-1">
+                <Input
+                  id="image-url-input"
+                  name="imageUrl"
+                  type="url"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                  disabled={disabled}
+                  aria-describedby="image-url-help"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleUrlSubmit()
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  onClick={handleUrlSubmit}
+                  disabled={disabled || !urlInput.trim()}
+                >
+                  <LinkIcon size={16} className="mr-2" />
+                  Add URL
+                </Button>
+              </div>
+            </label>
+            <p className="text-xs text-muted-foreground" id="image-url-help">
+              Provide a direct link to an image hosted online. GitHub image links are converted automatically.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
+              Alt Text <span className="text-destructive">*</span>
               <Input
-                id="image-url-input"
-                name="imageUrl"
-                type="url"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="https://example.com/image.jpg"
+                id="image-alt-text"
+                name="imageAlt"
+                autoComplete="off"
+                value={altText}
+                onChange={(e) => setAltText(e.target.value)}
+                placeholder="Describe the image for accessibility (minimum 10 characters)"
                 disabled={disabled}
-                aria-describedby="image-url-help"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  handleUrlSubmit()
-                }
-              }}
-            />
-            <Button
-              type="button"
-              onClick={handleUrlSubmit}
-              disabled={disabled || !urlInput.trim()}
-            >
-              <LinkIcon size={16} className="mr-2" />
-              Add URL
-            </Button>
-            </div>
-          </label>
-          <p className="text-xs text-muted-foreground" id="image-url-help">
-            Provide a direct link to an image hosted online.
-          </p>
+                aria-invalid={!!imageAltError}
+                aria-describedby={`image-alt-help${imageAltError ? ' image-alt-error' : ''}`}
+                className="mt-1"
+              />
+            </label>
+            <p id="image-alt-help" className="text-xs text-muted-foreground">
+              Provide a clear description of the image for users who cannot see it.
+            </p>
+            {imageAltError && (
+              <p id="image-alt-error" className="text-sm text-destructive" role="alert">{imageAltError}</p>
+            )}
+          </div>
         </div>
       )}
     </div>
