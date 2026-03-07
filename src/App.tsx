@@ -2269,9 +2269,15 @@ function App() {
         toast.info('Tag already exists')
         return
       }
+
+      if (!product.id) {
+        console.error('[App.handleAddTag] Product is missing UUID id; cannot update via PATCH endpoint')
+        toast.error('Failed to add tag: product identifier not found')
+        return
+      }
       
       const updatedProduct = await APIService.updateProduct(
-        product.id || productSlug,
+        product.id,
         { tags: [...product.tags, normalizedTag] },
         user?.username
       )
