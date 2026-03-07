@@ -17,7 +17,7 @@ function getTestUser(role: 'admin' | 'moderator' | 'user'): TestUser {
   const devUser = DEV_USERS[role]
   return {
     id: devUser.id,
-    login: devUser.login,
+    username: devUser.username,
     avatarUrl: undefined,
     token: getDevToken(devUser.id),
   }
@@ -62,13 +62,13 @@ const DiscussionHarness = ({ productId, user }: { productId: string; user: TestU
       content,
       parentId,
       userId: user.id,
-      username: user.login,
+      username: user.username,
     })
     setDiscussions((prev) => [...prev, created])
   }
 
   const userData = user
-    ? { id: user.id, login: user.login, avatarUrl: user.avatarUrl }
+    ? { id: user.id, username: user.username, avatarUrl: user.avatarUrl }
     : null
 
   return (
@@ -95,7 +95,7 @@ describe('DiscussionSection Integration Tests (live API)', () => {
       content,
       parentId,
       userId: user.id,
-      login: user.login,
+      username: user.username,
     })
   }
 

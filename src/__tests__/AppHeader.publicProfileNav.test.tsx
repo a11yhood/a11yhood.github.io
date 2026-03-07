@@ -6,8 +6,8 @@ import { AppHeader } from '@/components/AppHeader'
 import type { UserData, UserAccount } from '@/lib/types'
 
 describe('AppHeader public profile navigation', () => {
-  it('navigates to /profile/:login from dropdown', async () => {
-    const user = { id: 'u1', login: 'alice', avatarUrl: undefined } as UserData
+  it('navigates to /profile/:username from dropdown', async () => {
+    const user = { id: 'u1', username: 'alice', avatarUrl: undefined } as UserData
     const userAccount = { id: 'u1', username: 'alice', role: 'user' } as UserAccount
 
     render(
@@ -25,7 +25,7 @@ describe('AppHeader public profile navigation', () => {
               />
             )}
           />
-          <Route path="/profile/:login" element={<div>Public Profile</div>} />
+          <Route path="/profile/:username" element={<div>Public Profile</div>} />
         </Routes>
       </MemoryRouter>
     )

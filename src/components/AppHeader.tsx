@@ -201,19 +201,19 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                       aria-label="User menu"
                     >
                       <UserCircle size={18} />
-                      <span className="hidden sm:inline">{userAccount?.username || user.login}</span>
+                      <span className="hidden sm:inline">{userAccount?.username || user.username}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuLabel className="text-xs text-muted-foreground">
-                      Signed in as {userAccount?.username || user.login}
+                      Signed in as {userAccount?.username || user.username}
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => navigate(`/account/${userAccount?.username || user.email}`)}>
+                    <DropdownMenuItem onSelect={() => navigate(`/account/${userAccount?.username || user.username}`)}>
                       <UserCircle size={16} className="mr-2" />
                       My Account
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => navigate(`/profile/${userAccount?.username || user.email}`)}>
+                    <DropdownMenuItem onSelect={() => navigate(`/profile/${userAccount?.username || user.username}`)}>
                       <UserCircle size={16} className="mr-2" />
                       Public Profile
                     </DropdownMenuItem>
@@ -274,7 +274,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
           domain={requestSource.domain}
           url={requestSource.url}
           userId={user?.id}
-          userName={userAccount?.username || user?.login}
+          userName={userAccount?.username || user?.username}
           userAvatarUrl={userAccount?.avatarUrl || user?.avatarUrl}
         />
       )}

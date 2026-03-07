@@ -387,7 +387,7 @@ export function ProductDetail({
           <CollapsibleCard title="Editors" defaultOpen={false}>
             <ProductEditors
               productId={product.id}
-              username={user?.login || null}
+              username={user?.username || null}
               isEditor={!!user && (product.editorIds?.includes(user.id) || false)}
               userAccount={userAccount}
               onEditorsChange={() => {}}
@@ -396,8 +396,16 @@ export function ProductDetail({
           </CollapsibleCard>
         </div>
       </div>
-onAddToCollection}
-          onRemoveFromCollection={onRemoveFromCollection // Refresh collections after adding
+
+      {showAddToCollectionDialog && onAddToCollection && onRemoveFromCollection && (
+        <AddToCollectionDialog
+          open={showAddToCollectionDialog}
+          onOpenChange={setShowAddToCollectionDialog}
+          collections={localCollections}
+          productSlug={product.slug || product.id}
+          onAddToCollection={async (collectionSlug) => {
+            await onAddToCollection(collectionSlug)
+            // Refresh collections after adding
             await loadCollections()
           }}
           onRemoveFromCollection={async (collectionSlug) => {
@@ -423,7 +431,7 @@ onAddToCollection}
             await loadCollections()
           }}
           initialProductSlugs={[product.slug]}
-          username={user.login}
+          username={user.username}
         />
       )}
     </div>

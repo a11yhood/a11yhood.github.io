@@ -14,7 +14,7 @@ import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
   const user: UserData = {
     id: DEV_USERS.user.id,
-    login: DEV_USERS.user.login,
+    username: DEV_USERS.user.username,
     avatarUrl: 'https://example.com/a.png',
   }
 
@@ -169,7 +169,7 @@ describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
     
     const testUser: UserData = {
       id: DEV_USERS.user.id,
-      login: DEV_USERS.user.login,
+      username: DEV_USERS.user.username,
       avatarUrl: 'https://example.com/a.png',
     }
     
