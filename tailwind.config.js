@@ -96,7 +96,7 @@ const defaultTheme = {
       "primary-foreground": "var(--color-accent-contrast)",
       secondary: "var(--color-bg-inset)",
       "secondary-foreground": "var(--color-neutral-12)",
-      destructive: "var(--red-9, #dc2626)",
+      destructive: "var(--red-10, #cd2c2c)",
       "destructive-foreground": "#ffffff",
       muted: "var(--color-bg-inset)",
       "muted-foreground": "var(--color-neutral-11)",
