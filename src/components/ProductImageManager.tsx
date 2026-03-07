@@ -28,9 +28,10 @@ export function normalizeImageUrl(url: string): string {
   try {
     const parsed = new URL(url)
     if (parsed.hostname === 'github.com') {
-      const match = parsed.pathname.match(/^\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/)
+      const match = parsed.pathname.match(/^\/([^/]+)\/([^/]+)\/blob\/(.+)$/)
       if (match) {
-        return `https://raw.githubusercontent.com/${match[1]}/${match[2]}/${match[3]}/${match[4]}`
+        // Preserve the entire ref/path segment (which may contain slashes) when converting
+        return `https://raw.githubusercontent.com/${match[1]}/${match[2]}/${match[3]}`
       }
     }
     return url
