@@ -863,7 +863,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setSourceToDelete('user-submitted')
+                  setSourceToDelete('User-Submitted')
                   setDeleteSourceDialog(true)
                 }}
                 disabled={userProducts.length === 0}
