@@ -27,7 +27,6 @@ import { ThingiverseSettings } from '@/components/ThingiverseSettings'
 import { BlogManager } from '@/components/BlogManager'
 import { BlogPostEditor } from '@/components/BlogPostEditor'
 import { GitHubSettings } from '@/components/GitHubSettings'
-import { GOATSettings } from '@/components/GOATSettings'
 
 type AdminDashboardProps = {
   onBack: () => void
@@ -144,7 +143,7 @@ export function AdminDashboard({ onBack, products, onProductsUpdate, userAccount
           </CollapsibleCard>
           <CollapsibleCard
             title="Authorization Settings"
-            description="Manage Ravelry, Thingiverse, GitHub, and GOAT OAuth credentials"
+            description="Manage Ravelry, Thingiverse, and GitHub OAuth credentials"
             defaultOpen
           >
             <div className="space-y-6">
@@ -158,10 +157,6 @@ export function AdminDashboard({ onBack, products, onProductsUpdate, userAccount
                 onProductsUpdate={onProductsUpdate}
               />
               <GitHubSettings
-                products={products}
-                onProductsUpdate={onProductsUpdate}
-              />
-              <GOATSettings
                 products={products}
                 onProductsUpdate={onProductsUpdate}
               />

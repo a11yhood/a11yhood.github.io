@@ -70,12 +70,6 @@ export async function seedSupportedSources(): Promise<void> {
       scraper_type: 'abledata',
       is_active: true,
     },
-    {
-      name: 'GOAT',
-      domain: 'goatonline.org',
-      scraper_type: 'goat',
-      is_active: true,
-    },
   ]
 
   // Use admin token for seeding
