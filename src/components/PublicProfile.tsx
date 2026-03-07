@@ -8,6 +8,7 @@ import { CalendarBlank, Globe, MapPin, ChartBar, BookOpen, FolderOpen, Article }
 import { APIService } from '@/lib/api'
 import { UserAccount, Product, Collection, BlogPost } from '@/lib/types'
 import { ProductCard } from '@/components/ProductCard'
+import { pickCollectionImage } from '@/lib/collectionUtils'
 
 export function PublicProfile({ username }: { username: string }) {
   const navigate = useNavigate()
@@ -20,6 +21,7 @@ export function PublicProfile({ username }: { username: string }) {
   })
   const [managedProducts, setManagedProducts] = useState<Product[]>([])
   const [userCollections, setUserCollections] = useState<Collection[]>([])
+  const [collectionImages, setCollectionImages] = useState<Record<string, { imageUrl: string; imageAlt?: string; name: string }>>({})
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -73,6 +75,42 @@ export function PublicProfile({ username }: { username: string }) {
     }
     load()
   }, [username])
+
+  // After collections are loaded, fetch a few products per collection to find a
+  // representative image (prefer alt text / featured, then pick randomly).
+  useEffect(() => {
+    if (userCollections.length === 0) return
+
+    const fetchImages = async () => {
+      const results = await Promise.allSettled(
+        userCollections.map(async (collection) => {
+          const slugs = collection.productSlugs || []
+          if (slugs.length === 0) return null
+
+          // Fetch up to 5 products from the collection to find a suitable image
+          const productResults = await Promise.allSettled(
+            slugs.slice(0, 5).map(slug => APIService.getProductBySlug(slug))
+          )
+          const fetched = productResults
+            .filter((r): r is PromiseFulfilledResult<Product> => r.status === 'fulfilled' && r.value !== null)
+            .map(r => r.value)
+
+          const picked = pickCollectionImage(fetched)
+          return picked ? { collectionId: collection.id, image: picked } : null
+        })
+      )
+
+      const images: Record<string, { imageUrl: string; imageAlt?: string; name: string }> = {}
+      results.forEach(result => {
+        if (result.status === 'fulfilled' && result.value) {
+          images[result.value.collectionId] = result.value.image
+        }
+      })
+      setCollectionImages(images)
+    }
+
+    fetchImages()
+  }, [userCollections])
 
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading profile...</p>
@@ -265,27 +303,41 @@ export function PublicProfile({ username }: { username: string }) {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-              {userCollections.map((collection) => (
-                <Card 
-                  key={collection.id}
-                  className="cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => navigate(`/collections/${collection.slug || collection.id}`)}
-                >
-                  <CardHeader>
-                    <CardTitle className="text-lg">{collection.name}</CardTitle>
-                    {collection.description && (
-                      <CardDescription className="line-clamp-2">
-                        {collection.description}
-                      </CardDescription>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      {(collection.productSlugs?.length ?? 0)} product{(collection.productSlugs?.length ?? 0) !== 1 ? 's' : ''}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
+              {userCollections.map((collection) => {
+                const img = collectionImages[collection.id]
+                return (
+                  <Card 
+                    key={collection.id}
+                    className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
+                    onClick={() => navigate(`/collections/${collection.slug || collection.id}`)}
+                  >
+                    <div className="w-full h-32 bg-muted overflow-hidden flex items-center justify-center">
+                      {img ? (
+                        <img
+                          src={img.imageUrl}
+                          alt={img.imageAlt || `${img.name} image`}
+                          className="w-full h-full object-cover object-center"
+                        />
+                      ) : (
+                        <FolderOpen size={40} className="text-muted-foreground/30" aria-hidden="true" />
+                      )}
+                    </div>
+                    <CardHeader>
+                      <CardTitle className="text-lg">{collection.name}</CardTitle>
+                      {collection.description && (
+                        <CardDescription className="line-clamp-2">
+                          {collection.description}
+                        </CardDescription>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">
+                        {(collection.productSlugs?.length ?? 0)} product{(collection.productSlugs?.length ?? 0) !== 1 ? 's' : ''}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </div>
           </CardContent>
         </Card>

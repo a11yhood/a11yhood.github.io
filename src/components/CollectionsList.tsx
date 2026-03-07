@@ -1,9 +1,11 @@
+import { useState, useMemo } from 'react'
 import { Collection, Product } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Trash, Lock, LockOpen, Pencil } from '@phosphor-icons/react'
+import { Trash, Lock, LockOpen, Pencil, FolderOpen } from '@phosphor-icons/react'
 import { formatDistanceToNow } from 'date-fns'
+import { pickCollectionImage } from '@/lib/collectionUtils'
 
 type CollectionsListProps = {
   collections: Collection[]
@@ -22,9 +24,21 @@ export function CollectionsList({
   onEditCollection,
   currentUserId,
 }: CollectionsListProps) {
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
+
   const getProductsInCollection = (collection: Collection) => {
     return (products || []).filter(p => (collection.productSlugs || []).includes(p.slug))
   }
+
+  // Compute a representative image for each collection once per data change.
+  const collectionImages = useMemo(() => {
+    const result: Record<string, ReturnType<typeof pickCollectionImage>> = {}
+    collections.forEach(collection => {
+      const collectionProducts = (products || []).filter(p => (collection.productSlugs || []).includes(p.slug))
+      result[collection.id] = pickCollectionImage(collectionProducts)
+    })
+    return result
+  }, [collections, products])
 
   if (!collections || collections.length === 0) {
     return (
@@ -39,9 +53,22 @@ export function CollectionsList({
       {collections.map((collection) => {
         const collectionProducts = getProductsInCollection(collection)
         const isOwner = currentUserId === collection.userId
+        const img = imageErrors[collection.id] ? undefined : collectionImages[collection.id]
         
         return (
           <Card key={collection.id} className="hover:shadow-md transition-shadow overflow-hidden">
+            <div className="w-full h-40 bg-muted overflow-hidden flex items-center justify-center">
+              {img ? (
+                <img
+                  src={img.imageUrl}
+                  alt={img.imageAlt || `${img.name} image`}
+                  className="w-full h-full object-cover object-center"
+                  onError={() => setImageErrors(prev => ({ ...prev, [collection.id]: true }))}
+                />
+              ) : (
+                <FolderOpen size={48} className="text-muted-foreground/30" aria-hidden="true" />
+              )}
+            </div>
             <CardHeader>
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
