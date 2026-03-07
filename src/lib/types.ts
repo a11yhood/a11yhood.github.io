@@ -53,15 +53,6 @@ export type Product = {
   stars?: number // Number of stars/followers/likes from source platform
 }
 
-/**
- * Payload type for updating a product. Extends Product but allows null for
- * image fields so they can be explicitly cleared via PATCH.
- */
-export type ProductUpdate = Omit<Product, 'imageUrl' | 'imageAlt'> & {
-  imageUrl?: string | null
-  imageAlt?: string | null
-}
-
 export type Rating = {
   productId: string
   userId: string

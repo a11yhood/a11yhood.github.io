@@ -15,7 +15,6 @@ export default defineConfig({
           '**/__tests__/types/**/*.test.{ts,tsx}',
           '**/__tests__/lib/api.base-url.test.ts',
           '**/__tests__/lib/source-ratings.test.ts',
-          '**/__tests__/lib/normalize-image-url.test.ts',
         ]
       : ['**/__tests__/**/*.test.{ts,tsx}'],
     exclude: [

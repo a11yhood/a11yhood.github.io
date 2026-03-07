@@ -13,7 +13,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { logger } from '@/lib/logger'
 import {
   Select,
   SelectContent,
@@ -21,12 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Product, ProductUpdate, UserAccount } from '@/lib/types'
-import { ProductImageManager, ProductImageManagerRef } from './ProductImageManager'
+import { Product, UserAccount } from '@/lib/types'
+import { formatRelativeTime } from '@/lib/utils'
+import { ProductImageManager } from './ProductImageManager'
+import { toast } from 'sonner'
 
 type ProductEditDialogProps = {
   product: Product
-  onSave: (updatedProduct: ProductUpdate) => void | Promise<void>
+  onSave: (updatedProduct: Product) => void
   userAccount?: UserAccount | null
   autoOpen?: boolean
   allProductTypes?: string[]
@@ -34,23 +35,14 @@ type ProductEditDialogProps = {
 
 export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allProductTypes = [] }: ProductEditDialogProps) {
   const [open, setOpen] = useState(!!autoOpen)
-  const [formData, setFormData] = useState<ProductUpdate>(product)
+  const [formData, setFormData] = useState<Product>(product)
   const [tagInput, setTagInput] = useState('')
   const [errors, setErrors] = useState<{ id: string; message: string }[]>([])
-  const [saving, setSaving] = useState(false)
   const errorSummaryRef = useRef<HTMLDivElement>(null)
-  const imageManagerRef = useRef<ProductImageManagerRef>(null)
 
   // Sync product data into formData when dialog opens or product changes
   useEffect(() => {
     if (open) {
-      logger.debug('[ProductEditDialog] Dialog opened, syncing product to formData:', {
-        productId: product.id,
-        productSlug: product.slug,
-        imageUrl: product.imageUrl,
-        imageAlt: product.imageAlt,
-        fullProduct: product
-      })
       setFormData(product)
       setTagInput('')
     }
@@ -78,63 +70,32 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
 
   if (!canEdit) return null
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-
-    // Collect any pending image data (URL typed but "Add URL" not clicked).
-    // getPendingImageData returns the URL even when alt text is empty so that
-    // validation below can surface the "alt text is required" error instead of
-    // silently dropping the URL.
-    let finalImageData: { url: string | null | undefined, alt: string | null | undefined } = {
-      url: formData.imageUrl,
-      alt: formData.imageAlt
-    }
-    
-    const pendingImage = imageManagerRef.current?.getPendingImageData()
-    if (pendingImage) {
-      logger.debug('[ProductEditDialog.handleSubmit] Using pending image data for validation:', pendingImage)
-      // Use the pending image data directly instead of waiting for state update
-      finalImageData = { url: pendingImage.url, alt: pendingImage.alt }
-    }
-
-    // Create final form data with the correct image values
-    const finalFormData: ProductUpdate = {
-      ...formData,
-      imageUrl: finalImageData.url,
-      imageAlt: finalImageData.alt
-    }
-
-    logger.debug('[ProductEditDialog.handleSubmit] Form data being saved:', {
-      hasImageUrl: !!finalFormData.imageUrl,
-      hasImageAlt: !!finalFormData.imageAlt,
-      imageUrl: finalFormData.imageUrl,
-      imageAlt: finalFormData.imageAlt,
-      fullFormData: finalFormData
-    })
 
     const validationErrors: { id: string; message: string }[] = []
 
-    if (!finalFormData.name.trim()) {
+    if (!formData.name.trim()) {
       validationErrors.push({ id: 'name', message: 'Product name is required.' })
     }
 
-    if (!finalFormData.description.trim()) {
+    if (!formData.description.trim()) {
       validationErrors.push({ id: 'description', message: 'Product description is required.' })
     }
 
-    if (!finalFormData.type.trim()) {
+    if (!formData.type.trim()) {
       validationErrors.push({ id: 'type', message: 'Product type is required.' })
     }
 
-    if (!finalFormData.source.trim()) {
+    if (!formData.source.trim()) {
       validationErrors.push({ id: 'source', message: 'Product source is required.' })
     }
 
-    if (finalFormData.imageUrl && !finalFormData.imageAlt?.trim()) {
+    if (formData.imageUrl && !formData.imageAlt?.trim()) {
       validationErrors.push({ id: 'image-alt-text', message: 'Alt text is required when an image is provided.' })
     }
 
-    if (finalFormData.imageAlt && finalFormData.imageAlt.trim().length < 10) {
+    if (formData.imageAlt && formData.imageAlt.trim().length < 10) {
       validationErrors.push({ id: 'image-alt-text', message: 'Alt text should be at least 10 characters.' })
     }
 
@@ -144,22 +105,10 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
       return
     }
 
-    // Validation passed — if there was pending image data, sync the image
-    // manager's internal state so the preview is shown after save.
-    if (pendingImage) {
-      imageManagerRef.current?.submitPendingImage()
-    }
-
     setErrors([])
-    setSaving(true)
-    try {
-      await onSave(finalFormData)
-      setOpen(false)
-    } catch {
-      // Error feedback is handled by the onSave caller (e.g. App.tsx toast)
-    } finally {
-      setSaving(false)
-    }
+    onSave(formData)
+    setOpen(false)
+    toast.success('Product updated successfully')
   }
 
   const handleAddTag = () => {
@@ -174,20 +123,20 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
       }
     }
     if (newTags.length > 0) {
-      setFormData(prev => ({
-        ...prev,
+      setFormData({
+        ...formData,
         tags: [...currentTags, ...newTags],
-      }))
+      })
       setTagInput('')
     }
   }
 
   const handleRemoveTag = (tagToRemove: string) => {
     const currentTags = formData.tags || []
-    setFormData(prev => ({
-      ...prev,
+    setFormData({
+      ...formData,
       tags: currentTags.filter((tag) => tag !== tagToRemove),
-    }))
+    })
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -248,7 +197,7 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
                   type="text"
                   autoComplete="off"
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Enter product name"
                   required
                   aria-required="true"
@@ -265,7 +214,7 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
                   name="description"
                   autoComplete="off"
                   value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Describe the product"
                   rows={4}
                   required
@@ -279,7 +228,7 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
               <div className="space-y-2">
                 <label className="block text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
                   Type <span aria-hidden="true" className="text-destructive">*</span>
-                  <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
+                  <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
                     <SelectTrigger className="mt-1 w-full">
                       <SelectValue placeholder="Select a type" />
                     </SelectTrigger>
@@ -303,7 +252,7 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
                   name="source"
                   autoComplete="organization"
                   value={formData.source}
-                  onChange={(e) => setFormData(prev => ({ ...prev, source: e.target.value }))}
+                  onChange={(e) => setFormData({ ...formData, source: e.target.value })}
                   placeholder="e.g., GitHub, Thingiverse"
                   required
                   aria-required="true"
@@ -321,7 +270,7 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
                   type="url"
                   autoComplete="url"
                   value={formData.sourceUrl || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, sourceUrl: e.target.value }))}
+                  onChange={(e) => setFormData({ ...formData, sourceUrl: e.target.value })}
                   placeholder="https://..."
                   className="mt-1"
                 />
@@ -333,24 +282,17 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
                 Product Image
                 <div className="mt-1">
                   <ProductImageManager
-                    ref={imageManagerRef}
-                    imageUrl={formData.imageUrl ?? undefined}
-                    imageAlt={formData.imageAlt ?? undefined}
-                    onImageChange={(imageUrl, imageAlt) => {
-                      logger.debug('[ProductEditDialog] onImageChange callback:', { imageUrl, imageAlt })
-                      setFormData(prev => {
-                        const updated = { ...prev, imageUrl, imageAlt }
-                        logger.debug('[ProductEditDialog] FormData after image change:', { 
-                          imageUrl: updated.imageUrl, 
-                          imageAlt: updated.imageAlt 
-                        })
-                        return updated
-                      })
-                    }}
-                    imageAltError={errors.find(e => e.id === 'image-alt-text')?.message}
+                    imageUrl={formData.imageUrl}
+                    imageAlt={formData.imageAlt}
+                    onImageChange={(imageUrl, imageAlt) => setFormData({ ...formData, imageUrl, imageAlt })}
                   />
                 </div>
               </label>
+              {formData.imageUrl && (
+                <p className="text-xs text-muted-foreground" aria-live="polite">
+                  Alt text is required for accessibility and will be saved with the image.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -395,12 +337,10 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={saving}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? 'Saving…' : 'Save Changes'}
-            </Button>
+            <Button type="submit">Save Changes</Button>
           </DialogFooter>
         </form>
       </DialogContent>
