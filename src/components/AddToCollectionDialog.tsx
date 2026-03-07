@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -25,18 +25,19 @@ export function AddToCollectionDialog({
   onRemoveFromCollection,
   onCreateNew,
 }: AddToCollectionDialogProps) {
-  const [selectedCollections, setSelectedCollections] = useState<Set<string>>(
-    new Set(collections.filter(c => (c.productSlugs || []).includes(productSlug)).map(c => c.slug || c.id))
-  )
+  const [selectedCollections, setSelectedCollections] = useState<Set<string>>(new Set())
   const [initialCollections, setInitialCollections] = useState<Set<string>>(new Set())
+  const prevOpenRef = useRef(false)
 
-  // Update selectedCollections when dialog opens or collections change
+  // Update selectedCollections only when dialog opens (not every time collections change)
   useEffect(() => {
-    if (open) {
+    if (open && !prevOpenRef.current) {
+      // Dialog is opening
       const initial = new Set(collections.filter(c => (c.productSlugs || []).includes(productSlug)).map(c => c.slug || c.id))
       setSelectedCollections(initial)
       setInitialCollections(initial)
     }
+    prevOpenRef.current = open
   }, [open, collections, productSlug])
 
   const handleToggleCollection = (collectionSlug: string, isChecked: boolean) => {
