@@ -52,7 +52,6 @@ export function CollectionDetail({
   // creates a new array reference.
   const slugKey = useMemo(
     () => (collection.productSlugs ?? []).slice().sort().join(','),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [collection.productSlugs]
   )
 
