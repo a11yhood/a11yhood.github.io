@@ -2,9 +2,10 @@
  * HomePage component - New homepage with random products, blog roll, and quick search
  * Shows 3 randomly selected featured products, recent blog posts, and a quick search sidebar
  */
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Product, BlogPost, Rating } from '@/lib/types'
+import { selectFeaturedRandomProducts } from '@/lib/homepageRandom'
 import { ProductCard } from '@/components/ProductCard'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -18,59 +19,21 @@ type HomePageProps = {
   onRate: (productId: string, rating: number) => void
 }
 
-/**
- * The tag used to designate products suitable for the homepage random feed.
- * Only products carrying this tag will be sampled.
- */
-const FEATURED_TAG = 'featured'
-
-/**
- * Pick `count` unique random products from `pool`.
- * Returns as many as are available when the pool is smaller than `count`.
- */
-function pickUniqueRandom(pool: Product[], count: number): Product[] {
-  if (pool.length === 0) return []
-  const shuffled = [...pool]
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-  }
-  return shuffled.slice(0, count)
-}
-
 export function HomePage({ products, blogPosts, ratings, onRate }: HomePageProps) {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [randomProducts, setRandomProducts] = useState<(Product | null)[]>([null, null, null])
-  const productCountRef = useRef(0)
-  const hasMountedRef = useRef(false)
 
-  // Select random products on mount and cache them
-  // Only recalculate if the product count changes significantly (indicating new data)
+  // Re-select random products whenever the products array changes.
+  // This covers: initial slow-backend load (empty → featured list arrives),
+  // and any subsequent changes to the featured pool (e.g. tag edits).
   useEffect(() => {
-    // Only run once on mount or if product count changes by more than 10%
-    const currentCount = products.length
-    const becameAvailable = productCountRef.current === 0 && currentCount > 0
-    const countChanged = Math.abs(currentCount - productCountRef.current) > Math.max(10, currentCount * 0.1)
-    
-    if (!hasMountedRef.current || becameAvailable || countChanged) {
-      // Constrain the random pool to featured products; fall back to all products
-      // if there are fewer than 3 featured items available.
-      const featuredPool = products.filter(p => p.tags?.includes(FEATURED_TAG))
-      const pool = featuredPool.length >= 3 ? featuredPool : products
-
-      const picked = pickUniqueRandom(pool, 3)
-      const selected: (Product | null)[] = [
-        picked[0] ?? null,
-        picked[1] ?? null,
-        picked[2] ?? null,
-      ]
-
-      setRandomProducts(selected)
-      productCountRef.current = currentCount
-      hasMountedRef.current = true
+    if (products.length === 0) {
+      setRandomProducts([null, null, null])
+      return
     }
-  }, [products.length]) // Only depend on length, not entire products array
+    setRandomProducts(selectFeaturedRandomProducts(products, 3))
+  }, [products])
 
   const recentBlogPosts = useMemo(() => {
     return blogPosts
@@ -138,11 +101,17 @@ export function HomePage({ products, blogPosts, ratings, onRate }: HomePageProps
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {randomProducts.map((product, idx) => {
               if (!product) {
+                // products.length === 0 means data is still loading; otherwise
+                // the catalog genuinely has no more products to fill this slot.
+                const message =
+                  products.length === 0
+                    ? 'Loading products…'
+                    : 'No more products available'
                 return (
                   <Card key={idx} className="opacity-50">
                     <CardHeader>
                       <CardTitle className="text-sm text-muted-foreground">
-                        No featured products available
+                        {message}
                       </CardTitle>
                     </CardHeader>
                   </Card>
