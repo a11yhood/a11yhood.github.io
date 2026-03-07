@@ -155,7 +155,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                     )}
                   </CardTitle>
                   {userAccount.displayName && (
-                    <p className="text-sm text-muted-foreground">@{userAccount.login}</p>
+                    <p className="text-sm text-muted-foreground">@{userAccount.username}</p>
                   )}
                 </div>
                 {userAccount.bio && (
@@ -189,7 +189,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Link to={`/profile/${userAccount.login}`} className="inline-block">
+              <Link to={`/profile/${userAccount.username}`} className="inline-block">
                 <Button size="sm" variant="ghost">
                   View Public Profile
                 </Button>

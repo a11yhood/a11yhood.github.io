@@ -15,7 +15,7 @@ beforeAll(async () => {
   APIService.setAuthTokenGetter(async () => getDevToken(testUserId))
   currentUser = {
     id: testUserId,
-    login: DEV_USERS.user.login,
+    username: DEV_USERS.user.username,
     avatarUrl: 'https://example.com/avatar.jpg',
   }
 
@@ -32,14 +32,14 @@ beforeAll(async () => {
   const root = await APIService.createDiscussion({
     productId,
     userId: currentUser.id,
-    username: currentUser.login,
+    username: currentUser.username,
     content: 'How do I install this?',
   })
 
   await APIService.createDiscussion({
     productId,
     userId: currentUser.id,
-    username: currentUser.login,
+    username: currentUser.username,
     content: 'Check the documentation!',
     parentId: root.id,
   })
@@ -50,7 +50,7 @@ beforeAll(async () => {
   // Ensure discussions have username field set
   discussions = discussions.map((d) => ({
     ...d,
-    username: d.username || currentUser.login,
+    username: d.username || currentUser.username,
   }))
 })
 
@@ -141,7 +141,7 @@ describe('DiscussionSection Accessibility Tests', () => {
       />
     )
 
-    const authors = screen.getAllByText(currentUser.login)
+    const authors = screen.getAllByText(currentUser.username)
     expect(authors.length).toBeGreaterThan(0)
   })
 
@@ -186,7 +186,7 @@ describe('DiscussionSection Accessibility Tests', () => {
           await APIService.createDiscussion({
             productId,
             userId: currentUser.id,
-            username: currentUser.login,
+            username: currentUser.username,
             content,
             parentId,
             createdAt: Date.now(),

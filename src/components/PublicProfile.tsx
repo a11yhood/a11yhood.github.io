@@ -135,7 +135,7 @@ export function PublicProfile({ username }: { username: string }) {
             <div className="flex items-start gap-4">
               <Avatar className="w-20 h-20">
                 <AvatarImage src={account.avatarUrl} alt={account.username} />
-                <AvatarFallback>{(account.username || account.login || '?').slice(0, 2).toUpperCase()}</AvatarFallback>
+                <AvatarFallback>{(account.username || '?').slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="space-y-2">
                 <div>

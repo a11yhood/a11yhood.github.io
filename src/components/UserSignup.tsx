@@ -19,7 +19,7 @@ type UserSignupProps = {
 }
 
 export function UserSignup({ user, onComplete, onSkip }: UserSignupProps) {
-  const [displayName, setDisplayName] = useState(user.login)
+  const [displayName, setDisplayName] = useState(user.username)
   const [bio, setBio] = useState('')
   const [location, setLocation] = useState('')
   const [website, setWebsite] = useState('')

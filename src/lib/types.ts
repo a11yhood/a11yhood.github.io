@@ -86,14 +86,13 @@ export type Discussion = {
 
 export type UserData = {
   id: string
-  login: string
+  username: string
   avatarUrl?: string
 }
 
 export type UserAccount = {
   id: string
   username?: string
-  login?: string
   displayName?: string
   avatarUrl?: string
   email?: string
@@ -185,7 +184,7 @@ export type CollectionCreateInput = {
   description?: string
   isPublic: boolean
   productSlugs?: string[]
-  userName: string
+  username: string
 }
 
 export type UserRequest = {

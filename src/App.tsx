@@ -123,7 +123,7 @@ export function ProductListPage({
   onRate: (productId: string, rating: number) => void
   onDeleteProduct: (productId: string) => void
   onToggleBan: (product: Product) => void
-  onCreateCollection: (data: Omit<Collection, 'id' | 'createdAt' | 'updatedAt'>) => void
+  onCreateCollection: (data: CollectionCreateInput) => void
   onOpenCreateCollection: (defaults: { name?: string; description?: string; productSlugs?: string[]; isPublic?: boolean }) => void
   searchQuery: string
   onSearchChange: (query: string) => void
@@ -299,7 +299,7 @@ export function ProductListPage({
                   variant="outline"
                   onClick={() => onOpenCreateCollection({
                     name: searchQuery ? `Search: ${searchQuery}` : 'Filtered Products',
-                    productSlugs: products.map(p => p.slug),
+                    productSlugs: products.map(p => p.slug).filter((s): s is string => !!s),
                     isPublic: false
                   })}
                   className="text-xs"
@@ -573,7 +573,7 @@ function ProductDetailPage({
   onAddTag: (productId: string, tag: string, productObj?: Product) => void
   onAddToCollection: (collectionSlug: string) => Promise<void>
   onRemoveFromCollection: (collectionSlug: string) => Promise<void>
-  onCreateCollection: (data: Omit<Collection, 'id' | 'createdAt' | 'updatedAt'>) => void
+  onCreateCollection: (data: CollectionCreateInput) => void
   onDelete: (productId: string) => void
   onEdit: (product: Product) => void
   onToggleBan: (product: Product, reason?: string) => void
@@ -789,8 +789,6 @@ function ProductDetailPageWrapper({
       onToggleBlockDiscussion={onToggleBlockDiscussion}
       allTags={allTags}
       allProductTypes={allProductTypes}
-      autoOpenEdit={autoOpenEdit}
-      autoOpenOwnershipRequest={autoOpenOwnershipRequest}
     />
   )
 }
@@ -865,7 +863,7 @@ function BlogPostPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userA
         <h1 className="text-3xl font-bold mb-6">Edit Blog Post</h1>
         <BlogPostEditor
           post={post}
-          authorName={userAccount.username}
+          authorName={userAccount.username || 'Unknown'}
           authorId={userAccount.id}
           onSave={handleSave}
           onCancel={handleCancelEdit}
@@ -1782,9 +1780,11 @@ function App() {
         console.log('[App.fetchEffect] Fetching products with params:', params)
         setIsSearching(true)
 
+        const requestParams = { ...params, signal: abortController.signal }
+
         const [countResult, productsResult, tagsResult] = await Promise.allSettled([
-          APIService.getProductCount(params, { signal: abortController.signal }),
-          APIService.getAllProducts(params, { signal: abortController.signal }),
+          APIService.getProductCount(requestParams),
+          APIService.getAllProducts(requestParams),
           APIService.getFilteredTags({
             search: params.search,
             sources: effectiveSources.length > 0 ? effectiveSources : undefined,
@@ -1812,7 +1812,7 @@ function App() {
             try {
               const withoutRating = await APIService.getAllProducts(fallbackParams)
               const clientFiltered = withoutRating.filter(p => {
-                const productRatings = ratings.filter(r => r.productSlug === p.slug)
+                const productRatings = ratings.filter(r => r.productId === p.id)
                 if (productRatings.length > 0 && p.sourceRating) {
                   const userAverage = productRatings.reduce((sum, r) => sum + r.rating, 0) / productRatings.length
                   const avgRating = (userAverage + p.sourceRating) / 2
@@ -1908,7 +1908,7 @@ function App() {
           
           const userData = {
             id: authUser.id,
-            username: account.username,
+            username: account.username || authUser.id,
             avatarUrl: account.avatarUrl,
           }
           
@@ -2001,7 +2001,7 @@ function App() {
 
         const userData = {
           id: authUser.id,
-          username: account.username,
+          username: account.username || authUser.id,
           avatarUrl: account.avatarUrl,
         }
 
@@ -2046,7 +2046,7 @@ function App() {
       console.log('[App OAuth] → Code in URL:', code ? `YES (${code.substring(0, 10)}...)` : 'NO')
       console.log('[App OAuth] → Is OAuth callback:', isCallback)
       console.log('[App OAuth] → oauthProcessed flag:', oauthProcessedRef.current)
-      console.log('[App OAuth] → authUser:', authUser ? `${authUser.username}` : 'null')
+      console.log('[App OAuth] → authUser:', authUser ? `${authUser.id}` : 'null')
       console.log('[App OAuth] → authLoading:', authLoading)
       
       // If this is a fresh callback, reset the processed flag
@@ -2208,8 +2208,8 @@ function App() {
         try {
           const requests = await APIService.getAllPendingRequests()
           const validRequests = requests.filter(request => {
-            if (request.type === 'product-ownership' && request.productSlug) {
-              const productExists = products.some(p => p.slug === request.productSlug)
+            if (request.type === 'product-ownership' && request.productId) {
+              const productExists = products.some(p => p.id === request.productId)
               return productExists
             }
             return true
@@ -2299,17 +2299,17 @@ function App() {
   }
 
   const handleDiscuss = async (
-    productSlug: string,
+    productId: string,
     content: string,
-    parentSlug?: string
+    parentId?: string
   ) => {
     if (!user) return
 
     try {
       const newDiscussion = await APIService.createDiscussion({
-        productSlug,
+        productId,
         userId: user.id,
-        username: user.username,
+        username: userAccount?.username || user.username,
         content,
         parentId,
       })
@@ -2484,7 +2484,7 @@ function App() {
 
   const handleProfileUpdate = async () => {
     if (user) {
-      const account = await APIService.getUserAccount(user.username)
+      const account = await APIService.getUserAccount(user.id)
       if (account) {
         setUserAccount(account)
       }

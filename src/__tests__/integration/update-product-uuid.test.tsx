@@ -47,7 +47,7 @@ describe('updateProduct UUID enforcement', () => {
 
   const adminAccount: UserAccount = {
     id: DEV_USERS.admin.id,
-    username: DEV_USERS.admin.login,
+    username: DEV_USERS.admin.username,
     role: 'admin',
     avatarUrl: '',
   }

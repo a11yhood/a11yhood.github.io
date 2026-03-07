@@ -10,7 +10,7 @@ describe('ProductSubmission Accessibility Tests', () => {
   // Use dev-token based users (no API calls needed in beforeEach)
   const testUser: UserData = {
     id: `test-a11y-user-${Date.now()}`,
-    login: `testuser${Date.now()}`,
+    username: `testuser${Date.now()}`,
     avatarUrl: 'https://example.com/avatar.jpg',
   }
 

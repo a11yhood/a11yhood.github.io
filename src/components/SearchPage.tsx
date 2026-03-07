@@ -3,7 +3,7 @@
  * This is the content that was previously on the homepage
  */
 import { ProductListPage } from '@/App'
-import type { Product, Rating, UserData, UserAccount, BlogPost, Collection } from '@/lib/types'
+import type { Product, Rating, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput } from '@/lib/types'
 
 type SearchPageProps = {
   products: Product[]
@@ -28,7 +28,7 @@ type SearchPageProps = {
   onRate: (productId: string, rating: number) => void
   onDeleteProduct: (productId: string) => void
   onToggleBan: (product: Product) => void
-  onCreateCollection: (data: Omit<Collection, 'id' | 'createdAt' | 'updatedAt'>) => void
+  onCreateCollection: (data: CollectionCreateInput) => void
   onOpenCreateCollection: (defaults: { name?: string; description?: string; productSlugs?: string[]; isPublic?: boolean }) => void
   searchQuery: string
   onSearchChange: (query: string) => void
