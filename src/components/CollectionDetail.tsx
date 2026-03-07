@@ -101,11 +101,16 @@ export function CollectionDetail({
         const total = collection.productSlugs.length
 
         await Promise.allSettled(
-          collection.productSlugs.map(async (slug) => {
+          collection.productSlugs.map(async (slug, index) => {
             try {
               const product = await APIService.getProduct(slug)
               if (product !== null) {
-                setCollectionProducts(prev => [...prev, product])
+                // Insert product at its slug index to preserve collection order while streaming
+                setCollectionProducts(prev => {
+                  const next = [...prev]
+                  next[index] = product
+                  return next
+                })
               }
             } catch (error) {
               console.error('[CollectionDetail] Error loading product:', slug, error)
