@@ -2060,7 +2060,7 @@ function App() {
   useEffect(() => {
     const loadCollections = async () => {
       try {
-        // Only load public collections on pages that need them (home, products, collections list)
+        // Only load public collections on pages that need them (currently collections list)
         // Skip on collection detail pages (/collections/:slug) and other routes
         const needsPublicCollections = 
           location.pathname === '/collections'
