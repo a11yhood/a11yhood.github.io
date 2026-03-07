@@ -1132,18 +1132,17 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                         toast.success('Deleted products from selected source')
                       }
                     } catch (apiError) {
-                      console.error('❌ [ScraperManager] API deleteProductsBySource FAILED, falling back to individual deletes')
+                      console.error('❌ [ScraperManager] API deleteProductsBySource FAILED, falling back to bulk delete by IDs')
                       console.error('Error details:', apiError)
                       console.error('Error message:', apiError instanceof Error ? apiError.message : String(apiError))
                       console.error('Full error object:', JSON.stringify(apiError, null, 2))
 
                       // Fetch ALL products for this source from the backend (not just what is loaded)
                       const allBackendProducts = await APIService.getProductsBySource(sourceToDelete || '', { includeBanned: true })
-                      console.log(`[ScraperManager] Fallback: deleting ${allBackendProducts.length} backend products for source: ${sourceToDelete}`)
+                      const allBackendIds = allBackendProducts.map(p => p.id)
+                      console.log(`[ScraperManager] Fallback: bulk-deleting ${allBackendIds.length} backend products for source: ${sourceToDelete}`)
 
-                      await Promise.all(
-                        allBackendProducts.map(p => APIService.deleteProduct(p.slug || p.id))
-                      )
+                      await APIService.deleteProductsByIds(allBackendIds)
 
                       // Reload all products from backend to reflect the deletion
                       try {
