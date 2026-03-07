@@ -7,6 +7,8 @@ import { ProductCard } from '@/components/ProductCard'
 import { formatDistanceToNow } from 'date-fns'
 import { useEffect, useState, useMemo } from 'react'
 import { APIService } from '@/lib/api'
+import { useNavigate } from 'react-router-dom'
+import { getProductsPathForTag } from '@/lib/tagRoutes'
 import MarkdownText from '@/components/ui/MarkdownText'
 
 type CollectionDetailProps = {
@@ -38,6 +40,7 @@ export function CollectionDetail({
   onDeleteCollection,
   onEditCollection,
 }: CollectionDetailProps) {
+  const navigate = useNavigate()
   const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
@@ -203,6 +206,7 @@ export function CollectionDetail({
                 <ProductCard
                   product={product}
                   ratings={ratings}
+                  onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
                   onClick={() => onSelectProduct(product.slug)}
                   onDelete={onRemoveProduct}
                   userAccount={userAccount}

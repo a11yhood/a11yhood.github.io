@@ -456,8 +456,10 @@ export function ProductListPage({
                   product={product}
                   ratings={ratings}
                   collections={collections}
+                  selectedTags={selectedTags}
                   href={`/product/${product.slug ?? product.id}`}
                   onNavigate={() => navigate(`/product/${product.slug ?? product.id}`)}
+                  onTagClick={onTagToggle}
                   user={user}
                   onRate={onRate}
                   showBannedBadge={canViewBanned}
@@ -475,8 +477,10 @@ export function ProductListPage({
                   product={product}
                   ratings={ratings}
                   collections={collections}
+                  selectedTags={selectedTags}
                   href={`/product/${product.slug ?? product.id}`}
                   onNavigate={() => navigate(`/product/${product.slug ?? product.id}`)}
+                  onTagClick={onTagToggle}
                   onDelete={onDeleteProduct}
                   user={user}
                   onRate={onRate}
@@ -1528,24 +1532,32 @@ function App() {
           return
         }
 
-        // First fetch shared metadata (sources/types/tags) so we can fan-out product fetches per source
-        // Use Promise.allSettled so that failures in one endpoint don't block others
-        const results = await Promise.allSettled([
-          APIService.getProductCount({ includeBanned: false }),
-        ])
-        
-        const totalCount = results[0].status === 'fulfilled' ? results[0].value : 0
+        // Build initial fetch params from URL when landing on /products so we don't
+        // briefly show unfiltered results before URL-driven filters are applied.
+        const initialUrlQuery = location.pathname === '/products' ? (searchParams.get('q') || '') : ''
+        const initialUrlTypes = location.pathname === '/products' ? normalizeParamArray(searchParams.getAll('type')) : []
+        const initialUrlSources = location.pathname === '/products' ? normalizeParamArray(searchParams.getAll('source')) : []
+        const initialUrlTags = location.pathname === '/products' ? normalizeParamArray(searchParams.getAll('tag')) : []
 
-        // Fetch first page of products with default filters
-        // The fetchProducts effect will handle applying actual current filter values
-        const offset = 0 // page 1
-        const loadedProducts = await APIService.getAllProducts({ 
+        const initialProductParams = {
           includeBanned: false,
+          search: initialUrlQuery || undefined,
           limit: pageSize,
-          offset,
-          sortBy: 'created_at',
-          sortOrder: 'desc',
-        })
+          offset: 0,
+          sources: initialUrlSources.length > 0 ? initialUrlSources : undefined,
+          types: initialUrlTypes.length > 0 ? initialUrlTypes : undefined,
+          tags: initialUrlTags.length > 0 ? initialUrlTags : undefined,
+          sortBy: 'created_at' as const,
+          sortOrder: 'desc' as const,
+        }
+
+        const [countResult, productsResult] = await Promise.allSettled([
+          APIService.getProductCount(initialProductParams),
+          APIService.getAllProducts(initialProductParams),
+        ])
+
+        const loadedProducts = productsResult.status === 'fulfilled' ? productsResult.value : []
+        const totalCount = countResult.status === 'fulfilled' ? countResult.value : loadedProducts.length
         
         console.log('[App] Data loaded:', {
           products: loadedProducts.length,
