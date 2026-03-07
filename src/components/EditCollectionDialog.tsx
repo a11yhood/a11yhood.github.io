@@ -5,8 +5,6 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
-import { X } from '@phosphor-icons/react'
 import { Collection } from '@/lib/types'
 
 type EditCollectionDialogProps = {
@@ -25,8 +23,6 @@ export function EditCollectionDialog({
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [isPublic, setIsPublic] = useState(false)
-  const [tags, setTags] = useState<string[]>([])
-  const [tagInput, setTagInput] = useState('')
   const [errors, setErrors] = useState<{ id: string; message: string }[]>([])
   const errorSummaryRef = useRef<HTMLDivElement>(null)
 
@@ -35,8 +31,6 @@ export function EditCollectionDialog({
       setName(collection.name)
       setDescription(collection.description || '')
       setIsPublic(collection.isPublic)
-      setTags(collection.tags || [])
-      setTagInput('')
     }
   }, [collection])
 
@@ -63,37 +57,9 @@ export function EditCollectionDialog({
       name: name.trim(),
       description: description.trim() || undefined,
       isPublic,
-      tags: tags.length > 0 ? tags : undefined,
     })
 
     onOpenChange(false)
-  }
-
-  const handleAddTag = () => {
-    const seen = new Set(tags.map((t) => t.toLowerCase()))
-    const newTags: string[] = []
-    for (const raw of tagInput.split(',')) {
-      const t = raw.trim().toLowerCase()
-      if (t && !seen.has(t)) {
-        seen.add(t)
-        newTags.push(t)
-      }
-    }
-    if (newTags.length > 0) {
-      setTags([...tags, ...newTags])
-      setTagInput('')
-    }
-  }
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter((t) => t !== tagToRemove))
-  }
-
-  const handleTagKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      handleAddTag()
-    }
   }
 
   if (!collection) return null
@@ -167,40 +133,6 @@ export function EditCollectionDialog({
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-collection-tags">Tags (Optional)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="edit-collection-tags"
-                  name="tags"
-                  autoComplete="off"
-                  placeholder="Add tags (press Enter or use commas)"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={handleTagKeyDown}
-                />
-                <Button type="button" variant="secondary" onClick={handleAddTag} disabled={!tagInput.trim()}>
-                  Add
-                </Button>
-              </div>
-              {tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="gap-1">
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTag(tag)}
-                        className="ml-1 hover:text-destructive focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 rounded-sm"
-                        aria-label={`Remove ${tag} tag`}
-                      >
-                        <X size={14} />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
             </div>
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">

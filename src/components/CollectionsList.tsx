@@ -27,6 +27,19 @@ export function CollectionsList({
     return (products || []).filter(p => (collection.productSlugs || []).includes(p.slug))
   }
 
+  const getTopTagsForCollection = (collectionProducts: Product[], limit = 5) => {
+    const tagCounts = new Map<string, number>()
+    collectionProducts.forEach(product => {
+      product.tags?.forEach(tag => {
+        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+      })
+    })
+    return Array.from(tagCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([tag]) => tag)
+  }
+
   if (!collections || collections.length === 0) {
     return (
       <div className="text-center py-12" role="status">
@@ -40,6 +53,7 @@ export function CollectionsList({
       {collections.map((collection) => {
         const collectionProducts = getProductsInCollection(collection)
         const isOwner = currentUserId === collection.userId
+        const topTags = getTopTagsForCollection(collectionProducts)
         
         return (
           <Card
@@ -128,9 +142,9 @@ export function CollectionsList({
                   )}
                 </div>
               )}
-              {collection.tags && collection.tags.length > 0 && (
+              {topTags.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
-                  {collection.tags.map((tag) => (
+                  {topTags.map((tag) => (
                     <Badge key={tag} variant="outline" className="text-xs">
                       {tag}
                     </Badge>

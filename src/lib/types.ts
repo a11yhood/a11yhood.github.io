@@ -163,7 +163,6 @@ export type Collection = {
   slug?: string
   name: string
   description?: string
-  tags?: string[]
   userId: string
   username: string
   productSlugs: string[]
@@ -175,7 +174,6 @@ export type Collection = {
 export type CollectionCreateInput = {
   name: string
   description?: string
-  tags?: string[]
   isPublic: boolean
   productSlugs?: string[]
   userName: string

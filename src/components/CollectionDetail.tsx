@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { ArrowLeft, Lock, LockOpen, Trash, Pencil } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
 import { formatDistanceToNow } from 'date-fns'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { APIService } from '@/lib/api'
 import MarkdownText from '@/components/ui/MarkdownText'
 
@@ -40,6 +40,20 @@ export function CollectionDetail({
 }: CollectionDetailProps) {
   const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(false)
+
+  // Derive top tags from the collection's products, sorted by frequency
+  const topTags = useMemo(() => {
+    const tagCounts = new Map<string, number>()
+    collectionProducts.forEach(product => {
+      product.tags?.forEach(tag => {
+        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+      })
+    })
+    return Array.from(tagCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([tag]) => tag)
+  }, [collectionProducts])
 
   useEffect(() => {
     const loadCollectionProducts = async () => {
@@ -139,9 +153,9 @@ export function CollectionDetail({
           {collection.description && (
             <MarkdownText text={collection.description} className="text-muted-foreground mb-4" />
           )}
-          {collection.tags && collection.tags.length > 0 && (
+          {topTags.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-4">
-              {collection.tags.map((tag) => (
+              {topTags.map((tag) => (
                 <Badge key={tag} variant="secondary" className="text-xs">
                   {tag}
                 </Badge>
