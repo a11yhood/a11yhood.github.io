@@ -947,22 +947,22 @@ function CollectionsPage({
   const paginatedPublicCollections = filteredPublicCollections.slice(publicStart, publicEnd)
   const publicTotalPages = Math.ceil(filteredPublicCollections.length / itemsPerPage)
 
-  // Load first product from each visible collection for image display
+  // Load products from each visible collection for image display
   useEffect(() => {
     const loadCollectionImages = async () => {
       const visibleCollections = [...paginatedMyCollections, ...paginatedPublicCollections]
+      const MAX_IMAGE_PRODUCTS_PER_COLLECTION = 3
       
-      // Get first product slug from each visible collection
-      const firstProductSlugs = visibleCollections
-        .filter(c => c.productSlugs && c.productSlugs.length > 0)
-        .map(c => c.productSlugs[0])
+      // Get up to the first N product slugs from each visible collection
+      const candidateProductSlugs = visibleCollections
+        .flatMap(c => (c.productSlugs || []).slice(0, MAX_IMAGE_PRODUCTS_PER_COLLECTION))
         .filter(slug => slug) // Remove any undefined/null
 
-      if (firstProductSlugs.length === 0) return
+      if (candidateProductSlugs.length === 0) return
 
       // Check which products we don't already have
       const existingSlugs = new Set([...products, ...collectionProducts].map(p => p.slug))
-      const slugsToFetch = firstProductSlugs.filter(slug => !existingSlugs.has(slug))
+      const slugsToFetch = candidateProductSlugs.filter(slug => !existingSlugs.has(slug))
 
       if (slugsToFetch.length === 0) return
 
