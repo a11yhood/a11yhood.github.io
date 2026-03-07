@@ -1,18 +1,20 @@
-import { useState } from 'react'
-import { ArrowLeft, Link as LinkIcon, Trash, FolderOpen, Plus, Prohibit, CheckCircle } from '@phosphor-icons/react'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowLeft, Link as LinkIcon, Trash, Prohibit, CheckCircle } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { StarRating } from './StarRating'
 import { DiscussionSection } from './DiscussionSection'
 import { TagManager } from './TagManager'
-import { LoginPrompt } from './LoginPrompt'
+import { CollectionsManager } from './CollectionsManager'
 import { ProductEditDialog } from './ProductEditDialog'
 import { AddToCollectionDialog } from './AddToCollectionDialog'
 import { CreateCollectionDialog } from './CreateCollectionDialog'
 import { ProductEditors } from './ProductEditors'
 import { CollapsibleCard } from './CollapsibleCard'
 import { Product, Rating, Discussion, UserData, Collection, CollectionCreateInput, UserAccount } from '@/lib/types'
+import { APIService } from '@/lib/api'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faUniversalAccess } from '@fortawesome/free-solid-svg-icons'
 import { formatSourceLabel, getSourceIcon, calculateAverageRating, getCanonicalHost, formatRelativeTime } from '@/lib/utils'
@@ -69,12 +71,43 @@ export function ProductDetail({
   autoOpenEdit,
   autoOpenOwnershipRequest,
 }: ProductDetailProps) {
+  const navigate = useNavigate()
   const [imageError, setImageError] = useState(false)
+  const [localCollections, setLocalCollections] = useState<Collection[]>(userCollections)
+  const collectionLoadStartedRef = useRef(false)
   const shouldShowImage = !!product.imageUrl && !imageError
   const canModerate = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
   const isEditor = !!userAccount?.id && (product.editorIds?.includes(userAccount.id) || false)
   const [showAddToCollectionDialog, setShowAddToCollectionDialog] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
+
+  // Load collections lazily (user's own + all public collections)
+  useEffect(() => {
+    const loadCollections = async () => {
+      try {
+        const [userCollections, publicCollections] = await Promise.all([
+          user ? APIService.getUserCollections() : Promise.resolve([]),
+          APIService.getPublicCollections(),
+        ])
+        // Combine user's collections with public collections (avoid duplicates by ID)
+        const allCollections = [...userCollections]
+        publicCollections.forEach(pub => {
+          if (!allCollections.some(c => c.id === pub.id)) {
+            allCollections.push(pub)
+          }
+        })
+        setLocalCollections(allCollections)
+        collectionLoadStartedRef.current = true
+      } catch (error) {
+        // Silently handle errors - collections are optional
+        console.debug('Failed to load collections:', error)
+      }
+    }
+    
+    // Load collections on mount and whenever user state changes
+    collectionLoadStartedRef.current = false
+    loadCollections()
+  }, [user])
 
   console.log('[ProductDetail] Filtering ratings:', {
     productId: product.id,
@@ -107,7 +140,7 @@ export function ProductDetail({
 
   const handleDelete = () => {
     const targetId = product.slug || product.id
-    if (onDelete && targetId && confirm(`Are you sure you want to delete "${product.name}"? This action cannot be undone.`)) {
+    if (onDelete && targetId) {
       onDelete(targetId)
       onBack()
     }
@@ -155,18 +188,6 @@ export function ProductDetail({
         </Button>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {user && onAddToCollection && (
-            <Button
-              variant="outline"
-              onClick={() => setShowAddToCollectionDialog(true)}
-              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3"
-              aria-label="Add to collection"
-            >
-              <Plus size={18} />
-              <FolderOpen size={18} />
-              <span className="hidden sm:inline">Add to Collection</span>
-            </Button>
-          )}
           {user && (canModerate || isEditor) && (
             <>
               {onEdit && !product.banned && (
@@ -306,7 +327,11 @@ export function ProductDetail({
                 </span>
               </div>
             ) : (
-              <LoginPrompt context="rate" />
+              <div className="flex items-center gap-3 sm:gap-4">
+                <StarRating value={averageRating} readonly size={24} className="shrink-0" />
+                <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
+                </span>
+              </div>
             )}
           </div>
 
@@ -317,6 +342,15 @@ export function ProductDetail({
               allTags={allTags}
               onAddTag={onAddTag}
               user={user}
+            />
+          </div>
+
+          <div className="mb-6 sm:mb-8">
+            <CollectionsManager
+              productSlug={product.slug}
+              userCollections={localCollections}
+              user={user}
+              onOpenAddDialog={() => setShowAddToCollectionDialog(true)}
             />
           </div>
         </div>

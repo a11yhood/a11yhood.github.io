@@ -455,6 +455,7 @@ export function ProductListPage({
                   key={product.id}
                   product={product}
                   ratings={ratings}
+                  collections={collections}
                   href={`/product/${product.slug ?? product.id}`}
                   onNavigate={() => navigate(`/product/${product.slug ?? product.id}`)}
                   user={user}
@@ -473,6 +474,7 @@ export function ProductListPage({
                   key={product.id}
                   product={product}
                   ratings={ratings}
+                  collections={collections}
                   href={`/product/${product.slug ?? product.id}`}
                   onNavigate={() => navigate(`/product/${product.slug ?? product.id}`)}
                   onDelete={onDeleteProduct}
@@ -568,7 +570,7 @@ function ProductDetailPage({
   userCollections: Collection[]
   onRate: (productId: string, rating: number) => void
   onDiscuss: (productId: string, content: string, parentId?: string) => void
-  onAddTag: (productId: string, tag: string) => void
+  onAddTag: (productId: string, tag: string, productObj?: Product) => void
   onAddToCollection: (collectionSlug: string) => Promise<void>
   onRemoveFromCollection: (collectionSlug: string) => Promise<void>
   onCreateCollection: (data: Omit<Collection, 'id' | 'createdAt' | 'updatedAt'>) => void
@@ -649,7 +651,7 @@ function ProductDetailPage({
       onBack={() => navigate('/')}
       onRate={(rating) => onRate(product.id, rating)}
       onDiscuss={(content, parentId) => onDiscuss(product.id, content, parentId)}
-      onAddTag={(tag) => onAddTag(product.id, tag)}
+      onAddTag={(tag) => onAddTag(product.slug ?? product.id, tag, product)}
       onAddToCollection={onAddToCollection}
       onRemoveFromCollection={onRemoveFromCollection}
       onCreateCollection={onCreateCollection}
@@ -696,7 +698,7 @@ function ProductDetailPageWrapper({
   userCollections: Collection[]
   onRate: (productId: string, rating: number) => void
   onDiscuss: (productId: string, content: string, parentId?: string) => void
-  onAddTag: (productId: string, tag: string) => void
+  onAddTag: (productId: string, tag: string, productObj?: Product) => void
   onCollectionsChange: (collections: Collection[] | ((current: Collection[]) => Collection[])) => void
   onCreateCollection: (data: CollectionCreateInput) => void
   onDelete: (productId: string) => void
@@ -885,6 +887,7 @@ function CollectionsPage({
   collections, 
   products, 
   user,
+  userAccount,
   onDeleteCollection,
   onEditCollection,
   onCreateCollection
@@ -892,6 +895,7 @@ function CollectionsPage({
   collections: Collection[]
   products: Product[]
   user: UserData | null
+  userAccount: UserAccount | null
   onDeleteCollection: (collectionSlug: string) => void
   onEditCollection: (collection: Collection) => void
   onCreateCollection: () => void
@@ -911,30 +915,59 @@ function CollectionsPage({
     loadPublic()
   }, [])
 
+  // Filter to only show collections created by the current user
+  const myCollections = userAccount 
+    ? collections.filter(c => {
+        const match = c.userId === userAccount.id
+        console.log('[CollectionsPage] Checking collection:', {
+          collectionName: c.name,
+          collectionUserId: c.userId,
+          userAccountId: userAccount.id,
+          match
+        })
+        return match
+      })
+    : []
+
+  console.log('[CollectionsPage] Total collections:', collections.length, 'My collections:', myCollections.length)
+
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">My Collections</h1>
-        <div className="flex items-center gap-2">
-          <Button onClick={onCreateCollection}>Create Collection</Button>
+      {user ? (
+        <>
+          <div className="mb-6 flex items-center justify-between">
+            <h1 className="text-3xl font-bold">My Collections</h1>
+            <div className="flex items-center gap-2">
+              <Button onClick={onCreateCollection}>Create Collection</Button>
+              <Button variant="ghost" onClick={() => navigate('/')}>
+                ← Back to Products
+              </Button>
+            </div>
+          </div>
+          <CollectionsList
+            collections={myCollections}
+            products={products}
+            onSelectCollection={(collection) => navigate(`/collections/${collection.slug || collection.id}`)}
+            onDeleteCollection={onDeleteCollection}
+            onEditCollection={onEditCollection}
+            currentUserId={user?.id}
+          />
+        </>
+      ) : (
+        <div className="mb-6 flex items-center justify-between">
+          <p className="text-lg text-muted-foreground">Log in to create your own collection</p>
           <Button variant="ghost" onClick={() => navigate('/')}>
             ← Back to Products
           </Button>
         </div>
-      </div>
-      <CollectionsList
-        collections={collections}
-        products={products}
-        onSelectCollection={(collection) => navigate(`/collections/${collection.slug || collection.id}`)}
-        onDeleteCollection={onDeleteCollection}
-        onEditCollection={onEditCollection}
-        currentUserId={user?.id}
-      />
+      )}
 
       <div className="mt-10">
         <h2 className="text-2xl font-semibold mb-4">Public Collections</h2>
         <CollectionsList
-          collections={publicCollections}
+          collections={publicCollections.filter(c => 
+            !userAccount || c.userId !== userAccount.id
+          )}
           products={products}
           onSelectCollection={(collection) => navigate(`/collections/${collection.slug || collection.id}`)}
           onDeleteCollection={() => { /* no-op for public */ }}
@@ -1203,12 +1236,17 @@ function App() {
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
   const [thingiverseAuthTimestamp, setThingiverseAuthTimestamp] = useState(0)
   
+  // Helper to normalize URL param arrays: filter empty strings and deduplicate
+  const normalizeParamArray = (params: string[]): string[] => {
+    return Array.from(new Set(params.filter(Boolean)))
+  }
+  
   // Filter states - initialize from URL params
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
   const [searchInputValue, setSearchInputValue] = useState(searchParams.get('q') || '')
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([])
-  const [selectedSources, setSelectedSources] = useState<string[]>([])
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(() => normalizeParamArray(searchParams.getAll('type')))
+  const [selectedSources, setSelectedSources] = useState<string[]>(() => normalizeParamArray(searchParams.getAll('source')))
+  const [selectedTags, setSelectedTags] = useState<string[]>(() => normalizeParamArray(searchParams.getAll('tag')))
   const [minRating, setMinRating] = useState(0)
   const [updatedSince, setUpdatedSince] = useState<string | null>(null) // ISO date string
   const [committedUpdatedSince, setCommittedUpdatedSince] = useState<string | null>(null)
@@ -1222,21 +1260,42 @@ function App() {
   const userAccountFetchRef = useRef<string | null>(null) // Track which user we've fetched account for
 
   const handleTypeToggle = (type: string) => {
-    setSelectedTypes((current) =>
-      current.includes(type) ? current.filter((t) => t !== type) : [...current, type]
-    )
+    setSelectedTypes((currentTypes) => {
+      const nextTypes = currentTypes.includes(type)
+        ? currentTypes.filter((t) => t !== type)
+        : [...currentTypes, type]
+      const newParams = new URLSearchParams(searchParams)
+      newParams.delete('type')
+      nextTypes.forEach((t) => newParams.append('type', t))
+      setSearchParams(newParams, { replace: true })
+      return nextTypes
+    })
   }
 
   const handleSourceToggle = (source: string) => {
-    setSelectedSources((current) =>
-      current.includes(source) ? current.filter((s) => s !== source) : [...current, source]
-    )
+    setSelectedSources((currentSources) => {
+      const nextSources = currentSources.includes(source)
+        ? currentSources.filter((s) => s !== source)
+        : [...currentSources, source]
+      const newParams = new URLSearchParams(searchParams)
+      newParams.delete('source')
+      nextSources.forEach((s) => newParams.append('source', s))
+      setSearchParams(newParams, { replace: true })
+      return nextSources
+    })
   }
 
   const handleTagToggle = (tag: string) => {
-    setSelectedTags((current) =>
-      current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag]
-    )
+    setSelectedTags((currentTags) => {
+      const nextTags = currentTags.includes(tag)
+        ? currentTags.filter((t) => t !== tag)
+        : [...currentTags, tag]
+      const newParams = new URLSearchParams(searchParams)
+      newParams.delete('tag')
+      nextTags.forEach((t) => newParams.append('tag', t))
+      setSearchParams(newParams, { replace: true })
+      return nextTags
+    })
   }
 
   const handleClearFilters = () => {
@@ -1247,9 +1306,12 @@ function App() {
     setUpdatedSince(null)
     setSearchQuery('')
     setSearchInputValue('')
-    // Clear search from URL
+    // Clear search and filter params from URL
     const newParams = new URLSearchParams(searchParams)
     newParams.delete('q')
+    newParams.delete('tag')
+    newParams.delete('type')
+    newParams.delete('source')
     setSearchParams(newParams, { replace: true })
   }
 
@@ -1309,11 +1371,28 @@ function App() {
 
   // Sync search query from URL params when navigating to /products
   useEffect(() => {
+    if (location.pathname !== '/products') return
     const urlQuery = searchParams.get('q') || ''
-    if (location.pathname === '/products' && urlQuery !== searchQuery) {
-      setSearchQuery(urlQuery)
-      setSearchInputValue(urlQuery)
-    }
+    setSearchQuery(urlQuery)
+    setSearchInputValue(urlQuery)
+    
+    // Only update filter states when the normalized URL params actually differ from current state
+    const urlTags = normalizeParamArray(searchParams.getAll('tag'))
+    const urlTypes = normalizeParamArray(searchParams.getAll('type'))
+    const urlSources = normalizeParamArray(searchParams.getAll('source'))
+    
+    setSelectedTags(current => {
+      const changed = current.length !== urlTags.length || !current.every((tag, i) => tag === urlTags[i])
+      return changed ? urlTags : current
+    })
+    setSelectedTypes(current => {
+      const changed = current.length !== urlTypes.length || !current.every((type, i) => type === urlTypes[i])
+      return changed ? urlTypes : current
+    })
+    setSelectedSources(current => {
+      const changed = current.length !== urlSources.length || !current.every((source, i) => source === urlSources[i])
+      return changed ? urlSources : current
+    })
   }, [searchParams, location.pathname])
 
   // Combine filtered tags with tags from current page of products, plus any selected tags
@@ -1359,34 +1438,42 @@ function App() {
       
       try {
         // Load metadata only if needed (search, collections, admin pages)
+        // Do not block initial product load on slow metadata endpoints.
         if (needsFilterMetadata) {
-          const metadataResults = await Promise.allSettled([
+          void Promise.allSettled([
             APIService.getProductSources(),
             APIService.getProductTypes(),
             APIService.getPopularTags(10),
           ])
-          
-          const loadedSources = metadataResults[0].status === 'fulfilled' ? metadataResults[0].value : []
-          const loadedTypes = metadataResults[1].status === 'fulfilled' ? metadataResults[1].value : []
-          const loadedTags = metadataResults[2].status === 'fulfilled' ? metadataResults[2].value : []
-          
-          setAllProductSources(loadedSources)
-          setAllProductTypes(loadedTypes)
-          setPopularTags(loadedTags)
+            .then((metadataResults) => {
+              const loadedSources = metadataResults[0].status === 'fulfilled' ? metadataResults[0].value : []
+              const loadedTypes = metadataResults[1].status === 'fulfilled' ? metadataResults[1].value : []
+              const loadedTags = metadataResults[2].status === 'fulfilled' ? metadataResults[2].value : []
+
+              setAllProductSources(loadedSources)
+              setAllProductTypes(loadedTypes)
+              setPopularTags(loadedTags)
+            })
+            .catch((error) => {
+              console.warn('[App] Failed to load product metadata:', error)
+            })
         } else if (location.pathname === '/') {
           // On homepage, load initial products with default parameters
           // The fetchProducts effect will handle any filter changes (including admin's includeBanned)
           setDataLoaded(true)
           setIsSearching(false)
-          
+
+          const homeFeaturedParams = {
+            limit: 50,
+            tags: ['featured'],
+            // Keep false on homepage to match requirement
+            includeBanned: false,
+            sortBy: 'created_at' as const,
+            sortOrder: 'desc' as const,
+          }
+
           Promise.all([
-            APIService.getAllProducts({ 
-              limit: 50,
-              // Use defaults that match the initial state - fetchProducts will re-fetch if needed
-              includeBanned: false,
-              sortBy: 'created_at',
-              sortOrder: 'desc',
-            }),
+            APIService.getAllProducts(homeFeaturedParams),
             APIService.getAllRatings(),
             APIService.getAllBlogPosts(false),
           ])
@@ -1491,10 +1578,10 @@ function App() {
     }
 
     // Check if this is the initial load with no filters (skip to avoid duplicate from initial load)
-    const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 && 
+        const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 && 
                 selectedTypes.length === 0 && selectedTags.length === 0 && 
                 minRating === 0 && committedUpdatedSince === null &&
-                sortBy === 'created_at' && sortOrder === 'desc' && !sortHasChanged
+          sortBy === 'created_at' && sortOrder === 'desc' && !sortHasChanged
     
     if (isInitialLoad) {
       console.log('[App.fetchEffect] Skipping - using data from initial load')
@@ -1538,6 +1625,8 @@ function App() {
             ]))
           : selectedSources
 
+        const requiredHomeTags = location.pathname === '/' ? ['featured'] : undefined
+
         const params = {
           includeBanned,
           search: searchQuery || undefined,
@@ -1545,7 +1634,7 @@ function App() {
           offset,
           sources: effectiveSources.length > 0 ? effectiveSources : undefined,
           types: selectedTypes.length > 0 ? selectedTypes : undefined,
-          tags: selectedTags.length > 0 ? selectedTags : undefined,
+          tags: selectedTags.length > 0 ? selectedTags : requiredHomeTags,
           minRating: minRating || undefined,
           updatedSince: updatedSinceISO,
           sortBy,
@@ -1741,7 +1830,7 @@ function App() {
         while (retries < maxRetries) {
           try {
             account = await APIService.createOrUpdateUserAccount(
-              usernameToCreate,
+              authUser.id,
               usernameToCreate,
               undefined, // avatar from auth not guaranteed
               authUser.email
@@ -1939,23 +2028,30 @@ function App() {
     handleRavelryOAuth()
   }, [authLoading, authUser, oauthProcessed])
 
-  // Load collections for authenticated users
-
+  // Load collections for all users (public collections always, user collections on /collections pages)
   useEffect(() => {
     const loadCollections = async () => {
-      // Only load collections on pages that need them
-      const needsCollections = location.pathname.startsWith('/collections') || 
-                               location.pathname.startsWith('/product/')
-      
-      if (user && needsCollections) {
-        try {
-          const userCollections = await APIService.getUserCollections()
-          setCollections(userCollections)
-        } catch (error) {
-          // Silently handle 404 for collections endpoint (not yet implemented)
-          if (error instanceof Error && !error.message.includes('404')) {
-            console.error('Failed to load collections:', error)
+      try {
+        // Always load public collections so they appear on product pages
+        const publicCollections = await APIService.getPublicCollections()
+        
+        // Also load user's own collections if authenticated and on a page that needs them
+        const isCollectionPage = location.pathname.startsWith('/collections') && !location.pathname.startsWith('/collections/') || location.pathname === '/collections'
+        const userCollections = (user && isCollectionPage) ? await APIService.getUserCollections() : []
+        
+        // Combine public and user collections (avoiding duplicates)
+        const allCollections = [...userCollections]
+        publicCollections.forEach(pub => {
+          if (!allCollections.some(c => c.id === pub.id)) {
+            allCollections.push(pub)
           }
+        })
+        
+        setCollections(allCollections)
+      } catch (error) {
+        // Silently handle errors - collections are optional
+        if (error instanceof Error && !error.message.includes('404')) {
+          console.debug('Failed to load collections:', error)
         }
       }
     }
@@ -2154,14 +2250,20 @@ function App() {
     }
   }
 
-  const handleAddTag = async (productIdOrSlug: string, tag: string) => {
-    if (!user) return
+  const handleAddTag = async (productSlug: string, tag: string, productObj?: Product) => {
+    if (!user) {
+      return
+    }
 
     try {
       const normalizedTag = tag.trim().toLowerCase()
-      const product = products?.find(p => p.id === productIdOrSlug || p.slug === productIdOrSlug)
       
-      if (!product) return
+      // Use provided product object if available, otherwise look it up
+      let product = productObj || products?.find(p => p.slug === productSlug || p.id === productSlug)
+      
+      if (!product) {
+        return
+      }
       
       if (product.tags.some((t) => t.toLowerCase() === normalizedTag)) {
         toast.info('Tag already exists')
@@ -2169,15 +2271,15 @@ function App() {
       }
       
       const updatedProduct = await APIService.updateProduct(
-        productIdOrSlug,
+        product.id || productSlug,
         { tags: [...product.tags, normalizedTag] },
-        user.id
+        user?.username
       )
       
       if (updatedProduct) {
         setProducts((currentProducts) => {
           const current = currentProducts || []
-          return current.map((p) => p.id === productIdOrSlug ? updatedProduct : p)
+          return current.map((p) => (p.slug === productSlug || p.id === productSlug) ? updatedProduct : p)
         })
         
         if (user?.id && product.id) {
@@ -2395,15 +2497,22 @@ function App() {
   const handleCreateCollection = async (collectionData: CollectionCreateInput) => {
     try {
       const { productSlugs = [], ...rest } = collectionData
+      console.debug('[CreateCollection] Payload being sent:', {
+        ...rest,
+        productSlugs,
+      })
       const newCollection = await APIService.createCollection({
         ...rest,
         productSlugs: [], // Create with empty array, then add products
       })
       let finalCollection = newCollection
       if (productSlugs && productSlugs.length > 0) {
-        const collectionSlug = newCollection.slug || newCollection.slug
-        const updated = await APIService.addMultipleProductsToCollection(collectionSlug, productSlugs)
-        if (updated) finalCollection = updated
+        const collectionSlug = newCollection.slug || newCollection.id
+        const results = await Promise.all(
+          productSlugs.map(productSlug => APIService.addProductToCollection(collectionSlug, productSlug))
+        )
+        const lastUpdated = results.filter(Boolean).pop()
+        if (lastUpdated) finalCollection = lastUpdated
       }
       setCollections((current) => [finalCollection, ...current])
       toast.success('Collection created successfully')
@@ -2415,7 +2524,7 @@ function App() {
 
   const handleCreateCollectionFromSearch = async (collectionData: CollectionCreateInput) => {
     try {
-      const newCollection = await APIService.createCollectionFromSearch({
+      const payload: any = {
         name: collectionData.name,
         description: collectionData.description,
         isPublic: collectionData.isPublic,
@@ -2424,14 +2533,27 @@ function App() {
         types: selectedTypes.length > 0 ? selectedTypes : undefined,
         tags: selectedTags.length > 0 ? selectedTags : undefined,
         minRating: minRating > 0 ? minRating : undefined,
-        createdBy: collectionData.username,
-      })
+      }
+      // Only include tagsMode if tags are actually present
+      if (selectedTags.length > 0) {
+        payload.tagsMode = 'or'
+      }
+      console.debug('[CreateCollectionFromSearch] Payload being sent:', payload)
+      const newCollection = await APIService.createCollectionFromSearch(payload)
       setCollections((current) => [newCollection, ...current])
       setShowCreateCollectionFromSearchDialog(false)
       toast.success('Collection created from search results!')
-    } catch (error) {
-      console.error('Failed to create collection from search:', error)
-      toast.error('Failed to create collection from search')
+    } catch (error: any) {
+      console.error('[CreateCollectionFromSearch] Error response:', {
+        message: error.message,
+        status: error.status,
+        detail: error.data?.detail,
+        type: error.data?.type,
+        debugInfo: error.data?.debug_info,
+        fullData: error.data
+      })
+      const errorDetail = error.data?.detail || error.message || 'Failed to create collection from search'
+      toast.error(errorDetail)
     }
   }
 
@@ -2578,7 +2700,7 @@ function App() {
                     setInitialCollectionDescription(defaults.description ?? '')
                     setInitialCollectionProductSlugs(defaults.productSlugs ?? [])
                     setInitialCollectionIsPublic(defaults.isPublic ?? true)
-                    setShowCreateCollectionDialog(true)
+                    setShowCreateCollectionFromSearchDialog(true)
                   }}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
@@ -2639,6 +2761,7 @@ function App() {
                   collections={collections}
                   products={(isAdmin || isModerator) && includeBanned ? (products || []) : (products || []).filter((p) => !p.banned)}
                   user={user}
+                  userAccount={userAccount}
                   onDeleteCollection={handleDeleteCollection}
                   onEditCollection={(collection) => {
                     setEditingCollection(collection)
@@ -2717,6 +2840,9 @@ function App() {
                 open={showCreateCollectionFromSearchDialog}
                 onOpenChange={setShowCreateCollectionFromSearchDialog}
                 onCreateCollection={handleCreateCollectionFromSearch}
+                initialName={initialCollectionName}
+                initialDescription={initialCollectionDescription}
+                initialIsPublic={initialCollectionIsPublic}
                 title="Save Search Results as Collection"
                 description="Create a new collection from your current search and filter results"
                 username={user.username}

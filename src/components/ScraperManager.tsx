@@ -182,8 +182,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
       toast.info(
         testMode 
           ? `Starting test scrape (5 products)${specificSource ? ` from ${specificSource}` : ''}...` 
-          : specificSource ? `Starting ${specificSource} scraper...` : 'Starting all scrapers...', 
-        { duration: 2000 }
+          : specificSource ? `Starting ${specificSource} scraper...` : 'Starting all scrapers...'
       )
       
       const results = await Promise.all(
@@ -367,22 +366,18 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
 
   const handleDeleteProduct = async (productId: string) => {
     console.log('[ScraperManager.handleDeleteProduct] Delete clicked for product:', productId)
-    if (confirm('Are you sure you want to delete this product?')) {
-      try {
-        console.log('[ScraperManager.handleDeleteProduct] Calling APIService.deleteProduct...')
-        await APIService.deleteProduct(productId)
-        console.log('[ScraperManager.handleDeleteProduct] API call successful, updating local state')
-        
-        const updatedProducts = products.filter(p => p.id !== productId)
-        onProductsUpdate(updatedProducts)
-        toast.success('Product deleted')
-      } catch (error) {
-        console.error('[ScraperManager.handleDeleteProduct] Failed to delete product:', error)
-        const errorMessage = error instanceof Error ? error.message : String(error)
-        toast.error(`Failed to delete product: ${errorMessage}`)
-      }
-    } else {
-      console.log('[ScraperManager.handleDeleteProduct] Delete cancelled')
+    try {
+      console.log('[ScraperManager.handleDeleteProduct] Calling APIService.deleteProduct...')
+      await APIService.deleteProduct(productId)
+      console.log('[ScraperManager.handleDeleteProduct] API call successful, updating local state')
+      
+      const updatedProducts = products.filter(p => p.id !== productId)
+      onProductsUpdate(updatedProducts)
+      toast.success('Product deleted')
+    } catch (error) {
+      console.error('[ScraperManager.handleDeleteProduct] Failed to delete product:', error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      toast.error(`Failed to delete product: ${errorMessage}`)
     }
   }
 

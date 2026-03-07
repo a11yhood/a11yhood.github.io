@@ -157,12 +157,11 @@ export type Collection = {
   slug?: string
   name: string
   description?: string
+  userId: string
   username: string
-  userId?: string
-  userName?: string
   productSlugs: string[]
-  createdAt: number
-  updatedAt: number
+  createdAt: string | number
+  updatedAt: string | number
   isPublic: boolean
 }
 
@@ -171,7 +170,7 @@ export type CollectionCreateInput = {
   description?: string
   isPublic: boolean
   productSlugs?: string[]
-  username: string
+  userName: string
 }
 
 export type UserRequest = {
@@ -188,4 +187,22 @@ export type UserRequest = {
   reviewedBy?: string
   reviewerNote?: string
   productId?: string
+}
+
+export type SupportedSource = {
+  id: string
+  domain: string
+  name: string
+  description?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type ScraperJob = {
+  id: string
+  name: string
+  source: string
+  nextRunTime?: string
+  lastRunTime?: string
+  status?: string
 }

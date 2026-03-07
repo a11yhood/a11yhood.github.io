@@ -5,9 +5,9 @@
 #
 # Environment: PRODUCTION with Supabase database
 # Frontend Port: 4173 (https://localhost:4173)
-# Backend Port: 8001 (HTTPS - production backend with Supabase)
+# Backend Port: 8001 (HTTP or HTTPS - production backend with Supabase; set VITE_BACKEND_URL for HTTPS)
 # Database: Supabase (real production database)
-# API requests: Direct to backend (requires CORS configuration on backend)
+# API requests: Direct to backend (backend must allow CORS from https://localhost:4173)
 # 
 # Usage:
 #   ./start-prod.sh        # Normal start
@@ -54,13 +54,13 @@ if [ "$HELP" = true ]; then
   echo "  Database: Supabase (real production database)"
   echo "  Use Case: Testing the production build with real database and OAuth"
   echo ""
-  echo "IMPORTANT - CORS Requirement:"
-  echo "  The backend MUST be configured to accept CORS from https://localhost:4173"
+  echo "IMPORTANT - CORS/TLS Requirement:"
+  echo "  The backend MUST accept requests from https://localhost:4173 (the frontend origin)"
+  echo "  Configure the backend's CORS settings to allow this origin."
   echo "  In preview mode, API requests are NOT proxied (unlike dev mode)"
-  echo "  See DEVELOPMENT.md for backend CORS configuration"
   echo ""
   echo "Prerequisites:"
-  echo "  - Backend server running on port 8001 (with CORS enabled)"
+  echo "  - Backend server running on port 8001"
   echo "  - .env.production.local configured with production settings"
   echo "  - Supabase credentials configured"
   echo ""
@@ -76,7 +76,6 @@ set +e
 
 echo -e "${BLUE}🚀 Starting a11yhood PRODUCTION environment...${NC} (t=0s)"
 echo -e "${YELLOW}📊 Using PRODUCTION Supabase database${NC}"
-echo -e "${YELLOW}⚠️  Backend must have CORS enabled for https://localhost:4173${NC}"
 echo ""
 
 # Kill any existing frontend processes
@@ -90,8 +89,8 @@ set -a
 [ -f .env.production.local ] && source .env.production.local
 set +a
 
-# Get backend URL from VITE_API_URL or default to localhost:8001
-BACKEND_URL="${VITE_API_URL:-https://localhost:8001}"
+# Get backend URL from VITE_BACKEND_URL, fallback to VITE_API_URL or default to localhost:8001
+BACKEND_URL="${VITE_BACKEND_URL:-${VITE_API_URL:-http://localhost:8001}}"
 
 # Verify backend is running
 echo -e "${BLUE}🔍 Checking backend server at ${BACKEND_URL}...${NC} (t=$(ts))"
@@ -154,13 +153,14 @@ echo -e "${GREEN}✓ Frontend started (PID: $FRONTEND_PID)${NC} (t=$(ts))"
 # Get frontend URL and port from environment or default
 FRONTEND_PORT="${VITE_FRONTEND_PORT:-4173}"
 FRONTEND_HOST="${VITE_FRONTEND_HOST:-localhost}"
-FRONTEND_URL="http://${FRONTEND_HOST}:${FRONTEND_PORT}"
+FRONTEND_PROTOCOL="${VITE_FRONTEND_PROTOCOL:-https}"
+FRONTEND_URL="${FRONTEND_PROTOCOL}://${FRONTEND_HOST}:${FRONTEND_PORT}"
 
 # Wait for frontend to be ready
 echo -e "${BLUE}⏳ Waiting for frontend to be ready...${NC}"
 RETRIES=0
 MAX_RETRIES=30
-until curl -s ${FRONTEND_URL} > /dev/null 2>&1; do
+until curl -s -k ${FRONTEND_URL} > /dev/null 2>&1; do
   RETRIES=$((RETRIES+1))
   if [ $RETRIES -ge $MAX_RETRIES ]; then
     echo -e "${RED}✗ Frontend failed to start after ${MAX_RETRIES} seconds${NC}"

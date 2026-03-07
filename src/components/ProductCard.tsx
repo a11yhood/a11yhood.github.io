@@ -10,13 +10,14 @@
  * product-specific ratings change.
  */
 import { memo, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { StarRating } from './StarRating'
-import { Product, Rating, UserData, UserAccount } from '@/lib/types'
+import { Product, Rating, UserData, UserAccount, Collection } from '@/lib/types'
 import { cn, formatSourceLabel, getSourceIcon, calculateAverageRating, formatRelativeTime } from '@/lib/utils'
-import { Trash, ArrowUpRight, Prohibit, CheckCircle } from '@phosphor-icons/react'
+import { Trash, ArrowUpRight, Prohibit, CheckCircle, FolderOpen } from '@phosphor-icons/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import MarkdownText from '@/components/ui/MarkdownText'
 
@@ -34,6 +35,7 @@ import MarkdownText from '@/components/ui/MarkdownText'
 type ProductCardProps = {
   product: Product
   ratings: Rating[]
+  collections?: Collection[]
   href?: string
   onNavigate?: () => void
   onClick?: () => void
@@ -46,13 +48,17 @@ type ProductCardProps = {
   onToggleBan?: () => void
 }
 
-export const ProductCard = memo(function ProductCard({ product, ratings, href, onNavigate, onClick, onDelete, user, onRate, userAccount, showBannedBadge, canModerate, onToggleBan }: ProductCardProps) {
+export const ProductCard = memo(function ProductCard({ product, ratings, collections, href, onNavigate, onClick, onDelete, user, onRate, userAccount, showBannedBadge, canModerate, onToggleBan }: ProductCardProps) {
   const [imageError, setImageError] = useState(false)
   // Only filter and compute ratings for this specific product to avoid unnecessary work
   const productRatings = useMemo(() => ratings.filter((r) => r.productId === product.id), [ratings, product.id])
   const averageRating = useMemo(() => calculateAverageRating(product.sourceRating, productRatings, product.id), [product.sourceRating, productRatings, product.id])
   const displayRating = Number.isFinite(averageRating) ? averageRating : 0
   const userRating = useMemo(() => user ? productRatings.find((r) => r.userId === user.id)?.rating : undefined, [user, productRatings])
+  const productCollections = useMemo(
+    () => collections ? collections.filter((c) => product.slug && (c.productSlugs ?? []).includes(product.slug)) : [],
+    [collections, product.slug]
+  )
 
   // Support both snake_case and camelCase from API
   const updatedTs = (product as any).source_last_updated ?? (product as any).sourceLastUpdated
@@ -68,11 +74,9 @@ export const ProductCard = memo(function ProductCard({ product, ratings, href, o
       canModerate
     })
     const targetId = product.slug || product.id
-    if (onDelete && targetId && confirm(`Are you sure you want to delete "${product.name}"?`)) {
-      console.log('[ProductCard.handleDelete] Confirmed, calling onDelete with ID:', targetId)
+    if (onDelete && targetId) {
+      console.log('[ProductCard.handleDelete] Calling onDelete with ID:', targetId)
       onDelete(targetId)
-    } else {
-      console.log('[ProductCard.handleDelete] Delete cancelled or onDelete not provided')
     }
   }
 
@@ -189,8 +193,8 @@ export const ProductCard = memo(function ProductCard({ product, ratings, href, o
           />
 
           <h4 className="sr-only">Tags</h4>
-	  <ul>
-          {product.tags && product.tags.length > 0 && (
+	  {product.tags && product.tags.length > 0 && (
+	  <ul className="flex flex-wrap gap-2">
             <li className="flex flex-wrap gap-2">
               {Array.from(new Set(product.tags)).slice(0, 10).map((tag) => (
                 <Badge key={tag} variant="secondary" className="text-xs">
@@ -201,9 +205,32 @@ export const ProductCard = memo(function ProductCard({ product, ratings, href, o
                 <span className="text-xs text-muted-foreground">...</span>
               )}
             </li>
-          )}
 	  </ul>
+	  )}
 	  
+          {productCollections.length > 0 && (
+            <>
+              <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <FolderOpen size={14} />
+                Collections
+              </h4>
+              <ul className="flex flex-wrap gap-2 -mt-1">
+                {productCollections.map((c) => (
+                  <li key={c.id}>
+                    <Link
+                      to={`/collections/${c.slug || c.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
+                        {c.name}
+                      </Badge>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="shrink-0 text-xs">
               {product.type}
@@ -307,6 +334,9 @@ export const ProductCard = memo(function ProductCard({ product, ratings, href, o
   const prevProductRatings = prevProps.ratings.filter(r => r.productId === prevProps.product.id)
   const nextProductRatings = nextProps.ratings.filter(r => r.productId === nextProps.product.id)
   if (prevProductRatings.length !== nextProductRatings.length) return false
+
+  // Compare collections containing this product
+  if (prevProps.collections !== nextProps.collections) return false
   
   // If all checks pass, skip re-render
   return true

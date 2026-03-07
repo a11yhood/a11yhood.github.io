@@ -72,7 +72,7 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
   const handleRunRavelryScraper = async () => {
     setIsScrapingAfterAuth(true)
     try {
-      toast.info('Starting Ravelry scraper...', { duration: 2000 })
+      toast.info('Starting Ravelry scraper...')
       
       // Call backend API to trigger scraper
       await APIService.triggerScraper('ravelry', false)
@@ -157,7 +157,7 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
       setShowSetupForm(false)
       setClientId('')
       setClientSecret('')
-      toast.success('Credentials saved! Now click "Authorize with Ravelry" to complete setup.', { duration: 5000 })
+      toast.success('Credentials saved! Now click "Authorize with Ravelry" to complete setup.')
     } catch (error) {
       console.error('[Ravelry] ✗ Save credentials error:', error)
       if (error instanceof Error) {
@@ -201,7 +201,7 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
       console.log('[Ravelry] → Target URL:', authUrl)
       console.log('[Ravelry] → Using same-window redirect for better OAuth callback handling')
       
-      toast.info('Redirecting to Ravelry for authorization...', { duration: 3000 })
+      toast.info('Redirecting to Ravelry for authorization...')
       
       setTimeout(() => {
         window.location.href = authUrl
@@ -215,6 +215,9 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
   const handleDisconnect = async () => {
     try {
       await RavelryOAuthManager.clearConfig()
+      setIsAuthorized(false)
+      setHasCredentials(false)
+      setShowSetupForm(false)
       setUsername('')
       toast.success('Ravelry disconnected successfully')
     } catch (error) {
@@ -300,17 +303,8 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
           </p>
         </div>
 
-        {!isAuthorized || showSetupForm ? (
+        {!isAuthorized && (!hasCredentials || showSetupForm) ? (
           <div className="space-y-4">
-            {hasCredentials && !showSetupForm && (
-              <Alert className="bg-blue-50 border-blue-200">
-                <CheckCircle size={16} className="mt-0.5 text-blue-600" />
-                <AlertDescription className="text-sm">
-                  <p className="font-semibold text-blue-900">Credentials Saved!</p>
-                  <p className="text-blue-700">Click "Authorize with Ravelry" below to complete the setup.</p>
-                </AlertDescription>
-              </Alert>
-            )}
             <div className="rounded-lg border border-border p-4 space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="client-id">Ravelry Client ID</Label>
@@ -362,43 +356,26 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
               </div>
             </div>
           </div>
-        ) : (
+        ) : !isAuthorized && hasCredentials ? (
           <div className="space-y-4">
-            <div className="rounded-lg border border-border bg-muted/30 p-4">
-              <div className="flex items-center justify-between">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm font-medium">Status</p>
-                  <p className="text-sm text-muted-foreground">
-                    {username ? `Connected as ${username}` : 'Connected to Ravelry'}
+                  <p className="text-sm font-medium text-blue-900">Credentials saved</p>
+                  <p className="text-sm text-blue-700">
+                    Connect to Ravelry to complete OAuth and enable scraping.
                   </p>
                 </div>
-                <CheckCircle size={24} className="text-green-600" weight="fill" />
+                <CheckCircle size={24} className="text-blue-600" weight="fill" />
               </div>
             </div>
-            
-            <div className="flex gap-2">
+
+            <div className="flex flex-wrap gap-2">
               <Button
-                onClick={handleRunRavelryScraper}
-                disabled={isScrapingAfterAuth}
-                className="flex items-center gap-2"
+                onClick={handleAuthorize}
+                size="lg"
               >
-                {isScrapingAfterAuth ? (
-                  <>
-                    <CircleNotch size={18} className="animate-spin" />
-                    Importing Patterns...
-                  </>
-                ) : (
-                  <>
-                    <Play size={18} />
-                    Import Patterns Now
-                  </>
-                )}
-              </Button>
-              <Button
-                onClick={handleDisconnect}
-                variant="destructive"
-              >
-                Disconnect
+                Connect to Ravelry
               </Button>
               <Button
                 onClick={() => setShowSetupForm(true)}
@@ -408,16 +385,59 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
               </Button>
             </div>
           </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg bg-green-50 border-green-200">
+              <div className="flex items-center gap-3">
+                <CheckCircle size={24} className="text-green-600" weight="fill" />
+                <div>
+                  <p className="font-medium text-green-900">Connected to Ravelry</p>
+                  {username && <p className="text-sm text-green-700">Username: {username}</p>}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleRunRavelryScraper}
+                  disabled={isScrapingAfterAuth}
+                  variant="default"
+                >
+                  {isScrapingAfterAuth && <CircleNotch size={16} className="mr-2 animate-spin" />}
+                  {isScrapingAfterAuth ? 'Running Scraper...' : 'Run Scraper'}
+                </Button>
+                <Button
+                  onClick={handleDisconnect}
+                  variant="outline"
+                >
+                  Disconnect
+                </Button>
+                <Button
+                  onClick={() => setShowSetupForm(true)}
+                  variant="outline"
+                >
+                  Update Credentials
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
 
         {!isAuthorized && hasCredentials && (
-          <Button
-            onClick={handleAuthorize}
-            className="w-full"
-            size="lg"
-          >
-            Authorize with Ravelry
-          </Button>
+          <div className="rounded-lg border border-border p-4 space-y-3">
+            <p className="text-sm font-medium">Connection Actions</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={handleAuthorize}
+              >
+                Connect to Ravelry
+              </Button>
+              <Button
+                onClick={handleDisconnect}
+                variant="outline"
+              >
+                Disconnect Ravelry
+              </Button>
+            </div>
+          </div>
         )}
 
         <Alert>
