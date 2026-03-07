@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Tag as TagIcon } from '@phosphor-icons/react'
 import { UserData } from '@/lib/types'
 import { toast } from 'sonner'
+import { getProductsPathForTag } from '@/lib/tagRoutes'
 
 type TagManagerProps = {
   productId: string
@@ -143,7 +144,7 @@ export function TagManager({
         {currentTags && currentTags.length > 0 ? (
           currentTags.map((tag) => (
             <li key={tag}>
-              <Link to={`/products?tag=${encodeURIComponent(tag)}`} aria-label={`View all products tagged with ${tag}`}>
+              <Link to={getProductsPathForTag(tag)} aria-label={`View all products tagged with ${tag}`}>
                 <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/80 transition-colors">
                   {tag}
                 </Badge>

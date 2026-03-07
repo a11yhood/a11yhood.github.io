@@ -20,6 +20,7 @@ import { cn, formatSourceLabel, getSourceIcon, calculateAverageRating, formatRel
 import { Trash, ArrowUpRight, Prohibit, CheckCircle, FolderOpen } from '@phosphor-icons/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import MarkdownText from '@/components/ui/MarkdownText'
+import { ProductFilterTag } from '@/components/ProductFilterTag'
 
 /**
  * ProductCard component props.
@@ -36,9 +37,11 @@ type ProductCardProps = {
   product: Product
   ratings: Rating[]
   collections?: Collection[]
+  selectedTags?: string[]
   href?: string
   onNavigate?: () => void
   onClick?: () => void
+  onTagClick?: (tag: string) => void
   onDelete?: (productId: string) => void
   user?: UserData | null
   onRate?: (productId: string, rating: number) => void
@@ -48,7 +51,7 @@ type ProductCardProps = {
   onToggleBan?: () => void
 }
 
-export const ProductCard = memo(function ProductCard({ product, ratings, collections, href, onNavigate, onClick, onDelete, user, onRate, userAccount, showBannedBadge, canModerate, onToggleBan }: ProductCardProps) {
+export const ProductCard = memo(function ProductCard({ product, ratings, collections, selectedTags = [], href, onNavigate, onClick, onTagClick, onDelete, user, onRate, userAccount, showBannedBadge, canModerate, onToggleBan }: ProductCardProps) {
   const [imageError, setImageError] = useState(false)
   // Only filter and compute ratings for this specific product to avoid unnecessary work
   const productRatings = useMemo(() => ratings.filter((r) => r.productId === product.id), [ratings, product.id])
@@ -193,20 +196,27 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
           />
 
           <h4 className="sr-only">Tags</h4>
-	  {product.tags && product.tags.length > 0 && (
-	  <ul className="flex flex-wrap gap-2">
-            <li className="flex flex-wrap gap-2">
-              {Array.from(new Set(product.tags)).slice(0, 10).map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-xs">
-                  {tag}
-                </Badge>
-              ))}
-              {product.tags.length > 10 && (
-                <span className="text-xs text-muted-foreground">...</span>
-              )}
-            </li>
-	  </ul>
-	  )}
+          {product.tags && product.tags.length > 0 && (
+            <ul className="flex flex-wrap gap-2">
+              <li className="flex flex-wrap gap-2">
+                {Array.from(new Set(product.tags)).slice(0, 10).map((tag) => {
+                  const isSelected = selectedTags.includes(tag)
+                  return (
+                    <ProductFilterTag
+                      key={tag}
+                      tag={tag}
+                      selected={isSelected}
+                      onTagClick={onTagClick}
+                      variant="card"
+                    />
+                  )
+                })}
+                {product.tags.length > 10 && (
+                  <span className="text-xs text-muted-foreground">...</span>
+                )}
+              </li>
+            </ul>
+          )}
 	  
           {productCollections.length > 0 && (
             <>
@@ -329,6 +339,8 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
   if (prevProps.showBannedBadge !== nextProps.showBannedBadge) return false
   if (prevProps.onClick !== nextProps.onClick) return false
   if (prevProps.onNavigate !== nextProps.onNavigate) return false
+  if (prevProps.onTagClick !== nextProps.onTagClick) return false
+  if (prevProps.selectedTags !== nextProps.selectedTags) return false
   
   // Compare only this product's ratings
   const prevProductRatings = prevProps.ratings.filter(r => r.productId === prevProps.product.id)

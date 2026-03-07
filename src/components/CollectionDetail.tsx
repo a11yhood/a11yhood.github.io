@@ -8,6 +8,8 @@ import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 import { APIService } from '@/lib/api'
+import { useNavigate } from 'react-router-dom'
+import { getProductsPathForTag } from '@/lib/tagRoutes'
 
 type CollectionDetailProps = {
   collection: Collection
@@ -32,6 +34,7 @@ export function CollectionDetail({
   onDeleteProduct,
   onTogglePrivacy,
 }: CollectionDetailProps) {
+  const navigate = useNavigate()
   const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
@@ -155,6 +158,7 @@ export function CollectionDetail({
                 <ProductCard
                   product={product}
                   ratings={ratings}
+                  onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
                   onClick={() => onSelectProduct(product.slug)}
                   onDelete={onRemoveProduct}
                   userAccount={userAccount}
