@@ -135,7 +135,7 @@ export function AdminDashboard({ onBack, products, onProductsUpdate, userAccount
               <BlogManager
                 onCreateNew={handleOpenNewPost}
                 onEditPost={handleEditPost}
-                userAccount={userAccount ? { id: userAccount.id, login: userAccount.username } : null}
+                userAccount={userAccount ? { id: userAccount.id, username: userAccount.username } : null}
                 onPostsUpdate={onBlogPostsUpdate}
                 reloadKey={blogManagerReloadKey}
               />

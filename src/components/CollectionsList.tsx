@@ -1,9 +1,11 @@
+import { useState, useMemo } from 'react'
 import { Collection, Product } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Trash, Lock, LockOpen, Pencil } from '@phosphor-icons/react'
+import { Trash, Lock, LockOpen, Pencil, FolderOpen } from '@phosphor-icons/react'
 import { formatDistanceToNow } from 'date-fns'
+import { pickCollectionImage } from '@/lib/collectionUtils'
 import MarkdownText from '@/components/ui/MarkdownText'
 
 type CollectionsListProps = {
@@ -23,9 +25,33 @@ export function CollectionsList({
   onEditCollection,
   currentUserId,
 }: CollectionsListProps) {
-  const getProductsInCollection = (collection: Collection) => {
-    return (products || []).filter(p => (collection.productSlugs || []).includes(p.slug))
-  }
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
+
+  // Index products by slug once for O(1) per-collection lookups.
+  const productsBySlug = useMemo(() => {
+    const map = new Map<string, Product>()
+    ;(products || []).forEach(p => { if (p.slug) map.set(p.slug, p) })
+    return map
+  }, [products])
+
+  const getProductsInCollection = (collection: Collection) =>
+    (collection.productSlugs || []).flatMap(slug => {
+      const p = productsBySlug.get(slug)
+      return p ? [p] : []
+    })
+
+  // Compute a representative image for each collection once per data change.
+  const collectionImages = useMemo(() => {
+    const result: Record<string, ReturnType<typeof pickCollectionImage>> = {}
+    collections.forEach(collection => {
+      const collectionProducts = (collection.productSlugs || []).flatMap(slug => {
+        const p = productsBySlug.get(slug)
+        return p ? [p] : []
+      })
+      result[collection.id] = pickCollectionImage(collectionProducts)
+    })
+    return result
+  }, [collections, productsBySlug])
 
   const getTopTagsForCollection = (collectionProducts: Product[], limit = 5) => {
     const tagCounts = new Map<string, number>()
@@ -53,6 +79,7 @@ export function CollectionsList({
       {collections.map((collection) => {
         const collectionProducts = getProductsInCollection(collection)
         const isOwner = currentUserId === collection.userId
+        const img = imageErrors[collection.id] ? undefined : collectionImages[collection.id]
         const topTags = getTopTagsForCollection(collectionProducts)
         
         return (
@@ -71,6 +98,18 @@ export function CollectionsList({
               }
             }}
           >
+            <div className="w-full h-40 bg-muted overflow-hidden flex items-center justify-center">
+              {img ? (
+                <img
+                  src={img.imageUrl}
+                  alt={img.imageAlt || `${img.name} image`}
+                  className="w-full h-full object-cover object-center"
+                  onError={() => setImageErrors(prev => ({ ...prev, [collection.id]: true }))}
+                />
+              ) : (
+                <FolderOpen size={48} className="text-muted-foreground/30" aria-hidden="true" />
+              )}
+            </div>
             <CardHeader>
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">

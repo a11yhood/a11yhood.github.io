@@ -7,7 +7,7 @@ import type { UserData, UserAccount } from '@/lib/types'
 
 describe('AppHeader collections navigation', () => {
   it('navigates to /collections from header button', async () => {
-    const user = { id: 'u1', login: 'alice', avatarUrl: undefined } as UserData
+    const user = { id: 'u1', username: 'alice', avatarUrl: undefined } as UserData
     const userAccount = { id: 'u1', username: 'alice', role: 'user' } as UserAccount
 
     render(

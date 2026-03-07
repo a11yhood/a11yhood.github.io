@@ -62,7 +62,7 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
     try {
       await APIService.createUserRequest({
         userId: user.id,
-        userName: user.login,
+        userName: user.username,
         userAvatarUrl: user.avatarUrl,
         type: requestType,
         message: message.trim(),
@@ -186,8 +186,8 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
                   request={request}
                   userLookup={{
                     [user.id]: {
-                      name: user.login,
-                      username: user.login,
+                      name: user.username,
+                      username: user.username,
                       role: userAccount?.role || 'user',
                     },
                   }}

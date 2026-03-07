@@ -22,7 +22,7 @@ describe('ProductCard Accessibility Tests', () => {
     APIService.setAuthTokenGetter(async () => getDevToken(testUserId))
     adminAccount = {
       id: adminUserId,
-      username: DEV_USERS.admin.login,
+      username: DEV_USERS.admin.username,
       avatarUrl: 'https://example.com/avatar-admin.jpg',
       role: 'admin',
       email: DEV_USERS.admin.email,
@@ -30,7 +30,7 @@ describe('ProductCard Accessibility Tests', () => {
 
     regularAccount = {
       id: testUserId,
-      username: DEV_USERS.user.login,
+      username: DEV_USERS.user.username,
       avatarUrl: 'https://example.com/avatar.jpg',
       role: 'user',
       email: DEV_USERS.user.email,
