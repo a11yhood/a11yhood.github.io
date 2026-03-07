@@ -27,19 +27,31 @@ export function CollectionsList({
 }: CollectionsListProps) {
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
 
-  const getProductsInCollection = (collection: Collection) => {
-    return (products || []).filter(p => (collection.productSlugs || []).includes(p.slug))
-  }
+  // Index products by slug once for O(1) per-collection lookups.
+  const productsBySlug = useMemo(() => {
+    const map = new Map<string, Product>()
+    ;(products || []).forEach(p => { if (p.slug) map.set(p.slug, p) })
+    return map
+  }, [products])
+
+  const getProductsInCollection = (collection: Collection) =>
+    (collection.productSlugs || []).flatMap(slug => {
+      const p = productsBySlug.get(slug)
+      return p ? [p] : []
+    })
 
   // Compute a representative image for each collection once per data change.
   const collectionImages = useMemo(() => {
     const result: Record<string, ReturnType<typeof pickCollectionImage>> = {}
     collections.forEach(collection => {
-      const collectionProducts = (products || []).filter(p => (collection.productSlugs || []).includes(p.slug))
+      const collectionProducts = (collection.productSlugs || []).flatMap(slug => {
+        const p = productsBySlug.get(slug)
+        return p ? [p] : []
+      })
       result[collection.id] = pickCollectionImage(collectionProducts)
     })
     return result
-  }, [collections, products])
+  }, [collections, productsBySlug])
 
   const getTopTagsForCollection = (collectionProducts: Product[], limit = 5) => {
     const tagCounts = new Map<string, number>()
