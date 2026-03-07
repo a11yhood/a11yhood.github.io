@@ -198,23 +198,24 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
           <h4 className="sr-only">Tags</h4>
           {product.tags && product.tags.length > 0 && (
             <ul className="flex flex-wrap gap-2">
-              <li className="flex flex-wrap gap-2">
-                {Array.from(new Set(product.tags)).slice(0, 10).map((tag) => {
-                  const isSelected = selectedTags.includes(tag)
-                  return (
+              {Array.from(new Set(product.tags)).slice(0, 10).map((tag) => {
+                const isSelected = selectedTags.includes(tag)
+                return (
+                  <li key={tag}>
                     <ProductFilterTag
-                      key={tag}
                       tag={tag}
                       selected={isSelected}
                       onTagClick={onTagClick}
                       variant="card"
                     />
-                  )
-                })}
-                {product.tags.length > 10 && (
+                  </li>
+                )
+              })}
+              {product.tags.length > 10 && (
+                <li key="tags-overflow">
                   <span className="text-xs text-muted-foreground">...</span>
-                )}
-              </li>
+                </li>
+              )}
             </ul>
           )}
 	  
