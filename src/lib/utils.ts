@@ -32,7 +32,6 @@ export function formatSourceLabel(source?: string | null): string {
   if (raw.includes('ravelry')) return 'Ravelry'
   if (raw.includes('github')) return 'GitHub'
   if (raw.includes('abledata')) return 'AbleData'
-  if (raw.includes('goat')) return 'GOAT'
   if (raw === 'user-submitted' || raw === 'user submitted') return 'User Submitted'
   // If the original source already has proper casing, preserve it
   // This handles cases like "AbleData" from backend
