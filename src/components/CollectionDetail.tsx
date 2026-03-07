@@ -84,7 +84,7 @@ export function CollectionDetail({
         const products = await Promise.all(
           collection.productSlugs.map(slug => APIService.getProduct(slug))
         )
-        setCollectionProducts(products.filter(p => p !== null))
+        setCollectionProducts(products.filter((p): p is Product => p !== null))
       } catch (error) {
         console.error('[CollectionDetail] Error loading products:', error)
         setCollectionProducts([])
