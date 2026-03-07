@@ -1236,9 +1236,10 @@ function App() {
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
   const [thingiverseAuthTimestamp, setThingiverseAuthTimestamp] = useState(0)
   
-  // Helper to normalize URL param arrays: filter empty strings and deduplicate
+  // Helper to normalize URL param arrays: filter empty strings, deduplicate, and sort so
+  // order differences between URL and state never cause spurious state updates.
   const normalizeParamArray = (params: string[]): string[] => {
-    return Array.from(new Set(params.filter(Boolean)))
+    return Array.from(new Set(params.filter(Boolean))).sort()
   }
   
   // Filter states - initialize from URL params
@@ -1373,24 +1374,30 @@ function App() {
   useEffect(() => {
     if (location.pathname !== '/products') return
     const urlQuery = searchParams.get('q') || ''
-    setSearchQuery(urlQuery)
-    setSearchInputValue(urlQuery)
+
+    // Guard primitives too — avoid enqueuing a state update when nothing changed.
+    setSearchQuery(current => current === urlQuery ? current : urlQuery)
+    setSearchInputValue(current => current === urlQuery ? current : urlQuery)
     
-    // Only update filter states when the normalized URL params actually differ from current state
+    // Only update filter states when the normalized URL params actually differ from current state.
+    // normalizeParamArray sorts the values, so order changes in the URL don't trigger spurious updates.
     const urlTags = normalizeParamArray(searchParams.getAll('tag'))
     const urlTypes = normalizeParamArray(searchParams.getAll('type'))
     const urlSources = normalizeParamArray(searchParams.getAll('source'))
     
     setSelectedTags(current => {
-      const changed = current.length !== urlTags.length || !current.every((tag, i) => tag === urlTags[i])
+      const sorted = [...current].sort()
+      const changed = sorted.length !== urlTags.length || !sorted.every((tag, i) => tag === urlTags[i])
       return changed ? urlTags : current
     })
     setSelectedTypes(current => {
-      const changed = current.length !== urlTypes.length || !current.every((type, i) => type === urlTypes[i])
+      const sorted = [...current].sort()
+      const changed = sorted.length !== urlTypes.length || !sorted.every((type, i) => type === urlTypes[i])
       return changed ? urlTypes : current
     })
     setSelectedSources(current => {
-      const changed = current.length !== urlSources.length || !current.every((source, i) => source === urlSources[i])
+      const sorted = [...current].sort()
+      const changed = sorted.length !== urlSources.length || !sorted.every((source, i) => source === urlSources[i])
       return changed ? urlSources : current
     })
   }, [searchParams, location.pathname])
