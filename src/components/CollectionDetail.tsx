@@ -5,7 +5,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { ArrowLeft, Lock, LockOpen, Trash, Pencil } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
 import { formatDistanceToNow } from 'date-fns'
-import { toast } from 'sonner'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { APIService } from '@/lib/api'
 import { useNavigate } from 'react-router-dom'
