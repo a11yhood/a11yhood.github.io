@@ -6,7 +6,7 @@ import { ArrowLeft, Lock, LockOpen, Trash, Share } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { APIService } from '@/lib/api'
 
 type CollectionDetailProps = {
@@ -34,6 +34,18 @@ export function CollectionDetail({
 }: CollectionDetailProps) {
   const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  // Ref to track how many fetches have completed for the current load cycle.
+  // Using a ref avoids stale-closure issues across concurrent async callbacks.
+  const completedRef = useRef(0)
+
+  // Stable key derived from the sorted slug list so the effect only re-runs
+  // when the actual set of slugs changes, not on every parent re-render that
+  // creates a new array reference.
+  const slugKey = useMemo(
+    () => (collection.productSlugs ?? []).slice().sort().join(','),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [collection.productSlugs]
+  )
 
   useEffect(() => {
     const loadCollectionProducts = async () => {
@@ -43,21 +55,33 @@ export function CollectionDetail({
       }
 
       setIsLoading(true)
-      try {
-        const products = await Promise.all(
-          collection.productSlugs.map(slug => APIService.getProduct(slug))
-        )
-        setCollectionProducts(products.filter(p => p !== null))
-      } catch (error) {
-        console.error('[CollectionDetail] Error loading products:', error)
-        setCollectionProducts([])
-      } finally {
-        setIsLoading(false)
-      }
+      setCollectionProducts([])
+      completedRef.current = 0
+
+      const total = collection.productSlugs.length
+
+      await Promise.allSettled(
+        collection.productSlugs.map(async (slug) => {
+          try {
+            const product = await APIService.getProduct(slug)
+            if (product !== null) {
+              setCollectionProducts(prev => [...prev, product])
+            }
+          } catch (error) {
+            console.error('[CollectionDetail] Error loading product:', slug, error)
+          } finally {
+            completedRef.current += 1
+            if (completedRef.current === total) {
+              setIsLoading(false)
+            }
+          }
+        })
+      )
     }
 
     loadCollectionProducts()
-  }, [collection.productSlugs])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slugKey])
 
   const handleShare = () => {
     const url = `${window.location.origin}/collections/${collection.slug || collection.id}`
@@ -121,7 +145,7 @@ export function CollectionDetail({
             </div>
             <div>
               <span className="text-muted-foreground">Products:</span>{' '}
-              <span className="font-medium">{collectionProducts.length}</span>
+              <span className="font-medium">{collection.productSlugs?.length ?? collectionProducts.length}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Updated:</span>{' '}
@@ -133,11 +157,11 @@ export function CollectionDetail({
         </CardContent>
       </Card>
 
-      {isLoading ? (
+      {isLoading && collectionProducts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground mb-2">Loading products...</p>
         </div>
-      ) : collectionProducts.length === 0 ? (
+      ) : !isLoading && collectionProducts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground mb-2">This collection is empty</p>
           <p className="text-sm text-muted-foreground">
@@ -147,7 +171,7 @@ export function CollectionDetail({
       ) : (
         <div>
           <h3 className="text-xl font-semibold mb-4">
-            Products ({collectionProducts.length})
+            Products ({collectionProducts.length}{isLoading ? '…' : ''})
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {collectionProducts.map((product) => (
