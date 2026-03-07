@@ -37,7 +37,7 @@ import { UserSignup } from '@/components/UserSignup'
 import { FeaturedBlogCarousel } from '@/components/FeaturedBlogCarousel'
 import { HomePage } from '@/components/HomePage'
 import { SearchPage } from '@/components/SearchPage'
-import { Product, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput } from '@/lib/types'
+import { Product, ProductUpdate, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput } from '@/lib/types'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { logger } from '@/lib/logger'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
@@ -2419,13 +2419,34 @@ function App() {
     }
   }
 
-  const handleEditProduct = async (updatedProduct: Product) => {
+  const handleEditProduct = async (updatedProduct: ProductUpdate) => {
     try {
-      await APIService.updateProduct(updatedProduct.id, updatedProduct, user?.username)
+      logger.debug('[App.handleEditProduct] Updating product:', {
+        id: updatedProduct.id,
+        slug: updatedProduct.slug,
+        imageUrl: updatedProduct.imageUrl,
+        imageAlt: updatedProduct.imageAlt
+      })
+      
+      const savedProduct = await APIService.updateProduct(updatedProduct.id, updatedProduct, user?.username)
+      
+      logger.debug('[App.handleEditProduct] Product saved, response:', {
+        savedProduct,
+        hasImageUrl: savedProduct?.imageUrl,
+        hasImageAlt: savedProduct?.imageAlt
+      })
+      
+      // Use the saved product from backend if available; otherwise normalise null
+      // image fields back to undefined to keep Product state consistent.
+      const productToUse: Product = savedProduct || {
+        ...updatedProduct,
+        imageUrl: updatedProduct.imageUrl ?? undefined,
+        imageAlt: updatedProduct.imageAlt ?? undefined,
+      }
       
       setProducts((currentProducts) =>
         (currentProducts || []).map(p =>
-          p.slug === updatedProduct.slug ? updatedProduct : p
+          p.slug === productToUse.slug || p.id === productToUse.id ? productToUse : p
         )
       )
       

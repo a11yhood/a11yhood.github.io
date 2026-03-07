@@ -13,7 +13,7 @@ import { AddToCollectionDialog } from './AddToCollectionDialog'
 import { CreateCollectionDialog } from './CreateCollectionDialog'
 import { ProductEditors } from './ProductEditors'
 import { CollapsibleCard } from './CollapsibleCard'
-import { Product, Rating, Discussion, UserData, Collection, CollectionCreateInput, UserAccount } from '@/lib/types'
+import { Product, ProductUpdate, Rating, Discussion, UserData, Collection, CollectionCreateInput, UserAccount } from '@/lib/types'
 import { APIService } from '@/lib/api'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faUniversalAccess } from '@fortawesome/free-solid-svg-icons'
@@ -37,7 +37,7 @@ type ProductDetailProps = {
   allTags: string[]
   allProductTypes?: string[]
   onDelete?: (productId: string) => void
-  onEdit?: (updatedProduct: Product) => void
+  onEdit?: (updatedProduct: ProductUpdate) => void
   onToggleBan?: (product: Product, reason?: string) => void
   onEditDiscussion?: (id: string, content: string) => void
   onDeleteDiscussion?: (id: string) => void
