@@ -203,9 +203,11 @@ export function ProductListPage({
   const allTags = useMemo(() => {
     const tagCounts = new Map<string, number>()
     products.forEach(product => {
-      (product.tags || []).filter(Boolean).forEach(tag => {
-        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
-      })
+      if (product && product.tags) {
+        product.tags.filter(Boolean).forEach(tag => {
+          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+        })
+      }
     })
     
     // Add filtered tags (from API) and selected tags with lower priority if not in current results
@@ -432,12 +434,12 @@ export function ProductListPage({
 
           <h2 className="sr-only">Search Results</h2>
 
-          {isSearching ? (
+          {isSearching && products.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24">
               <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
               <p className="text-muted-foreground">Loading results...</p>
             </div>
-          ) : products.length === 0 ? (
+          ) : !isSearching && products.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-lg text-muted-foreground">
                 No products found. Try adjusting your filters.
@@ -890,6 +892,7 @@ function CollectionsPage({
   products, 
   user,
   userAccount,
+  collectionsFirstLoadComplete,
   onDeleteCollection,
   onEditCollection,
   onCreateCollection
@@ -898,6 +901,7 @@ function CollectionsPage({
   products: Product[]
   user: UserData | null
   userAccount: UserAccount | null
+  collectionsFirstLoadComplete: boolean
   onDeleteCollection: (collectionSlug: string) => void
   onEditCollection: (collection: Collection) => void
   onCreateCollection: () => void
@@ -908,15 +912,19 @@ function CollectionsPage({
   const [publicPage, setPublicPage] = useState(1)
   const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
   const [loadedCollectionIds, setLoadedCollectionIds] = useState<Set<string>>(new Set())
+  const [publicCollectionsFirstLoadComplete, setPublicCollectionsFirstLoadComplete] = useState(false)
   const itemsPerPage = 12 // 3 columns x 4 rows
 
   useEffect(() => {
     const loadPublic = async () => {
+      setPublicCollectionsFirstLoadComplete(false)
       try {
         const result = await APIService.getPublicCollections('updated_at')
         setPublicCollections(result)
       } catch (e) {
         // ignore errors for now
+      } finally {
+        setPublicCollectionsFirstLoadComplete(true)
       }
     }
     loadPublic()
@@ -1039,6 +1047,7 @@ function CollectionsPage({
           <CollectionsList
             collections={paginatedMyCollections}
             products={allProducts}
+            isFirstLoadComplete={collectionsFirstLoadComplete}
             onSelectCollection={(collection) =>
               navigate(`/collections/${collection.slug || collection.id}`, {
                 state: { collectionSnapshot: collection },
@@ -1084,6 +1093,7 @@ function CollectionsPage({
         <CollectionsList
           collections={paginatedPublicCollections}
           products={allProducts}
+          isFirstLoadComplete={publicCollectionsFirstLoadComplete}
           onSelectCollection={(collection) =>
             navigate(`/collections/${collection.slug || collection.id}`, {
               state: { collectionSnapshot: collection },
@@ -1379,6 +1389,7 @@ function App() {
   const isAdmin = userAccount?.role === 'admin'
   const isModerator = userAccount?.role === 'moderator' || userAccount?.role === 'admin'
   const [collections, setCollections] = useState<Collection[]>([])
+  const [collectionsFirstLoadComplete, setCollectionsFirstLoadComplete] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
   const [showCreateCollectionFromSearchDialog, setShowCreateCollectionFromSearchDialog] = useState(false)
   const [showEditCollectionDialog, setShowEditCollectionDialog] = useState(false)
@@ -1395,10 +1406,22 @@ function App() {
   const isTestEnv = import.meta.env.MODE === 'test'
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
   const [thingiverseAuthTimestamp, setThingiverseAuthTimestamp] = useState(0)
+
+  // Tracks optimistically-applied tags per product ID across sequential async handleAddTag calls
+  const pendingProductTagsRef = useRef<Map<string, string[]>>(new Map())
   
-  // Helper to normalize URL param arrays: filter empty strings and deduplicate
+  // Helper to normalize URL param arrays: filter empty strings, deduplicate, and sort so
+  // order differences between URL and state never cause spurious state updates.
   const normalizeParamArray = (params: string[]): string[] => {
-    return Array.from(new Set(params.filter(Boolean)))
+    return Array.from(new Set(params.filter(Boolean))).sort()
+  }
+
+  // Helper for order-insensitive array equality (sorts copies before comparing)
+  const arraysEqual = (a: string[], b: string[]): boolean => {
+    if (a.length !== b.length) return false
+    const sortedA = [...a].sort()
+    const sortedB = [...b].sort()
+    return sortedA.every((v, i) => v === sortedB[i])
   }
   
   // Filter states - initialize from URL params
@@ -1490,6 +1513,20 @@ function App() {
     setCurrentPage(1) // Reset to first page when sorting changes
   }
 
+  // Keep default sorting route-aware unless the user explicitly picks a sort.
+  useEffect(() => {
+    if (sortHasChanged) {
+      return
+    }
+
+    const defaultSortByForRoute: 'created_at' = 'created_at'
+
+    if (sortBy !== defaultSortByForRoute || sortOrder !== 'desc') {
+      setSortBy(defaultSortByForRoute)
+      setSortOrder('desc')
+    }
+  }, [location.pathname, sortHasChanged, sortBy, sortOrder])
+
   // Debounce the updatedSince input so we only fire requests after user pauses typing
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1533,25 +1570,25 @@ function App() {
   useEffect(() => {
     if (location.pathname !== '/products') return
     const urlQuery = searchParams.get('q') || ''
-    setSearchQuery(urlQuery)
-    setSearchInputValue(urlQuery)
+
+    // Guard primitives too — avoid enqueuing a state update when nothing changed.
+    setSearchQuery(current => current === urlQuery ? current : urlQuery)
+    setSearchInputValue(current => current === urlQuery ? current : urlQuery)
     
-    // Only update filter states when the normalized URL params actually differ from current state
+    // Only update filter states when the normalized URL params actually differ from current state.
+    // normalizeParamArray sorts the values, so order changes in the URL don't trigger spurious updates.
     const urlTags = normalizeParamArray(searchParams.getAll('tag'))
     const urlTypes = normalizeParamArray(searchParams.getAll('type'))
     const urlSources = normalizeParamArray(searchParams.getAll('source'))
     
     setSelectedTags(current => {
-      const changed = current.length !== urlTags.length || !current.every((tag, i) => tag === urlTags[i])
-      return changed ? urlTags : current
+      return arraysEqual(current, urlTags) ? current : urlTags
     })
     setSelectedTypes(current => {
-      const changed = current.length !== urlTypes.length || !current.every((type, i) => type === urlTypes[i])
-      return changed ? urlTypes : current
+      return arraysEqual(current, urlTypes) ? current : urlTypes
     })
     setSelectedSources(current => {
-      const changed = current.length !== urlSources.length || !current.every((source, i) => source === urlSources[i])
-      return changed ? urlSources : current
+      return arraysEqual(current, urlSources) ? current : urlSources
     })
   }, [searchParams, location.pathname])
 
@@ -1561,9 +1598,11 @@ function App() {
     // Count tag frequencies in current products
     const tagCounts = new Map<string, number>()
     products.forEach(product => {
-      (product.tags || []).filter(Boolean).forEach(tag => {
-        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
-      })
+      if (product && product.tags) {
+        product.tags.filter(Boolean).forEach(tag => {
+          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+        })
+      }
     })
     
     // Add filtered tags and selected tags with lower priority if not in current results
@@ -1746,10 +1785,11 @@ function App() {
     }
 
     // Check if this is the initial load with no filters (skip to avoid duplicate from initial load)
-        const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 && 
-                selectedTypes.length === 0 && selectedTags.length === 0 && 
-                minRating === 0 && committedUpdatedSince === null &&
-          sortBy === 'created_at' && sortOrder === 'desc' && !sortHasChanged
+    const defaultSortByForRoute: 'created_at' = 'created_at'
+    const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 &&
+      selectedTypes.length === 0 && selectedTags.length === 0 &&
+      minRating === 0 && committedUpdatedSince === null &&
+      sortBy === defaultSortByForRoute && sortOrder === 'desc' && !sortHasChanged
     
     if (isInitialLoad) {
       console.log('[App.fetchEffect] Skipping - using data from initial load')
@@ -2201,6 +2241,11 @@ function App() {
   // Load collections for all users (public collections always, user collections on /collections pages)
   useEffect(() => {
     const loadCollections = async () => {
+      const isCollectionsListPage = location.pathname === '/collections'
+      if (isCollectionsListPage) {
+        setCollectionsFirstLoadComplete(false)
+      }
+
       try {
         // Only load public collections on pages that need them (currently collections list)
         // Skip on collection detail pages (/collections/:slug) and other routes
@@ -2210,7 +2255,6 @@ function App() {
         const publicCollections = needsPublicCollections ? await APIService.getPublicCollections() : []
         
         // Load user's own collections only on the collections list page
-        const isCollectionsListPage = location.pathname === '/collections'
         const userCollections = (user && isCollectionsListPage) ? await APIService.getUserCollections() : []
         
         // Combine public and user collections (avoiding duplicates)
@@ -2226,6 +2270,10 @@ function App() {
         // Silently handle errors - collections are optional
         if (error instanceof Error && !error.message.includes('404')) {
           console.debug('Failed to load collections:', error)
+        }
+      } finally {
+        if (isCollectionsListPage) {
+          setCollectionsFirstLoadComplete(true)
         }
       }
     }
@@ -2433,14 +2481,9 @@ function App() {
       const normalizedTag = tag.trim().toLowerCase()
       
       // Use provided product object if available, otherwise look it up
-      let product = productObj || products?.find(p => p.slug === productIdOrSlug || p.id === productIdOrSlug)
+      const product = productObj || products?.find(p => p.slug === productIdOrSlug || p.id === productIdOrSlug)
       
       if (!product) {
-        return
-      }
-      
-      if (product.tags.some((t) => t.toLowerCase() === normalizedTag)) {
-        toast.info('Tag already exists')
         return
       }
 
@@ -2449,30 +2492,63 @@ function App() {
         toast.error('Failed to add tag: product identifier not found')
         return
       }
-      
-      const updatedProduct = await APIService.updateProduct(
-        product.id,
-        { tags: [...product.tags, normalizedTag] },
-        user?.username
-      )
-      
-      if (updatedProduct) {
-        setProducts((currentProducts) => {
-          const current = currentProducts || []
-          return current.map((p) => (p.slug === productIdOrSlug || p.id === productIdOrSlug) ? updatedProduct : p)
-        })
-        
-        if (user?.id && product.id) {
-          APIService.logUserActivity({
-            userId: user.id,
-            type: 'tag',
-            productId: product.id,
-            timestamp: Date.now(),
-            metadata: { tag: normalizedTag },
-          }).catch(err => console.warn('Failed to log tag activity:', err))
+
+      // Read the latest known tags from the pending ref rather than product.tags (which may be a
+      // stale closure value).  TagManager now awaits each onAddTag call sequentially, so each
+      // successive call sees the tag list built by the previous one rather than all reading the
+      // same original snapshot.
+      const latestTags = pendingProductTagsRef.current.get(product.id) ?? product.tags
+
+      if (latestTags.some((t) => t.toLowerCase() === normalizedTag)) {
+        toast.info('Tag already exists')
+        return
+      }
+
+      const nextTags = [...latestTags, normalizedTag]
+      // Optimistically record the new tag list so the next sequential call sees it.
+      // Note: this ref-based strategy is correct for the sequential (one-at-a-time) flow
+      // produced by TagManager's for…of loop.  Genuinely concurrent calls from separate
+      // components could still race; a queue/lock would be needed to handle that case.
+      pendingProductTagsRef.current.set(product.id, nextTags)
+
+      try {
+        const updatedProduct = await APIService.updateProduct(
+          product.id,
+          { tags: nextTags },
+          user?.id
+        )
+
+        if (updatedProduct) {
+          // Sync pending state to the authoritative server response
+          pendingProductTagsRef.current.set(product.id, updatedProduct.tags)
+          setProducts((currentProducts) => {
+            const current = currentProducts || []
+            return current.map((p) => (p.slug === productIdOrSlug || p.id === productIdOrSlug) ? updatedProduct : p)
+          })
+          
+          if (user?.id && product.id) {
+            APIService.logUserActivity({
+              userId: user.id,
+              type: 'tag',
+              productId: product.id,
+              timestamp: Date.now(),
+              metadata: { tag: normalizedTag },
+            }).catch(err => console.warn('Failed to log tag activity:', err))
+          }
+          
+          toast.success('Tag added successfully')
+        } else {
+          // API did not throw but also did not return an updated product; treat as failure.
+          // Roll back optimistic tags so subsequent calls don't build on unpersisted state.
+          pendingProductTagsRef.current.set(product.id, latestTags)
+          console.error('[App.handleAddTag] updateProduct returned null; tag change was not persisted')
+          toast.error('Failed to add tag')
         }
-        
-        toast.success('Tag added successfully')
+      } catch (error) {
+        // Roll back the optimistic ref update so the next sequential call starts from the
+        // last confirmed state rather than including the tag that failed to persist.
+        pendingProductTagsRef.current.set(product.id, latestTags)
+        throw error
       }
     } catch (error) {
       console.error('Failed to add tag:', error)
@@ -2602,7 +2678,7 @@ function App() {
         imageAlt: updatedProduct.imageAlt
       })
       
-      const savedProduct = await APIService.updateProduct(updatedProduct.id, updatedProduct, user?.username)
+      const savedProduct = await APIService.updateProduct(updatedProduct.id, updatedProduct, user?.id)
       
       logger.debug('[App.handleEditProduct] Product saved, response:', {
         savedProduct,
@@ -2963,6 +3039,7 @@ function App() {
                   products={(isAdmin || isModerator) && includeBanned ? (products || []) : (products || []).filter((p) => !p.banned)}
                   user={user}
                   userAccount={userAccount}
+                  collectionsFirstLoadComplete={collectionsFirstLoadComplete}
                   onDeleteCollection={handleDeleteCollection}
                   onEditCollection={(collection) => {
                     setEditingCollection(collection)

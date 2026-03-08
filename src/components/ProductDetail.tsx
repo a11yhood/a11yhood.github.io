@@ -30,7 +30,7 @@ type ProductDetailProps = {
   onBack: () => void
   onRate: (rating: number) => void
   onDiscuss: (content: string, parentId?: string) => void
-  onAddTag: (tag: string) => void
+  onAddTag: (tag: string) => void | Promise<void>
   onAddToCollection?: (collectionSlug: string) => void
   onRemoveFromCollection?: (collectionSlug: string) => void
   onCreateCollection?: (collection: CollectionCreateInput) => void
@@ -397,12 +397,12 @@ export function ProductDetail({
         </div>
       </div>
 
-      {showAddToCollectionDialog && onAddToCollection && onRemoveFromCollection && (
+      {user && showAddToCollectionDialog && onAddToCollection && onRemoveFromCollection && (
         <AddToCollectionDialog
           open={showAddToCollectionDialog}
           onOpenChange={setShowAddToCollectionDialog}
           collections={localCollections}
-          productSlug={product.slug || product.id}
+          productSlug={product.slug}
           onAddToCollection={async (collectionSlug) => {
             await onAddToCollection(collectionSlug)
             // Refresh collections after adding

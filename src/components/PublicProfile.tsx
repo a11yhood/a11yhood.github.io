@@ -35,12 +35,13 @@ export function PublicProfile({ username }: { username: string }) {
         const acct = await APIService.getUserByUsername(username)
         if (acct) {
           setAccount(acct)
-          const s = await APIService.getUserStats(acct.username || acct.id)
+          const effectiveUsername = acct.username ?? username
+          const s = await APIService.getUserStats(effectiveUsername)
           setStats(s)
           
           // Load products the user manages
           try {
-            const userManagedProducts = await APIService.getProductsByOwner(acct.username || acct.id)
+            const userManagedProducts = await APIService.getProductsByOwner(effectiveUsername)
             setManagedProducts(userManagedProducts)
           } catch (e) {
             console.error('[PublicProfile] Failed to load products:', e)
@@ -78,7 +79,7 @@ export function PublicProfile({ username }: { username: string }) {
   }, [username])
 
   // After collections are loaded, fetch a few products per collection to find a
-  // representative image (prefer alt text / featured, then pick randomly).
+  // representative image (prefer alt text / featured with deterministic choice).
   useEffect(() => {
     if (userCollections.length === 0) return
 
@@ -135,13 +136,13 @@ export function PublicProfile({ username }: { username: string }) {
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-4">
               <Avatar className="w-20 h-20">
-                <AvatarImage src={account.avatarUrl} alt={account.username} />
+                <AvatarImage src={account.avatarUrl} alt={account.username || 'User avatar'} />
                 <AvatarFallback>{(account.username || '?').slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="space-y-2">
                 <div>
                   <CardTitle className="text-2xl flex items-center gap-2">
-                    {account.displayName || account.username}
+                    {account.displayName || account.username || username}
                     {account.role === 'moderator' && (
                       <Badge variant="secondary">Editor</Badge>
                     )}
@@ -163,17 +164,25 @@ export function PublicProfile({ username }: { username: string }) {
                       {account.location}
                     </div>
                   )}
-                  {account.website && (
-                    <a
-                      href={account.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 hover:text-primary"
-                    >
-                      <Globe size={16} />
-                      Website
-                    </a>
-                  )}
+                  {account.website && (() => {
+                    try {
+                      const url = new URL(account.website)
+                      if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+                      return (
+                        <a
+                          href={account.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 hover:text-primary"
+                        >
+                          <Globe size={16} />
+                          Website
+                        </a>
+                      )
+                    } catch {
+                      return null
+                    }
+                  })()}
                   {account.createdAt && (
                     <div className="flex items-center gap-1">
                       <CalendarBlank size={16} />
