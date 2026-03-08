@@ -5,7 +5,10 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Trash, Lock, LockOpen, Pencil, FolderOpen } from '@phosphor-icons/react'
 import { formatDistanceToNow } from 'date-fns'
+import { useNavigate } from 'react-router-dom'
 import { pickCollectionImage } from '@/lib/collectionUtils'
+import { ProductFilterTag } from '@/components/ProductFilterTag'
+import { getProductsPathForTag } from '@/lib/tagRoutes'
 import MarkdownText from '@/components/ui/MarkdownText'
 
 type CollectionsListProps = {
@@ -15,6 +18,7 @@ type CollectionsListProps = {
   onDeleteCollection: (collectionSlug: string) => void
   onEditCollection?: (collection: Collection) => void
   currentUserId?: string
+  isFirstLoadComplete?: boolean
 }
 
 export function CollectionsList({
@@ -24,7 +28,9 @@ export function CollectionsList({
   onDeleteCollection,
   onEditCollection,
   currentUserId,
+  isFirstLoadComplete = true,
 }: CollectionsListProps) {
+  const navigate = useNavigate()
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
 
   // Index products by slug once for O(1) per-collection lookups.
@@ -43,12 +49,18 @@ export function CollectionsList({
   // Compute a representative image for each collection once per data change.
   const collectionImages = useMemo(() => {
     const result: Record<string, ReturnType<typeof pickCollectionImage>> = {}
+    const usedProductKeys = new Set<string>()
+
     collections.forEach(collection => {
       const collectionProducts = (collection.productSlugs || []).flatMap(slug => {
         const p = productsBySlug.get(slug)
         return p ? [p] : []
       })
-      result[collection.id] = pickCollectionImage(collectionProducts)
+      const picked = pickCollectionImage(collectionProducts, { usedProductKeys })
+      result[collection.id] = picked
+      if (picked?.productKey) {
+        usedProductKeys.add(picked.productKey)
+      }
     })
     return result
   }, [collections, productsBySlug])
@@ -56,7 +68,7 @@ export function CollectionsList({
   const getTopTagsForCollection = (collectionProducts: Product[], limit = 5) => {
     const tagCounts = new Map<string, number>()
     collectionProducts.forEach(product => {
-      product.tags?.forEach(tag => {
+      product?.tags?.forEach(tag => {
         tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
       })
     })
@@ -69,7 +81,7 @@ export function CollectionsList({
   if (!collections || collections.length === 0) {
     return (
       <div className="text-center py-12" role="status">
-        <p className="text-muted-foreground">No collections found</p>
+        <p className="text-muted-foreground">{isFirstLoadComplete ? 'No collections found' : 'Loading...'}</p>
       </div>
     )
   }
@@ -86,7 +98,13 @@ export function CollectionsList({
           <Card
             key={collection.id}
             className="hover:shadow-md transition-shadow overflow-hidden cursor-pointer"
-            onClick={() => onSelectCollection(collection)}
+            onClick={(e) => {
+              const target = e.target as HTMLElement | null
+              if (target?.closest('button, a, input, select, textarea')) {
+                return
+              }
+              onSelectCollection(collection)
+            }}
             role="button"
             tabIndex={0}
             aria-label={`View collection: ${collection.name}`}
@@ -162,7 +180,9 @@ export function CollectionsList({
               )}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
-                  {(collection.productSlugs || []).length} {(collection.productSlugs || []).length === 1 ? 'product' : 'products'}
+                  {isFirstLoadComplete
+                    ? `${(collection.productSlugs || []).length} ${(collection.productSlugs || []).length === 1 ? 'product' : 'products'}`
+                    : 'Products: ?'}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   Updated {formatDistanceToNow(collection.updatedAt, { addSuffix: true })}
@@ -183,13 +203,18 @@ export function CollectionsList({
                 </div>
               )}
               {topTags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
+                <ul className="mt-2 flex flex-wrap gap-1">
                   {topTags.map((tag) => (
-                    <Badge key={tag} variant="outline" className="text-xs">
-                      {tag}
-                    </Badge>
+                    <li key={tag}>
+                      <ProductFilterTag
+                        tag={tag}
+                        selected={false}
+                        onTagClick={(clickedTag) => navigate(getProductsPathForTag(clickedTag))}
+                        variant="list"
+                      />
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
             </CardContent>
           </Card>

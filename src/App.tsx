@@ -203,9 +203,11 @@ export function ProductListPage({
   const allTags = useMemo(() => {
     const tagCounts = new Map<string, number>()
     products.forEach(product => {
-      (product.tags || []).filter(Boolean).forEach(tag => {
-        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
-      })
+      if (product && product.tags) {
+        product.tags.filter(Boolean).forEach(tag => {
+          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+        })
+      }
     })
     
     // Add filtered tags (from API) and selected tags with lower priority if not in current results
@@ -890,6 +892,7 @@ function CollectionsPage({
   products, 
   user,
   userAccount,
+  collectionsFirstLoadComplete,
   onDeleteCollection,
   onEditCollection,
   onCreateCollection
@@ -898,6 +901,7 @@ function CollectionsPage({
   products: Product[]
   user: UserData | null
   userAccount: UserAccount | null
+  collectionsFirstLoadComplete: boolean
   onDeleteCollection: (collectionSlug: string) => void
   onEditCollection: (collection: Collection) => void
   onCreateCollection: () => void
@@ -908,15 +912,19 @@ function CollectionsPage({
   const [publicPage, setPublicPage] = useState(1)
   const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
   const [loadedCollectionIds, setLoadedCollectionIds] = useState<Set<string>>(new Set())
+  const [publicCollectionsFirstLoadComplete, setPublicCollectionsFirstLoadComplete] = useState(false)
   const itemsPerPage = 12 // 3 columns x 4 rows
 
   useEffect(() => {
     const loadPublic = async () => {
+      setPublicCollectionsFirstLoadComplete(false)
       try {
         const result = await APIService.getPublicCollections('updated_at')
         setPublicCollections(result)
       } catch (e) {
         // ignore errors for now
+      } finally {
+        setPublicCollectionsFirstLoadComplete(true)
       }
     }
     loadPublic()
@@ -1039,6 +1047,7 @@ function CollectionsPage({
           <CollectionsList
             collections={paginatedMyCollections}
             products={allProducts}
+            isFirstLoadComplete={collectionsFirstLoadComplete}
             onSelectCollection={(collection) =>
               navigate(`/collections/${collection.slug || collection.id}`, {
                 state: { collectionSnapshot: collection },
@@ -1084,6 +1093,7 @@ function CollectionsPage({
         <CollectionsList
           collections={paginatedPublicCollections}
           products={allProducts}
+          isFirstLoadComplete={publicCollectionsFirstLoadComplete}
           onSelectCollection={(collection) =>
             navigate(`/collections/${collection.slug || collection.id}`, {
               state: { collectionSnapshot: collection },
@@ -1379,6 +1389,7 @@ function App() {
   const isAdmin = userAccount?.role === 'admin'
   const isModerator = userAccount?.role === 'moderator' || userAccount?.role === 'admin'
   const [collections, setCollections] = useState<Collection[]>([])
+  const [collectionsFirstLoadComplete, setCollectionsFirstLoadComplete] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
   const [showCreateCollectionFromSearchDialog, setShowCreateCollectionFromSearchDialog] = useState(false)
   const [showEditCollectionDialog, setShowEditCollectionDialog] = useState(false)
@@ -1585,9 +1596,11 @@ function App() {
     // Count tag frequencies in current products
     const tagCounts = new Map<string, number>()
     products.forEach(product => {
-      (product.tags || []).filter(Boolean).forEach(tag => {
-        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
-      })
+      if (product && product.tags) {
+        product.tags.filter(Boolean).forEach(tag => {
+          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+        })
+      }
     })
     
     // Add filtered tags and selected tags with lower priority if not in current results
@@ -2227,6 +2240,11 @@ function App() {
   // Load collections for all users (public collections always, user collections on /collections pages)
   useEffect(() => {
     const loadCollections = async () => {
+      const isCollectionsListPage = location.pathname === '/collections'
+      if (isCollectionsListPage) {
+        setCollectionsFirstLoadComplete(false)
+      }
+
       try {
         // Only load public collections on pages that need them (currently collections list)
         // Skip on collection detail pages (/collections/:slug) and other routes
@@ -2236,7 +2254,6 @@ function App() {
         const publicCollections = needsPublicCollections ? await APIService.getPublicCollections() : []
         
         // Load user's own collections only on the collections list page
-        const isCollectionsListPage = location.pathname === '/collections'
         const userCollections = (user && isCollectionsListPage) ? await APIService.getUserCollections() : []
         
         // Combine public and user collections (avoiding duplicates)
@@ -2252,6 +2269,10 @@ function App() {
         // Silently handle errors - collections are optional
         if (error instanceof Error && !error.message.includes('404')) {
           console.debug('Failed to load collections:', error)
+        }
+      } finally {
+        if (isCollectionsListPage) {
+          setCollectionsFirstLoadComplete(true)
         }
       }
     }
@@ -2479,7 +2500,7 @@ function App() {
       const updatedProduct = await APIService.updateProduct(
         product.id,
         { tags: [...product.tags, normalizedTag] },
-        user?.username
+        user?.id
       )
       
       if (updatedProduct) {
@@ -2628,7 +2649,7 @@ function App() {
         imageAlt: updatedProduct.imageAlt
       })
       
-      const savedProduct = await APIService.updateProduct(updatedProduct.id, updatedProduct, user?.username)
+      const savedProduct = await APIService.updateProduct(updatedProduct.id, updatedProduct, user?.id)
       
       logger.debug('[App.handleEditProduct] Product saved, response:', {
         savedProduct,
@@ -2989,6 +3010,7 @@ function App() {
                   products={(isAdmin || isModerator) && includeBanned ? (products || []) : (products || []).filter((p) => !p.banned)}
                   user={user}
                   userAccount={userAccount}
+                  collectionsFirstLoadComplete={collectionsFirstLoadComplete}
                   onDeleteCollection={handleDeleteCollection}
                   onEditCollection={(collection) => {
                     setEditingCollection(collection)
