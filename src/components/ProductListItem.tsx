@@ -8,13 +8,16 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import MarkdownText from '@/components/ui/MarkdownText'
 import { Prohibit, Trash, FolderOpen } from '@phosphor-icons/react'
+import { ProductFilterTag } from '@/components/ProductFilterTag'
 
 type ProductListItemProps = {
   product: Product
   ratings: Rating[]
   collections?: Collection[]
+  selectedTags?: string[]
   href?: string
   onNavigate?: () => void
+  onTagClick?: (tag: string) => void
   user?: UserData | null
   onRate?: (productId: string, rating: number) => void
   showBannedBadge?: boolean
@@ -23,7 +26,7 @@ type ProductListItemProps = {
   onDelete?: (productId: string) => void
 }
 
-export const ProductListItem = memo(function ProductListItem({ product, ratings, collections, href, onNavigate, user, onRate, showBannedBadge, canModerate, onToggleBan, onDelete }: ProductListItemProps) {
+export const ProductListItem = memo(function ProductListItem({ product, ratings, collections, selectedTags = [], href, onNavigate, onTagClick, user, onRate, showBannedBadge, canModerate, onToggleBan, onDelete }: ProductListItemProps) {
   const [imageError, setImageError] = useState(false)
   const productRatings = useMemo(() => ratings.filter((r) => r.productId === product.id), [ratings, product.id])
   const averageRating = useMemo(() => calculateAverageRating(product.sourceRating, productRatings, product.id), [product.sourceRating, productRatings, product.id])
@@ -152,8 +155,13 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
             <div className="flex flex-wrap gap-1.5 text-sm text-muted-foreground">
   	    <ul className="flex flex-wrap gap-1.5">
                 {product.tags.slice(0, 20).map((tag) => (
-                  <li key={tag} className="px-1.5 py-0 bg-muted rounded-sm text-xs whitespace-nowrap">
-                    {tag}
+                  <li key={tag}>
+                    <ProductFilterTag
+                      tag={tag}
+                      selected={selectedTags.includes(tag)}
+                      onTagClick={onTagClick}
+                      variant="list"
+                    />
                   </li>
                 ))}
                 {product.tags.length > 20 && (
@@ -267,6 +275,8 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
   if (prevProps.onRate !== nextProps.onRate) return false
   if (prevProps.showBannedBadge !== nextProps.showBannedBadge) return false
   if (prevProps.onClick !== nextProps.onClick) return false
+  if (prevProps.onTagClick !== nextProps.onTagClick) return false
+  if (prevProps.selectedTags !== nextProps.selectedTags) return false
   
   // Compare only this product's ratings
   const prevProductRatings = prevProps.ratings.filter(r => r.productId === prevProps.product.id)

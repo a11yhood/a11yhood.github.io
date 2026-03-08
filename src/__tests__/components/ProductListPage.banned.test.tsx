@@ -87,7 +87,7 @@ describe('ProductListPage banned toggle', () => {
       canViewBanned: true,
       includeBanned: false,
       onIncludeBannedChange: onToggle,
-      user: { id: 'u1', login: 'admin' },
+      user: { id: 'u1', username: 'admin' },
       userAccount: adminAccount,
     })
 
@@ -103,7 +103,7 @@ describe('ProductListPage banned toggle', () => {
       canViewBanned: true,
       includeBanned: true,
       onIncludeBannedChange: vi.fn(),
-      user: { id: 'u1', login: 'admin' },
+      user: { id: 'u1', username: 'admin' },
       userAccount: adminAccount,
     })
 

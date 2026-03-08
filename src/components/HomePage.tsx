@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { MagnifyingGlass, ArrowRight } from '@phosphor-icons/react'
+import { getProductsPathForTag } from '@/lib/tagRoutes'
 
 type HomePageProps = {
   products: Product[]
@@ -123,6 +124,7 @@ export function HomePage({ products, blogPosts, ratings, onRate }: HomePageProps
                   product={product}
                   ratings={ratings}
                   onRate={onRate}
+                  onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
                   onNavigate={() => navigate(`/product/${product.slug}`)}
                 />
               )

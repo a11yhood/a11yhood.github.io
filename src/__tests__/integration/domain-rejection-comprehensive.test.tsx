@@ -18,13 +18,13 @@ import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 describe('Unsupported domain rejection (full flow)', () => {
   const user: UserData = {
     id: DEV_USERS.user.id,
-    login: DEV_USERS.user.login,
+    username: DEV_USERS.user.username,
     avatarUrl: 'https://example.com/a.png',
   }
 
   const userAccount: UserAccount = {
     id: user.id,
-    username: user.login,
+    username: user.username,
     avatarUrl: user.avatarUrl,
     role: 'user',
   }
