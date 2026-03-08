@@ -1,9 +1,9 @@
 import { Collection, Product, Rating, UserAccount } from '@/lib/types'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { ArrowLeft, Lock, LockOpen, Trash, Pencil } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
+import { ProductFilterTag } from '@/components/ProductFilterTag'
 import { formatDistanceToNow } from 'date-fns'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { APIService } from '@/lib/api'
@@ -222,13 +222,18 @@ export function CollectionDetail({
             <MarkdownText text={collection.description} className="text-muted-foreground mb-4" />
           )}
           {topTags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4">
+            <ul className="flex flex-wrap gap-2 mb-4">
               {topTags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-xs">
-                  {tag}
-                </Badge>
+                <li key={tag}>
+                  <ProductFilterTag
+                    tag={tag}
+                    selected={false}
+                    onTagClick={(clickedTag) => navigate(getProductsPathForTag(clickedTag))}
+                    variant="card"
+                  />
+                </li>
               ))}
-            </div>
+            </ul>
           )}
           <div className="flex flex-wrap gap-4 text-sm">
             <div>

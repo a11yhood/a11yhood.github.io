@@ -892,6 +892,7 @@ function CollectionsPage({
   products, 
   user,
   userAccount,
+  collectionsFirstLoadComplete,
   onDeleteCollection,
   onEditCollection,
   onCreateCollection
@@ -900,6 +901,7 @@ function CollectionsPage({
   products: Product[]
   user: UserData | null
   userAccount: UserAccount | null
+  collectionsFirstLoadComplete: boolean
   onDeleteCollection: (collectionSlug: string) => void
   onEditCollection: (collection: Collection) => void
   onCreateCollection: () => void
@@ -910,15 +912,19 @@ function CollectionsPage({
   const [publicPage, setPublicPage] = useState(1)
   const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
   const [loadedCollectionIds, setLoadedCollectionIds] = useState<Set<string>>(new Set())
+  const [publicCollectionsFirstLoadComplete, setPublicCollectionsFirstLoadComplete] = useState(false)
   const itemsPerPage = 12 // 3 columns x 4 rows
 
   useEffect(() => {
     const loadPublic = async () => {
+      setPublicCollectionsFirstLoadComplete(false)
       try {
         const result = await APIService.getPublicCollections('updated_at')
         setPublicCollections(result)
       } catch (e) {
         // ignore errors for now
+      } finally {
+        setPublicCollectionsFirstLoadComplete(true)
       }
     }
     loadPublic()
@@ -1041,6 +1047,7 @@ function CollectionsPage({
           <CollectionsList
             collections={paginatedMyCollections}
             products={allProducts}
+            isFirstLoadComplete={collectionsFirstLoadComplete}
             onSelectCollection={(collection) =>
               navigate(`/collections/${collection.slug || collection.id}`, {
                 state: { collectionSnapshot: collection },
@@ -1086,6 +1093,7 @@ function CollectionsPage({
         <CollectionsList
           collections={paginatedPublicCollections}
           products={allProducts}
+          isFirstLoadComplete={publicCollectionsFirstLoadComplete}
           onSelectCollection={(collection) =>
             navigate(`/collections/${collection.slug || collection.id}`, {
               state: { collectionSnapshot: collection },
@@ -1381,6 +1389,7 @@ function App() {
   const isAdmin = userAccount?.role === 'admin'
   const isModerator = userAccount?.role === 'moderator' || userAccount?.role === 'admin'
   const [collections, setCollections] = useState<Collection[]>([])
+  const [collectionsFirstLoadComplete, setCollectionsFirstLoadComplete] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
   const [showCreateCollectionFromSearchDialog, setShowCreateCollectionFromSearchDialog] = useState(false)
   const [showEditCollectionDialog, setShowEditCollectionDialog] = useState(false)
@@ -2231,6 +2240,11 @@ function App() {
   // Load collections for all users (public collections always, user collections on /collections pages)
   useEffect(() => {
     const loadCollections = async () => {
+      const isCollectionsListPage = location.pathname === '/collections'
+      if (isCollectionsListPage) {
+        setCollectionsFirstLoadComplete(false)
+      }
+
       try {
         // Only load public collections on pages that need them (currently collections list)
         // Skip on collection detail pages (/collections/:slug) and other routes
@@ -2240,7 +2254,6 @@ function App() {
         const publicCollections = needsPublicCollections ? await APIService.getPublicCollections() : []
         
         // Load user's own collections only on the collections list page
-        const isCollectionsListPage = location.pathname === '/collections'
         const userCollections = (user && isCollectionsListPage) ? await APIService.getUserCollections() : []
         
         // Combine public and user collections (avoiding duplicates)
@@ -2256,6 +2269,10 @@ function App() {
         // Silently handle errors - collections are optional
         if (error instanceof Error && !error.message.includes('404')) {
           console.debug('Failed to load collections:', error)
+        }
+      } finally {
+        if (isCollectionsListPage) {
+          setCollectionsFirstLoadComplete(true)
         }
       }
     }
@@ -2993,6 +3010,7 @@ function App() {
                   products={(isAdmin || isModerator) && includeBanned ? (products || []) : (products || []).filter((p) => !p.banned)}
                   user={user}
                   userAccount={userAccount}
+                  collectionsFirstLoadComplete={collectionsFirstLoadComplete}
                   onDeleteCollection={handleDeleteCollection}
                   onEditCollection={(collection) => {
                     setEditingCollection(collection)

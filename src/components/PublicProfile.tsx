@@ -79,7 +79,7 @@ export function PublicProfile({ username }: { username: string }) {
   }, [username])
 
   // After collections are loaded, fetch a few products per collection to find a
-  // representative image (prefer alt text / featured, then pick randomly).
+  // representative image (prefer alt text / featured with deterministic choice).
   useEffect(() => {
     if (userCollections.length === 0) return
 
