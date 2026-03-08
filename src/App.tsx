@@ -2533,6 +2533,12 @@ function App() {
           }
           
           toast.success('Tag added successfully')
+        } else {
+          // API did not throw but also did not return an updated product; treat as failure.
+          // Roll back optimistic tags so subsequent calls don't build on unpersisted state.
+          pendingProductTagsRef.current.set(product.id, latestTags)
+          console.error('[App.handleAddTag] updateProduct returned null; tag change was not persisted')
+          toast.error('Failed to add tag')
         }
       } catch (error) {
         // Roll back the optimistic ref update so the next sequential call starts from the
