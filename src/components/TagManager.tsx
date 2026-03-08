@@ -12,7 +12,7 @@ type TagManagerProps = {
   productId: string
   currentTags: string[]
   allTags: string[]
-  onAddTag: (tag: string) => void
+  onAddTag: (tag: string) => void | Promise<void>
   user: UserData | null
 }
 
@@ -23,6 +23,7 @@ export function TagManager({
   user,
 }: TagManagerProps) {
   const [isAdding, setIsAdding] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [tagInput, setTagInput] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
 
@@ -57,7 +58,7 @@ export function TagManager({
     setIsAdding(false)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!tagInput.trim()) return
     const newTags = tagInput
@@ -68,10 +69,20 @@ export function TagManager({
       toast.error('No new tags to add')
       return
     }
-    newTags.forEach((tag) => onAddTag(tag))
-    setTagInput('')
-    setSuggestions([])
-    setIsAdding(false)
+    setIsSubmitting(true)
+    try {
+      for (const tag of newTags) {
+        await onAddTag(tag)
+      }
+      setTagInput('')
+      setSuggestions([])
+      setIsAdding(false)
+    } catch {
+      // Errors are surfaced by the onAddTag implementation (e.g. toast in App.handleAddTag).
+      // Reset submitting state so the form stays open and usable.
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -120,13 +131,14 @@ export function TagManager({
               </div>
             )}
             <div className="flex gap-2">
-              <Button type="submit" size="sm" disabled={!tagInput.trim()}>
-                Add Tag
+              <Button type="submit" size="sm" disabled={!tagInput.trim() || isSubmitting}>
+                {isSubmitting ? 'Adding…' : 'Add Tag'}
               </Button>
               <Button
                 type="button"
                 size="sm"
                 variant="ghost"
+                disabled={isSubmitting}
                 onClick={() => {
                   setIsAdding(false)
                   setTagInput('')

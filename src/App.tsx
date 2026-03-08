@@ -1406,11 +1406,22 @@ function App() {
   const isTestEnv = import.meta.env.MODE === 'test'
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
   const [thingiverseAuthTimestamp, setThingiverseAuthTimestamp] = useState(0)
+
+  // Tracks optimistically-applied tags per product ID across sequential async handleAddTag calls
+  const pendingProductTagsRef = useRef<Map<string, string[]>>(new Map())
   
   // Helper to normalize URL param arrays: filter empty strings, deduplicate, and sort so
   // order differences between URL and state never cause spurious state updates.
   const normalizeParamArray = (params: string[]): string[] => {
     return Array.from(new Set(params.filter(Boolean))).sort()
+  }
+
+  // Helper for order-insensitive array equality (sorts copies before comparing)
+  const arraysEqual = (a: string[], b: string[]): boolean => {
+    if (a.length !== b.length) return false
+    const sortedA = [...a].sort()
+    const sortedB = [...b].sort()
+    return sortedA.every((v, i) => v === sortedB[i])
   }
   
   // Filter states - initialize from URL params
@@ -1422,9 +1433,7 @@ function App() {
   const [minRating, setMinRating] = useState(0)
   const [updatedSince, setUpdatedSince] = useState<string | null>(null) // ISO date string
   const [committedUpdatedSince, setCommittedUpdatedSince] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<'rating' | 'updated_at' | 'created_at'>(
-    location.pathname === '/products' ? 'rating' : 'created_at'
-  )
+  const [sortBy, setSortBy] = useState<'rating' | 'updated_at' | 'created_at'>('created_at')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [sortHasChanged, setSortHasChanged] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
@@ -1510,8 +1519,7 @@ function App() {
       return
     }
 
-    const defaultSortByForRoute: 'rating' | 'created_at' =
-      location.pathname === '/products' ? 'rating' : 'created_at'
+    const defaultSortByForRoute: 'created_at' = 'created_at'
 
     if (sortBy !== defaultSortByForRoute || sortOrder !== 'desc') {
       setSortBy(defaultSortByForRoute)
@@ -1574,19 +1582,13 @@ function App() {
     const urlSources = normalizeParamArray(searchParams.getAll('source'))
     
     setSelectedTags(current => {
-      const sorted = [...current].sort()
-      const changed = sorted.length !== urlTags.length || !sorted.every((tag, i) => tag === urlTags[i])
-      return changed ? urlTags : current
+      return arraysEqual(current, urlTags) ? current : urlTags
     })
     setSelectedTypes(current => {
-      const sorted = [...current].sort()
-      const changed = sorted.length !== urlTypes.length || !sorted.every((type, i) => type === urlTypes[i])
-      return changed ? urlTypes : current
+      return arraysEqual(current, urlTypes) ? current : urlTypes
     })
     setSelectedSources(current => {
-      const sorted = [...current].sort()
-      const changed = sorted.length !== urlSources.length || !sorted.every((source, i) => source === urlSources[i])
-      return changed ? urlSources : current
+      return arraysEqual(current, urlSources) ? current : urlSources
     })
   }, [searchParams, location.pathname])
 
@@ -1712,7 +1714,7 @@ function App() {
           sources: initialUrlSources.length > 0 ? initialUrlSources : undefined,
           types: initialUrlTypes.length > 0 ? initialUrlTypes : undefined,
           tags: initialUrlTags.length > 0 ? initialUrlTags : undefined,
-          sortBy: 'rating' as const,
+          sortBy: 'created_at' as const,
           sortOrder: 'desc' as const,
         }
 
@@ -1783,8 +1785,7 @@ function App() {
     }
 
     // Check if this is the initial load with no filters (skip to avoid duplicate from initial load)
-    const defaultSortByForRoute: 'rating' | 'created_at' =
-      location.pathname === '/products' ? 'rating' : 'created_at'
+    const defaultSortByForRoute: 'created_at' = 'created_at'
     const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 &&
       selectedTypes.length === 0 && selectedTags.length === 0 &&
       minRating === 0 && committedUpdatedSince === null &&
@@ -2480,14 +2481,9 @@ function App() {
       const normalizedTag = tag.trim().toLowerCase()
       
       // Use provided product object if available, otherwise look it up
-      let product = productObj || products?.find(p => p.slug === productIdOrSlug || p.id === productIdOrSlug)
+      const product = productObj || products?.find(p => p.slug === productIdOrSlug || p.id === productIdOrSlug)
       
       if (!product) {
-        return
-      }
-      
-      if (product.tags.some((t) => t.toLowerCase() === normalizedTag)) {
-        toast.info('Tag already exists')
         return
       }
 
@@ -2496,30 +2492,63 @@ function App() {
         toast.error('Failed to add tag: product identifier not found')
         return
       }
-      
-      const updatedProduct = await APIService.updateProduct(
-        product.id,
-        { tags: [...product.tags, normalizedTag] },
-        user?.id
-      )
-      
-      if (updatedProduct) {
-        setProducts((currentProducts) => {
-          const current = currentProducts || []
-          return current.map((p) => (p.slug === productIdOrSlug || p.id === productIdOrSlug) ? updatedProduct : p)
-        })
-        
-        if (user?.id && product.id) {
-          APIService.logUserActivity({
-            userId: user.id,
-            type: 'tag',
-            productId: product.id,
-            timestamp: Date.now(),
-            metadata: { tag: normalizedTag },
-          }).catch(err => console.warn('Failed to log tag activity:', err))
+
+      // Read the latest known tags from the pending ref rather than product.tags (which may be a
+      // stale closure value).  TagManager now awaits each onAddTag call sequentially, so each
+      // successive call sees the tag list built by the previous one rather than all reading the
+      // same original snapshot.
+      const latestTags = pendingProductTagsRef.current.get(product.id) ?? product.tags
+
+      if (latestTags.some((t) => t.toLowerCase() === normalizedTag)) {
+        toast.info('Tag already exists')
+        return
+      }
+
+      const nextTags = [...latestTags, normalizedTag]
+      // Optimistically record the new tag list so the next sequential call sees it.
+      // Note: this ref-based strategy is correct for the sequential (one-at-a-time) flow
+      // produced by TagManager's for…of loop.  Genuinely concurrent calls from separate
+      // components could still race; a queue/lock would be needed to handle that case.
+      pendingProductTagsRef.current.set(product.id, nextTags)
+
+      try {
+        const updatedProduct = await APIService.updateProduct(
+          product.id,
+          { tags: nextTags },
+          user?.id
+        )
+
+        if (updatedProduct) {
+          // Sync pending state to the authoritative server response
+          pendingProductTagsRef.current.set(product.id, updatedProduct.tags)
+          setProducts((currentProducts) => {
+            const current = currentProducts || []
+            return current.map((p) => (p.slug === productIdOrSlug || p.id === productIdOrSlug) ? updatedProduct : p)
+          })
+          
+          if (user?.id && product.id) {
+            APIService.logUserActivity({
+              userId: user.id,
+              type: 'tag',
+              productId: product.id,
+              timestamp: Date.now(),
+              metadata: { tag: normalizedTag },
+            }).catch(err => console.warn('Failed to log tag activity:', err))
+          }
+          
+          toast.success('Tag added successfully')
+        } else {
+          // API did not throw but also did not return an updated product; treat as failure.
+          // Roll back optimistic tags so subsequent calls don't build on unpersisted state.
+          pendingProductTagsRef.current.set(product.id, latestTags)
+          console.error('[App.handleAddTag] updateProduct returned null; tag change was not persisted')
+          toast.error('Failed to add tag')
         }
-        
-        toast.success('Tag added successfully')
+      } catch (error) {
+        // Roll back the optimistic ref update so the next sequential call starts from the
+        // last confirmed state rather than including the tag that failed to persist.
+        pendingProductTagsRef.current.set(product.id, latestTags)
+        throw error
       }
     } catch (error) {
       console.error('Failed to add tag:', error)
