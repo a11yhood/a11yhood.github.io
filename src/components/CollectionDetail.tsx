@@ -41,21 +41,100 @@ export function CollectionDetail({
   onEditCollection,
 }: CollectionDetailProps) {
   const navigate = useNavigate()
-  const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  // Monotonically-increasing ID for the active load cycle. Incremented at the
-  // start of each new load and again in the effect cleanup so that in-flight
-  // callbacks from a superseded cycle can detect they are stale and bail out
-  // before touching state.
-  const loadIdRef = useRef(0)
 
-  // Stable key derived from the sorted slug list so the effect only re-runs
+  // Products individually fetched by this component (not present in globalProducts).
+  // Stored in a ref so mutations don't trigger re-renders; `fetchVersion` is bumped
+  // to tell the collectionProducts memo to recompute after a fetch completes.
+  const fetchedBySlugRef = useRef<Map<string, Product>>(new Map())
+  const [fetchVersion, setFetchVersion] = useState(0)
+
+  // Stable ref to globalProducts — lets the fetch effect read the latest value
+  // without declaring it as a dependency (which would restart fetches on every
+  // unrelated global-products update).
+  const globalProductsRef = useRef(globalProducts)
+  useEffect(() => { globalProductsRef.current = globalProducts }, [globalProducts])
+
+  // Stable key derived from the sorted slug list so the fetch effect only re-runs
   // when the actual set of slugs changes, not on every parent re-render that
   // creates a new array reference.
   const slugKey = useMemo(
     () => (collection.productSlugs ?? []).slice().sort().join(','),
     [collection.productSlugs]
   )
+
+  // Fetch effect: runs only when the slug set changes.
+  // globalProducts changes do NOT restart this effect; the collectionProducts
+  // memo below handles syncing those updates without touching the network.
+  useEffect(() => {
+    // New slug set — wipe any products fetched for the previous collection.
+    fetchedBySlugRef.current = new Map()
+    setFetchVersion(0)
+
+    const slugs = collection.productSlugs || []
+    if (slugs.length === 0) {
+      setIsLoading(false)
+      return
+    }
+
+    // Snapshot global products at the start of this cycle.  Slugs already
+    // present here don't need a network call.
+    const globalBySlug = new Map<string, Product>()
+    ;(globalProductsRef.current || []).forEach((p) => {
+      if (p?.slug) globalBySlug.set(p.slug, p)
+    })
+
+    const missingSlugs = slugs.filter((slug) => !globalBySlug.has(slug))
+    if (missingSlugs.length === 0) {
+      console.log('[CollectionDetail] All products already cached, skipping API calls')
+      setIsLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setIsLoading(true)
+    console.log(`[CollectionDetail] Fetching ${missingSlugs.length} missing products`)
+
+    Promise.allSettled(
+      missingSlugs.map((slug) => APIService.getProduct(slug))
+    ).then((results) => {
+      if (cancelled) return
+      results.forEach((result, i) => {
+        if (result.status === 'fulfilled' && result.value != null) {
+          fetchedBySlugRef.current.set(missingSlugs[i], result.value)
+        } else if (result.status === 'rejected') {
+          console.error('[CollectionDetail] Error loading product:', missingSlugs[i], result.reason)
+        }
+      })
+      setFetchVersion((v) => v + 1)
+      setIsLoading(false)
+    }).catch((err) => {
+      if (!cancelled) {
+        console.error('[CollectionDetail] Unexpected error fetching products:', err)
+        setIsLoading(false)
+      }
+    })
+
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slugKey]) // intentionally excludes globalProducts — read via globalProductsRef
+
+  // Merge globalProducts (always fresh, takes precedence) with locally-fetched
+  // fallbacks to produce the ordered list for rendering.  Recomputes whenever
+  // the slug set, global cache, or locally-fetched set changes — without issuing
+  // any network requests.
+  const collectionProducts = useMemo(() => {
+    const slugs = collection.productSlugs || []
+    if (slugs.length === 0) return []
+    const bySlug = new Map<string, Product>()
+    // Locally-fetched products (lower priority — may be slightly stale)
+    fetchedBySlugRef.current.forEach((p, slug) => bySlug.set(slug, p))
+    // Global products are always fresh and take precedence
+    ;(globalProducts || []).forEach((p) => { if (p?.slug) bySlug.set(p.slug, p) })
+    return slugs.map((s) => bySlug.get(s)).filter((p): p is Product => p != null)
+  // fetchVersion triggers recomputation when fetchedBySlugRef is mutated
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slugKey, globalProducts, fetchVersion])
 
   // Derive top tags from the collection's products, sorted by frequency
   const topTags = useMemo(() => {
@@ -70,99 +149,6 @@ export function CollectionDetail({
       .slice(0, 8)
       .map(([tag]) => tag)
   }, [collectionProducts])
-
-  useEffect(() => {
-    // Capture the ID for this load cycle.  Any async callback that resolves
-    // after the cycle is superseded (slugKey/globalProducts changed, or the
-    // component unmounted) will see loadIdRef.current !== loadId and bail out.
-    loadIdRef.current++
-    const loadId = loadIdRef.current
-
-    const loadCollectionProducts = async () => {
-      const slugs = collection.productSlugs || []
-      if (slugs.length === 0) {
-        setCollectionProducts([])
-        return
-      }
-
-      setIsLoading(true)
-
-      try {
-        const cachedBySlug = new Map<string, Product>()
-        ;(globalProducts || []).forEach((p) => {
-          if (p?.slug) cachedBySlug.set(p.slug, p)
-        })
-
-        // Always render whatever we already have from global state first.
-        const cachedProducts = slugs
-          .map((slug) => cachedBySlug.get(slug))
-          .filter((p): p is Product => p != null)
-
-        if (loadIdRef.current === loadId) {
-          setCollectionProducts(cachedProducts)
-        }
-
-        const missingSlugs = slugs.filter((slug) => !cachedBySlug.has(slug))
-
-        if (missingSlugs.length === 0) {
-          console.log('[CollectionDetail] Using cached global products, avoiding API calls')
-          if (loadIdRef.current === loadId) {
-            setIsLoading(false)
-          }
-          return
-        }
-
-        // Fetch only missing slugs and merge into existing products.
-        console.log(`[CollectionDetail] Fetching ${missingSlugs.length} missing products individually`)
-
-        await Promise.allSettled(
-          missingSlugs.map(async (slug) => {
-            try {
-              const product = await APIService.getProduct(slug)
-              // Bail out if this cycle was superseded before updating state
-              if (loadIdRef.current !== loadId) return
-              if (product != null) {
-                // Merge while preserving collection slug order and avoiding holes.
-                setCollectionProducts(prev => {
-                  const bySlug = new Map<string, Product>()
-                  prev.forEach((p) => {
-                    if (p?.slug) bySlug.set(p.slug, p)
-                  })
-                  if (product.slug) bySlug.set(product.slug, product)
-
-                  return slugs
-                    .map((s) => bySlug.get(s))
-                    .filter((p): p is Product => p != null)
-                })
-              }
-            } catch (error) {
-              console.error('[CollectionDetail] Error loading product:', slug, error)
-            }
-          })
-        )
-
-        // All fetches have settled — mark loading complete if still the active cycle
-        if (loadIdRef.current === loadId) {
-          setIsLoading(false)
-        }
-      } catch (error) {
-        console.error('[CollectionDetail] Error loading products:', error)
-        if (loadIdRef.current === loadId) {
-          setCollectionProducts([])
-          setIsLoading(false)
-        }
-      }
-    }
-
-    loadCollectionProducts()
-
-    return () => {
-      // Invalidate this cycle: any still-running callbacks will check
-      // loadIdRef.current and skip state updates.
-      loadIdRef.current++
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slugKey, globalProducts])
 
   return (
     <div>
