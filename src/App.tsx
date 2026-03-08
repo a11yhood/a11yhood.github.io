@@ -1423,6 +1423,20 @@ function App() {
     const sortedB = [...b].sort()
     return sortedA.every((v, i) => v === sortedB[i])
   }
+
+  // Helper to parse the combined "sort" URL param (e.g. "rating-desc") into sortBy / sortOrder.
+  // Returns null if the value is absent or malformed so callers can fall back to defaults.
+  const parseSortParam = (param: string | null): { sortBy: 'rating' | 'updated_at' | 'created_at'; sortOrder: 'asc' | 'desc' } | null => {
+    if (!param) return null
+    const idx = param.lastIndexOf('-')
+    if (idx === -1) return null
+    const by = param.slice(0, idx)
+    const order = param.slice(idx + 1)
+    if ((by === 'rating' || by === 'updated_at' || by === 'created_at') && (order === 'asc' || order === 'desc')) {
+      return { sortBy: by, sortOrder: order }
+    }
+    return null
+  }
   
   // Filter states - initialize from URL params
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
@@ -1433,9 +1447,13 @@ function App() {
   const [minRating, setMinRating] = useState(0)
   const [updatedSince, setUpdatedSince] = useState<string | null>(null) // ISO date string
   const [committedUpdatedSince, setCommittedUpdatedSince] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<'rating' | 'updated_at' | 'created_at'>('created_at')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [sortHasChanged, setSortHasChanged] = useState(false)
+  const [sortBy, setSortBy] = useState<'rating' | 'updated_at' | 'created_at'>(() => {
+    return parseSortParam(searchParams.get('sort'))?.sortBy ?? 'created_at'
+  })
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => {
+    return parseSortParam(searchParams.get('sort'))?.sortOrder ?? 'desc'
+  })
+  const [sortHasChanged, setSortHasChanged] = useState(() => parseSortParam(searchParams.get('sort')) !== null)
   const [isSearching, setIsSearching] = useState(false)
   
   // Track the latest search request to ignore stale responses
@@ -1511,6 +1529,10 @@ function App() {
     setSortOrder(newSortOrder)
     setSortHasChanged(true) // Mark that sort has been explicitly changed
     setCurrentPage(1) // Reset to first page when sorting changes
+    // Persist sort choice in URL so it can be shared / restored on navigation
+    const newParams = new URLSearchParams(searchParams)
+    newParams.set('sort', value)
+    setSearchParams(newParams, { replace: true })
   }
 
   // Keep default sorting route-aware unless the user explicitly picks a sort.
@@ -1590,6 +1612,14 @@ function App() {
     setSelectedSources(current => {
       return arraysEqual(current, urlSources) ? current : urlSources
     })
+
+    // Sync sort from URL
+    const parsed = parseSortParam(searchParams.get('sort'))
+    if (parsed) {
+      setSortBy(current => current === parsed.sortBy ? current : parsed.sortBy)
+      setSortOrder(current => current === parsed.sortOrder ? current : parsed.sortOrder)
+      setSortHasChanged(true)
+    }
   }, [searchParams, location.pathname])
 
   // Combine filtered tags with tags from current page of products, plus any selected tags
