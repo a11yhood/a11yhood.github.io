@@ -39,6 +39,13 @@ export function pickCollectionImage(
   const preferred = withImage.filter(p => p.imageAlt || p.featured)
   const pool = preferred.length > 0 ? preferred : withImage
 
+  type WithUpdated = CollectionImageCandidate & { sourceLastUpdated?: number | string; source_last_updated?: number }
+  const toTs = (v: number | string | undefined): number => {
+    if (v === undefined || v === null) return 0
+    const n = typeof v === 'string' ? Date.parse(v) : v
+    return isNaN(n) ? 0 : n
+  }
+
   const pick = [...pool].sort((a, b) => {
     const aHasAlt = a.imageAlt ? 1 : 0
     const bHasAlt = b.imageAlt ? 1 : 0
@@ -54,12 +61,8 @@ export function pickCollectionImage(
     const bFeatured = b.featured ? 1 : 0
     if (aFeatured !== bFeatured) return bFeatured - aFeatured
 
-    const aUpdated = Number((a as CollectionImageCandidate & { sourceLastUpdated?: number | string; source_last_updated?: number }).sourceLastUpdated
-      ?? (a as CollectionImageCandidate & { sourceLastUpdated?: number | string; source_last_updated?: number }).source_last_updated
-      ?? 0)
-    const bUpdated = Number((b as CollectionImageCandidate & { sourceLastUpdated?: number | string; source_last_updated?: number }).sourceLastUpdated
-      ?? (b as CollectionImageCandidate & { sourceLastUpdated?: number | string; source_last_updated?: number }).source_last_updated
-      ?? 0)
+    const aUpdated = toTs((a as WithUpdated).sourceLastUpdated ?? (a as WithUpdated).source_last_updated)
+    const bUpdated = toTs((b as WithUpdated).sourceLastUpdated ?? (b as WithUpdated).source_last_updated)
     if (aUpdated !== bUpdated) return bUpdated - aUpdated
 
     if (a.createdAt !== b.createdAt) return b.createdAt - a.createdAt
