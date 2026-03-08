@@ -1416,9 +1416,13 @@ function App() {
     return Array.from(new Set(params.filter(Boolean))).sort()
   }
 
-  // Helper for order-sensitive array equality
-  const arraysEqual = (a: string[], b: string[]): boolean =>
-    a.length === b.length && a.every((v, i) => v === b[i])
+  // Helper for order-insensitive array equality (sorts copies before comparing)
+  const arraysEqual = (a: string[], b: string[]): boolean => {
+    if (a.length !== b.length) return false
+    const sortedA = [...a].sort()
+    const sortedB = [...b].sort()
+    return sortedA.every((v, i) => v === sortedB[i])
+  }
   
   // Filter states - initialize from URL params
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
