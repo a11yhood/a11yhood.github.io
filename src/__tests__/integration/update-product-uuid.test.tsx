@@ -113,7 +113,7 @@ describe('updateProduct UUID enforcement', () => {
       expect(firstArg).not.toBe(PRODUCT_SLUG)
       // editorId must be the user UUID, not the username
       expect(thirdArg).toBe(DEV_USERS.admin.id)
-      expect(thirdArg).not.toBe(DEV_USERS.admin.login)
+      expect(thirdArg).not.toBe(DEV_USERS.admin.username)
     })
   })
 
@@ -145,7 +145,7 @@ describe('updateProduct UUID enforcement', () => {
       expect(firstArg).not.toBe(PRODUCT_SLUG)
       // editorId must be the user UUID, not the username
       expect(thirdArg).toBe(DEV_USERS.admin.id)
-      expect(thirdArg).not.toBe(DEV_USERS.admin.login)
+      expect(thirdArg).not.toBe(DEV_USERS.admin.username)
     })
   })
 })

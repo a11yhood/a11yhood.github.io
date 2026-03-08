@@ -61,7 +61,7 @@ export function CollectionDetail({
   const topTags = useMemo(() => {
     const tagCounts = new Map<string, number>()
     collectionProducts.forEach(product => {
-      product.tags?.forEach(tag => {
+      product?.tags?.forEach(tag => {
         tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
       })
     })
@@ -79,47 +79,60 @@ export function CollectionDetail({
     const loadId = loadIdRef.current
 
     const loadCollectionProducts = async () => {
-      if (!collection.productSlugs || collection.productSlugs.length === 0) {
+      const slugs = collection.productSlugs || []
+      if (slugs.length === 0) {
         setCollectionProducts([])
         return
       }
 
       setIsLoading(true)
-      setCollectionProducts([])
 
       try {
-        // First, try to get products from the global state (already loaded)
-        if (globalProducts && globalProducts.length > 0) {
-          const foundProducts = collection.productSlugs
-            .map(slug => globalProducts.find(p => p.slug === slug))
-            .filter(p => p !== undefined) as Product[]
-          
-          // If we found all products in global state, use them
-          if (foundProducts.length === collection.productSlugs.length) {
-            console.log('[CollectionDetail] Using cached global products, avoiding API calls')
-            if (loadIdRef.current === loadId) {
-              setCollectionProducts(foundProducts)
-              setIsLoading(false)
-            }
-            return
-          }
+        const cachedBySlug = new Map<string, Product>()
+        ;(globalProducts || []).forEach((p) => {
+          if (p?.slug) cachedBySlug.set(p.slug, p)
+        })
+
+        // Always render whatever we already have from global state first.
+        const cachedProducts = slugs
+          .map((slug) => cachedBySlug.get(slug))
+          .filter((p): p is Product => p != null)
+
+        if (loadIdRef.current === loadId) {
+          setCollectionProducts(cachedProducts)
         }
 
-        // Fallback: fetch individually with incremental loading for better UX
-        console.log(`[CollectionDetail] Fetching ${collection.productSlugs.length} products individually`)
+        const missingSlugs = slugs.filter((slug) => !cachedBySlug.has(slug))
+
+        if (missingSlugs.length === 0) {
+          console.log('[CollectionDetail] Using cached global products, avoiding API calls')
+          if (loadIdRef.current === loadId) {
+            setIsLoading(false)
+          }
+          return
+        }
+
+        // Fetch only missing slugs and merge into existing products.
+        console.log(`[CollectionDetail] Fetching ${missingSlugs.length} missing products individually`)
 
         await Promise.allSettled(
-          collection.productSlugs.map(async (slug, index) => {
+          missingSlugs.map(async (slug) => {
             try {
               const product = await APIService.getProduct(slug)
               // Bail out if this cycle was superseded before updating state
               if (loadIdRef.current !== loadId) return
-              if (product !== null) {
-                // Insert product at its slug index to preserve collection order while streaming
+              if (product != null) {
+                // Merge while preserving collection slug order and avoiding holes.
                 setCollectionProducts(prev => {
-                  const next = [...prev]
-                  next[index] = product
-                  return next
+                  const bySlug = new Map<string, Product>()
+                  prev.forEach((p) => {
+                    if (p?.slug) bySlug.set(p.slug, p)
+                  })
+                  if (product.slug) bySlug.set(product.slug, product)
+
+                  return slugs
+                    .map((s) => bySlug.get(s))
+                    .filter((p): p is Product => p != null)
                 })
               }
             } catch (error) {

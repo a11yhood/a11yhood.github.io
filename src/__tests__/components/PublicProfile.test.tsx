@@ -8,7 +8,6 @@ import type { UserAccount } from '@/lib/types'
 const mockAccount: UserAccount = {
   id: 'user-uuid-1',
   username: 'testuser',
-  login: 'testuser',
   role: 'user',
   createdAt: new Date('2024-01-01').toISOString(),
 }

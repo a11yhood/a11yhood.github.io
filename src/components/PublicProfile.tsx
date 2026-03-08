@@ -142,7 +142,7 @@ export function PublicProfile({ username }: { username: string }) {
               <div className="space-y-2">
                 <div>
                   <CardTitle className="text-2xl flex items-center gap-2">
-                    {account.displayName || account.username || account.login || username}
+                    {account.displayName || account.username || username}
                     {account.role === 'moderator' && (
                       <Badge variant="secondary">Editor</Badge>
                     )}

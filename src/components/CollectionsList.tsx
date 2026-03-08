@@ -56,7 +56,7 @@ export function CollectionsList({
   const getTopTagsForCollection = (collectionProducts: Product[], limit = 5) => {
     const tagCounts = new Map<string, number>()
     collectionProducts.forEach(product => {
-      product.tags?.forEach(tag => {
+      product?.tags?.forEach(tag => {
         tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
       })
     })
