@@ -3,7 +3,7 @@
  * Shows 3 randomly selected featured products, recent blog posts, and a quick search sidebar
  */
 import { useState, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Product, BlogPost, Rating } from '@/lib/types'
 import { selectFeaturedRandomProducts } from '@/lib/homepageRandom'
 import { ProductCard } from '@/components/ProductCard'
@@ -200,43 +200,45 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
                   : new Date(post.publishedAt || post.createdAt)
 
                 return (
-                  <Card
+                  <Link
                     key={post.id}
-                    className="cursor-pointer hover:shadow-lg transition-shadow overflow-hidden"
-                    onClick={() => navigate(`/blog/${post.slug}`)}
+                    to={`/blog/${post.slug}`}
+                    className="block no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
                   >
-                    {post.headerImage && (
-                      <div className="w-full h-48 overflow-hidden">
-                        <img
-                          src={post.headerImage}
-                          alt={post.headerImageAlt || post.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <CardHeader>
-                      <div className="flex items-start justify-between gap-4">
-                        <CardTitle className="text-xl">{post.title}</CardTitle>
-                        <time className="text-sm text-muted-foreground whitespace-nowrap">
-                          {displayDate.toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
-                        </time>
-                      </div>
-                      {post.excerpt && (
-                        <CardDescription className="text-base mt-2">
-                          {truncateExcerpt(post.excerpt)}
-                        </CardDescription>
+                    <Card className="cursor-pointer hover:shadow-lg transition-shadow overflow-hidden">
+                      {post.headerImage && (
+                        <div className="w-full h-48 overflow-hidden">
+                          <img
+                            src={post.headerImage}
+                            alt={post.headerImageAlt || post.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
                       )}
-                    </CardHeader>
-                    <CardContent>
-                      <Button variant="link" className="p-0 h-auto">
-                        Read more <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </CardContent>
-                  </Card>
+                      <CardHeader>
+                        <div className="flex items-start justify-between gap-4">
+                          <CardTitle className="text-xl">{post.title}</CardTitle>
+                          <time className="text-sm text-muted-foreground whitespace-nowrap">
+                            {displayDate.toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </time>
+                        </div>
+                        {post.excerpt && (
+                          <CardDescription className="text-base mt-2">
+                            {truncateExcerpt(post.excerpt)}
+                          </CardDescription>
+                        )}
+                      </CardHeader>
+                      <CardContent>
+                        <Button variant="link" className="p-0 h-auto">
+                          Read more <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 )
               })}
             </div>
