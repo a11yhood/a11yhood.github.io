@@ -1693,6 +1693,7 @@ function App() {
           // Ensure direct navigations to /blog show a loading state and fetch posts.
           setDataLoaded(true)
           setIsSearching(false)
+          setBlogPostsLoading(true)
 
           APIService.getAllBlogPosts(false)
             .then((posts) => {
