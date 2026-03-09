@@ -799,7 +799,7 @@ function ProductDetailPageWrapper({
   )
 }
 
-function BlogPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userAccount: UserAccount | null }) {
+function BlogPage({ blogPosts, blogPostsLoading, userAccount }: { blogPosts: BlogPost[], blogPostsLoading: boolean, userAccount: UserAccount | null }) {
   const navigate = useNavigate()
   const isAdmin = userAccount?.role === 'admin'
 
@@ -820,6 +820,7 @@ function BlogPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userAccou
       </div>
       <BlogPostList 
         posts={blogPosts}
+        isLoading={blogPostsLoading}
         onSelectPost={(post) => navigate(`/blog/${post.slug}`)}
       />
     </div>
@@ -1382,6 +1383,7 @@ function App() {
   const [user, setUser] = useState<UserData | null>(null)
   const [userAccount, setUserAccount] = useState<UserAccount | null>(null)
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
+  const [blogPostsLoading, setBlogPostsLoading] = useState(true)
   const [includeBanned, setIncludeBanned] = useState(false)
   const [hasAutoEnabledBanned, setHasAutoEnabledBanned] = useState(false)
   
@@ -1680,9 +1682,27 @@ function App() {
               setProducts(products)
               setRatings(ratings)
               setBlogPosts(blogPosts)
+              setBlogPostsLoading(false)
             })
             .catch(error => {
               console.warn('[App] Failed to load homepage data:', error)
+              setBlogPostsLoading(false)
+            })
+          return
+        } else if (location.pathname.startsWith('/blog')) {
+          // Ensure direct navigations to /blog show a loading state and fetch posts.
+          setDataLoaded(true)
+          setIsSearching(false)
+
+          APIService.getAllBlogPosts(false)
+            .then((posts) => {
+              setBlogPosts(posts)
+            })
+            .catch((error) => {
+              console.warn('[App] Failed to load blog posts:', error)
+            })
+            .finally(() => {
+              setBlogPostsLoading(false)
             })
           return
         } else {
@@ -1748,9 +1768,11 @@ function App() {
             setRatings(ratings)
             setDiscussions(discussions)
             setBlogPosts(blogPosts)
+            setBlogPostsLoading(false)
           })
           .catch(error => {
             console.warn('[App] Failed to load ratings/discussions/blog posts:', error)
+            setBlogPostsLoading(false)
           })
       } catch (error) {
         console.error('Failed to load data:', error)
@@ -2601,10 +2623,13 @@ function App() {
 
   const handleBlogPostsUpdate = async () => {
     try {
+      setBlogPostsLoading(true)
       const posts = await APIService.getAllBlogPosts(false)
       setBlogPosts(posts)
     } catch (error) {
       console.error('Failed to reload blog posts:', error)
+    } finally {
+      setBlogPostsLoading(false)
     }
   }
 
@@ -2945,6 +2970,7 @@ function App() {
                 <HomePage
                   products={products}
                   blogPosts={blogPosts}
+                  blogPostsLoading={blogPostsLoading}
                   ratings={ratings}
                   onRate={handleRate}
                 />
@@ -3028,7 +3054,7 @@ function App() {
                 />
               } />
               <Route path="/blog" element={
-                <BlogPage blogPosts={blogPosts} userAccount={userAccount} />
+                <BlogPage blogPosts={blogPosts} blogPostsLoading={blogPostsLoading} userAccount={userAccount} />
               } />
               <Route path="/blog/:slug" element={
                 <BlogPostPage blogPosts={blogPosts} userAccount={userAccount} />
