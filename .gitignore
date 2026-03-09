@@ -32,3 +32,16 @@ pids
 .file-manifest
 .devcontainer/
 
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+
+# jekyll build output
+_site
+.sass-cache
+.bundle
+vendor/bundle
+vendor/cache
+vendor/gems
+vendor/ruby 
