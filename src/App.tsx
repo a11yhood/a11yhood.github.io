@@ -2198,6 +2198,15 @@ function App() {
         console.log('[App OAuth] → State received:', state ? state.substring(0, 16) + '...' : 'MISSING')
         console.log('[App OAuth] → Current URL:', window.location.href)
 
+        localStorage.setItem('ravelry-last-auth-code', code)
+        localStorage.setItem('ravelry-oauth-flow-log', JSON.stringify({
+          step: 'callback-received',
+          timestamp: Date.now(),
+          codeLength: code.length,
+          hasState: !!state,
+          url: window.location.href,
+        }))
+
         window.history.replaceState({}, document.title, '/admin')
         console.log('[App OAuth] → URL cleaned up immediately to prevent reload loop')
 
@@ -2222,6 +2231,12 @@ function App() {
           
           if (!config?.clientId || !config?.clientSecret) {
             console.error('[App OAuth] ✗ No OAuth credentials found in config')
+            localStorage.setItem('ravelry-oauth-flow-log', JSON.stringify({
+              step: 'missing-credentials-before-exchange',
+              timestamp: Date.now(),
+              hasClientId: !!config?.clientId,
+              hasClientSecret: !!config?.clientSecret,
+            }))
             toast.error('OAuth credentials not configured. Please set up your Client ID and Secret first.')
             return
           }
