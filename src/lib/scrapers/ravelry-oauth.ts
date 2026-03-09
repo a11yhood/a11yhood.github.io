@@ -40,18 +40,19 @@ async function getConfig(): Promise<OAuth2Config | null> {
     const configStr = localStorage.getItem(CONFIG_KEY)
     if (configStr) {
       const parsed = JSON.parse(configStr) as OAuth2Config
-      // Only validate against backend if we expect a stored token there
+      // Local config is source-of-truth for browser OAuth flow.
+      // Backend validation is best-effort and should never block local usage.
       if (parsed.accessToken) {
         try {
           await APIService.getOAuthConfig('ravelry')
         } catch (error: any) {
-          if (error?.status === 404) {
-            // Backend lost config but we have it in localStorage; return it
-            // The caller can retry saveConfig to re-sync with backend
-            console.warn('[Ravelry OAuth] Backend missing config but found in localStorage; will resync on next save')
-            return parsed
-          }
-          throw error
+          // If backend is temporarily unavailable or auth/session is still warming up,
+          // keep using local config so callback handling and re-auth continue to work.
+          console.warn('[Ravelry OAuth] Backend config check failed, using local config:', {
+            status: error?.status,
+            message: error?.message,
+          })
+          return parsed
         }
       }
       return parsed
@@ -175,7 +176,8 @@ async function clearConfig(): Promise<void> {
  */
 async function isAuthorized(): Promise<boolean> {
   const config = await getConfig()
-  return !!(config && config.accessToken && config.clientId && config.clientSecret)
+  // Backend responses may omit clientSecret; accessToken is the primary signal of an active connection.
+  return !!(config && config.accessToken)
 }
 
 /**
@@ -219,6 +221,13 @@ async function exchangeCodeForToken(
       step: 'token-exchange-start',
       timestamp: Date.now(),
       redirectUri,
+      requestDetails: {
+        url: OAUTH_TOKEN_URL,
+        redirectUri,
+        codeLength: code.length,
+        clientIdLength: clientId.length,
+        clientSecretLength: clientSecret.length,
+      },
     }))
 
     const tokenRequestBody = new URLSearchParams({
@@ -276,7 +285,15 @@ async function exchangeCodeForToken(
       step: 'token-exchange-failed',
       timestamp: Date.now(),
       status: response.status,
+      statusText: response.statusText,
       error: errorText,
+      requestDetails: {
+        url: OAUTH_TOKEN_URL,
+        redirectUri,
+        codeLength: code.length,
+        clientIdLength: clientId.length,
+        clientSecretLength: clientSecret.length,
+      },
     }))
 
     return false
@@ -287,6 +304,13 @@ async function exchangeCodeForToken(
       step: 'token-exchange-exception',
       timestamp: Date.now(),
       error: error instanceof Error ? error.message : String(error),
+      requestDetails: {
+        url: OAUTH_TOKEN_URL,
+        redirectUri,
+        codeLength: code.length,
+        clientIdLength: clientId.length,
+        clientSecretLength: clientSecret.length,
+      },
     }))
 
     return false

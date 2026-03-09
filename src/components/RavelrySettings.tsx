@@ -181,8 +181,11 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
       console.log('[Ravelry] → Client ID exists:', config.clientId.substring(0, 10) + '...')
     }
     
-    if (!config?.clientId) {
-      console.error('[Ravelry] ✗ No Client ID found!')
+    if (!config?.clientId || !config?.clientSecret) {
+      console.error('[Ravelry] ✗ Missing OAuth credentials before authorize', {
+        hasClientId: !!config?.clientId,
+        hasClientSecret: !!config?.clientSecret,
+      })
       toast.error('Please save your Client ID and Secret first')
       setShowSetupForm(true)
       return
@@ -196,6 +199,13 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
       console.log('[Ravelry] → Authorization URL generated successfully')
       console.log('[Ravelry] → Full URL:', authUrl)
       console.log('[Ravelry] → URL length:', authUrl.length, 'characters')
+
+      localStorage.setItem('ravelry-oauth-flow-log', JSON.stringify({
+        step: 'redirect-initiated',
+        timestamp: Date.now(),
+        redirectUri,
+        authUrl,
+      }))
       
       console.log('[Ravelry] ========== REDIRECTING TO RAVELRY ==========')
       console.log('[Ravelry] → Target URL:', authUrl)
