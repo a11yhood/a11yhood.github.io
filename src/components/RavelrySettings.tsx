@@ -127,11 +127,14 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
       const existingConfig = await RavelryOAuthManager.getConfig()
       console.log('[Ravelry] → Existing config has token:', !!existingConfig?.accessToken)
       
+      const redirectUri = getRedirectUri()
       const config = {
         ...existingConfig,
         clientId: clientId.trim(),
         clientSecret: clientSecret.trim(),
+        redirectUri,
       }
+      console.log('[Ravelry] → Redirect URI:', redirectUri)
       
       console.log('[Ravelry] → Calling RavelryOAuthManager.saveConfig...')
       await RavelryOAuthManager.saveConfig(config)
@@ -192,10 +195,18 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
     }
 
     try {
-      const redirectUri = getRedirectUri()
-      console.log('[Ravelry] → Redirect URI:', redirectUri)
+      const currentRedirectUri = getRedirectUri()
+      console.log('[Ravelry] → Current Redirect URI:', currentRedirectUri)
       
-      const authUrl = await RavelryOAuthManager.getAuthorizationUrl(redirectUri)
+      // Warn if the redirect URI doesn't match what was saved
+      if (config?.redirectUri && config.redirectUri !== currentRedirectUri) {
+        console.warn('[Ravelry] ⚠️  Redirect URI mismatch!')
+        console.warn('[Ravelry]   - Saved:', config.redirectUri)
+        console.warn('[Ravelry]   - Current:', currentRedirectUri)
+        console.warn('[Ravelry]   Make sure the current redirect URI is registered in your Ravelry OAuth app')
+      }
+      
+      const authUrl = await RavelryOAuthManager.getAuthorizationUrl(currentRedirectUri)
       console.log('[Ravelry] → Authorization URL generated successfully')
       console.log('[Ravelry] → Full URL:', authUrl)
       console.log('[Ravelry] → URL length:', authUrl.length, 'characters')
