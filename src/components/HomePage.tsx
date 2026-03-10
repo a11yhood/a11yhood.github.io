@@ -106,7 +106,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
 
         {/* Surprise Me - Vertical Stack */}
         <div>
-          <h2 className="text-2xl font-bold mb-4">Explore Featured Products</h2>
+          <h2 className="text-2xl font-bold mb-4">Explore Products</h2>
           <div className="space-y-4">
             {randomProducts.map((product, idx) => {
               if (!product) {
