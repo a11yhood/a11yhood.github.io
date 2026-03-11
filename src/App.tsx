@@ -39,7 +39,7 @@ import { HomePage } from '@/components/HomePage'
 import { SearchPage } from '@/components/SearchPage'
 import { Product, ProductUpdate, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput } from '@/lib/types'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
-import { logger } from '@/lib/logger'
+import { logger, setRuntimeLogLevel } from '@/lib/logger'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 // API adapter disabled - using real backend API now
 // import '@/lib/api-adapter'
@@ -1277,13 +1277,17 @@ function AdminPage({
   userAccount,
   ravelryAuthTimestamp,
   onProductsUpdate,
-  onBlogPostsUpdate
+  onBlogPostsUpdate,
+  adminVerboseLoggingEnabled,
+  onAdminVerboseLoggingChange,
 }: {
   products: Product[]
   userAccount: UserAccount | null
   ravelryAuthTimestamp: number
   onProductsUpdate: (products: Product[]) => void
   onBlogPostsUpdate: () => void
+  adminVerboseLoggingEnabled: boolean
+  onAdminVerboseLoggingChange: (enabled: boolean) => void
 }) {
   const navigate = useNavigate()
 
@@ -1308,6 +1312,8 @@ function AdminPage({
       userAccount={userAccount}
       ravelryAuthTimestamp={ravelryAuthTimestamp}
       onBlogPostsUpdate={onBlogPostsUpdate}
+      adminVerboseLoggingEnabled={adminVerboseLoggingEnabled}
+      onAdminVerboseLoggingChange={onAdminVerboseLoggingChange}
     />
   )
 }
@@ -1408,6 +1414,28 @@ function App() {
   const isTestEnv = import.meta.env.MODE === 'test'
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
   const [thingiverseAuthTimestamp, setThingiverseAuthTimestamp] = useState(0)
+  const [adminVerboseLoggingEnabled, setAdminVerboseLoggingEnabled] = useState(true)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('admin-verbose-logging-enabled')
+    if (saved === null) return
+    setAdminVerboseLoggingEnabled(saved === 'true')
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('admin-verbose-logging-enabled', String(adminVerboseLoggingEnabled))
+  }, [adminVerboseLoggingEnabled])
+
+  useEffect(() => {
+    // In production, keep non-admin logs at info and raise admin sessions to debug.
+    if (import.meta.env.PROD) {
+      setRuntimeLogLevel(isAdmin && adminVerboseLoggingEnabled ? 'debug' : 'info')
+      return
+    }
+
+    // In non-production, respect the configured env log level.
+    setRuntimeLogLevel(null)
+  }, [isAdmin, adminVerboseLoggingEnabled])
 
   // Tracks optimistically-applied tags per product ID across sequential async handleAddTag calls
   const pendingProductTagsRef = useRef<Map<string, string[]>>(new Map())
@@ -3133,6 +3161,8 @@ function App() {
                   ravelryAuthTimestamp={ravelryAuthTimestamp}
                   onProductsUpdate={setProducts}
                   onBlogPostsUpdate={handleBlogPostsUpdate}
+                  adminVerboseLoggingEnabled={adminVerboseLoggingEnabled}
+                  onAdminVerboseLoggingChange={setAdminVerboseLoggingEnabled}
                 />
               } />
               <Route path="/admin/users" element={
