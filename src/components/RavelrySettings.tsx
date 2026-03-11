@@ -214,7 +214,7 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
       localStorage.setItem('ravelry-oauth-flow-log', JSON.stringify({
         step: 'redirect-initiated',
         timestamp: Date.now(),
-        redirectUri,
+        redirectUri: currentRedirectUri,
         authUrl,
       }))
       
