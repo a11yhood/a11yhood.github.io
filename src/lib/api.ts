@@ -965,6 +965,13 @@ export class APIService {
   static async getOAuthConfig(platform: string): Promise<any> {
     return request(`/scrapers/oauth/${platform}/config`)
   }
+
+  static async completeOAuthCallback(platform: string, code: string): Promise<any> {
+    return request(`/scrapers/oauth/${platform}/callback?code=${encodeURIComponent(code)}`, {
+      method: 'POST',
+    })
+  }
+
   static async getScraperSearchTerms(platform: 'github' | 'thingiverse' | 'ravelry'): Promise<{ searchTerms: string[] }> {
     return request(`/scrapers/${platform}/search-terms`)
   }
