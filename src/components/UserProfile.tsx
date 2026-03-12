@@ -169,17 +169,25 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                       {userAccount.location}
                     </div>
                   )}
-                  {userAccount.website && (
-                    <a
-                      href={userAccount.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 hover:text-primary"
-                    >
-                      <Globe size={16} />
-                      Website
-                    </a>
-                  )}
+                  {userAccount.website && (() => {
+                    try {
+                      const url = new URL(userAccount.website)
+                      if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+                      return (
+                        <a
+                          href={url.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 hover:text-primary"
+                        >
+                          <Globe size={16} />
+                          Website
+                        </a>
+                      )
+                    } catch {
+                      return null
+                    }
+                  })()}
                   {userAccount.createdAt && (
                     <div className="flex items-center gap-1">
                       <CalendarBlank size={16} />
