@@ -17,6 +17,7 @@ export default defineConfig({
           '**/__tests__/lib/source-ratings.test.ts',
           '**/__tests__/lib/normalize-image-url.test.ts',
           '**/__tests__/components/PublicProfile.test.tsx',
+          '**/__tests__/components/CollectionDetail.directLoad.test.tsx',
         ]
       : ['**/__tests__/**/*.test.{ts,tsx}'],
     exclude: [

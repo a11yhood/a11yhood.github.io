@@ -2308,20 +2308,28 @@ function App() {
   useEffect(() => {
     const loadCollections = async () => {
       const isCollectionsListPage = location.pathname === '/collections'
+      // Collection detail pages also need public collections so that productSlugs are
+      // available when the URL is loaded directly (without navigation state).
+      const isCollectionDetailPage = /^\/collections\/[^/]+$/.test(location.pathname)
       if (isCollectionsListPage) {
         setCollectionsFirstLoadComplete(false)
       }
 
       try {
-        // Only load public collections on pages that need them (currently collections list)
-        // Skip on collection detail pages (/collections/:slug) and other routes
-        const needsPublicCollections = 
-          location.pathname === '/collections'
-        
+        // Load public collections on the list page and on individual collection detail
+        // pages.  The detail page path was previously skipped as an optimisation, but
+        // that caused direct URL loads to show 0 products because the single-collection
+        // endpoint (/collections/:slug) does not include productSlugs in its response.
+        // Loading via getPublicCollections() returns the full collection object with
+        // productSlugs, matching the behaviour when navigating from the list page.
+        const needsPublicCollections =
+          isCollectionsListPage || isCollectionDetailPage
+
         const publicCollections = needsPublicCollections ? await APIService.getPublicCollections() : []
-        
-        // Load user's own collections only on the collections list page
-        const userCollections = (user && isCollectionsListPage) ? await APIService.getUserCollections() : []
+
+        // Load user's own collections on the list page and on detail pages so that
+        // private collections are visible when the owner loads the URL directly.
+        const userCollections = (user && (isCollectionsListPage || isCollectionDetailPage)) ? await APIService.getUserCollections() : []
         
         // Combine public and user collections (avoiding duplicates)
         const allCollections = [...userCollections]
