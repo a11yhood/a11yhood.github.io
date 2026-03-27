@@ -966,6 +966,22 @@ export class APIService {
     return request(`/scrapers/oauth/${platform}/config`)
   }
 
+  static async upsertOAuthConfig(
+    platform: string,
+    config: {
+      clientId?: string
+      clientSecret?: string
+      redirectUri?: string
+      accessToken?: string
+      refreshToken?: string
+    }
+  ): Promise<any> {
+    return request(`/scrapers/oauth-configs/${platform}`, {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    })
+  }
+
   static async completeOAuthCallback(platform: string, code: string): Promise<any> {
     return request(`/scrapers/oauth/${platform}/callback?code=${encodeURIComponent(code)}`, {
       method: 'POST',
