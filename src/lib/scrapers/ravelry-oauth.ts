@@ -92,13 +92,26 @@ async function saveConfig(config: OAuth2Config): Promise<void> {
     // The backend callback endpoint relies on stored client/redirect config.
     if (config.clientId && config.clientSecret) {
       try {
-        await APIService.upsertOAuthConfig('ravelry', {
+        const upsertPayload: {
+          clientId: string
+          clientSecret: string
+          accessToken?: string
+          refreshToken?: string
+          redirectUri?: string
+        } = {
           clientId: config.clientId,
           clientSecret: config.clientSecret,
-          redirectUri: config.redirectUri || '',
           accessToken: config.accessToken,
           refreshToken: config.refreshToken,
-        })
+        }
+
+        // Only include redirectUri when it is explicitly set to avoid clobbering
+        // any previously stored redirect URI in the backend with an empty value.
+        if (config.redirectUri !== undefined) {
+          upsertPayload.redirectUri = config.redirectUri
+        }
+
+        await APIService.upsertOAuthConfig('ravelry', upsertPayload)
       } catch (error: any) {
         // Best-effort: do not block token persistence or local usage
         console.warn('[Ravelry OAuth] Failed to upsert backend OAuth config, continuing with local config only:', {
