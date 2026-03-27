@@ -108,23 +108,18 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
         <div>
           <h2 className="text-2xl font-bold mb-4">Explore Products</h2>
           <div className="space-y-4">
-            {randomProducts.map((product, idx) => {
-              if (!product) {
-                const message =
-                  products.length === 0
-                    ? 'Loading products...'
-                    : 'No more products available'
-                return (
-                  <Card key={idx} className="opacity-50">
-                    <CardHeader>
-                      <CardTitle className="text-sm text-muted-foreground">
-                        {message}
-                      </CardTitle>
-                    </CardHeader>
-                  </Card>
-                )
-              }
-              return (
+            {products.length === 0 ? (
+              Array.from({ length: RANDOM_PRODUCT_COUNT }).map((_, idx) => (
+                <Card key={idx} className="opacity-50 animate-pulse">
+                  <CardHeader>
+                    <CardTitle className="text-sm text-muted-foreground">
+                      Loading products...
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+              ))
+            ) : (
+              randomProducts.filter((p): p is Product => p !== null).map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
@@ -133,8 +128,8 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
                   onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
                   onNavigate={() => navigate(`/product/${product.slug}`)}
                 />
-              )
-            })}
+              ))
+            )}
           </div>
         </div>
       </aside>
