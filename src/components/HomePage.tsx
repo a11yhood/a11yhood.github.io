@@ -108,28 +108,16 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
         <div>
           <h2 className="text-2xl font-bold mb-4">Explore Products</h2>
           <div className="space-y-4">
-            {products.length === 0 ? (
-              Array.from({ length: RANDOM_PRODUCT_COUNT }).map((_, idx) => (
-                <Card key={idx} className="opacity-50 animate-pulse">
-                  <CardHeader>
-                    <CardTitle className="text-sm text-muted-foreground">
-                      Loading products...
-                    </CardTitle>
-                  </CardHeader>
-                </Card>
-              ))
-            ) : (
-              randomProducts.filter((p): p is Product => p !== null).map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  ratings={ratings}
-                  onRate={onRate}
-                  onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
-                  onNavigate={() => navigate(`/product/${product.slug}`)}
-                />
-              ))
-            )}
+            {randomProducts.filter((p): p is Product => p !== null).map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                ratings={ratings}
+                onRate={onRate}
+                onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
+                onNavigate={() => navigate(`/product/${product.slug}`)}
+              />
+            ))}
           </div>
         </div>
       </aside>
