@@ -235,7 +235,8 @@ async function request<T>(
   // Log the final request payload only in dev mode (never in production to avoid leaking sensitive data)
   if (import.meta.env.DEV && processedOptions.body) {
     try {
-      const parsedBody = JSON.parse(processedOptions.body)
+      const bodyAsString = typeof processedOptions.body === 'string' ? processedOptions.body : payloadPreview
+      const parsedBody = bodyAsString ? JSON.parse(bodyAsString) : null
       logger.debug(`[API] ${endpoint} - Final JSON being sent:`, parsedBody)
       const method = (options.method || 'GET').toUpperCase()
       if (endpoint.startsWith('/collections') && (method === 'POST' || method === 'PUT')) {
@@ -618,7 +619,7 @@ export class APIService {
     const controller = supportsAbort ? new AbortController() : null
     const timeout = controller ? setTimeout(() => controller.abort(), 12000) : null // Safety timeout
 
-    const load = async (withSignal: boolean) => request('/scrapers/load-url', {
+    const load = async (withSignal: boolean) => request<{ success: boolean; product?: Partial<Product>; message?: string; source?: string }>('/scrapers/load-url', {
       method: 'POST',
       body: JSON.stringify({ url }),
       ...(withSignal && controller ? { signal: controller.signal } : {}),
