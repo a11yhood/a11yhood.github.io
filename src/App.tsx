@@ -1437,6 +1437,16 @@ function App() {
     }
     return null
   }
+
+  const parseMinRatingParam = (param: string | null): number => {
+    const parsed = Number(param)
+    return Number.isInteger(parsed) && parsed >= 1 && parsed <= 5 ? parsed : 0
+  }
+
+  const parseUpdatedSinceParam = (param: string | null): string | null => {
+    if (!param) return null
+    return /^\d{4}-\d{2}-\d{2}$/.test(param) ? param : null
+  }
   
   // Filter states - initialize from URL params
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
@@ -1444,9 +1454,9 @@ function App() {
   const [selectedTypes, setSelectedTypes] = useState<string[]>(() => normalizeParamArray(searchParams.getAll('type')))
   const [selectedSources, setSelectedSources] = useState<string[]>(() => normalizeParamArray(searchParams.getAll('source')))
   const [selectedTags, setSelectedTags] = useState<string[]>(() => normalizeParamArray(searchParams.getAll('tag')))
-  const [minRating, setMinRating] = useState(0)
-  const [updatedSince, setUpdatedSince] = useState<string | null>(null) // ISO date string
-  const [committedUpdatedSince, setCommittedUpdatedSince] = useState<string | null>(null)
+  const [minRating, setMinRating] = useState(() => parseMinRatingParam(searchParams.get('minRating')))
+  const [updatedSince, setUpdatedSince] = useState<string | null>(() => parseUpdatedSinceParam(searchParams.get('updatedSince'))) // YYYY-MM-DD string
+  const [committedUpdatedSince, setCommittedUpdatedSince] = useState<string | null>(() => parseUpdatedSinceParam(searchParams.get('updatedSince')))
   const [sortBy, setSortBy] = useState<'rating' | 'updated_at' | 'created_at'>(() => {
     return parseSortParam(searchParams.get('sort'))?.sortBy ?? 'created_at'
   })
@@ -1505,6 +1515,7 @@ function App() {
     setSelectedSources([])
     setMinRating(0)
     setUpdatedSince(null)
+    setCommittedUpdatedSince(null)
     setSearchQuery('')
     setSearchInputValue('')
     // Clear search and filter params from URL
@@ -1513,11 +1524,31 @@ function App() {
     newParams.delete('tag')
     newParams.delete('type')
     newParams.delete('source')
+    newParams.delete('minRating')
+    newParams.delete('updatedSince')
+    setSearchParams(newParams, { replace: true })
+  }
+
+  const handleMinRatingChange = (rating: number) => {
+    setMinRating(rating)
+    const newParams = new URLSearchParams(searchParams)
+    if (rating > 0) {
+      newParams.set('minRating', String(rating))
+    } else {
+      newParams.delete('minRating')
+    }
     setSearchParams(newParams, { replace: true })
   }
 
   const handleUpdatedSinceChange = (date: string | null) => {
     setUpdatedSince(date)
+    const newParams = new URLSearchParams(searchParams)
+    if (date) {
+      newParams.set('updatedSince', date)
+    } else {
+      newParams.delete('updatedSince')
+    }
+    setSearchParams(newParams, { replace: true })
   }
 
   const handleSortChange = (value: string) => {
@@ -1602,6 +1633,8 @@ function App() {
     const urlTags = normalizeParamArray(searchParams.getAll('tag'))
     const urlTypes = normalizeParamArray(searchParams.getAll('type'))
     const urlSources = normalizeParamArray(searchParams.getAll('source'))
+    const urlMinRating = parseMinRatingParam(searchParams.get('minRating'))
+    const urlUpdatedSince = parseUpdatedSinceParam(searchParams.get('updatedSince'))
     
     setSelectedTags(current => {
       return arraysEqual(current, urlTags) ? current : urlTags
@@ -1612,6 +1645,9 @@ function App() {
     setSelectedSources(current => {
       return arraysEqual(current, urlSources) ? current : urlSources
     })
+    setMinRating(current => current === urlMinRating ? current : urlMinRating)
+    setUpdatedSince(current => current === urlUpdatedSince ? current : urlUpdatedSince)
+    setCommittedUpdatedSince(current => current === urlUpdatedSince ? current : urlUpdatedSince)
 
     // Sync sort from URL
     const parsed = parseSortParam(searchParams.get('sort'))
@@ -3023,7 +3059,7 @@ function App() {
                   selectedSources={selectedSources}
                   onSourceToggle={handleSourceToggle}
                   minRating={minRating}
-                  onMinRatingChange={setMinRating}
+                  onMinRatingChange={handleMinRatingChange}
                   updatedSince={updatedSince}
                   onUpdatedSinceChange={handleUpdatedSinceChange}
                   sortBy={sortBy}
