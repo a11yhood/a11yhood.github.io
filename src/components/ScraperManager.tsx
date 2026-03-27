@@ -1137,6 +1137,16 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                       console.error('Error message:', apiError instanceof Error ? apiError.message : String(apiError))
                       console.error('Full error object:', JSON.stringify(apiError, null, 2))
 
+                      if (productsToDelete.length === 0) {
+                        // No locally-loaded products to delete; the API failure is the only result.
+                        // Re-throw so the outer catch surfaces a proper error to the user.
+                        throw apiError
+                      }
+
+                      await Promise.all(
+                        productsToDelete.map(p => APIService.deleteProduct(p.slug || p.id))
+                      )
+
                       // Fetch ALL products for this source from the backend (not just what is loaded)
                       const allBackendProducts = await APIService.getProductsBySource(sourceToDelete || '', { includeBanned: true })
                       const allBackendIds = allBackendProducts.map(p => p.id)
