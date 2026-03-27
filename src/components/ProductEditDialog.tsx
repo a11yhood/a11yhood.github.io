@@ -131,10 +131,14 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
     }
 
     if (finalFormData.imageUrl && !finalFormData.imageAlt?.trim()) {
-      validationErrors.push({ id: 'image-alt-text', message: 'Alt text is required when an image is provided.' })
+      // If this error is caused by a pending (unconfirmed) image URL, give a clearer message.
+      const message = pendingImage
+        ? 'Please click \'Add URL\' to confirm the image URL and provide alt text, or clear the image URL field to submit without an image.'
+        : 'Alt text is required when an image is provided.'
+      validationErrors.push({ id: 'image-alt-text', message })
     }
 
-    if (finalFormData.imageAlt && finalFormData.imageAlt.trim().length < 10) {
+    if (finalFormData.imageAlt && finalFormData.imageUrl && finalFormData.imageAlt.trim().length < 10) {
       validationErrors.push({ id: 'image-alt-text', message: 'Alt text should be at least 10 characters.' })
     }
 
