@@ -7,7 +7,7 @@
  * 
  * Security: Never bypasses backend validation; all authorization enforced server-side.
  */
-import { UserAccount, UserActivity, Product, ProductUpdate, Rating, Discussion, ScrapingLog, BlogPost, Collection, CollectionCreateInput, UserRequest, SupportedSource, ScraperJob } from './types'
+import { UserAccount, UserActivity, Product, ProductUpdate, Rating, Discussion, ScrapingLog, BlogPost, Collection, CollectionCreateInput, UserRequest, SupportedSource, ScraperJob, DELETED_DISCUSSION_CONTENT } from './types'
 import { logger } from './logger'
 import { ProductUrl, ProductUrlCreate, ProductUrlUpdate } from '../types/product-url'
 
@@ -904,9 +904,15 @@ export class APIService {
     })
   }
 
+  // Soft-delete: marks the discussion content as deleted via PUT rather than issuing a
+  // hard DELETE. The backend DELETE /discussions/{id} endpoint returns a 500 error
+  // (likely a DB constraint from child replies); using PUT preserves the thread node
+  // for reply threading while hiding the content, consistent with the `isDeleted` check
+  // in DiscussionSection.tsx.
   static async deleteDiscussion(discussionId: string): Promise<Discussion> {
     return request<Discussion>(`/discussions/${discussionId}`, {
-      method: 'DELETE',
+      method: 'PUT',
+      body: JSON.stringify({ content: DELETED_DISCUSSION_CONTENT }),
     })
   }
 

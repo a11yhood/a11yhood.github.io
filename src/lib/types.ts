@@ -69,6 +69,9 @@ export type Rating = {
   createdAt: number
 }
 
+/** Sentinel value used for soft-deleted discussion content. */
+export const DELETED_DISCUSSION_CONTENT = '[deleted]'
+
 export type Discussion = {
   id: string
   productId: string
