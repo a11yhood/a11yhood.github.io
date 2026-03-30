@@ -54,7 +54,7 @@ export function AppFooter() {
               </a>
               <span className="text-muted-foreground/50" aria-hidden="true">•</span>
               <a
-                href="https://github.com"
+                href="https://github.com/a11yhood/a11yhood.github.io"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
