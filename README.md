@@ -67,7 +67,7 @@ A community platform for discovering, reviewing, and discussing open-source assi
 ### Prerequisites
 
 - Node.js 18+ and npm
-- A Supabase account and project
+- pixi
 
 ### Installation
 
@@ -79,7 +79,7 @@ A community platform for discovering, reviewing, and discussing open-source assi
 
 2. **Install dependencies**
    ```bash
-   npm install
+   pixi shell
    ```
 
 3. **Set up environment variables**
@@ -127,6 +127,30 @@ npm run build
 npm run preview
 
 # Or use the production script
+./scripts/start-prod.sh
+```
+
+### Using Pixi
+
+Use Pixi to provide the project runtime, then run npm commands inside that environment.
+
+```bash
+# Enter the Pixi environment
+pixi shell
+
+# Development (hot reload)
+npm run dev
+# or
+./scripts/start-dev.sh
+
+# Production build
+pixi run build-vite
+# or
+npm run build
+
+# Production preview
+npm run preview
+# or
 ./scripts/start-prod.sh
 ```
 
