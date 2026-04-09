@@ -80,8 +80,8 @@ export function BlogPostDetail({ post, onBack, onEdit }: BlogPostDetailProps) {
                 <h1 className="text-4xl font-bold">{post.title}</h1>
                 {post.featured && (
                   <div className="mt-2">
-                    <Badge className="bg-yellow-100 text-yellow-900 dark:bg-yellow-900/40 dark:text-yellow-200">
-                      <Star className="w-3 h-3 mr-1 fill-current" />
+                    <Badge className="bg-yellow-50 text-yellow-950 dark:bg-yellow-950/40 dark:text-yellow-50">
+                      
                       Featured Post
                     </Badge>
                   </div>
