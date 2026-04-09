@@ -153,7 +153,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
             ratings={ratings}
             onRate={onRate}
             onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
-            onNavigate={() => navigate(`/product/${product.slug}`)}
+            onNavigate={() => navigate(`/product/${product.slug ?? product.id}`)}
           />
         ))}
       </div>
