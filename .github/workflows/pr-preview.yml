@@ -1,0 +1,60 @@
+name: PR Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.8.8
+      - name: Install dependencies
+        run: npm install
+      - name: Install CI dependencies
+        run: npm ci
+      - name: Run tests
+        env:
+          CI: true
+        run: npm run test:run
+      - name: Build for GitHub Pages
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_DEV_MODE: ${{ secrets.VITE_DEV_MODE }}
+          VITE_ENV: ${{ secrets.VITE_ENV }}
+          VITE_LOG_LEVEL: ${{ secrets.VITE_LOG_LEVEL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_BASE_URL: /draft/${{ github.event.number }}/
+        run: npx vite build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vite-site-${{ github.event.number }}
+          path: dist/
+
+  deploy-preview:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 1
+      - uses: actions/download-artifact@v4
+        with:
+          name: vite-site-${{ github.event.number }}
+          path: draft/${{ github.event.number }}/
+      - run: ls -lathr draft/${{ github.event.number }}/    
+      - name: Commit and push preview
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f draft/${{ github.event.number }}/*
+          git commit -m "Deploy PR #${{ github.event.number }} preview"
+          git push
