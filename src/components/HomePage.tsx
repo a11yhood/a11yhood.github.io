@@ -12,7 +12,6 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { MagnifyingGlass, ArrowRight } from '@phosphor-icons/react'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
-import { cn } from '@/lib/utils'
 
 const RANDOM_PRODUCT_COUNT = 5
 const NEWS_POST_LIMIT = 10
@@ -72,49 +71,87 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
     return text.slice(0, maxLength).trim() + '...'
   }
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-      {/* Welcome - order 1 on narrow; col 2-4 row 1 on wide */}
-      <section className="order-1 lg:order-none lg:col-start-2 lg:col-span-3 lg:row-start-1">
-        {/* Site Mission */}
+  const renderNewsContent = () => {
+    if (blogPostsLoading) {
+      return (
         <Card>
-          <CardHeader>
-            <CardTitle asChild>
-              <h2 className="text-2xl sm:text-3xl font-semibold leading-tight">
-                Welcome to a11yhood
-              </h2>
-            </CardTitle>
-            <CardDescription className="text-base sm:text-lg leading-relaxed text-foreground/90">
-              A place to learn about and share open source accessibility technology.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc pl-5 space-y-2 text-base leading-relaxed">
-              <li>
-                Search our catalog of open-source assistive technology drawn from sites such as
-                GitHub, Ravelry, and Thingiverse.
-              </li>
-              <li>Tag, rate, and organize products.</li>
-              <li>Add your own.</li>
-              <li>
-                Join our{' '}
-                <a
-                  href="https://github.com/orgs/a11yhood/discussions"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium underline underline-offset-2 text-primary hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
-                >
-                  open source community
-                </a>
-                .
-              </li>
-            </ul>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">Loading...</p>
           </CardContent>
         </Card>
-      </section>
+      )
+    }
 
-      {/* Quick Search - order 2 on narrow; col 1 row 1 on wide */}
-      <aside className="order-2 lg:order-none lg:col-start-1 lg:col-span-1 lg:row-start-1">
+    if (recentBlogPosts.length === 0) {
+      return (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">No blog posts yet. Check back soon!</p>
+          </CardContent>
+        </Card>
+      )
+    }
+
+    return (
+      <div className="space-y-4">
+        {recentBlogPosts.map((post, index) => {
+          const displayDate = post.publishDate
+            ? new Date(post.publishDate)
+            : new Date(post.publishedAt || post.createdAt)
+
+          return (
+            <Link
+              key={post.id}
+              to={`/blog/${post.slug}`}
+              className={`block no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg ${
+                index > 0 ? 'hidden lg:block' : ''
+              }`}
+            >
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow overflow-hidden">
+                {post.headerImage && (
+                  <div className="w-full h-48 overflow-hidden">
+                    <img
+                      src={post.headerImage}
+                      alt={post.headerImageAlt || post.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <CardTitle className="text-xl">{post.title}</CardTitle>
+                    <time className="text-sm text-muted-foreground whitespace-nowrap">
+                      {displayDate.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </time>
+                  </div>
+                  {post.excerpt && (
+                    <CardDescription className="text-base mt-2">
+                      {truncateExcerpt(post.excerpt)}
+                    </CardDescription>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <Button variant="link" className="p-0 h-auto">
+                    Read more <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </Link>
+          )
+        })}
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-10 gap-8">
+      {/* Left Column: Quick Search and Explore - order 2 on mobile, cols 1-3 on desktop (30%) */}
+      <aside className="order-2 lg:order-none lg:col-span-3 space-y-6">
+        {/* Quick Search */}
         <Card>
           <CardHeader>
             <CardTitle>Quick Search</CardTitle>
@@ -142,100 +179,85 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
             </form>
           </CardContent>
         </Card>
+
+        {/* Surprise Me - Vertical Stack - shown on lg only */}
+        <div className="hidden lg:block">
+          <h2 className="text-2xl font-bold mb-4">Explore Products</h2>
+          <div className="space-y-4">
+            {randomProducts
+              .filter((p): p is Product => p !== null)
+              .map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  ratings={ratings}
+                  onRate={onRate}
+                  onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
+                  onNavigate={() => navigate(`/product/${product.slug}`)}
+                />
+              ))}
+          </div>
+        </div>
       </aside>
 
-      {/* Blog Roll - order 3 on narrow (1 post only); col 2-4 row 2 on wide (all posts) */}
-      <div className="order-3 lg:order-none lg:col-start-2 lg:col-span-3 lg:row-start-2">
-        <h2 className="text-2xl font-bold sm:text-3xl mb-4">News</h2>
-        {blogPostsLoading ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">Loading...</p>
-            </CardContent>
-          </Card>
-        ) : recentBlogPosts.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">No blog posts yet. Check back soon!</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {recentBlogPosts.map((post, index) => {
-              const displayDate = post.publishDate
-                ? new Date(post.publishDate)
-                : new Date(post.publishedAt || post.createdAt)
+      {/* Right Column: Welcome and News - order 1 on mobile, cols 4-10 on desktop (70%) */}
+      <section className="order-1 lg:order-none lg:col-start-4 lg:col-span-7">
+        {/* Site Mission */}
+        <Card>
+          <CardHeader>
+            <CardTitle asChild>
+              <h2 className="text-2xl sm:text-3xl font-semibold leading-tight">
+                Welcome to a11yhood
+              </h2>
+            </CardTitle>
+            <CardDescription className="text-base sm:text-lg leading-relaxed text-foreground/90">
+              A place to learn about and share open source accessibility technology.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pl-5 space-y-2 text-base leading-relaxed">
+              <li>
+                Search our catalog of open-source assistive technology drawn from sites such as
+                GitHub, Ravelry, and Thingiverse.
+              </li>
+              <li>Tag, rate, and organize products.</li>
+              <li>Add your own.</li>
+        <li>
+          Join our{' '}
+          <a
+            href="https://github.com/orgs/a11yhood/discussions"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium underline underline-offset-2 text-primary hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+          >
+            open source community
+          </a>
+          .
+        </li>
+            </ul>
+          </CardContent>
+        </Card>
 
-              return (
-                <Link
-                  key={post.id}
-                  to={`/blog/${post.slug}`}
-                  className={cn(
-                    'block no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg',
-                    index > 0 && 'hidden lg:block'
-                  )}
-                >
-                  <Card className="cursor-pointer hover:shadow-lg transition-shadow overflow-hidden">
-                    {post.headerImage && (
-                      <div className="w-full h-48 overflow-hidden">
-                        <img
-                          src={post.headerImage}
-                          alt={post.headerImageAlt || post.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <CardHeader>
-                      <div className="flex items-start justify-between gap-4">
-                        <CardTitle className="text-xl">{post.title}</CardTitle>
-                        <time className="text-sm text-muted-foreground whitespace-nowrap">
-                          {displayDate.toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
-                        </time>
-                      </div>
-                      {post.excerpt && (
-                        <CardDescription className="text-base mt-2">
-                          {truncateExcerpt(post.excerpt)}
-                        </CardDescription>
-                      )}
-                    </CardHeader>
-                    <CardContent>
-                      <Button variant="link" className="p-0 h-auto">
-                        Read more <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </Link>
-              )
-            })}
-          </div>
-        )}
+        {/* Desktop News - stays directly below Welcome */}
+        <div className="hidden lg:block mt-8">
+          <h2 className="text-2xl font-bold sm:text-3xl mb-4">News</h2>
+          {renderNewsContent()}
+        </div>
+      </section>
+
+      {/* Mobile News - stays below Quick Search on mobile only */}
+      <div className="order-3 lg:hidden">
+        <h2 className="text-2xl font-bold sm:text-3xl mb-4">News</h2>
+        {renderNewsContent()}
       </div>
 
-      {/* Explore Products (Surprise Me) - order 4 on narrow; col 1 row 2 on wide */}
-      <div className="order-4 lg:order-none lg:col-start-1 lg:col-span-1 lg:row-start-2">
+      {/* Explore Products - order 4 on mobile, hidden on lg (shows in sidebar on desktop) */}
+      <div className="order-4 lg:hidden">
         <h2 className="text-2xl font-bold mb-4">Explore Products</h2>
         <div className="space-y-4">
-          {randomProducts.map((product, idx) => {
-            if (!product) {
-              const message =
-                products.length === 0
-                  ? 'Loading products...'
-                  : 'No more products available'
-              return (
-                <Card key={idx} className="opacity-50">
-                  <CardHeader>
-                    <CardTitle className="text-sm text-muted-foreground">
-                      {message}
-                    </CardTitle>
-                  </CardHeader>
-                </Card>
-              )
-            }
-            return (
+          {randomProducts
+            .filter((p): p is Product => p !== null)
+            .map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
@@ -244,8 +266,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
                 onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
                 onNavigate={() => navigate(`/product/${product.slug}`)}
               />
-            )
-          })}
+            ))}
         </div>
       </div>
     </div>
