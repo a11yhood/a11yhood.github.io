@@ -34,7 +34,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
     }
 
     const selected = selectFeaturedRandomProducts(products, RANDOM_PRODUCT_COUNT)
-    return [...selected].sort(() => Math.random() - 0.5)
+    return selected
   }, [products])
 
   const visibleRandomProducts = useMemo(
