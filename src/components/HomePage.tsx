@@ -2,7 +2,7 @@
  * HomePage component - New homepage with random products, blog roll, and quick search
  * Shows 3 randomly selected featured products, recent blog posts, and a quick search sidebar
  */
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Product, BlogPost, Rating } from '@/lib/types'
 import { selectFeaturedRandomProducts } from '@/lib/homepageRandom'
@@ -28,22 +28,13 @@ type HomePageProps = {
 export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRate }: HomePageProps) {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
-  const [randomProducts, setRandomProducts] = useState<(Product | null)[]>(
-    Array.from({ length: RANDOM_PRODUCT_COUNT }, () => null)
-  )
-
-  // Re-select random products whenever the products array changes.
-  // This covers: initial slow-backend load (empty → featured list arrives),
-  // and any subsequent changes to the featured pool (e.g. tag edits).
-  useEffect(() => {
+  const randomProducts = useMemo(() => {
     if (products.length === 0) {
-      setRandomProducts(Array.from({ length: RANDOM_PRODUCT_COUNT }, () => null))
-      return
+      return Array.from({ length: RANDOM_PRODUCT_COUNT }, () => null)
     }
     const selected = selectFeaturedRandomProducts(products, RANDOM_PRODUCT_COUNT)
     // Shuffle to randomize which product appears on top
-    const shuffled = [...selected].sort(() => Math.random() - 0.5)
-    setRandomProducts(shuffled)
+    return [...selected].sort(() => Math.random() - 0.5)
   }, [products])
 
   const recentBlogPosts = useMemo(() => {
@@ -108,33 +99,16 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
         <div>
           <h2 className="text-2xl font-bold mb-4">Explore Products</h2>
           <div className="space-y-4">
-            {randomProducts.map((product, idx) => {
-              if (!product) {
-                const message =
-                  products.length === 0
-                    ? 'Loading products...'
-                    : 'No more products available'
-                return (
-                  <Card key={idx} className="opacity-50">
-                    <CardHeader>
-                      <CardTitle className="text-sm text-muted-foreground">
-                        {message}
-                      </CardTitle>
-                    </CardHeader>
-                  </Card>
-                )
-              }
-              return (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  ratings={ratings}
-                  onRate={onRate}
-                  onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
-                  onNavigate={() => navigate(`/product/${product.slug}`)}
-                />
-              )
-            })}
+            {randomProducts.filter((p): p is Product => p !== null).map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                ratings={ratings}
+                onRate={onRate}
+                onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
+                onNavigate={() => navigate(`/product/${product.slug}`)}
+              />
+            ))}
           </div>
         </div>
       </aside>
