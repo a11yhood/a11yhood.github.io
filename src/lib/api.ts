@@ -753,40 +753,35 @@ export class APIService {
     type?: string
     types?: string[]
     tags?: string[]
-    tags_mode?: 'or' | 'and'
-    min_rating?: number
-    updated_since?: string
-    max_age?: number
+    tagsMode?: 'or' | 'and'
+    minRating?: number
+    updatedSince?: string
+    maxAge?: number
     search?: string
-    created_by?: string
-    include_banned?: boolean
+    createdBy?: string
+    includeBanned?: boolean
   }): Promise<{ deletedCount: number }> {
     console.log('[API] deleteProductsByFilters called with filters:', filters)
     const params = new URLSearchParams()
     
-    // Add single-value filters
+    // Add single-value filters (map camelCase -> snake_case for backend)
     if (filters.source) params.set('source', filters.source)
     if (filters.type) params.set('type', filters.type)
-    if (filters.tags_mode) params.set('tags_mode', filters.tags_mode)
-    if (filters.min_rating !== undefined) params.set('min_rating', String(filters.min_rating))
-    if (filters.updated_since) params.set('updated_since', filters.updated_since)
-    if (filters.max_age !== undefined) params.set('max_age', String(filters.max_age))
+    if (filters.tagsMode) params.set('tags_mode', filters.tagsMode)
+    if (filters.minRating !== undefined) params.set('min_rating', String(filters.minRating))
+    if (filters.updatedSince) params.set('updated_since', filters.updatedSince)
+    if (filters.maxAge !== undefined) params.set('max_age', String(filters.maxAge))
     if (filters.search) params.set('search', filters.search)
-    if (filters.created_by) params.set('created_by', filters.created_by)
-    if (filters.include_banned) params.set('include_banned', String(filters.include_banned))
+    if (filters.createdBy) params.set('created_by', filters.createdBy)
+    if (filters.includeBanned) params.set('include_banned', String(filters.includeBanned))
     
-    // Add array-value filters
-    if (filters.sources?.length) {
-      filters.sources.forEach(s => params.append('sources', s))
-    }
-    if (filters.types?.length) {
-      filters.types.forEach(t => params.append('types', t))
-    }
-    if (filters.tags?.length) {
-      filters.tags.forEach(tag => params.append('tags', tag))
-    }
+    // Add array-value filters using repeated singular keys (consistent with getAllProducts)
+    filters.sources?.forEach(s => { if (s) params.append('source', s) })
+    filters.types?.forEach(t => { if (t) params.append('type', t) })
+    filters.tags?.forEach(tag => { if (tag) params.append('tags', tag) })
     
-    const result = await request<{ deletedCount: number }>(`/products/bulk-delete?${params.toString()}`, {
+    const suffix = params.toString() ? `?${params.toString()}` : ''
+    const result = await request<{ deletedCount: number }>(`/products/bulk-delete${suffix}`, {
       method: 'POST',
     })
     console.log('[API] deleteProductsByFilters result:', result, 'with filters:', filters)

@@ -1144,7 +1144,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                       try {
                         const result = await APIService.deleteProductsByFilters({
                           source: sourceToDelete || '',
-                          include_banned: true
+                          includeBanned: true
                         })
                         console.log(`[ScraperManager] ✅ Fallback filter-based delete complete: ${result.deletedCount} products deleted from source: ${sourceToDelete}`)
 
