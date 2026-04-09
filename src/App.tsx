@@ -1457,13 +1457,21 @@ function App() {
   const [minRating, setMinRating] = useState(() => parseMinRatingParam(searchParams.get('minRating')))
   const [updatedSince, setUpdatedSince] = useState<string | null>(() => parseUpdatedSinceParam(searchParams.get('updatedSince'))) // YYYY-MM-DD string
   const [committedUpdatedSince, setCommittedUpdatedSince] = useState<string | null>(() => parseUpdatedSinceParam(searchParams.get('updatedSince')))
+  const defaultSort = { sortBy: 'created_at' as const, sortOrder: 'desc' as const }
+  const initialSort = parseSortParam(searchParams.get('sort'))
   const [sortBy, setSortBy] = useState<'rating' | 'updated_at' | 'created_at'>(() => {
-    return parseSortParam(searchParams.get('sort'))?.sortBy ?? 'created_at'
+    return initialSort?.sortBy ?? defaultSort.sortBy
   })
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => {
-    return parseSortParam(searchParams.get('sort'))?.sortOrder ?? 'desc'
+    return initialSort?.sortOrder ?? defaultSort.sortOrder
   })
-  const [sortHasChanged, setSortHasChanged] = useState(() => parseSortParam(searchParams.get('sort')) !== null)
+  const [sortHasChanged, setSortHasChanged] = useState(() => {
+    if (!initialSort) return false
+    return (
+      initialSort.sortBy !== defaultSort.sortBy ||
+      initialSort.sortOrder !== defaultSort.sortOrder
+    )
+  })
   const [isSearching, setIsSearching] = useState(false)
   
   // Track the latest search request to ignore stale responses
@@ -1655,6 +1663,10 @@ function App() {
       setSortBy(current => current === parsed.sortBy ? current : parsed.sortBy)
       setSortOrder(current => current === parsed.sortOrder ? current : parsed.sortOrder)
       setSortHasChanged(true)
+    } else {
+      // When `sort` is missing or malformed in the URL, clear the "changed" flag
+      // so state does not appear to be driven by a stale sort parameter.
+      setSortHasChanged(false)
     }
   }, [searchParams, location.pathname])
 
