@@ -6,6 +6,7 @@ import { Star, ArrowRight } from '@phosphor-icons/react'
 
 type BlogPostListProps = {
   posts: BlogPost[]
+  isLoading?: boolean
   onSelectPost?: (post: BlogPost) => void
   showReadMore?: boolean
 }
@@ -14,7 +15,15 @@ type BlogPostListProps = {
  * BlogPostList component for displaying published blog posts
  * Shows featured posts prominently and includes excerpt previews
  */
-export function BlogPostList({ posts, onSelectPost, showReadMore = true }: BlogPostListProps) {
+export function BlogPostList({ posts, isLoading = false, onSelectPost, showReadMore = true }: BlogPostListProps) {
+  if (isLoading) {
+    return (
+      <div className="text-center py-12" role="status">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    )
+  }
+
   if (posts.length === 0) {
     return (
       <div className="text-center py-12" role="status">

@@ -1075,7 +1075,6 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                     <>This will permanently delete all user-submitted products. This action cannot be undone.</>
                   )
                 }
-                const matchName = (sourceToDelete || '').replace(/^scraped-/, '')
                 return (
                   <>This will permanently delete all {formatSourceLabel(sourceToDelete || '')} products. This action cannot be undone.</>
                 )
@@ -1104,18 +1103,14 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                     onProductsUpdate(updatedProducts)
                     toast.success('Deleted products from selected source')
                   } else {
-                    const matchName = (sourceToDelete || '').replace(/^scraped-/, '')
-                    const productsToDelete = products.filter(p => typeof p.source === 'string' && p.source === matchName)
+                    const normalizeSource = (value: string) => value.replace(/^scraped-/, '').trim().toLowerCase()
+                    const normalizedSourceToDelete = normalizeSource(sourceToDelete || '')
+                    const productsToDelete = products.filter(
+                      p => typeof p.source === 'string' && normalizeSource(p.source) === normalizedSourceToDelete,
+                    )
                     const count = productsToDelete.length
-                    
-                    if (count === 0) {
-                      toast.info('No products found for selected source')
-                      setDeleteSourceDialog(false)
-                      setSourceToDelete(null)
-                      return
-                    }
-                    
-                    console.log(`[ScraperManager] Deleting ${count} products from source: ${sourceToDelete}`)
+
+                    console.log(`[ScraperManager] Deleting ${count} currently loaded products from source: ${sourceToDelete}`)
                     
                     try {
                       const result = await APIService.deleteProductsBySource(sourceToDelete)
@@ -1130,23 +1125,45 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                       } catch (reloadError) {
                         console.warn('[ScraperManager] Failed to reload products, using local filter:', reloadError)
                         // Fallback: filter locally if reload fails
-                        const updatedProducts = products.filter(p => !(typeof p.source === 'string' && p.source === matchName))
+                        const updatedProducts = products.filter(
+                          p => !(typeof p.source === 'string' && normalizeSource(p.source) === normalizedSourceToDelete),
+                        )
                         onProductsUpdate(updatedProducts)
                         toast.success('Deleted products from selected source')
                       }
                     } catch (apiError) {
-                      console.error('❌ [ScraperManager] API deleteProductsBySource FAILED, falling back to individual deletes')
+                      console.error('[ScraperManager] API deleteProductsBySource FAILED, falling back to filter-based bulk delete')
                       console.error('Error details:', apiError)
                       console.error('Error message:', apiError instanceof Error ? apiError.message : String(apiError))
                       console.error('Full error object:', JSON.stringify(apiError, null, 2))
+
+                      // Use the new filter-based bulk delete: pass source filter directly to backend
+                      // The backend will find and delete all products matching this source without needing IDs
+                      console.log(`[ScraperManager] Fallback: using filter-based bulk delete for source: ${sourceToDelete}`)
                       
-                      await Promise.all(
-                        productsToDelete.map(p => APIService.deleteProduct(p.slug || p.id))
-                      )
-                      
-                      const updatedProducts = products.filter(p => !(typeof p.source === 'string' && p.source === matchName))
-                      onProductsUpdate(updatedProducts)
-                      toast.success('Deleted products from selected source')
+                      try {
+                        const result = await APIService.deleteProductsByFilters({
+                          source: sourceToDelete || '',
+                          includeBanned: true
+                        })
+                        console.log(`[ScraperManager] ✅ Fallback filter-based delete complete: ${result.deletedCount} products deleted from source: ${sourceToDelete}`)
+
+                        // Reload all products from backend to reflect the deletion
+                        try {
+                          const allProducts = await APIService.getAllProducts({ includeBanned: true })
+                          onProductsUpdate(allProducts)
+                        } catch (reloadError) {
+                          console.warn('[ScraperManager] Failed to reload products after fallback delete, using local filter:', reloadError)
+                          const updatedProducts = products.filter(
+                            p => !(typeof p.source === 'string' && normalizeSource(p.source) === normalizedSourceToDelete),
+                          )
+                          onProductsUpdate(updatedProducts)
+                        }
+                        toast.success('Deleted products from selected source')
+                      } catch (filterError) {
+                        console.error('[ScraperManager] ❌ Fallback filter-based delete also failed:', filterError)
+                        throw filterError
+                      }
                     }
                   }
                   setDeleteSourceDialog(false)

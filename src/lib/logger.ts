@@ -22,7 +22,11 @@ const resolvedLevel: LogLevel = LEVELS.includes(rawLevel as LogLevel)
   ? (rawLevel as LogLevel)
   : 'debug'
 
-const shouldLog = (level: LogLevel) => levelRank[level] >= levelRank[resolvedLevel]
+let runtimeOverrideLevel: LogLevel | null = null
+
+const getEffectiveLevel = (): LogLevel => runtimeOverrideLevel ?? resolvedLevel
+
+const shouldLog = (level: LogLevel) => levelRank[level] >= levelRank[getEffectiveLevel()]
 
 const originalConsole = {
   log: console.log.bind(console),
@@ -57,6 +61,16 @@ console.error = logger.error
 
 // Log the active level once using the original console to avoid filtering itself.
 originalConsole.info(`[logger] Log level set to "${resolvedLevel}" (VITE_LOG_LEVEL)`)
+
+export const setRuntimeLogLevel = (level: LogLevel | null): void => {
+  runtimeOverrideLevel = level
+  const effectiveLevel = getEffectiveLevel()
+  if (level === null) {
+    originalConsole.info(`[logger] Runtime override cleared; effective level is "${effectiveLevel}"`)
+    return
+  }
+  originalConsole.info(`[logger] Runtime override set to "${level}"; effective level is "${effectiveLevel}"`)
+}
 
 export const currentLogLevel = resolvedLevel
 export const isDebugEnabled = shouldLog('debug')

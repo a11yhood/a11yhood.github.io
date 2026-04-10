@@ -1,11 +1,13 @@
 version: 2
-updates:
+updates: 
   - package-ecosystem: "npm"
     directory: "/"
+    open-pull-requests-limit: 0
     schedule:
       interval: "daily"
 
   - package-ecosystem: "devcontainers"
     directory: "/"
+    open-pull-requests-limit: 0
     schedule:
       interval: "weekly"

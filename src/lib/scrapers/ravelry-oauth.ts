@@ -40,18 +40,19 @@ async function getConfig(): Promise<OAuth2Config | null> {
     const configStr = localStorage.getItem(CONFIG_KEY)
     if (configStr) {
       const parsed = JSON.parse(configStr) as OAuth2Config
-      // Only validate against backend if we expect a stored token there
+      // Local config is source-of-truth for browser OAuth flow.
+      // Backend validation is best-effort and should never block local usage.
       if (parsed.accessToken) {
         try {
           await APIService.getOAuthConfig('ravelry')
         } catch (error: any) {
-          if (error?.status === 404) {
-            // Backend lost config but we have it in localStorage; return it
-            // The caller can retry saveConfig to re-sync with backend
-            console.warn('[Ravelry OAuth] Backend missing config but found in localStorage; will resync on next save')
-            return parsed
-          }
-          throw error
+          // If backend is temporarily unavailable or auth/session is still warming up,
+          // keep using local config so callback handling and re-auth continue to work.
+          console.warn('[Ravelry OAuth] Backend config check failed, using local config:', {
+            status: error?.status,
+            message: error?.message,
+          })
+          return parsed
         }
       }
       return parsed
@@ -82,10 +83,43 @@ async function getConfig(): Promise<OAuth2Config | null> {
  */
 async function saveConfig(config: OAuth2Config): Promise<void> {
   const SAVE_LOG_KEY = 'ravelry-oauth-save-log'
+  console.log('[Ravelry OAuth] Saving config...')
   try {
-    console.log('[Ravelry OAuth] Saving config...')
     // Save to localStorage for temporary access
     localStorage.setItem(CONFIG_KEY, JSON.stringify(config))
+
+    // Keep backend OAuth config in sync before callback token exchange.
+    // The backend callback endpoint relies on stored client/redirect config.
+    if (config.clientId && config.clientSecret) {
+      try {
+        const upsertPayload: {
+          clientId: string
+          clientSecret: string
+          accessToken?: string
+          refreshToken?: string
+          redirectUri?: string
+        } = {
+          clientId: config.clientId,
+          clientSecret: config.clientSecret,
+          accessToken: config.accessToken,
+          refreshToken: config.refreshToken,
+        }
+
+        // Only include redirectUri when it is explicitly set to avoid clobbering
+        // any previously stored redirect URI in the backend with an empty value.
+        if (config.redirectUri !== undefined) {
+          upsertPayload.redirectUri = config.redirectUri
+        }
+  
+        await APIService.upsertOAuthConfig('ravelry', upsertPayload)
+      } catch (error: any) {
+          // Best-effort: do not block token persistence or local usage
+          console.warn('[Ravelry OAuth] Failed to upsert backend OAuth config, continuing with local config only:', {
+            status: error?.status,
+            message: error?.message,
+          })
+        }
+      }
     
     // Save token to backend database
     if (config.accessToken) {
@@ -175,7 +209,8 @@ async function clearConfig(): Promise<void> {
  */
 async function isAuthorized(): Promise<boolean> {
   const config = await getConfig()
-  return !!(config && config.accessToken && config.clientId && config.clientSecret)
+  // Backend responses may omit clientSecret; accessToken is the primary signal of an active connection.
+  return !!(config && config.accessToken)
 }
 
 /**
@@ -219,40 +254,54 @@ async function exchangeCodeForToken(
       step: 'token-exchange-start',
       timestamp: Date.now(),
       redirectUri,
+      requestDetails: {
+        url: OAUTH_TOKEN_URL,
+        redirectUri,
+        codeLength: code.length,
+        clientIdLength: clientId.length,
+        clientSecretLength: clientSecret.length,
+      },
     }))
 
-    const tokenRequestBody = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: redirectUri,
-    })
+    const data = await APIService.completeOAuthCallback('ravelry', code)
 
-    const authHeader = btoa(`${clientId}:${clientSecret}`)
-    
-    // Use CORS proxy for token exchange (required for browser-based OAuth)
-    const tokenUrl = `https://corsproxy.io/?${encodeURIComponent(OAUTH_TOKEN_URL)}`
-    
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${authHeader}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: tokenRequestBody.toString(),
-    })
+      // Accept either camelCase or snake_case fields from backend responses.
+      const accessToken = data?.accessToken ?? data?.access_token
+      const refreshToken = data?.refreshToken ?? data?.refresh_token
+      const expiresIn = data?.expiresIn ?? data?.expires_in
+      const username = data?.username
 
-    if (response.ok) {
-      const data = await response.json()
-      
-      const expiresAt = data.expires_in 
-        ? Date.now() + (data.expires_in * 1000) 
+      let resolvedAccessToken = accessToken
+      let resolvedRefreshToken = refreshToken
+      let resolvedUsername = username
+
+      // If callback response omits token fields, pull current config from backend.
+      if (!resolvedAccessToken) {
+        try {
+          const backendConfig = await APIService.getOAuthConfig('ravelry')
+          resolvedAccessToken = backendConfig?.accessToken ?? backendConfig?.access_token
+          resolvedRefreshToken = resolvedRefreshToken ?? backendConfig?.refreshToken ?? backendConfig?.refresh_token
+          resolvedUsername = resolvedUsername ?? backendConfig?.username
+        } catch (configError) {
+          console.warn('[Ravelry OAuth] Could not refresh OAuth config after callback:', configError)
+        }
+      }
+
+      if (!resolvedAccessToken) {
+        console.error('[Ravelry OAuth] Callback succeeded but no access token was returned or available from config')
+        return false
+      }
+
+      const expiresAt = expiresIn
+        ? Date.now() + (expiresIn * 1000)
         : undefined
 
       const config: OAuth2Config = {
         clientId,
         clientSecret,
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token,
+        accessToken: resolvedAccessToken,
+        refreshToken: resolvedRefreshToken,
+        username: resolvedUsername,
         expiresAt,
         redirectUri,
       }
@@ -267,26 +316,29 @@ async function exchangeCodeForToken(
 
       console.log('[Ravelry OAuth] Token exchange successful')
       return true
-    }
-
-    const errorText = await response.text()
-    console.error('[Ravelry OAuth] Token exchange failed:', response.status, errorText)
-    
-    localStorage.setItem(FLOW_LOG_KEY, JSON.stringify({
-      step: 'token-exchange-failed',
-      timestamp: Date.now(),
-      status: response.status,
-      error: errorText,
-    }))
-
-    return false
   } catch (error) {
     console.error('[Ravelry OAuth] Exception during token exchange:', error)
+
+    const apiError = error as any
+    const status = apiError?.status
+    const message = apiError?.message || (error instanceof Error ? error.message : String(error))
+    const hint = status === 404
+      ? 'Backend missing /scrapers/oauth/{platform}/callback endpoint'
+      : undefined
     
     localStorage.setItem(FLOW_LOG_KEY, JSON.stringify({
       step: 'token-exchange-exception',
       timestamp: Date.now(),
-      error: error instanceof Error ? error.message : String(error),
+      status,
+      error: message,
+      hint,
+      requestDetails: {
+        url: '/api/scrapers/oauth/ravelry/callback',
+        redirectUri,
+        codeLength: code.length,
+        clientIdLength: clientId.length,
+        clientSecretLength: clientSecret.length,
+      },
     }))
 
     return false

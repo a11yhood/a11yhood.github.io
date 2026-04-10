@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -170,7 +170,7 @@ export function PublicProfile({ username }: { username: string }) {
                       if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
                       return (
                         <a
-                          href={account.website}
+                          href={url.href}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1 hover:text-primary"
@@ -268,32 +268,26 @@ export function PublicProfile({ username }: { username: string }) {
           <CardContent>
             <div className="space-y-3">
               {blogPosts.map((post) => (
-                <div
+                <Link
                   key={post.id}
-                  className="border rounded-lg p-4 hover:border-primary transition-colors cursor-pointer"
-                  onClick={() => navigate(`/blog/${post.slug}`)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      navigate(`/blog/${post.slug}`)
-                    }
-                  }}
+                  to={`/blog/${post.slug}`}
+                  className="block no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1 flex-1">
-                      <h3 className="font-semibold leading-tight">{post.title}</h3>
-                      {post.excerpt && (
-                        <p className="text-sm text-muted-foreground line-clamp-2">{post.excerpt}</p>
-                      )}
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{new Date(post.publishDate || post.publishedAt || post.createdAt).toLocaleDateString()}</span>
-                        {post.featured && <Badge variant="default" className="text-xs">Featured</Badge>}
+                  <div className="border rounded-lg p-4 hover:border-primary transition-colors cursor-pointer">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-1 flex-1">
+                        <h3 className="font-semibold leading-tight">{post.title}</h3>
+                        {post.excerpt && (
+                          <p className="text-sm text-muted-foreground line-clamp-2">{post.excerpt}</p>
+                        )}
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{new Date(post.publishDate || post.publishedAt || post.createdAt).toLocaleDateString()}</span>
+                          {post.featured && <Badge variant="default" className="text-xs">Featured</Badge>}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </CardContent>

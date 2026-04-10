@@ -1,0 +1,142 @@
+name: PR Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run lint
+        run: npm run lint
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - run: npm install @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu
+      - name: Run tests
+        env:
+          CI: true
+        run: npm run test:run
+      - name: Build for GitHub Pages
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_DEV_MODE: ${{ secrets.VITE_DEV_MODE }}
+          VITE_ENV: ${{ secrets.VITE_ENV }}
+          VITE_LOG_LEVEL: ${{ secrets.VITE_LOG_LEVEL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_BASE_URL: /draft/${{ github.event.number }}/
+        run: npx vite build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vite-site-${{ github.event.number }}
+          path: dist/
+
+  deploy-preview:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      PREVIEW_URL: https://a11yhood.org/draft/${{ github.event.number }}/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 1
+      - uses: actions/download-artifact@v4
+        with:
+          name: vite-site-${{ github.event.number }}
+          path: draft/${{ github.event.number }}/
+      - run: ls -lathr draft/${{ github.event.number }}/    
+      - name: Commit and push preview
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f draft/${{ github.event.number }}/*
+          if git diff --cached --quiet; then
+            echo "Nothing to commit, preview is already up to date"
+          else
+            git commit -m "Deploy PR #${{ github.event.number }} preview"
+            git push
+          fi
+
+      - name: Add preview URL to workflow summary
+        run: |
+          echo "### PR Preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "${PREVIEW_URL}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment preview URL on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- pr-preview-url -->';
+            const body = `${marker}\nPR preview is ready: ${process.env.PREVIEW_URL}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find(
+              (comment) =>
+                comment.user?.type === 'Bot' &&
+                typeof comment.body === 'string' &&
+                comment.body.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
+
+  accessibility_scanner:
+    name: A11y Preview Scan (PR)
+    needs: deploy-preview
+    runs-on: ubuntu-latest
+    # accessibility-scanner requires a custom PAT; forked PRs cannot access repository secrets.
+    if: ${{ github.event.pull_request.head.repo.fork == false }}
+    steps:
+      - uses: github/accessibility-scanner@v2
+        with:
+          urls: |
+            https://a11yhood.org/draft/${{ github.event.number }}/
+          repository: a11yhood/a11yhood.github.io
+          token: ${{ secrets.GH_TOKEN }}
+          cache_key: a11yhood.org-pr-${{ github.event.number }}

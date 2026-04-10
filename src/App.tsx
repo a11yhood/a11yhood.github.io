@@ -8,7 +8,7 @@
 console.log('📦 [App.tsx] Loading imports...')
 
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
+import { Routes, Route, Navigate, Link, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -28,18 +28,20 @@ import { AdminLogs } from '@/components/AdminLogs'
 import { BlogPostList } from '@/components/BlogPostList'
 import { BlogPostDetail } from '@/components/BlogPostDetail'
 import { BlogPostEditor } from '@/components/BlogPostEditor'
+import { BlogPostDraftPage } from '@/components/BlogPostDraftPage'
 import { CollectionsList } from '@/components/CollectionsList'
 import { CollectionDetail } from '@/components/CollectionDetail'
 import { CreateCollectionDialog } from '@/components/CreateCollectionDialog'
 import { EditCollectionDialog } from '@/components/EditCollectionDialog'
 import { AboutPage } from '@/components/AboutPage'
+import { NotFoundPage } from '@/components/NotFoundPage'
 import { UserSignup } from '@/components/UserSignup'
 import { FeaturedBlogCarousel } from '@/components/FeaturedBlogCarousel'
 import { HomePage } from '@/components/HomePage'
 import { SearchPage } from '@/components/SearchPage'
 import { Product, ProductUpdate, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput } from '@/lib/types'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
-import { logger } from '@/lib/logger'
+import { logger, setRuntimeLogLevel } from '@/lib/logger'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 // API adapter disabled - using real backend API now
 // import '@/lib/api-adapter'
@@ -799,7 +801,21 @@ function ProductDetailPageWrapper({
   )
 }
 
-function BlogPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userAccount: UserAccount | null }) {
+function NotFoundPage() {
+  return (
+    <div className="text-center py-16">
+      <h1 className="text-4xl font-bold mb-4">Page Not Found</h1>
+      <p className="text-muted-foreground mb-8">
+        The page you are looking for does not exist or has been moved.
+      </p>
+      <Link to="/" className="underline text-primary hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm">
+        Return to home
+      </Link>
+    </div>
+  )
+}
+
+function BlogPage({ blogPosts, blogPostsLoading, userAccount }: { blogPosts: BlogPost[], blogPostsLoading: boolean, userAccount: UserAccount | null }) {
   const navigate = useNavigate()
   const isAdmin = userAccount?.role === 'admin'
 
@@ -820,6 +836,7 @@ function BlogPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userAccou
       </div>
       <BlogPostList 
         posts={blogPosts}
+        isLoading={blogPostsLoading}
         onSelectPost={(post) => navigate(`/blog/${post.slug}`)}
       />
     </div>
@@ -1276,13 +1293,17 @@ function AdminPage({
   userAccount,
   ravelryAuthTimestamp,
   onProductsUpdate,
-  onBlogPostsUpdate
+  onBlogPostsUpdate,
+  adminVerboseLoggingEnabled,
+  onAdminVerboseLoggingChange,
 }: {
   products: Product[]
   userAccount: UserAccount | null
   ravelryAuthTimestamp: number
   onProductsUpdate: (products: Product[]) => void
   onBlogPostsUpdate: () => void
+  adminVerboseLoggingEnabled: boolean
+  onAdminVerboseLoggingChange: (enabled: boolean) => void
 }) {
   const navigate = useNavigate()
 
@@ -1307,6 +1328,8 @@ function AdminPage({
       userAccount={userAccount}
       ravelryAuthTimestamp={ravelryAuthTimestamp}
       onBlogPostsUpdate={onBlogPostsUpdate}
+      adminVerboseLoggingEnabled={adminVerboseLoggingEnabled}
+      onAdminVerboseLoggingChange={onAdminVerboseLoggingChange}
     />
   )
 }
@@ -1382,6 +1405,7 @@ function App() {
   const [user, setUser] = useState<UserData | null>(null)
   const [userAccount, setUserAccount] = useState<UserAccount | null>(null)
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
+  const [blogPostsLoading, setBlogPostsLoading] = useState(true)
   const [includeBanned, setIncludeBanned] = useState(false)
   const [hasAutoEnabledBanned, setHasAutoEnabledBanned] = useState(false)
   
@@ -1406,6 +1430,28 @@ function App() {
   const isTestEnv = import.meta.env.MODE === 'test'
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
   const [thingiverseAuthTimestamp, setThingiverseAuthTimestamp] = useState(0)
+  const [adminVerboseLoggingEnabled, setAdminVerboseLoggingEnabled] = useState(true)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('admin-verbose-logging-enabled')
+    if (saved === null) return
+    setAdminVerboseLoggingEnabled(saved === 'true')
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('admin-verbose-logging-enabled', String(adminVerboseLoggingEnabled))
+  }, [adminVerboseLoggingEnabled])
+
+  useEffect(() => {
+    // In production, keep non-admin logs at info and raise admin sessions to debug.
+    if (import.meta.env.PROD) {
+      setRuntimeLogLevel(isAdmin && adminVerboseLoggingEnabled ? 'debug' : 'info')
+      return
+    }
+
+    // In non-production, respect the configured env log level.
+    setRuntimeLogLevel(null)
+  }, [isAdmin, adminVerboseLoggingEnabled])
 
   // Tracks optimistically-applied tags per product ID across sequential async handleAddTag calls
   const pendingProductTagsRef = useRef<Map<string, string[]>>(new Map())
@@ -1758,9 +1804,28 @@ function App() {
               setProducts(products)
               setRatings(ratings)
               setBlogPosts(blogPosts)
+              setBlogPostsLoading(false)
             })
             .catch(error => {
               console.warn('[App] Failed to load homepage data:', error)
+              setBlogPostsLoading(false)
+            })
+          return
+        } else if (location.pathname.startsWith('/blog')) {
+          // Ensure direct navigations to /blog show a loading state and fetch posts.
+          setDataLoaded(true)
+          setIsSearching(false)
+          setBlogPostsLoading(true)
+
+          APIService.getAllBlogPosts(false)
+            .then((posts) => {
+              setBlogPosts(posts)
+            })
+            .catch((error) => {
+              console.warn('[App] Failed to load blog posts:', error)
+            })
+            .finally(() => {
+              setBlogPostsLoading(false)
             })
           return
         } else {
@@ -1826,9 +1891,11 @@ function App() {
             setRatings(ratings)
             setDiscussions(discussions)
             setBlogPosts(blogPosts)
+            setBlogPostsLoading(false)
           })
           .catch(error => {
             console.warn('[App] Failed to load ratings/discussions/blog posts:', error)
+            setBlogPostsLoading(false)
           })
       } catch (error) {
         console.error('Failed to load data:', error)
@@ -2253,6 +2320,15 @@ function App() {
         console.log('[App OAuth] → State received:', state ? state.substring(0, 16) + '...' : 'MISSING')
         console.log('[App OAuth] → Current URL:', window.location.href)
 
+        localStorage.setItem('ravelry-last-auth-code', code)
+        localStorage.setItem('ravelry-oauth-flow-log', JSON.stringify({
+          step: 'callback-received',
+          timestamp: Date.now(),
+          codeLength: code.length,
+          hasState: !!state,
+          url: window.location.href,
+        }))
+
         window.history.replaceState({}, document.title, '/admin')
         console.log('[App OAuth] → URL cleaned up immediately to prevent reload loop')
 
@@ -2277,6 +2353,12 @@ function App() {
           
           if (!config?.clientId || !config?.clientSecret) {
             console.error('[App OAuth] ✗ No OAuth credentials found in config')
+            localStorage.setItem('ravelry-oauth-flow-log', JSON.stringify({
+              step: 'missing-credentials-before-exchange',
+              timestamp: Date.now(),
+              hasClientId: !!config?.clientId,
+              hasClientSecret: !!config?.clientSecret,
+            }))
             toast.error('OAuth credentials not configured. Please set up your Client ID and Secret first.')
             return
           }
@@ -2679,10 +2761,13 @@ function App() {
 
   const handleBlogPostsUpdate = async () => {
     try {
+      setBlogPostsLoading(true)
       const posts = await APIService.getAllBlogPosts(false)
       setBlogPosts(posts)
     } catch (error) {
       console.error('Failed to reload blog posts:', error)
+    } finally {
+      setBlogPostsLoading(false)
     }
   }
 
@@ -3023,6 +3108,7 @@ function App() {
                 <HomePage
                   products={products}
                   blogPosts={blogPosts}
+                  blogPostsLoading={blogPostsLoading}
                   ratings={ratings}
                   onRate={handleRate}
                 />
@@ -3106,10 +3192,13 @@ function App() {
                 />
               } />
               <Route path="/blog" element={
-                <BlogPage blogPosts={blogPosts} userAccount={userAccount} />
+                <BlogPage blogPosts={blogPosts} blogPostsLoading={blogPostsLoading} userAccount={userAccount} />
               } />
               <Route path="/blog/:slug" element={
                 <BlogPostPage blogPosts={blogPosts} userAccount={userAccount} />
+              } />
+              <Route path="/draft/:id" element={
+                <BlogPostDraftPage userAccount={userAccount} />
               } />
               <Route path="/collections" element={
                 <CollectionsPage
@@ -3169,6 +3258,8 @@ function App() {
                   ravelryAuthTimestamp={ravelryAuthTimestamp}
                   onProductsUpdate={setProducts}
                   onBlogPostsUpdate={handleBlogPostsUpdate}
+                  adminVerboseLoggingEnabled={adminVerboseLoggingEnabled}
+                  onAdminVerboseLoggingChange={setAdminVerboseLoggingEnabled}
                 />
               } />
               <Route path="/admin/users" element={
@@ -3182,6 +3273,7 @@ function App() {
                   onProductsUpdate={setProducts}
                 />
               } />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </main>
 

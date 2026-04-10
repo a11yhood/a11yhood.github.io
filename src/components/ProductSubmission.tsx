@@ -159,7 +159,10 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
         if (p.description) setDescription(p.description)
         if (p.type) setType(p.type)
         if (p.tags) setTags(p.tags)
-        if (p.imageUrl || p.image) setImageUrl(p.imageUrl || p.image)
+        if (p.imageUrl || p.image) {
+          setImageUrl(p.imageUrl || p.image)
+          if (p.imageAlt) setImageAlt(p.imageAlt)
+        }
         if (p.sourceLastUpdated || p.source_last_updated) setSourceLastUpdated(p.sourceLastUpdated || p.source_last_updated)
         if (p.source) setSource(p.source)
         if (p.sourceUrls && Array.isArray(p.sourceUrls)) setSourceUrls(p.sourceUrls)
@@ -262,7 +265,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
       newErrors.imageAlt = 'Alt text is required when an image is provided'
     }
 
-    if (imageAlt && imageAlt.trim() && imageAlt.trim().length < 10) {
+    if (imageUrl && imageAlt && imageAlt.trim() && imageAlt.trim().length < 10) {
       newErrors.imageAlt = 'Alt text should be at least 10 characters'
     }
 
