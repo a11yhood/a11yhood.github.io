@@ -240,7 +240,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
 
           <div className="space-y-2">
             <label className="block text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
-              Alt Text <span className="text-destructive">*</span>
+              Alt Text {urlInput.trim() && <span className="text-destructive">*</span>}
               <Input
                 id="image-alt-text"
                 name="imageAlt"
