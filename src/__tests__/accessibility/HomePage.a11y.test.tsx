@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { HomePage } from '@/components/HomePage'
 import { createMockProduct } from '../helpers/create-mocks'
@@ -33,6 +33,16 @@ function createMockBlogPost(overrides?: Partial<BlogPost>): BlogPost {
 }
 
 describe('HomePage accessibility smoke tests', () => {
+  it('has a level-one heading (page-has-heading-one)', () => {
+    render(
+      <MemoryRouter>
+        <HomePage products={[]} {...defaultProps} />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
+  })
+
   it('has no obvious axe violations for initial empty product state', async () => {
     const { container } = render(
       <MemoryRouter>
