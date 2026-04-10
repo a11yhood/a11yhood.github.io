@@ -8,7 +8,7 @@
 console.log('📦 [App.tsx] Loading imports...')
 
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
+import { Routes, Route, Navigate, Link, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -797,6 +797,20 @@ function ProductDetailPageWrapper({
       allTags={allTags}
       allProductTypes={allProductTypes}
     />
+  )
+}
+
+function NotFoundPage() {
+  return (
+    <div className="text-center py-16">
+      <h1 className="text-4xl font-bold mb-4">Page Not Found</h1>
+      <p className="text-muted-foreground mb-8">
+        The page you are looking for does not exist or has been moved.
+      </p>
+      <Link to="/" className="underline text-primary hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm">
+        Return to home
+      </Link>
+    </div>
   )
 }
 
@@ -3180,6 +3194,7 @@ function App() {
                   onProductsUpdate={setProducts}
                 />
               } />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </main>
 
