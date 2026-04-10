@@ -8,7 +8,7 @@
 console.log('📦 [App.tsx] Loading imports...')
 
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
+import { Routes, Route, Navigate, Link, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -28,6 +28,7 @@ import { AdminLogs } from '@/components/AdminLogs'
 import { BlogPostList } from '@/components/BlogPostList'
 import { BlogPostDetail } from '@/components/BlogPostDetail'
 import { BlogPostEditor } from '@/components/BlogPostEditor'
+import { BlogPostDraftPage } from '@/components/BlogPostDraftPage'
 import { CollectionsList } from '@/components/CollectionsList'
 import { CollectionDetail } from '@/components/CollectionDetail'
 import { CreateCollectionDialog } from '@/components/CreateCollectionDialog'
@@ -797,6 +798,20 @@ function ProductDetailPageWrapper({
       allTags={allTags}
       allProductTypes={allProductTypes}
     />
+  )
+}
+
+function NotFoundPage() {
+  return (
+    <div className="text-center py-16">
+      <h1 className="text-4xl font-bold mb-4">Page Not Found</h1>
+      <p className="text-muted-foreground mb-8">
+        The page you are looking for does not exist or has been moved.
+      </p>
+      <Link to="/" className="underline text-primary hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm">
+        Return to home
+      </Link>
+    </div>
   )
 }
 
@@ -3104,6 +3119,9 @@ function App() {
               <Route path="/blog/:slug" element={
                 <BlogPostPage blogPosts={blogPosts} userAccount={userAccount} />
               } />
+              <Route path="/draft/:id" element={
+                <BlogPostDraftPage userAccount={userAccount} />
+              } />
               <Route path="/collections" element={
                 <CollectionsPage
                   collections={collections}
@@ -3177,8 +3195,6 @@ function App() {
                   onProductsUpdate={setProducts}
                 />
               } />
-              {/* Catch-all: render a page with a level-one heading so the page-has-heading-one
-                  accessibility rule is satisfied for any unrecognised URL (e.g. /draft/211/). */}
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </main>
