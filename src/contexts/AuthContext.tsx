@@ -144,7 +144,7 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
       confirmed_at: new Date().toISOString(),
       last_sign_in_at: new Date().toISOString(),
       app_metadata: { role: devUserFixture.role },
-      user_metadata: { username: devUserFixture.login },
+      user_metadata: { username: devUserFixture.username },
       identities: [],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

@@ -53,12 +53,24 @@ export type Product = {
   stars?: number // Number of stars/followers/likes from source platform
 }
 
+/**
+ * Payload type for updating a product. Extends Product but allows null for
+ * image fields so they can be explicitly cleared via PATCH.
+ */
+export type ProductUpdate = Omit<Product, 'imageUrl' | 'imageAlt'> & {
+  imageUrl?: string | null
+  imageAlt?: string | null
+}
+
 export type Rating = {
   productId: string
   userId: string
   rating: number
   createdAt: number
 }
+
+/** Sentinel value used for soft-deleted discussion content. */
+export const DELETED_DISCUSSION_CONTENT = '[deleted]'
 
 export type Discussion = {
   id: string
@@ -77,14 +89,13 @@ export type Discussion = {
 
 export type UserData = {
   id: string
-  login: string
+  username: string
   avatarUrl?: string
 }
 
 export type UserAccount = {
   id: string
   username?: string
-  login?: string
   displayName?: string
   avatarUrl?: string
   email?: string
@@ -176,7 +187,7 @@ export type CollectionCreateInput = {
   description?: string
   isPublic: boolean
   productSlugs?: string[]
-  userName: string
+  username: string
 }
 
 export type UserRequest = {

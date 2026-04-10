@@ -14,7 +14,7 @@ import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 describe('ProductSubmission (manual form on new GitHub URL)', () => {
   const user: UserData = {
     id: DEV_USERS.user.id,
-    login: DEV_USERS.user.login,
+    username: DEV_USERS.user.username,
     avatarUrl: 'https://example.com/a.png',
   }
 

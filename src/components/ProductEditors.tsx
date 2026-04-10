@@ -188,7 +188,7 @@ export function ProductEditors({
                   variant="ghost"
                   size="sm"
                   onClick={() => handleRemoveEditor(editor.id)}
-                  aria-label={`Remove ${editor.login} as editor`}
+                  aria-label={`Remove ${editor.username} as editor`}
                 >
                   <X size={16} />
                 </Button>

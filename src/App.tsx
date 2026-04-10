@@ -37,9 +37,9 @@ import { UserSignup } from '@/components/UserSignup'
 import { FeaturedBlogCarousel } from '@/components/FeaturedBlogCarousel'
 import { HomePage } from '@/components/HomePage'
 import { SearchPage } from '@/components/SearchPage'
-import { Product, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput } from '@/lib/types'
+import { Product, ProductUpdate, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput } from '@/lib/types'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
-import { logger } from '@/lib/logger'
+import { logger, setRuntimeLogLevel } from '@/lib/logger'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 // API adapter disabled - using real backend API now
 // import '@/lib/api-adapter'
@@ -123,7 +123,7 @@ export function ProductListPage({
   onRate: (productId: string, rating: number) => void
   onDeleteProduct: (productId: string) => void
   onToggleBan: (product: Product) => void
-  onCreateCollection: (data: Omit<Collection, 'id' | 'createdAt' | 'updatedAt'>) => void
+  onCreateCollection: (data: CollectionCreateInput) => void
   onOpenCreateCollection: (defaults: { name?: string; description?: string; productSlugs?: string[]; isPublic?: boolean }) => void
   searchQuery: string
   onSearchChange: (query: string) => void
@@ -203,9 +203,11 @@ export function ProductListPage({
   const allTags = useMemo(() => {
     const tagCounts = new Map<string, number>()
     products.forEach(product => {
-      (product.tags || []).filter(Boolean).forEach(tag => {
-        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
-      })
+      if (product && product.tags) {
+        product.tags.filter(Boolean).forEach(tag => {
+          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+        })
+      }
     })
     
     // Add filtered tags (from API) and selected tags with lower priority if not in current results
@@ -299,7 +301,7 @@ export function ProductListPage({
                   variant="outline"
                   onClick={() => onOpenCreateCollection({
                     name: searchQuery ? `Search: ${searchQuery}` : 'Filtered Products',
-                    productSlugs: products.map(p => p.slug),
+                    productSlugs: products.map(p => p.slug).filter((s): s is string => !!s),
                     isPublic: false
                   })}
                   className="text-xs"
@@ -432,12 +434,12 @@ export function ProductListPage({
 
           <h2 className="sr-only">Search Results</h2>
 
-          {isSearching ? (
+          {isSearching && products.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24">
               <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
               <p className="text-muted-foreground">Loading results...</p>
             </div>
-          ) : products.length === 0 ? (
+          ) : !isSearching && products.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-lg text-muted-foreground">
                 No products found. Try adjusting your filters.
@@ -456,8 +458,10 @@ export function ProductListPage({
                   product={product}
                   ratings={ratings}
                   collections={collections}
+                  selectedTags={selectedTags}
                   href={`/product/${product.slug ?? product.id}`}
                   onNavigate={() => navigate(`/product/${product.slug ?? product.id}`)}
+                  onTagClick={onTagToggle}
                   user={user}
                   onRate={onRate}
                   showBannedBadge={canViewBanned}
@@ -475,8 +479,10 @@ export function ProductListPage({
                   product={product}
                   ratings={ratings}
                   collections={collections}
+                  selectedTags={selectedTags}
                   href={`/product/${product.slug ?? product.id}`}
                   onNavigate={() => navigate(`/product/${product.slug ?? product.id}`)}
+                  onTagClick={onTagToggle}
                   onDelete={onDeleteProduct}
                   user={user}
                   onRate={onRate}
@@ -573,7 +579,7 @@ function ProductDetailPage({
   onAddTag: (productId: string, tag: string, productObj?: Product) => void
   onAddToCollection: (collectionSlug: string) => Promise<void>
   onRemoveFromCollection: (collectionSlug: string) => Promise<void>
-  onCreateCollection: (data: Omit<Collection, 'id' | 'createdAt' | 'updatedAt'>) => void
+  onCreateCollection: (data: CollectionCreateInput) => void
   onDelete: (productId: string) => void
   onEdit: (product: Product) => void
   onToggleBan: (product: Product, reason?: string) => void
@@ -789,13 +795,11 @@ function ProductDetailPageWrapper({
       onToggleBlockDiscussion={onToggleBlockDiscussion}
       allTags={allTags}
       allProductTypes={allProductTypes}
-      autoOpenEdit={autoOpenEdit}
-      autoOpenOwnershipRequest={autoOpenOwnershipRequest}
     />
   )
 }
 
-function BlogPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userAccount: UserAccount | null }) {
+function BlogPage({ blogPosts, blogPostsLoading, userAccount }: { blogPosts: BlogPost[], blogPostsLoading: boolean, userAccount: UserAccount | null }) {
   const navigate = useNavigate()
   const isAdmin = userAccount?.role === 'admin'
 
@@ -816,6 +820,7 @@ function BlogPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userAccou
       </div>
       <BlogPostList 
         posts={blogPosts}
+        isLoading={blogPostsLoading}
         onSelectPost={(post) => navigate(`/blog/${post.slug}`)}
       />
     </div>
@@ -865,7 +870,7 @@ function BlogPostPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userA
         <h1 className="text-3xl font-bold mb-6">Edit Blog Post</h1>
         <BlogPostEditor
           post={post}
-          authorName={userAccount.username}
+          authorName={userAccount.username || 'Unknown'}
           authorId={userAccount.id}
           onSave={handleSave}
           onCancel={handleCancelEdit}
@@ -888,6 +893,7 @@ function CollectionsPage({
   products, 
   user,
   userAccount,
+  collectionsFirstLoadComplete,
   onDeleteCollection,
   onEditCollection,
   onCreateCollection
@@ -896,20 +902,30 @@ function CollectionsPage({
   products: Product[]
   user: UserData | null
   userAccount: UserAccount | null
+  collectionsFirstLoadComplete: boolean
   onDeleteCollection: (collectionSlug: string) => void
   onEditCollection: (collection: Collection) => void
   onCreateCollection: () => void
 }) {
   const navigate = useNavigate()
   const [publicCollections, setPublicCollections] = useState<Collection[]>([])
+  const [myPage, setMyPage] = useState(1)
+  const [publicPage, setPublicPage] = useState(1)
+  const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
+  const [loadedCollectionIds, setLoadedCollectionIds] = useState<Set<string>>(new Set())
+  const [publicCollectionsFirstLoadComplete, setPublicCollectionsFirstLoadComplete] = useState(false)
+  const itemsPerPage = 12 // 3 columns x 4 rows
 
   useEffect(() => {
     const loadPublic = async () => {
+      setPublicCollectionsFirstLoadComplete(false)
       try {
         const result = await APIService.getPublicCollections('updated_at')
         setPublicCollections(result)
       } catch (e) {
         // ignore errors for now
+      } finally {
+        setPublicCollectionsFirstLoadComplete(true)
       }
     }
     loadPublic()
@@ -931,6 +947,91 @@ function CollectionsPage({
 
   console.log('[CollectionsPage] Total collections:', collections.length, 'My collections:', myCollections.length)
 
+  // Paginate collections
+  const myStart = (myPage - 1) * itemsPerPage
+  const myEnd = myStart + itemsPerPage
+  const paginatedMyCollections = myCollections.slice(myStart, myEnd)
+  const myTotalPages = Math.ceil(myCollections.length / itemsPerPage)
+
+  const filteredPublicCollections = publicCollections.filter(c => 
+    !userAccount || c.userId !== userAccount.id
+  )
+  const publicStart = (publicPage - 1) * itemsPerPage
+  const publicEnd = publicStart + itemsPerPage
+  const paginatedPublicCollections = filteredPublicCollections.slice(publicStart, publicEnd)
+  const publicTotalPages = Math.ceil(filteredPublicCollections.length / itemsPerPage)
+
+  // Reset loaded collections when pagination changes
+  useEffect(() => {
+    setLoadedCollectionIds(new Set())
+    setCollectionProducts([])
+  }, [myPage, publicPage])
+
+  // Load products from each visible collection for image display, one collection at a time
+  useEffect(() => {
+    const loadNextCollectionImages = async () => {
+      const visibleCollections = [...paginatedMyCollections, ...paginatedPublicCollections]
+      const MAX_IMAGE_PRODUCTS_PER_COLLECTION = 3
+
+      // Find the first unloaded collection
+      const unloadedCollection = visibleCollections.find(c => !loadedCollectionIds.has(c.id))
+
+      if (!unloadedCollection) return
+
+      // Get up to the first N product slugs from this collection
+      const candidateProductSlugs = (unloadedCollection.productSlugs || [])
+        .slice(0, MAX_IMAGE_PRODUCTS_PER_COLLECTION)
+        .filter(slug => slug)
+
+      if (candidateProductSlugs.length === 0) {
+        // Mark as loaded even if no products
+        setLoadedCollectionIds(prev => new Set([...prev, unloadedCollection.id]))
+        return
+      }
+
+      // Check which products we don't already have
+      const existingSlugs = new Set([...products, ...collectionProducts].map(p => p.slug))
+      const slugsToFetch = candidateProductSlugs.filter(slug => !existingSlugs.has(slug))
+
+      console.log('[CollectionsPage] Loading image products for collection:', {
+        collectionName: unloadedCollection.name,
+        totalSlugs: candidateProductSlugs.length,
+        slugsToFetch: slugsToFetch.length
+      })
+
+      try {
+        if (slugsToFetch.length > 0) {
+          // Fetch products for this collection
+          const results = await Promise.allSettled(
+            slugsToFetch.map(slug => APIService.getProductBySlug(slug))
+          )
+
+          const newProducts: Product[] = []
+          results.forEach(result => {
+            if (result.status === 'fulfilled' && result.value) {
+              newProducts.push(result.value)
+            }
+          })
+
+          if (newProducts.length > 0) {
+            console.log('[CollectionsPage] Loaded image products for collection:', newProducts.length)
+            setCollectionProducts(prev => [...prev, ...newProducts])
+          }
+        }
+      } catch (error) {
+        console.error('[CollectionsPage] Failed to load collection image products:', error)
+      } finally {
+        // Mark this collection as loaded
+        setLoadedCollectionIds(prev => new Set([...prev, unloadedCollection.id]))
+      }
+    }
+
+    loadNextCollectionImages()
+  }, [paginatedMyCollections, paginatedPublicCollections, products, collectionProducts, loadedCollectionIds])
+
+  // Merge products from App and locally loaded collection products
+  const allProducts = [...products, ...collectionProducts]
+
   return (
     <div>
       {user ? (
@@ -945,13 +1046,39 @@ function CollectionsPage({
             </div>
           </div>
           <CollectionsList
-            collections={myCollections}
-            products={products}
-            onSelectCollection={(collection) => navigate(`/collections/${collection.slug || collection.id}`)}
+            collections={paginatedMyCollections}
+            products={allProducts}
+            isFirstLoadComplete={collectionsFirstLoadComplete}
+            onSelectCollection={(collection) =>
+              navigate(`/collections/${collection.slug || collection.id}`, {
+                state: { collectionSnapshot: collection },
+              })
+            }
             onDeleteCollection={onDeleteCollection}
             onEditCollection={onEditCollection}
             currentUserId={user?.id}
           />
+          {myTotalPages > 1 && (
+            <div className="flex justify-center gap-2 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setMyPage(p => Math.max(1, p - 1))}
+                disabled={myPage === 1}
+              >
+                Previous
+              </Button>
+              <span className="flex items-center px-4">
+                Page {myPage} of {myTotalPages}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => setMyPage(p => Math.min(myTotalPages, p + 1))}
+                disabled={myPage === myTotalPages}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </>
       ) : (
         <div className="mb-6 flex items-center justify-between">
@@ -965,14 +1092,38 @@ function CollectionsPage({
       <div className="mt-10">
         <h2 className="text-2xl font-semibold mb-4">Public Collections</h2>
         <CollectionsList
-          collections={publicCollections.filter(c => 
-            !userAccount || c.userId !== userAccount.id
-          )}
-          products={products}
-          onSelectCollection={(collection) => navigate(`/collections/${collection.slug || collection.id}`)}
+          collections={paginatedPublicCollections}
+          products={allProducts}
+          isFirstLoadComplete={publicCollectionsFirstLoadComplete}
+          onSelectCollection={(collection) =>
+            navigate(`/collections/${collection.slug || collection.id}`, {
+              state: { collectionSnapshot: collection },
+            })
+          }
           onDeleteCollection={() => { /* no-op for public */ }}
           currentUserId={user?.id}
         />
+        {publicTotalPages > 1 && (
+          <div className="flex justify-center gap-2 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setPublicPage(p => Math.max(1, p - 1))}
+              disabled={publicPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="flex items-center px-4">
+              Page {publicPage} of {publicTotalPages}
+            </span>
+            <Button
+              variant="outline"
+              onClick={() => setPublicPage(p => Math.min(publicTotalPages, p + 1))}
+              disabled={publicPage === publicTotalPages}
+            >
+              Next
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -981,28 +1132,40 @@ function CollectionsPage({
 function CollectionDetailPage({ 
   collections,
   ratings,
+  products,
   user,
   userAccount,
   onRemoveProductFromCollection,
-  onDeleteProduct
+  onDeleteProduct,
+  onDeleteCollection,
+  onEditCollection,
 }: {
   collections: Collection[]
   ratings: Rating[]
+  products: Product[]
   user: UserData | null
   userAccount: UserAccount | null
   onRemoveProductFromCollection: (collectionSlug: string, productSlug: string) => void
   onDeleteProduct: (productId: string) => void
+  onDeleteCollection?: (collectionSlug: string) => void
+  onEditCollection?: (collection: Collection) => void
 }) {
   const { collectionSlug } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const state = location.state as { collectionSnapshot?: Collection } | null
   
-  // Try to find by slug first, then by ID
-  const collection = collections.find(c => c.slug === collectionSlug || c.slug === collectionSlug)
+  // Try to find by slug first, then by ID.
+  const collection = collections.find(c => c.slug === collectionSlug || c.id === collectionSlug)
+  const snapshotCollection = state?.collectionSnapshot &&
+    (state.collectionSnapshot.slug === collectionSlug || state.collectionSnapshot.id === collectionSlug)
+    ? state.collectionSnapshot
+    : null
   const [externalCollection, setExternalCollection] = useState<Collection | null>(null)
 
-  // Refetch collection if it's loaded externally (not from main collections list)
+  // Explicit refresh for post-mutation actions.
   const refetchExternalCollection = async () => {
-    if (!collection && collectionSlug) {
+    if (collectionSlug) {
       try {
         const fetched = await APIService.getCollection(collectionSlug)
         setExternalCollection(fetched)
@@ -1014,7 +1177,9 @@ function CollectionDetailPage({
 
   useEffect(() => {
     const load = async () => {
-      if (!collection && collectionSlug) {
+      // Avoid extra backend call when we already have collection data from
+      // list state or route-state snapshot.
+      if (!collection && !snapshotCollection && collectionSlug) {
         try {
           const fetched = await APIService.getCollection(collectionSlug)
           setExternalCollection(fetched)
@@ -1024,9 +1189,9 @@ function CollectionDetailPage({
       }
     }
     load()
-  }, [collection, collectionSlug])
+  }, [collection, snapshotCollection, collectionSlug])
 
-  const effectiveCollection = collection || externalCollection || null
+  const effectiveCollection = externalCollection || snapshotCollection || collection || null
 
   if (!effectiveCollection) {
     return (
@@ -1043,6 +1208,7 @@ function CollectionDetailPage({
     <CollectionDetail
       collection={effectiveCollection}
       ratings={ratings}
+      products={products}
       onBack={() => navigate('/collections')}
       onRemoveProduct={async (productSlug) => {
         onRemoveProductFromCollection(effectiveCollection.slug || effectiveCollection.id, productSlug)
@@ -1053,6 +1219,11 @@ function CollectionDetailPage({
       isOwner={user?.id === effectiveCollection.userId}
       userAccount={userAccount}
       onDeleteProduct={onDeleteProduct}
+      onDeleteCollection={onDeleteCollection ? async () => {
+        await onDeleteCollection(effectiveCollection.slug || effectiveCollection.id)
+        navigate('/collections')
+      } : undefined}
+      onEditCollection={onEditCollection ? () => onEditCollection(effectiveCollection) : undefined}
       onTogglePrivacy={async (nextPublic) => {
         try {
           const updated = await APIService.updateCollection(effectiveCollection.id, { isPublic: nextPublic })
@@ -1106,13 +1277,17 @@ function AdminPage({
   userAccount,
   ravelryAuthTimestamp,
   onProductsUpdate,
-  onBlogPostsUpdate
+  onBlogPostsUpdate,
+  adminVerboseLoggingEnabled,
+  onAdminVerboseLoggingChange,
 }: {
   products: Product[]
   userAccount: UserAccount | null
   ravelryAuthTimestamp: number
   onProductsUpdate: (products: Product[]) => void
   onBlogPostsUpdate: () => void
+  adminVerboseLoggingEnabled: boolean
+  onAdminVerboseLoggingChange: (enabled: boolean) => void
 }) {
   const navigate = useNavigate()
 
@@ -1137,6 +1312,8 @@ function AdminPage({
       userAccount={userAccount}
       ravelryAuthTimestamp={ravelryAuthTimestamp}
       onBlogPostsUpdate={onBlogPostsUpdate}
+      adminVerboseLoggingEnabled={adminVerboseLoggingEnabled}
+      onAdminVerboseLoggingChange={onAdminVerboseLoggingChange}
     />
   )
 }
@@ -1212,6 +1389,7 @@ function App() {
   const [user, setUser] = useState<UserData | null>(null)
   const [userAccount, setUserAccount] = useState<UserAccount | null>(null)
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
+  const [blogPostsLoading, setBlogPostsLoading] = useState(true)
   const [includeBanned, setIncludeBanned] = useState(false)
   const [hasAutoEnabledBanned, setHasAutoEnabledBanned] = useState(false)
   
@@ -1219,6 +1397,7 @@ function App() {
   const isAdmin = userAccount?.role === 'admin'
   const isModerator = userAccount?.role === 'moderator' || userAccount?.role === 'admin'
   const [collections, setCollections] = useState<Collection[]>([])
+  const [collectionsFirstLoadComplete, setCollectionsFirstLoadComplete] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
   const [showCreateCollectionFromSearchDialog, setShowCreateCollectionFromSearchDialog] = useState(false)
   const [showEditCollectionDialog, setShowEditCollectionDialog] = useState(false)
@@ -1230,15 +1409,49 @@ function App() {
   const [showSignup, setShowSignup] = useState(false)
   const [isNewUser, setIsNewUser] = useState(false)
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
-  const [oauthProcessed, setOauthProcessed] = useState(false)
+  const oauthProcessedRef = useRef(false)
   const [ravelryAuthTimestamp, setRavelryAuthTimestamp] = useState(0)
   const isTestEnv = import.meta.env.MODE === 'test'
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
   const [thingiverseAuthTimestamp, setThingiverseAuthTimestamp] = useState(0)
+  const [adminVerboseLoggingEnabled, setAdminVerboseLoggingEnabled] = useState(true)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('admin-verbose-logging-enabled')
+    if (saved === null) return
+    setAdminVerboseLoggingEnabled(saved === 'true')
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('admin-verbose-logging-enabled', String(adminVerboseLoggingEnabled))
+  }, [adminVerboseLoggingEnabled])
+
+  useEffect(() => {
+    // In production, keep non-admin logs at info and raise admin sessions to debug.
+    if (import.meta.env.PROD) {
+      setRuntimeLogLevel(isAdmin && adminVerboseLoggingEnabled ? 'debug' : 'info')
+      return
+    }
+
+    // In non-production, respect the configured env log level.
+    setRuntimeLogLevel(null)
+  }, [isAdmin, adminVerboseLoggingEnabled])
+
+  // Tracks optimistically-applied tags per product ID across sequential async handleAddTag calls
+  const pendingProductTagsRef = useRef<Map<string, string[]>>(new Map())
   
-  // Helper to normalize URL param arrays: filter empty strings and deduplicate
+  // Helper to normalize URL param arrays: filter empty strings, deduplicate, and sort so
+  // order differences between URL and state never cause spurious state updates.
   const normalizeParamArray = (params: string[]): string[] => {
-    return Array.from(new Set(params.filter(Boolean)))
+    return Array.from(new Set(params.filter(Boolean))).sort()
+  }
+
+  // Helper for order-insensitive array equality (sorts copies before comparing)
+  const arraysEqual = (a: string[], b: string[]): boolean => {
+    if (a.length !== b.length) return false
+    const sortedA = [...a].sort()
+    const sortedB = [...b].sort()
+    return sortedA.every((v, i) => v === sortedB[i])
   }
   
   // Filter states - initialize from URL params
@@ -1330,6 +1543,20 @@ function App() {
     setCurrentPage(1) // Reset to first page when sorting changes
   }
 
+  // Keep default sorting route-aware unless the user explicitly picks a sort.
+  useEffect(() => {
+    if (sortHasChanged) {
+      return
+    }
+
+    const defaultSortByForRoute: 'created_at' = 'created_at'
+
+    if (sortBy !== defaultSortByForRoute || sortOrder !== 'desc') {
+      setSortBy(defaultSortByForRoute)
+      setSortOrder('desc')
+    }
+  }, [location.pathname, sortHasChanged, sortBy, sortOrder])
+
   // Debounce the updatedSince input so we only fire requests after user pauses typing
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1373,25 +1600,25 @@ function App() {
   useEffect(() => {
     if (location.pathname !== '/products') return
     const urlQuery = searchParams.get('q') || ''
-    setSearchQuery(urlQuery)
-    setSearchInputValue(urlQuery)
+
+    // Guard primitives too — avoid enqueuing a state update when nothing changed.
+    setSearchQuery(current => current === urlQuery ? current : urlQuery)
+    setSearchInputValue(current => current === urlQuery ? current : urlQuery)
     
-    // Only update filter states when the normalized URL params actually differ from current state
+    // Only update filter states when the normalized URL params actually differ from current state.
+    // normalizeParamArray sorts the values, so order changes in the URL don't trigger spurious updates.
     const urlTags = normalizeParamArray(searchParams.getAll('tag'))
     const urlTypes = normalizeParamArray(searchParams.getAll('type'))
     const urlSources = normalizeParamArray(searchParams.getAll('source'))
     
     setSelectedTags(current => {
-      const changed = current.length !== urlTags.length || !current.every((tag, i) => tag === urlTags[i])
-      return changed ? urlTags : current
+      return arraysEqual(current, urlTags) ? current : urlTags
     })
     setSelectedTypes(current => {
-      const changed = current.length !== urlTypes.length || !current.every((type, i) => type === urlTypes[i])
-      return changed ? urlTypes : current
+      return arraysEqual(current, urlTypes) ? current : urlTypes
     })
     setSelectedSources(current => {
-      const changed = current.length !== urlSources.length || !current.every((source, i) => source === urlSources[i])
-      return changed ? urlSources : current
+      return arraysEqual(current, urlSources) ? current : urlSources
     })
   }, [searchParams, location.pathname])
 
@@ -1401,9 +1628,11 @@ function App() {
     // Count tag frequencies in current products
     const tagCounts = new Map<string, number>()
     products.forEach(product => {
-      (product.tags || []).filter(Boolean).forEach(tag => {
-        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
-      })
+      if (product && product.tags) {
+        product.tags.filter(Boolean).forEach(tag => {
+          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+        })
+      }
     })
     
     // Add filtered tags and selected tags with lower priority if not in current results
@@ -1430,14 +1659,14 @@ function App() {
       // Only load all products on pages that need the full list
       const needsFullProductList = location.pathname === '/products' || 
                                    location.pathname === '/submit' ||
-                                   location.pathname.startsWith('/collections') ||
                                    location.pathname.startsWith('/admin')
       
       // Only load filter metadata (tags, sources, types) on pages that use them
+      // Don't load on collection detail pages (/collections/:slug)
       const needsFilterMetadata = needsFullProductList
       
       try {
-        // Load metadata only if needed (search, collections, admin pages)
+        // Load metadata only if needed (search, admin pages)
         // Do not block initial product load on slow metadata endpoints.
         if (needsFilterMetadata) {
           void Promise.allSettled([
@@ -1481,9 +1710,28 @@ function App() {
               setProducts(products)
               setRatings(ratings)
               setBlogPosts(blogPosts)
+              setBlogPostsLoading(false)
             })
             .catch(error => {
               console.warn('[App] Failed to load homepage data:', error)
+              setBlogPostsLoading(false)
+            })
+          return
+        } else if (location.pathname.startsWith('/blog')) {
+          // Ensure direct navigations to /blog show a loading state and fetch posts.
+          setDataLoaded(true)
+          setIsSearching(false)
+          setBlogPostsLoading(true)
+
+          APIService.getAllBlogPosts(false)
+            .then((posts) => {
+              setBlogPosts(posts)
+            })
+            .catch((error) => {
+              console.warn('[App] Failed to load blog posts:', error)
+            })
+            .finally(() => {
+              setBlogPostsLoading(false)
             })
           return
         } else {
@@ -1500,24 +1748,32 @@ function App() {
           return
         }
 
-        // First fetch shared metadata (sources/types/tags) so we can fan-out product fetches per source
-        // Use Promise.allSettled so that failures in one endpoint don't block others
-        const results = await Promise.allSettled([
-          APIService.getProductCount({ includeBanned: false }),
-        ])
-        
-        const totalCount = results[0].status === 'fulfilled' ? results[0].value : 0
+        // Build initial fetch params from URL when landing on /products so we don't
+        // briefly show unfiltered results before URL-driven filters are applied.
+        const initialUrlQuery = location.pathname === '/products' ? (searchParams.get('q') || '') : ''
+        const initialUrlTypes = location.pathname === '/products' ? normalizeParamArray(searchParams.getAll('type')) : []
+        const initialUrlSources = location.pathname === '/products' ? normalizeParamArray(searchParams.getAll('source')) : []
+        const initialUrlTags = location.pathname === '/products' ? normalizeParamArray(searchParams.getAll('tag')) : []
 
-        // Fetch first page of products with default filters
-        // The fetchProducts effect will handle applying actual current filter values
-        const offset = 0 // page 1
-        const loadedProducts = await APIService.getAllProducts({ 
+        const initialProductParams = {
           includeBanned: false,
+          search: initialUrlQuery || undefined,
           limit: pageSize,
-          offset,
-          sortBy: 'created_at',
-          sortOrder: 'desc',
-        })
+          offset: 0,
+          sources: initialUrlSources.length > 0 ? initialUrlSources : undefined,
+          types: initialUrlTypes.length > 0 ? initialUrlTypes : undefined,
+          tags: initialUrlTags.length > 0 ? initialUrlTags : undefined,
+          sortBy: 'created_at' as const,
+          sortOrder: 'desc' as const,
+        }
+
+        const [countResult, productsResult] = await Promise.allSettled([
+          APIService.getProductCount(initialProductParams),
+          APIService.getAllProducts(initialProductParams),
+        ])
+
+        const loadedProducts = productsResult.status === 'fulfilled' ? productsResult.value : []
+        const totalCount = countResult.status === 'fulfilled' ? countResult.value : loadedProducts.length
         
         console.log('[App] Data loaded:', {
           products: loadedProducts.length,
@@ -1541,9 +1797,11 @@ function App() {
             setRatings(ratings)
             setDiscussions(discussions)
             setBlogPosts(blogPosts)
+            setBlogPostsLoading(false)
           })
           .catch(error => {
             console.warn('[App] Failed to load ratings/discussions/blog posts:', error)
+            setBlogPostsLoading(false)
           })
       } catch (error) {
         console.error('Failed to load data:', error)
@@ -1578,10 +1836,11 @@ function App() {
     }
 
     // Check if this is the initial load with no filters (skip to avoid duplicate from initial load)
-        const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 && 
-                selectedTypes.length === 0 && selectedTags.length === 0 && 
-                minRating === 0 && committedUpdatedSince === null &&
-          sortBy === 'created_at' && sortOrder === 'desc' && !sortHasChanged
+    const defaultSortByForRoute: 'created_at' = 'created_at'
+    const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 &&
+      selectedTypes.length === 0 && selectedTags.length === 0 &&
+      minRating === 0 && committedUpdatedSince === null &&
+      sortBy === defaultSortByForRoute && sortOrder === 'desc' && !sortHasChanged
     
     if (isInitialLoad) {
       console.log('[App.fetchEffect] Skipping - using data from initial load')
@@ -1644,9 +1903,11 @@ function App() {
         console.log('[App.fetchEffect] Fetching products with params:', params)
         setIsSearching(true)
 
+        const requestParams = { ...params, signal: abortController.signal }
+
         const [countResult, productsResult, tagsResult] = await Promise.allSettled([
-          APIService.getProductCount(params, { signal: abortController.signal }),
-          APIService.getAllProducts(params, { signal: abortController.signal }),
+          APIService.getProductCount(requestParams),
+          APIService.getAllProducts(requestParams),
           APIService.getFilteredTags({
             search: params.search,
             sources: effectiveSources.length > 0 ? effectiveSources : undefined,
@@ -1674,7 +1935,7 @@ function App() {
             try {
               const withoutRating = await APIService.getAllProducts(fallbackParams)
               const clientFiltered = withoutRating.filter(p => {
-                const productRatings = ratings.filter(r => r.productSlug === p.slug)
+                const productRatings = ratings.filter(r => r.productId === p.id)
                 if (productRatings.length > 0 && p.sourceRating) {
                   const userAverage = productRatings.reduce((sum, r) => sum + r.rating, 0) / productRatings.length
                   const avgRating = (userAverage + p.sourceRating) / 2
@@ -1770,7 +2031,7 @@ function App() {
           
           const userData = {
             id: authUser.id,
-            username: account.username,
+            username: account.username || authUser.id,
             avatarUrl: account.avatarUrl,
           }
           
@@ -1863,7 +2124,7 @@ function App() {
 
         const userData = {
           id: authUser.id,
-          username: account.username,
+          username: account.username || authUser.id,
           avatarUrl: account.avatarUrl,
         }
 
@@ -1907,18 +2168,18 @@ function App() {
       
       console.log('[App OAuth] → Code in URL:', code ? `YES (${code.substring(0, 10)}...)` : 'NO')
       console.log('[App OAuth] → Is OAuth callback:', isCallback)
-      console.log('[App OAuth] → oauthProcessed flag:', oauthProcessed)
-      console.log('[App OAuth] → authUser:', authUser ? `${authUser.username}` : 'null')
+      console.log('[App OAuth] → oauthProcessed flag:', oauthProcessedRef.current)
+      console.log('[App OAuth] → authUser:', authUser ? `${authUser.id}` : 'null')
       console.log('[App OAuth] → authLoading:', authLoading)
       
       // If this is a fresh callback, reset the processed flag
-      if (isCallback && oauthProcessed) {
+      if (isCallback && oauthProcessedRef.current) {
         console.log('[App OAuth] → Fresh callback detected, resetting oauthProcessed flag')
-        setOauthProcessed(false)
+        oauthProcessedRef.current = false
         return // Return and let next render process it
       }
       
-      if (oauthProcessed && !isCallback) {
+      if (oauthProcessedRef.current && !isCallback) {
         console.log('[App OAuth] → Already processed and no callback params, skipping')
         return
       }
@@ -1936,7 +2197,7 @@ function App() {
         if (code) {
           console.warn('[App OAuth] ⚠️  Ravelry OAuth callback received but user not logged in')
           toast.error('Please sign in with GitHub first, then authorize Ravelry.')
-          setOauthProcessed(true)
+          oauthProcessedRef.current = true
           window.history.replaceState({}, document.title, '/admin')
         }
         return
@@ -1953,17 +2214,26 @@ function App() {
         
         toast.error(`OAuth Error: ${errorParam}${errorDesc ? ` - ${errorDesc}` : ''}`)
         window.history.replaceState({}, document.title, '/admin')
-        setOauthProcessed(true)
+        oauthProcessedRef.current = true
         return
       }
       
       if (code && window.location.pathname === '/admin') {
-        setOauthProcessed(true)
+        oauthProcessedRef.current = true
         
         console.log('[App OAuth] ========== OAUTH CALLBACK DETECTED ==========')
         console.log('[App OAuth] → Authorization code received:', code.substring(0, 10) + '...')
         console.log('[App OAuth] → State received:', state ? state.substring(0, 16) + '...' : 'MISSING')
         console.log('[App OAuth] → Current URL:', window.location.href)
+
+        localStorage.setItem('ravelry-last-auth-code', code)
+        localStorage.setItem('ravelry-oauth-flow-log', JSON.stringify({
+          step: 'callback-received',
+          timestamp: Date.now(),
+          codeLength: code.length,
+          hasState: !!state,
+          url: window.location.href,
+        }))
 
         window.history.replaceState({}, document.title, '/admin')
         console.log('[App OAuth] → URL cleaned up immediately to prevent reload loop')
@@ -1989,6 +2259,12 @@ function App() {
           
           if (!config?.clientId || !config?.clientSecret) {
             console.error('[App OAuth] ✗ No OAuth credentials found in config')
+            localStorage.setItem('ravelry-oauth-flow-log', JSON.stringify({
+              step: 'missing-credentials-before-exchange',
+              timestamp: Date.now(),
+              hasClientId: !!config?.clientId,
+              hasClientSecret: !!config?.clientSecret,
+            }))
             toast.error('OAuth credentials not configured. Please set up your Client ID and Secret first.')
             return
           }
@@ -2026,18 +2302,26 @@ function App() {
     }
 
     handleRavelryOAuth()
-  }, [authLoading, authUser, oauthProcessed])
+  }, [authLoading, authUser])
 
   // Load collections for all users (public collections always, user collections on /collections pages)
   useEffect(() => {
     const loadCollections = async () => {
+      const isCollectionsListPage = location.pathname === '/collections'
+      if (isCollectionsListPage) {
+        setCollectionsFirstLoadComplete(false)
+      }
+
       try {
-        // Always load public collections so they appear on product pages
-        const publicCollections = await APIService.getPublicCollections()
+        // Only load public collections on pages that need them (currently collections list)
+        // Skip on collection detail pages (/collections/:slug) and other routes
+        const needsPublicCollections = 
+          location.pathname === '/collections'
         
-        // Also load user's own collections if authenticated and on a page that needs them
-        const isCollectionPage = location.pathname.startsWith('/collections') && !location.pathname.startsWith('/collections/') || location.pathname === '/collections'
-        const userCollections = (user && isCollectionPage) ? await APIService.getUserCollections() : []
+        const publicCollections = needsPublicCollections ? await APIService.getPublicCollections() : []
+        
+        // Load user's own collections only on the collections list page
+        const userCollections = (user && isCollectionsListPage) ? await APIService.getUserCollections() : []
         
         // Combine public and user collections (avoiding duplicates)
         const allCollections = [...userCollections]
@@ -2053,6 +2337,10 @@ function App() {
         if (error instanceof Error && !error.message.includes('404')) {
           console.debug('Failed to load collections:', error)
         }
+      } finally {
+        if (isCollectionsListPage) {
+          setCollectionsFirstLoadComplete(true)
+        }
       }
     }
     loadCollections()
@@ -2066,8 +2354,8 @@ function App() {
         try {
           const requests = await APIService.getAllPendingRequests()
           const validRequests = requests.filter(request => {
-            if (request.type === 'product-ownership' && request.productSlug) {
-              const productExists = products.some(p => p.slug === request.productSlug)
+            if (request.type === 'product-ownership' && request.productId) {
+              const productExists = products.some(p => p.id === request.productId)
               return productExists
             }
             return true
@@ -2157,17 +2445,17 @@ function App() {
   }
 
   const handleDiscuss = async (
-    productSlug: string,
+    productId: string,
     content: string,
-    parentSlug?: string
+    parentId?: string
   ) => {
     if (!user) return
 
     try {
       const newDiscussion = await APIService.createDiscussion({
-        productSlug,
+        productId,
         userId: user.id,
-        username: user.username,
+        username: userAccount?.username || user.username,
         content,
         parentId,
       })
@@ -2259,14 +2547,9 @@ function App() {
       const normalizedTag = tag.trim().toLowerCase()
       
       // Use provided product object if available, otherwise look it up
-      let product = productObj || products?.find(p => p.slug === productIdOrSlug || p.id === productIdOrSlug)
+      const product = productObj || products?.find(p => p.slug === productIdOrSlug || p.id === productIdOrSlug)
       
       if (!product) {
-        return
-      }
-      
-      if (product.tags.some((t) => t.toLowerCase() === normalizedTag)) {
-        toast.info('Tag already exists')
         return
       }
 
@@ -2275,30 +2558,63 @@ function App() {
         toast.error('Failed to add tag: product identifier not found')
         return
       }
-      
-      const updatedProduct = await APIService.updateProduct(
-        product.id,
-        { tags: [...product.tags, normalizedTag] },
-        user?.username
-      )
-      
-      if (updatedProduct) {
-        setProducts((currentProducts) => {
-          const current = currentProducts || []
-          return current.map((p) => (p.slug === productIdOrSlug || p.id === productIdOrSlug) ? updatedProduct : p)
-        })
-        
-        if (user?.id && product.id) {
-          APIService.logUserActivity({
-            userId: user.id,
-            type: 'tag',
-            productId: product.id,
-            timestamp: Date.now(),
-            metadata: { tag: normalizedTag },
-          }).catch(err => console.warn('Failed to log tag activity:', err))
+
+      // Read the latest known tags from the pending ref rather than product.tags (which may be a
+      // stale closure value).  TagManager now awaits each onAddTag call sequentially, so each
+      // successive call sees the tag list built by the previous one rather than all reading the
+      // same original snapshot.
+      const latestTags = pendingProductTagsRef.current.get(product.id) ?? product.tags
+
+      if (latestTags.some((t) => t.toLowerCase() === normalizedTag)) {
+        toast.info('Tag already exists')
+        return
+      }
+
+      const nextTags = [...latestTags, normalizedTag]
+      // Optimistically record the new tag list so the next sequential call sees it.
+      // Note: this ref-based strategy is correct for the sequential (one-at-a-time) flow
+      // produced by TagManager's for…of loop.  Genuinely concurrent calls from separate
+      // components could still race; a queue/lock would be needed to handle that case.
+      pendingProductTagsRef.current.set(product.id, nextTags)
+
+      try {
+        const updatedProduct = await APIService.updateProduct(
+          product.id,
+          { tags: nextTags },
+          user?.id
+        )
+
+        if (updatedProduct) {
+          // Sync pending state to the authoritative server response
+          pendingProductTagsRef.current.set(product.id, updatedProduct.tags)
+          setProducts((currentProducts) => {
+            const current = currentProducts || []
+            return current.map((p) => (p.slug === productIdOrSlug || p.id === productIdOrSlug) ? updatedProduct : p)
+          })
+          
+          if (user?.id && product.id) {
+            APIService.logUserActivity({
+              userId: user.id,
+              type: 'tag',
+              productId: product.id,
+              timestamp: Date.now(),
+              metadata: { tag: normalizedTag },
+            }).catch(err => console.warn('Failed to log tag activity:', err))
+          }
+          
+          toast.success('Tag added successfully')
+        } else {
+          // API did not throw but also did not return an updated product; treat as failure.
+          // Roll back optimistic tags so subsequent calls don't build on unpersisted state.
+          pendingProductTagsRef.current.set(product.id, latestTags)
+          console.error('[App.handleAddTag] updateProduct returned null; tag change was not persisted')
+          toast.error('Failed to add tag')
         }
-        
-        toast.success('Tag added successfully')
+      } catch (error) {
+        // Roll back the optimistic ref update so the next sequential call starts from the
+        // last confirmed state rather than including the tag that failed to persist.
+        pendingProductTagsRef.current.set(product.id, latestTags)
+        throw error
       }
     } catch (error) {
       console.error('Failed to add tag:', error)
@@ -2342,7 +2658,7 @@ function App() {
 
   const handleProfileUpdate = async () => {
     if (user) {
-      const account = await APIService.getUserAccount(user.username)
+      const account = await APIService.getUserAccount(user.id)
       if (account) {
         setUserAccount(account)
       }
@@ -2351,10 +2667,13 @@ function App() {
 
   const handleBlogPostsUpdate = async () => {
     try {
+      setBlogPostsLoading(true)
       const posts = await APIService.getAllBlogPosts(false)
       setBlogPosts(posts)
     } catch (error) {
       console.error('Failed to reload blog posts:', error)
+    } finally {
+      setBlogPostsLoading(false)
     }
   }
 
@@ -2419,13 +2738,34 @@ function App() {
     }
   }
 
-  const handleEditProduct = async (updatedProduct: Product) => {
+  const handleEditProduct = async (updatedProduct: ProductUpdate) => {
     try {
-      await APIService.updateProduct(updatedProduct.id, updatedProduct, user?.username)
+      logger.debug('[App.handleEditProduct] Updating product:', {
+        id: updatedProduct.id,
+        slug: updatedProduct.slug,
+        imageUrl: updatedProduct.imageUrl,
+        imageAlt: updatedProduct.imageAlt
+      })
+      
+      const savedProduct = await APIService.updateProduct(updatedProduct.id, updatedProduct, user?.id)
+      
+      logger.debug('[App.handleEditProduct] Product saved, response:', {
+        savedProduct,
+        hasImageUrl: savedProduct?.imageUrl,
+        hasImageAlt: savedProduct?.imageAlt
+      })
+      
+      // Use the saved product from backend if available; otherwise normalise null
+      // image fields back to undefined to keep Product state consistent.
+      const productToUse: Product = savedProduct || {
+        ...updatedProduct,
+        imageUrl: updatedProduct.imageUrl ?? undefined,
+        imageAlt: updatedProduct.imageAlt ?? undefined,
+      }
       
       setProducts((currentProducts) =>
         (currentProducts || []).map(p =>
-          p.slug === updatedProduct.slug ? updatedProduct : p
+          p.slug === productToUse.slug || p.id === productToUse.id ? productToUse : p
         )
       )
       
@@ -2584,7 +2924,7 @@ function App() {
   const handleDeleteCollection = async (collectionSlug: string) => {
     try {
       await APIService.deleteCollection(collectionSlug)
-      setCollections((current) => current.filter((c) => c.slug !== collectionSlug))
+      setCollections((current) => current.filter((c) => c.slug !== collectionSlug && c.id !== collectionSlug))
       toast.success('Collection deleted successfully')
     } catch (error) {
       console.error('Failed to delete collection:', error)
@@ -2674,6 +3014,7 @@ function App() {
                 <HomePage
                   products={products}
                   blogPosts={blogPosts}
+                  blogPostsLoading={blogPostsLoading}
                   ratings={ratings}
                   onRate={handleRate}
                 />
@@ -2757,7 +3098,7 @@ function App() {
                 />
               } />
               <Route path="/blog" element={
-                <BlogPage blogPosts={blogPosts} userAccount={userAccount} />
+                <BlogPage blogPosts={blogPosts} blogPostsLoading={blogPostsLoading} userAccount={userAccount} />
               } />
               <Route path="/blog/:slug" element={
                 <BlogPostPage blogPosts={blogPosts} userAccount={userAccount} />
@@ -2768,6 +3109,7 @@ function App() {
                   products={(isAdmin || isModerator) && includeBanned ? (products || []) : (products || []).filter((p) => !p.banned)}
                   user={user}
                   userAccount={userAccount}
+                  collectionsFirstLoadComplete={collectionsFirstLoadComplete}
                   onDeleteCollection={handleDeleteCollection}
                   onEditCollection={(collection) => {
                     setEditingCollection(collection)
@@ -2780,10 +3122,16 @@ function App() {
                 <CollectionDetailPage
                   collections={collections}
                   ratings={ratings}
+                  products={products}
                   user={user}
                   userAccount={userAccount}
                   onRemoveProductFromCollection={handleRemoveProductFromCollection}
                   onDeleteProduct={handleDeleteProduct}
+                  onDeleteCollection={handleDeleteCollection}
+                  onEditCollection={(collection) => {
+                    setEditingCollection(collection)
+                    setShowEditCollectionDialog(true)
+                  }}
                 />
               } />
               <Route path="/account/:username" element={
@@ -2813,6 +3161,8 @@ function App() {
                   ravelryAuthTimestamp={ravelryAuthTimestamp}
                   onProductsUpdate={setProducts}
                   onBlogPostsUpdate={handleBlogPostsUpdate}
+                  adminVerboseLoggingEnabled={adminVerboseLoggingEnabled}
+                  onAdminVerboseLoggingChange={setAdminVerboseLoggingEnabled}
                 />
               } />
               <Route path="/admin/users" element={

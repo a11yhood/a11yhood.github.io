@@ -73,7 +73,7 @@ export function createMockDiscussion(overrides?: Partial<Discussion>): Discussio
     id: 'discussion-1',
     productId: 'product-1',
     userId: 'test-user-1',
-    userName: 'testuser',
+    username: 'testuser',
     content: 'This is a test discussion',
     createdAt: Date.now(),
     ...overrides,

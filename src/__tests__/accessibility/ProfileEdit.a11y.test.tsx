@@ -21,14 +21,14 @@ describe('ProfileEdit Accessibility Tests (Story 1.3)', () => {
 
     testUser = {
       id: testUserId,
-      login: DEV_USERS.user.login,
+      username: DEV_USERS.user.username,
       avatarUrl: 'https://example.com/avatar.jpg',
     }
 
     testAccount = {
       id: testUserId,
       githubId: testUserId,
-      username: DEV_USERS.user.login,
+      username: DEV_USERS.user.username,
       role: 'user',
       displayName: DEV_USERS.user.displayName,
       bio: 'Test bio',

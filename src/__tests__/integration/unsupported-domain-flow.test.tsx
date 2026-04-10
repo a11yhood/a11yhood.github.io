@@ -12,13 +12,13 @@ import type { UserData, UserAccount } from '@/lib/types'
 describe('Unsupported domain flow (live backend)', () => {
   const user: UserData = {
     id: `test-user-${Date.now()}`,
-    login: `u${Date.now()}`,
+    username: `u${Date.now()}`,
     avatarUrl: 'https://example.com/a.png',
   }
 
   const userAccount: UserAccount = {
     id: user.id,
-    username: user.login,
+    username: user.username,
     avatarUrl: user.avatarUrl,
     role: 'user',
   }

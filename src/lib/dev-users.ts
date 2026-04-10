@@ -11,21 +11,21 @@
 export const DEV_USERS = {
   admin: {
     id: '49366adb-2d13-412f-9ae5-4c35dbffab10',
-    login: 'admin_user',
+    username: 'admin_user',
     displayName: 'Admin User',
     email: 'admin@example.com',
     role: 'admin' as const,
   },
   moderator: {
     id: '94e116f7-885d-4d32-87ae-697c5dc09b9e',
-    login: 'moderator_user',
+    username: 'moderator_user',
     displayName: 'Moderator User',
     email: 'moderator@example.com',
     role: 'moderator' as const,
   },
   user: {
     id: '2a3b7c3e-971b-4b42-9c8c-0f1843486c50',
-    login: 'regular_user',
+    username: 'regular_user',
     displayName: 'Regular User',
     email: 'user@example.com',
     role: 'user' as const,
