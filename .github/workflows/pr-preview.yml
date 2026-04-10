@@ -6,7 +6,7 @@ on:
 
 permissions:
   contents: write
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   lint:
@@ -58,6 +58,8 @@ jobs:
   deploy-preview:
     needs: build
     runs-on: ubuntu-latest
+    env:
+      PREVIEW_URL: https://a11yhood.org/draft/${{ github.event.number }}/
     steps:
       - uses: actions/checkout@v4
         with:
@@ -79,6 +81,50 @@ jobs:
             git commit -m "Deploy PR #${{ github.event.number }} preview"
             git push
           fi
+
+      - name: Add preview URL to workflow summary
+        run: |
+          echo "### PR Preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "${PREVIEW_URL}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment preview URL on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- pr-preview-url -->';
+            const body = `${marker}\nPR preview is ready: ${process.env.PREVIEW_URL}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find(
+              (comment) =>
+                comment.user?.type === 'Bot' &&
+                typeof comment.body === 'string' &&
+                comment.body.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
 
   accessibility_scanner:
     name: A11y Preview Scan (PR)
