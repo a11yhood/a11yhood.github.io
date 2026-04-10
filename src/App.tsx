@@ -28,6 +28,7 @@ import { AdminLogs } from '@/components/AdminLogs'
 import { BlogPostList } from '@/components/BlogPostList'
 import { BlogPostDetail } from '@/components/BlogPostDetail'
 import { BlogPostEditor } from '@/components/BlogPostEditor'
+import { BlogPostDraftPage } from '@/components/BlogPostDraftPage'
 import { CollectionsList } from '@/components/CollectionsList'
 import { CollectionDetail } from '@/components/CollectionDetail'
 import { CreateCollectionDialog } from '@/components/CreateCollectionDialog'
@@ -3102,6 +3103,9 @@ function App() {
               } />
               <Route path="/blog/:slug" element={
                 <BlogPostPage blogPosts={blogPosts} userAccount={userAccount} />
+              } />
+              <Route path="/draft/:id" element={
+                <BlogPostDraftPage userAccount={userAccount} />
               } />
               <Route path="/collections" element={
                 <CollectionsPage
