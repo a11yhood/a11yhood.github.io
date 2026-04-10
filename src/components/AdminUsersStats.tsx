@@ -9,7 +9,7 @@
  */
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CollapsibleCard } from '@/components/CollapsibleCard'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -63,7 +63,6 @@ export function AdminUsersStats() {
       setUsers(usersWithStats)
     } catch (error) {
       console.error('Failed to load users:', error)
-        toast.error('Failed to load users')
       toast.error('Failed to load users')
     } finally {
       setLoading(false)

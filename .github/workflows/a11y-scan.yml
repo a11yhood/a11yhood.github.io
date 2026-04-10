@@ -22,7 +22,7 @@ jobs:
     name: A11y Production Scan
     # Only run when a deployment succeeded (skip if the deploy itself failed).
     # workflow_dispatch runs unconditionally.
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
     runs-on: ubuntu-latest
     steps:
       - uses: github/accessibility-scanner@v2

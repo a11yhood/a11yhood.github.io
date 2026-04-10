@@ -74,7 +74,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f draft/${{ github.event.number }}/*
+          git add -A draft/${{ github.event.number }}/
           if git diff --cached --quiet; then
             echo "Nothing to commit, preview is already up to date"
           else

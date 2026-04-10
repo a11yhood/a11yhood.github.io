@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { CalendarBlank, Globe, MapPin, ChartBar, BookOpen, FolderOpen, Article } from '@phosphor-icons/react'
 import { APIService } from '@/lib/api'
 import { UserAccount, Product, Collection, BlogPost } from '@/lib/types'
@@ -43,15 +42,15 @@ export function PublicProfile({ username }: { username: string }) {
           try {
             const userManagedProducts = await APIService.getProductsByOwner(effectiveUsername)
             setManagedProducts(userManagedProducts)
-          } catch (e) {
-            console.error('[PublicProfile] Failed to load products:', e)
+          } catch (error) {
+            console.error('[PublicProfile] Failed to load products:', error)
           }
           
           // Load collections created by the user (public only for non-admin viewers)
           try {
             const allPublicCollections = await APIService.getPublicCollections('updated_at')
             setUserCollections(allPublicCollections.filter(c => c.userId === acct.id))
-          } catch (e) {
+          } catch {
             // Silently fail if we can't load collections
           }
 
@@ -63,13 +62,13 @@ export function PublicProfile({ username }: { username: string }) {
               (p.authorIds && p.authorIds.includes(acct.id))
             )
             setBlogPosts(userPosts)
-          } catch (e) {
+          } catch {
             // Silently fail if we can't load blog posts
           }
         } else {
           setError('User not found')
         }
-      } catch (e) {
+      } catch {
         setError('Could not load user profile')
       } finally {
         setLoading(false)

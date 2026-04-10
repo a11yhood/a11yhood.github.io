@@ -11,8 +11,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { Routes, Route, Navigate, Link, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { MagnifyingGlass, UserCircle, SignOut, ChartBar, BookOpen, Gear, Rows, SquaresFour } from '@phosphor-icons/react'
+import { MagnifyingGlass, Rows, SquaresFour } from '@phosphor-icons/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faLayerGroup } from '@fortawesome/free-solid-svg-icons'
 import { Toaster } from '@/components/ui/sonner'
@@ -20,7 +19,6 @@ import { ProductCard } from '@/components/ProductCard'
 import { ProductListItem } from '@/components/ProductListItem'
 import { ProductDetail } from '@/components/ProductDetail'
 import { ProductFilters } from '@/components/ProductFilters'
-import { ProductSubmission } from '@/components/ProductSubmission'
 import { UserProfile } from '@/components/UserProfile'
 import { AdminDashboard } from '@/components/AdminDashboard'
 import { AdminUsersStats } from '@/components/AdminUsersStats'
@@ -34,9 +32,7 @@ import { CollectionDetail } from '@/components/CollectionDetail'
 import { CreateCollectionDialog } from '@/components/CreateCollectionDialog'
 import { EditCollectionDialog } from '@/components/EditCollectionDialog'
 import { AboutPage } from '@/components/AboutPage'
-import { NotFoundPage } from '@/components/NotFoundPage'
 import { UserSignup } from '@/components/UserSignup'
-import { FeaturedBlogCarousel } from '@/components/FeaturedBlogCarousel'
 import { HomePage } from '@/components/HomePage'
 import { SearchPage } from '@/components/SearchPage'
 import { Product, ProductUpdate, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput } from '@/lib/types'
@@ -46,7 +42,6 @@ import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 // API adapter disabled - using real backend API now
 // import '@/lib/api-adapter'
 import { toast } from 'sonner'
-import logoImage from '@/assets/images/ahood-200.png'
 import { useAuth } from '@/contexts/AuthContext'
 import { AppHeader } from '@/components/AppHeader'
 import { AppFooter } from '@/components/AppFooter'
@@ -55,6 +50,16 @@ import { PublicProfile } from '@/components/PublicProfile'
 import { Switch } from '@/components/ui/switch'
 
 console.log('✓ [App.tsx] All imports loaded')
+
+type ApiErrorLike = {
+  status?: number
+  message?: string
+  data?: {
+    detail?: string
+    type?: string
+    debug_info?: unknown
+  }
+}
 
 export function ProductListPage({ 
   products, 
@@ -152,8 +157,13 @@ export function ProductListPage({
   const navigate = useNavigate()
   const initialColumns = typeof window !== 'undefined' && window.innerWidth >= 1024 ? 3 : 1
   const [columnCount, setColumnCount] = useState<1 | 3>(initialColumns as 1 | 3)
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024)
   const [page, setPage] = useState(1)
+
+  // These are intentionally accepted for API compatibility with SearchPage props.
+  void blogPosts
+  void popularTags
+  void onCreateCollection
+  void onSearchChange
 
   // Sync local page with parent's currentPage
   useEffect(() => {
@@ -164,29 +174,11 @@ export function ProductListPage({
   useEffect(() => {
     const handleResize = () => {
       const nextIsMobile = window.innerWidth < 1024
-      setIsMobile(nextIsMobile)
       setColumnCount(nextIsMobile ? 1 : 3)
     }
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
-
-  const getAverageRating = (productId: string) => {
-    const productRatings = ratings.filter((r) => r.productId === productId)
-    const product = products.find(p => p.id === productId)
-    
-    if (productRatings.length > 0 && product?.sourceRating) {
-      const userAverage = productRatings.reduce((sum, r) => sum + r.rating, 0) / productRatings.length
-      return (userAverage + product.sourceRating) / 2
-    }
-    if (productRatings.length > 0) {
-      return productRatings.reduce((sum, r) => sum + r.rating, 0) / productRatings.length
-    }
-    if (product?.sourceRating) {
-      return product.sourceRating
-    }
-    return 0
-  }
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(totalProductCount / pageSize))
@@ -197,8 +189,6 @@ export function ProductListPage({
   }, [totalProductCount, page, pageSize, onPageChange])
 
   const totalPages = Math.max(1, Math.ceil(totalProductCount / pageSize))
-  const startIndex = 0 // Backend handles pagination via limit/offset
-  const endIndex = products.length
   const paginatedProducts = products
 
   // Combine API-filtered tags with tags from current page of products, plus selected tags
@@ -720,8 +710,7 @@ function ProductDetailPageWrapper({
 }) {
   const { slug } = useParams()
   const [searchParams] = useSearchParams()
-  const autoOpenEdit = searchParams.get('edit') === '1'
-  const autoOpenOwnershipRequest = searchParams.get('requestEdit') === '1'
+  void searchParams
   
   const [localRatings, setLocalRatings] = useState<Rating[]>(ratings)
   const [localDiscussions, setLocalDiscussions] = useState<Discussion[]>(discussions)
@@ -938,7 +927,7 @@ function CollectionsPage({
       try {
         const result = await APIService.getPublicCollections('updated_at')
         setPublicCollections(result)
-      } catch (e) {
+      } catch {
         // ignore errors for now
       } finally {
         setPublicCollectionsFirstLoadComplete(true)
@@ -1199,7 +1188,7 @@ function CollectionDetailPage({
         try {
           const fetched = await APIService.getCollection(collectionSlug)
           setExternalCollection(fetched)
-        } catch (e) {
+        } catch {
           setExternalCollection(null)
         }
       }
@@ -1252,7 +1241,7 @@ function CollectionDetailPage({
             setExternalCollection(updated)
             toast.success(`Collection is now ${nextPublic ? 'public' : 'private'}`)
           }
-        } catch (e) {
+        } catch {
           toast.error('Failed to update collection visibility')
         }
       }}
@@ -1399,7 +1388,6 @@ function App() {
   const [pageSize, setPageSize] = useState(50)
   
   console.log('✓ [App] State initialized')
-  const navigate = useNavigate()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [user, setUser] = useState<UserData | null>(null)
@@ -1423,13 +1411,11 @@ function App() {
   const [initialCollectionDescription, setInitialCollectionDescription] = useState<string>('')
   const [initialCollectionIsPublic, setInitialCollectionIsPublic] = useState<boolean>(true)
   const [showSignup, setShowSignup] = useState(false)
-  const [isNewUser, setIsNewUser] = useState(false)
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
   const oauthProcessedRef = useRef(false)
   const [ravelryAuthTimestamp, setRavelryAuthTimestamp] = useState(0)
   const isTestEnv = import.meta.env.MODE === 'test'
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
-  const [thingiverseAuthTimestamp, setThingiverseAuthTimestamp] = useState(0)
   const [adminVerboseLoggingEnabled, setAdminVerboseLoggingEnabled] = useState(true)
 
   useEffect(() => {
@@ -1626,7 +1612,7 @@ function App() {
       return
     }
 
-    const defaultSortByForRoute: 'created_at' = 'created_at'
+    const defaultSortByForRoute = 'created_at' as const
 
     if (sortBy !== defaultSortByForRoute || sortOrder !== 'desc') {
       setSortBy(defaultSortByForRoute)
@@ -1664,7 +1650,7 @@ function App() {
     // No longer needed since search happens on every keystroke
   }
 
-  const handleSearchInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleSearchInputKeyDown = () => {
     // No longer needed since search happens on every keystroke
   }
 
@@ -1905,7 +1891,7 @@ function App() {
     }
     
     loadData()
-  }, [location.pathname])
+  }, [location.pathname, pageSize, searchParams])
 
   // Use AuthContext (supports both dev mode and production)
   const { user: authUser, loading: authLoading, getAccessToken, signIn, signOut } = useAuth()
@@ -1930,7 +1916,7 @@ function App() {
     }
 
     // Check if this is the initial load with no filters (skip to avoid duplicate from initial load)
-    const defaultSortByForRoute: 'created_at' = 'created_at'
+    const defaultSortByForRoute = 'created_at' as const
     const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 &&
       selectedTypes.length === 0 && selectedTags.length === 0 &&
       minRating === 0 && committedUpdatedSince === null &&
@@ -1950,7 +1936,6 @@ function App() {
 
     const abortController = new AbortController()
     const currentSearchId = ++latestSearchIdRef.current
-    let debounceTimer: ReturnType<typeof setTimeout>
 
     const fetchProducts = async () => {
       try {
@@ -2024,8 +2009,7 @@ function App() {
         if (productsResult.status === 'fulfilled') {
           // Handle fallback for minRating filter
           if ((minRating || 0) > 0 && productsResult.value.length === 0) {
-            const fallbackParams = { ...params }
-            delete (fallbackParams as any).minRating
+            const fallbackParams = { ...params, minRating: undefined }
             try {
               const withoutRating = await APIService.getAllProducts(fallbackParams)
               const clientFiltered = withoutRating.filter(p => {
@@ -2086,13 +2070,13 @@ function App() {
       }
     }
 
-    debounceTimer = setTimeout(fetchProducts, 400)
+    const debounceTimer = setTimeout(fetchProducts, 400)
 
     return () => {
       clearTimeout(debounceTimer)
       abortController.abort()
     }
-  }, [searchQuery, includeBanned, selectedTypes, selectedSources, selectedTags, minRating, committedUpdatedSince, currentPage, dataLoaded, pageSize, location.pathname, sortBy, sortOrder])
+  }, [searchQuery, includeBanned, selectedTypes, selectedSources, selectedTags, minRating, committedUpdatedSince, currentPage, dataLoaded, pageSize, location.pathname, sortBy, sortOrder, allProductSources, ratings, sortHasChanged])
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -2136,18 +2120,18 @@ function App() {
           
           if (isTestEnv) {
             setShowSignup(false)
-            setIsNewUser(false)
           }
           return
-        } catch (err: any) {
-          const status = err?.status ?? 0
+        } catch (err: unknown) {
+          const status = (err as ApiErrorLike)?.status ?? 0
           if (status === 404) {
             // New user — create account
             console.log('📨 [App] User account not found, creating...')
           } else if (status) {
+            const message = (err as ApiErrorLike)?.message
             console.error('Failed to fetch user account from /users/me:', {
               status,
-              message: err?.message,
+              message,
             })
             return
           }
@@ -2192,9 +2176,11 @@ function App() {
             )
             // Success! Break out of retry loop
             break
-          } catch (error: any) {
+          } catch (error: unknown) {
             // Check if this is a uniqueness constraint error (409 Conflict or contains "unique" in message)
-            const isUniqueError = error?.status === 409 || (error?.message && error.message.toLowerCase().includes('unique'))
+            const apiError = error as ApiErrorLike
+            const errorMessage = apiError.message?.toLowerCase()
+            const isUniqueError = apiError.status === 409 || Boolean(errorMessage && errorMessage.includes('unique'))
             
             if (isUniqueError && retries < maxRetries - 1) {
               // Username taken - append random suffix and retry
@@ -2227,11 +2213,9 @@ function App() {
         console.log('🔐 [App] New user account created:', { username: account.username, role: account.role })
         
         if (!isTestEnv) {
-          setIsNewUser(true)
           setShowSignup(true)
         } else {
           setShowSignup(false)
-          setIsNewUser(false)
         }
       } catch (error) {
         console.error('Failed to load user account:', error)
@@ -2590,13 +2574,13 @@ function App() {
         setDiscussions((current) => (current || []).map((d) => (d.id === discussionId ? { ...d, ...updated } : d)))
         toast.success('Post updated')
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // rollback optimistic update
       setDiscussions((current) => {
         const list = current || []
         return list.map((d) => (d.id === discussionId && previous ? previous : d))
       })
-      const message = error?.message || 'Failed to update post'
+      const message = (error as ApiErrorLike)?.message || 'Failed to update post'
       console.error('Failed to update discussion:', error)
       toast.error(message)
       throw error
@@ -2625,9 +2609,9 @@ function App() {
 
       setDiscussions((current) => (current || []).map((d) => (d.id === discussionId ? { ...d, ...updated } as Discussion : d)))
       toast.success(block ? 'Post blocked' : 'Post unblocked')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to toggle block on discussion:', error)
-      const message = error?.message || (block ? 'Failed to block post' : 'Failed to unblock post')
+      const message = (error as ApiErrorLike)?.message || (block ? 'Failed to block post' : 'Failed to unblock post')
       toast.error(message)
     }
   }
@@ -2815,11 +2799,17 @@ function App() {
       )
       
       setRatings((currentRatings) =>
-        (currentRatings || []).filter(r => r.productId !== productSlug && (r as any).productSlug !== productSlug)
+        (currentRatings || []).filter(r => {
+          const maybeWithProductSlug = r as Rating & { productSlug?: string }
+          return r.productId !== productSlug && maybeWithProductSlug.productSlug !== productSlug
+        })
       )
       
       setDiscussions((currentDiscussions) =>
-        (currentDiscussions || []).filter(d => d.productId !== productSlug && (d as any).productSlug !== productSlug)
+        (currentDiscussions || []).filter(d => {
+          const maybeWithProductSlug = d as Discussion & { productSlug?: string }
+          return d.productId !== productSlug && maybeWithProductSlug.productSlug !== productSlug
+        })
       )
       
       toast.success('Product deleted successfully')
@@ -2964,7 +2954,7 @@ function App() {
 
   const handleCreateCollectionFromSearch = async (collectionData: CollectionCreateInput) => {
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         name: collectionData.name,
         description: collectionData.description,
         isPublic: collectionData.isPublic,
@@ -2983,16 +2973,17 @@ function App() {
       setCollections((current) => [newCollection, ...current])
       setShowCreateCollectionFromSearchDialog(false)
       toast.success('Collection created from search results!')
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const apiError = error as ApiErrorLike
       console.error('[CreateCollectionFromSearch] Error response:', {
-        message: error.message,
-        status: error.status,
-        detail: error.data?.detail,
-        type: error.data?.type,
-        debugInfo: error.data?.debug_info,
-        fullData: error.data
+        message: apiError.message,
+        status: apiError.status,
+        detail: apiError.data?.detail,
+        type: apiError.data?.type,
+        debugInfo: apiError.data?.debug_info,
+        fullData: apiError.data
       })
-      const errorDetail = error.data?.detail || error.message || 'Failed to create collection from search'
+      const errorDetail = apiError.data?.detail || apiError.message || 'Failed to create collection from search'
       toast.error(errorDetail)
     }
   }
@@ -3043,13 +3034,11 @@ function App() {
 
   const handleCompleteSignup = () => {
     setShowSignup(false)
-    setIsNewUser(false)
     toast.success('Welcome to a11yhood!')
   }
 
   const handleSkipSignup = () => {
     setShowSignup(false)
-    setIsNewUser(false)
     toast.success('Welcome to a11yhood!')
   }
 
@@ -3070,7 +3059,7 @@ function App() {
           <a
             href="#main-content"
             className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            onClick={(e) => {
+            onClick={() => {
               const main = document.getElementById('main-content') as HTMLElement | null
               if (main) {
                 // Ensure main is programmatically focusable, then move focus
