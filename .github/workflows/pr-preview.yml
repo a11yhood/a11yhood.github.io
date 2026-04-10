@@ -80,7 +80,8 @@ jobs:
             git push
           fi
 
-  a11y-preview-scan:
+  accessibility_scanner:
+    name: A11y Preview Scan (PR)
     needs: deploy-preview
     runs-on: ubuntu-latest
     # accessibility-scanner requires a custom PAT; forked PRs cannot access repository secrets.
