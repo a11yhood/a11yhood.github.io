@@ -170,7 +170,7 @@ export function PublicProfile({ username }: { username: string }) {
                       if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
                       return (
                         <a
-                          href={account.website}
+                          href={url.href}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1 hover:text-primary"

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ChatCircle } from '@phosphor-icons/react'
-import { Discussion, UserAccount, UserData } from '@/lib/types'
+import { Discussion, UserAccount, UserData, DELETED_DISCUSSION_CONTENT } from '@/lib/types'
 import { formatDistanceToNow } from 'date-fns'
 import { Label } from '@/components/ui/label'
 
@@ -56,7 +56,7 @@ function DiscussionItem({
   const isReplying = replyingTo === discussion.id
   const canModerate = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
   const isOwner = user?.id ? discussion.userId === user.id : false
-  const isDeleted = discussion.content === '[deleted]'
+  const isDeleted = discussion.content === DELETED_DISCUSSION_CONTENT
   const [isEditing, setIsEditing] = useState(false)
   const [editDraft, setEditDraft] = useState('')
   const [isSavingEdit, setIsSavingEdit] = useState(false)

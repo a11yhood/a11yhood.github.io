@@ -447,11 +447,6 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
             <p className="text-sm font-medium">Connection Actions</p>
             <div className="flex flex-wrap gap-2">
               <Button
-                onClick={handleAuthorize}
-              >
-                Connect to Ravelry
-              </Button>
-              <Button
                 onClick={handleDisconnect}
                 variant="outline"
               >
