@@ -42,6 +42,7 @@ export function CollectionDetail({
 }: CollectionDetailProps) {
   const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(false)
+  const [resolvedCreatorUsername, setResolvedCreatorUsername] = useState('')
 
   // Products individually fetched by this component (not present in globalProducts).
   // Stored in a ref so mutations don't trigger re-renders; `fetchVersion` is bumped
@@ -150,6 +151,37 @@ export function CollectionDetail({
       .map(([tag]) => tag)
   }, [collectionProducts])
 
+  const creatorUsername =
+    collection.username ||
+    (collection as Collection & { userName?: string }).userName ||
+    ''
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (creatorUsername) {
+      setResolvedCreatorUsername(creatorUsername)
+      return () => { cancelled = true }
+    }
+
+    setResolvedCreatorUsername('')
+    if (!collection.userId) {
+      return () => { cancelled = true }
+    }
+
+    APIService.getUserAccount(collection.userId)
+      .then((user) => {
+        if (cancelled) return
+        setResolvedCreatorUsername(user?.username || '')
+      })
+      .catch(() => {
+        if (cancelled) return
+        setResolvedCreatorUsername('')
+      })
+
+    return () => { cancelled = true }
+  }, [creatorUsername, collection.userId])
+
   return (
     <div>
       <Button variant="ghost" onClick={onBack} className="mb-6">
@@ -224,12 +256,16 @@ export function CollectionDetail({
           <div className="flex flex-wrap gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Created by:</span>{' '}
-              <Link
-                to={`/profile/${collection.username}`}
-                className="font-medium hover:underline"
-              >
-                {collection.username}
-              </Link>
+              {resolvedCreatorUsername ? (
+                <Link
+                  to={`/profile/${resolvedCreatorUsername}`}
+                  className="font-medium hover:underline"
+                >
+                  {resolvedCreatorUsername}
+                </Link>
+              ) : (
+                <span className="font-medium">Unknown</span>
+              )}
             </div>
             <div>
               <span className="text-muted-foreground">Products:</span>{' '}
