@@ -26,7 +26,7 @@ a11yhood is an accessibility-focused platform for discovering and sharing access
 ### Labels and Names
 
 - Every interactive element must have an accessible name:
-  - `<input>` / `<textarea>` / `<select>` paired with an associated `<label>` (via `for`/`id` or wrapping).
+  - `<input>` / `<textarea>` / `<select>` paired with an associated `<label>` (via `htmlFor`/`id` or wrapping).
   - Icon-only buttons need `aria-label` or visually-hidden text (e.g. `<span className="sr-only">`).
   - Images need meaningful `alt` text; decorative images use `alt=""`.
 - Use `aria-describedby` to associate helper or error text with an input.
@@ -43,7 +43,7 @@ a11yhood is an accessibility-focused platform for discovering and sharing access
 
 - Do not convey information by color alone; pair color cues with text or icons.
 - Maintain WCAG AA contrast ratios: 4.5:1 for normal text, 3:1 for large text and UI components.
-- Support both light and dark themes through Tailwind and the `next-themes` provider already in the app.
+- Support both light and dark themes through Tailwind and, if theme switching is implemented, a properly configured `next-themes` provider.
 
 ### Motion and Animation
 
