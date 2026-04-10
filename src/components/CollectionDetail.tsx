@@ -227,7 +227,6 @@ export function CollectionDetail({
               <Link
                 to={`/profile/${collection.username}`}
                 className="font-medium hover:underline"
-                aria-label={`View ${collection.username}'s profile`}
               >
                 {collection.username}
               </Link>
