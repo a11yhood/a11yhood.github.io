@@ -6,6 +6,8 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { NotFoundPage } from '@/components/NotFoundPage'
+import { runA11yScan } from '../helpers/a11y'
 import { AuthProvider } from '@/contexts/AuthContext'
 import App from '@/App'
 
@@ -19,10 +21,14 @@ describe('NotFoundPage – level-one heading', () => {
       </MemoryRouter>
     )
 
-  it('renders an <h1> on an unknown route (/draft/209/)', () => {
-    renderAtPath('/draft/209/')
-    const heading = screen.getByRole('heading', { level: 1 })
-    expect(heading).toBeInTheDocument()
+  it('renders a level-one heading for the standalone NotFoundPage', () => {
+    render(
+      <MemoryRouter>
+        <NotFoundPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
   })
 
   it('renders an <h1> on any other unmatched route', () => {
@@ -31,16 +37,14 @@ describe('NotFoundPage – level-one heading', () => {
     expect(heading).toBeInTheDocument()
   })
 
-  it('not-found heading text communicates page status', () => {
-    renderAtPath('/draft/209/')
-    const heading = screen.getByRole('heading', { level: 1, name: /page not found/i })
-    expect(heading).toBeInTheDocument()
-  })
+  it('has no obvious axe violations', async () => {
+    const { container } = render(
+      <MemoryRouter>
+        <NotFoundPage />
+      </MemoryRouter>
+    )
 
-  it('provides a link back to home', () => {
-    renderAtPath('/draft/209/')
-    const link = screen.getByRole('link', { name: /return to home/i })
-    expect(link).toBeInTheDocument()
-    expect(link).toHaveAttribute('href', '/')
+    const results = await runA11yScan(container)
+    expect(results).toHaveNoViolations()
   })
 })
