@@ -19,6 +19,7 @@ export default defineConfig({
           '**/__tests__/components/PublicProfile.test.tsx',
           '**/__tests__/components/UserProfile.website.test.tsx',
           '**/__tests__/components/HomePage.test.tsx',
+          '**/__tests__/accessibility/BlogPostDraftPage.a11y.test.tsx',
           '**/__tests__/components/HomePage.a11y.test.tsx',
           '**/__tests__/accessibility/HomePage.a11y.test.tsx',
         ]
