@@ -1,6 +1,10 @@
 import { expect, afterEach, beforeEach, vi, beforeAll } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
+import 'vitest-axe/extend-expect'
+import * as axeMatchers from 'vitest-axe/matchers'
+
+expect.extend(axeMatchers)
 
 // Provide a simple ResizeObserver polyfill for components that expect it
 class MockResizeObserver {
