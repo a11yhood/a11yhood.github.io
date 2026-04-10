@@ -13,6 +13,7 @@
         "test": "vitest",
         "test:ui": "vitest --ui",
         "test:run": "vitest run",
+        "test:a11y": "vitest run **/__tests__/accessibility/**/*.test.{ts,tsx}",
         "test:coverage": "vitest run --coverage",
         "build:ghpages": "VITE_BASE_URL=/ npm run build"
     },
