@@ -33,6 +33,7 @@ import { CollectionDetail } from '@/components/CollectionDetail'
 import { CreateCollectionDialog } from '@/components/CreateCollectionDialog'
 import { EditCollectionDialog } from '@/components/EditCollectionDialog'
 import { AboutPage } from '@/components/AboutPage'
+import { NotFoundPage } from '@/components/NotFoundPage'
 import { UserSignup } from '@/components/UserSignup'
 import { FeaturedBlogCarousel } from '@/components/FeaturedBlogCarousel'
 import { HomePage } from '@/components/HomePage'
@@ -3176,6 +3177,9 @@ function App() {
                   onProductsUpdate={setProducts}
                 />
               } />
+              {/* Catch-all: render a page with a level-one heading so the page-has-heading-one
+                  accessibility rule is satisfied for any unrecognised URL (e.g. /draft/211/). */}
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </main>
 
