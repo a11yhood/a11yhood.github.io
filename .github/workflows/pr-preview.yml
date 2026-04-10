@@ -70,5 +70,23 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f draft/${{ github.event.number }}/*
-          git commit -m "Deploy PR #${{ github.event.number }} preview"
-          git push
+          if git diff --cached --quiet; then
+            echo "Nothing to commit, preview is already up to date"
+          else
+            git commit -m "Deploy PR #${{ github.event.number }} preview"
+            git push
+          fi
+
+  a11y-preview-scan:
+    needs: deploy-preview
+    runs-on: ubuntu-latest
+    # accessibility-scanner requires a custom PAT; skip when unavailable (e.g., forked PRs)
+    if: ${{ secrets.GH_TOKEN != '' }}
+    steps:
+      - uses: github/accessibility-scanner@v2
+        with:
+          urls: |
+            https://a11yhood.org/draft/${{ github.event.number }}/
+          repository: a11yhood/a11yhood.github.io
+          token: ${{ secrets.GH_TOKEN }}
+          cache_key: a11yhood.org-pr-${{ github.event.number }}
