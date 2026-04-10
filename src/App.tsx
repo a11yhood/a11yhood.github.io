@@ -1603,7 +1603,7 @@ function App() {
     // Persist sort choice in URL so it can be shared / restored on navigation
     const newParams = new URLSearchParams(searchParams)
     newParams.set('sort', value)
-    setSearchParams(newParams, { replace: true })
+    setSearchParams(newParams)
   }
 
   // Keep default sorting route-aware unless the user explicitly picks a sort.
