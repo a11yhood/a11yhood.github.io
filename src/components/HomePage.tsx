@@ -169,7 +169,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
         {/* Site Mission */}
         <Card>
           <CardHeader>
-            <h2 className="text-2xl sm:text-3xl font-semibold leading-tight">Welcome to a11yhood</h2>
+            <h1 className="text-2xl sm:text-3xl font-semibold leading-tight">Welcome to a11yhood</h1>
             <CardDescription className="text-base sm:text-lg leading-relaxed text-foreground/90">
               A place to learn about and share open source accessibility technology.
             </CardDescription>
