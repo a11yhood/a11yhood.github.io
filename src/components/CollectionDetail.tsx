@@ -7,7 +7,7 @@ import { ProductFilterTag } from '@/components/ProductFilterTag'
 import { formatDistanceToNow } from 'date-fns'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { APIService } from '@/lib/api'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
 import MarkdownText from '@/components/ui/MarkdownText'
 
@@ -224,7 +224,13 @@ export function CollectionDetail({
           <div className="flex flex-wrap gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Created by:</span>{' '}
-              <span className="font-medium">{collection.username}</span>
+              <Link
+                to={`/profile/${collection.username}`}
+                className="font-medium hover:underline"
+                aria-label={`View ${collection.username}'s profile`}
+              >
+                {collection.username}
+              </Link>
             </div>
             <div>
               <span className="text-muted-foreground">Products:</span>{' '}
