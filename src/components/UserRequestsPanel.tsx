@@ -30,14 +30,14 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
 
   const userRole = userAccount?.role || 'user'
 
+  useEffect(() => {
+    loadRequests()
+  }, [user.id])
+
   // Admins do not see personal request cards (moderator/product manager) in their panel
   if (userRole === 'admin') {
     return null
   }
-
-  useEffect(() => {
-    loadRequests()
-  }, [user.id])
 
   const loadRequests = async () => {
     setLoading(true)
