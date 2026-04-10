@@ -273,6 +273,24 @@ async function request<T>(
 }
 
 export class APIService {
+  private static normalizeCollection(collection: Collection): Collection {
+    const raw = collection as Collection & {
+      userName?: string
+    }
+
+    return {
+      ...collection,
+      username:
+        collection.username ||
+        raw.userName ||
+        '',
+    }
+  }
+
+  private static normalizeCollections(collections: Collection[]): Collection[] {
+    return (collections || []).map((collection) => APIService.normalizeCollection(collection))
+  }
+
   // Backwards-compatible alias so tests can call APIService.setAuthTokenGetter
   static setAuthTokenGetter(getter: () => Promise<string | null>) {
     setAuthTokenGetter(getter)
@@ -1084,11 +1102,13 @@ export class APIService {
   }
 
   static async getAllCollections(): Promise<Collection[]> {
-    return request<Collection[]>('/collections')
+    const result = await request<Collection[]>('/collections')
+    return APIService.normalizeCollections(result)
   }
 
   static async getCollection(collectionSlug: string): Promise<Collection | null> {
     const result = await request<Collection | null>(`/collections/${collectionSlug}`)
+    const normalized = result ? APIService.normalizeCollection(result) : null
     if (result) {
       logger.debug(`[API] getCollection(${collectionSlug}):`, {
         id: result.id,
@@ -1097,12 +1117,13 @@ export class APIService {
         productSlugs: result.productSlugs,
       })
     }
-    return result
+    return normalized
   }
 
   static async getUserCollections(): Promise<Collection[]> {
     // Gets the authenticated user's collections
-    return request<Collection[]>('/collections')
+    const result = await request<Collection[]>('/collections')
+    return APIService.normalizeCollections(result)
   }
 
   static async getPublicCollections(sortBy?: 'created_at' | 'product_count' | 'updated_at', search?: string): Promise<Collection[]> {
@@ -1110,14 +1131,16 @@ export class APIService {
     if (sortBy) params.append('sort_by', sortBy)
     if (search) params.append('search', search)
     const query = params.toString() ? `?${params.toString()}` : ''
-    return request<Collection[]>(`/collections/public${query}`)
+    const result = await request<Collection[]>(`/collections/public${query}`)
+    return APIService.normalizeCollections(result)
   }
 
   static async createCollection(collection: CollectionCreateInput): Promise<Collection> {
-    return request<Collection>('/collections', {
+    const result = await request<Collection>('/collections', {
       method: 'POST',
       body: JSON.stringify(collection),
     })
+    return APIService.normalizeCollection(result)
   }
 
   static async createCollectionFromSearch(
@@ -1133,20 +1156,22 @@ export class APIService {
       minRating?: number
     }
   ): Promise<Collection> {
-    return request<Collection>('/collections/from-search', {
+    const result = await request<Collection>('/collections/from-search', {
       method: 'POST',
       body: JSON.stringify(searchParams),
     })
+    return APIService.normalizeCollection(result)
   }
 
   static async updateCollection(
     collectionId: string,
     updates: Partial<Omit<Collection, 'id' | 'createdAt' | 'updatedAt' | 'userId' | 'userName' | 'username' | 'productSlugs'>>
   ): Promise<Collection | null> {
-    return request<Collection | null>(`/collections/${collectionId}`, {
+    const result = await request<Collection | null>(`/collections/${collectionId}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     })
+    return result ? APIService.normalizeCollection(result) : null
   }
 
   static async deleteCollection(collectionSlug: string): Promise<{ message: string }> {
@@ -1160,6 +1185,7 @@ export class APIService {
     const result = await request<Collection | null>(`/collections/${collectionSlug}/products/${productSlug}`, {
       method: 'POST',
     })
+    const normalized = result ? APIService.normalizeCollection(result) : null
     if (result) {
       logger.debug(`[API] ✅ addProductToCollection response:`, {
         id: result.id,
@@ -1170,20 +1196,22 @@ export class APIService {
     } else {
       console.error(`[API] ❌ addProductToCollection returned null/undefined`)
     }
-    return result
+    return normalized
   }
 
   static async removeProductFromCollection(collectionSlug: string, productSlug: string): Promise<Collection | null> {
-    return request<Collection | null>(`/collections/${collectionSlug}/products/${productSlug}`, {
+    const result = await request<Collection | null>(`/collections/${collectionSlug}/products/${productSlug}`, {
       method: 'DELETE',
     })
+    return result ? APIService.normalizeCollection(result) : null
   }
 
   static async addMultipleProductsToCollection(collectionSlug: string, productSlugs: string[]): Promise<Collection | null> {
-    return request<Collection | null>(`/collections/${collectionSlug}/products`, {
+    const result = await request<Collection | null>(`/collections/${collectionSlug}/products`, {
       method: 'POST',
       body: JSON.stringify({ productSlugs }),
     })
+    return result ? APIService.normalizeCollection(result) : null
   }
 
   static async getUserRequests(username: string): Promise<UserRequest[]> {

@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
-import { BrowserRouter } from 'react-router-dom'
+import { BrowserRouter, MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import App from '@/App'
 import { AuthProvider } from '@/contexts/AuthContext'
@@ -17,13 +17,14 @@ import { APIService } from '@/lib/api'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 
 describe('Landmark Regions Accessibility', () => {
+  // Render at /products so filter panel landmarks are present
   const renderApp = () => {
     return render(
-      <BrowserRouter>
+      <MemoryRouter initialEntries={['/products']}>
         <AuthProvider>
           <App />
         </AuthProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     )
   }
 
@@ -151,13 +152,14 @@ describe('ARIA Live Regions for Dynamic Content', () => {
 })
 
 describe('Empty State Status Announcements', () => {
+  // Render at /products so role="status" for search results is present
   const renderApp = () => {
     return render(
-      <BrowserRouter>
+      <MemoryRouter initialEntries={['/products']}>
         <AuthProvider>
           <App />
         </AuthProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     )
   }
 
@@ -171,7 +173,9 @@ describe('Empty State Status Announcements', () => {
   })
 })
 
-describe('Loading State Accessibility', () => {
+// Requires a running backend — set TEST_BACKEND_URL=http://localhost:8000 to enable
+const describeWithBackend = import.meta.env.TEST_BACKEND_URL ? describe : describe.skip
+describeWithBackend('Loading State Accessibility', () => {
   let testUserId: string
   let productId: string
 
