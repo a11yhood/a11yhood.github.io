@@ -83,8 +83,8 @@ jobs:
   a11y-preview-scan:
     needs: deploy-preview
     runs-on: ubuntu-latest
-    # accessibility-scanner requires a custom PAT; skip when unavailable (e.g., forked PRs)
-    if: ${{ secrets.GH_TOKEN != '' }}
+    # accessibility-scanner requires a custom PAT; forked PRs cannot access repository secrets.
+    if: ${{ github.event.pull_request.head.repo.fork == false }}
     steps:
       - uses: github/accessibility-scanner@v2
         with:
