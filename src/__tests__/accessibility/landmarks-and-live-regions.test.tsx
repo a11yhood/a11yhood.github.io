@@ -173,8 +173,9 @@ describe('Empty State Status Announcements', () => {
   })
 })
 
-// TODO: Enable once integration test backend is running
-describe.skip('Loading State Accessibility', () => {
+// Requires a running backend — set TEST_BACKEND_URL=http://localhost:8000 to enable
+const describeWithBackend = import.meta.env.TEST_BACKEND_URL ? describe : describe.skip
+describeWithBackend('Loading State Accessibility', () => {
   let testUserId: string
   let productId: string
 

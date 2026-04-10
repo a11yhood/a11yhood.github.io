@@ -33,6 +33,8 @@ export default defineConfig({
   define: {
     BASE_KV_SERVICE_URL: JSON.stringify('http://localhost:3000'),
     'import.meta.env.VITE_DEV_MODE': JSON.stringify('true'),
+    // Expose TEST_BACKEND_URL so tests can gate on backend availability
+    'import.meta.env.TEST_BACKEND_URL': JSON.stringify(process.env.TEST_BACKEND_URL ?? ''),
   },
   resolve: {
     alias: {

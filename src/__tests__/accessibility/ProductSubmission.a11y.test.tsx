@@ -64,8 +64,9 @@ describe('ProductSubmission Accessibility Tests', () => {
     })
   })
 
-  // TODO: Enable once integration test backend is running (requires URL-check API)
-  describe.skip('Form Labels and Accessibility (Story 3.1)', () => {
+  // Requires a running backend — set TEST_BACKEND_URL=http://localhost:8000 to enable
+  const describeWithBackend = import.meta.env.TEST_BACKEND_URL ? describe : describe.skip
+  describeWithBackend('Form Labels and Accessibility (Story 3.1)', () => {
     beforeEach(async () => {
       renderWithRouter(<ProductSubmission user={testUser} onSubmit={vi.fn()} />)
       const triggerButton = screen.getByRole('button', { name: /submit product/i })
@@ -131,8 +132,7 @@ describe('ProductSubmission Accessibility Tests', () => {
     })
   })
 
-  // TODO: Enable once integration test backend is running (requires URL-check API)
-  describe.skip('Image Alt Text Accessibility (Story 3.1)', () => {
+  describeWithBackend('Image Alt Text Accessibility (Story 3.1)', () => {
     beforeEach(async () => {
       renderWithRouter(<ProductSubmission user={testUser} onSubmit={vi.fn()} />)
       const triggerButton = screen.getByRole('button', { name: /submit product/i })
