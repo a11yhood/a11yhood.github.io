@@ -19,25 +19,25 @@ describe('NotFoundPage – level-one heading', () => {
       </MemoryRouter>
     )
 
-  it('renders an <h1> on an unknown route (/draft/209/)', async () => {
+  it('renders an <h1> on an unknown route (/draft/209/)', () => {
     renderAtPath('/draft/209/')
     const heading = screen.getByRole('heading', { level: 1 })
     expect(heading).toBeInTheDocument()
   })
 
-  it('renders an <h1> on any other unmatched route', async () => {
+  it('renders an <h1> on any other unmatched route', () => {
     renderAtPath('/this-route-does-not-exist')
     const heading = screen.getByRole('heading', { level: 1 })
     expect(heading).toBeInTheDocument()
   })
 
-  it('not-found heading text communicates page status', async () => {
+  it('not-found heading text communicates page status', () => {
     renderAtPath('/draft/209/')
     const heading = screen.getByRole('heading', { level: 1, name: /page not found/i })
     expect(heading).toBeInTheDocument()
   })
 
-  it('provides a link back to home', async () => {
+  it('provides a link back to home', () => {
     renderAtPath('/draft/209/')
     const link = screen.getByRole('link', { name: /return to home/i })
     expect(link).toBeInTheDocument()
