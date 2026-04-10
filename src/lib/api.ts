@@ -797,6 +797,47 @@ export class APIService {
     return result
   }
 
+  static async deleteProductsByFilters(filters: {
+    source?: string
+    sources?: string[]
+    type?: string
+    types?: string[]
+    tags?: string[]
+    tagsMode?: 'or' | 'and'
+    minRating?: number
+    updatedSince?: string
+    maxAge?: number
+    search?: string
+    createdBy?: string
+    includeBanned?: boolean
+  }): Promise<{ deletedCount: number }> {
+    console.log('[API] deleteProductsByFilters called with filters:', filters)
+    const params = new URLSearchParams()
+    
+    // Add single-value filters (map camelCase -> snake_case for backend)
+    if (filters.source) params.set('source', filters.source)
+    if (filters.type) params.set('type', filters.type)
+    if (filters.tagsMode) params.set('tags_mode', filters.tagsMode)
+    if (filters.minRating !== undefined) params.set('min_rating', String(filters.minRating))
+    if (filters.updatedSince) params.set('updated_since', filters.updatedSince)
+    if (filters.maxAge !== undefined) params.set('max_age', String(filters.maxAge))
+    if (filters.search) params.set('search', filters.search)
+    if (filters.createdBy) params.set('created_by', filters.createdBy)
+    if (filters.includeBanned) params.set('include_banned', String(filters.includeBanned))
+    
+    // Add array-value filters using repeated singular keys (consistent with getAllProducts)
+    filters.sources?.forEach(s => { if (s) params.append('source', s) })
+    filters.types?.forEach(t => { if (t) params.append('type', t) })
+    filters.tags?.forEach(tag => { if (tag) params.append('tags', tag) })
+    
+    const suffix = params.toString() ? `?${params.toString()}` : ''
+    const result = await request<{ deletedCount: number }>(`/products/bulk-delete${suffix}`, {
+      method: 'POST',
+    })
+    console.log('[API] deleteProductsByFilters result:', result, 'with filters:', filters)
+    return result
+  }
+
   static async getProductsByUser(username: string): Promise<Product[]> {
     return request<Product[]>(`/users/${encodeURIComponent(username)}/products`)
   }
