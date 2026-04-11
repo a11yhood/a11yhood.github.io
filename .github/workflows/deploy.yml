@@ -70,21 +70,23 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: production-build
-          path: new-production/
+          path: ${{ runner.temp }}/new-production/
 
       - name: Debug downloaded production artifact
         run: |
           echo "Downloaded artifact layout (top 3 levels):"
-          find new-production -maxdepth 3 -print | sort
+          find "${RUNNER_TEMP}/new-production" -maxdepth 3 -print | sort
 
       # Replace all root content with the new production build while preserving
       # preview subdirectories (legacy draft/ and current pr-preview/).
       - name: Merge production build into gh-pages root
         run: |
-          if [ -d new-production/dist ]; then
-            BUILD_SOURCE="new-production/dist/"
+          ARTIFACT_ROOT="${RUNNER_TEMP}/new-production"
+
+          if [ -d "${ARTIFACT_ROOT}/dist" ]; then
+            BUILD_SOURCE="${ARTIFACT_ROOT}/dist/"
           else
-            BUILD_SOURCE="new-production/"
+            BUILD_SOURCE="${ARTIFACT_ROOT}/"
           fi
 
           echo "Selected BUILD_SOURCE=${BUILD_SOURCE}"
@@ -110,6 +112,7 @@ jobs:
             --exclude='.github' \
             --exclude='draft' \
             --exclude='pr-preview' \
+            --exclude='new-production' \
             "$BUILD_SOURCE" . || rc=$?
           if [ "${rc:-0}" -ne 0 ] && [ "${rc:-0}" -ne 24 ]; then
             echo "rsync failed with unexpected exit code ${rc}"
@@ -126,7 +129,7 @@ jobs:
             exit 1
           fi
 
-          rm -rf new-production/
+          rm -rf "${ARTIFACT_ROOT}"
 
       # Committing to gh-pages triggers pages-deploy.yml which runs from the
       # gh-pages branch context (allowed by github-pages environment rules)
