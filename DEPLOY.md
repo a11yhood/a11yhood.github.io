@@ -105,13 +105,22 @@ gates those steps to non-fork pull requests.
 The following must be configured in the repository's GitHub settings for
 deployments to work:
 
+These are **one-time repository setup steps** performed by a maintainer/admin.
+Individual developers do **not** need to create local copies of these secrets
+to open PRs or contribute code.
+
 | Setting | Value |
 |---------|-------|
 | **Pages → Source** | GitHub Actions |
 | **Environment → `github-pages`** | Must exist; `id-token: write` depends on it |
-| **Secrets** | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_URL`, `VITE_DEV_MODE`, `VITE_ENV`, `VITE_LOG_LEVEL`, `GH_TOKEN` |
+| **Secrets** | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_URL`, `VITE_DEV_MODE`, `VITE_ENV`, `VITE_LOG_LEVEL`, `GH_TOKEN`, `GH_PAGES_PUSH_PAT` |
 
-The `GH_TOKEN` secret must be a personal access token with repo scope — the
+The `GH_TOKEN` secret is used for accessibility testing. It must be a personal access token with repo scope — the
 default `GITHUB_TOKEN` is not supported by the `github/accessibility-scanner`
 action.
+
+The `GH_PAGES_PUSH_PAT` secret is used for PR-PREVIEW deployments. It  must be a personal access token that can push to
+this repository (used by PR preview deploy/cleanup jobs when committing to
+`gh-pages`). Using a PAT here ensures the `gh-pages` push reliably triggers
+`pages-deploy.yml`.
 
