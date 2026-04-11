@@ -6,8 +6,6 @@ on:
 
 permissions:
   contents: write      # Commit PR preview to gh-pages branch
-  pages: write         # Deploy to GitHub Pages
-  id-token: write      # OIDC token for Pages deployment
   pull-requests: write # Post preview URL comment
 
 jobs:
@@ -64,13 +62,6 @@ jobs:
     if: github.event.action != 'closed'
     needs: build
     runs-on: ubuntu-latest
-    # Serialize all Pages deployments (previews queue behind each other and
-    # behind production deploys) to avoid concurrent Pages upload conflicts.
-    concurrency:
-      group: "pages"
-      cancel-in-progress: false
-    environment:
-      name: github-pages
     env:
       PREVIEW_URL: https://a11yhood.org/draft/${{ github.event.number }}/
     steps:
@@ -91,8 +82,9 @@ jobs:
           name: vite-site-${{ github.event.number }}
           path: draft/${{ github.event.number }}/
 
-      # Keep gh-pages in sync so future production deploys can discover and
-      # preserve all active PR previews.
+      # Committing to gh-pages triggers pages-deploy.yml which runs from the
+      # gh-pages branch context (allowed by github-pages environment rules)
+      # and does the actual actions/deploy-pages call.
       - name: Commit preview to gh-pages
         run: |
           git config user.name "github-actions[bot]"
@@ -104,16 +96,6 @@ jobs:
             git commit -m "Deploy PR #${{ github.event.number }} preview"
             git push
           fi
-
-      # Upload the entire gh-pages tree (production root + all PR previews)
-      # so every Pages deployment serves the complete merged site.
-      - name: Upload merged site as Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: '.'
-
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
 
       - name: Add preview URL to workflow summary
         run: |
@@ -160,15 +142,11 @@ jobs:
             }
 
   # When a PR is closed (merged or abandoned), remove its preview from
-  # gh-pages and redeploy Pages without it.
+  # gh-pages. The commit triggers pages-deploy.yml which redeploys Pages
+  # from the gh-pages branch context (allowed by environment protection rules).
   cleanup:
     if: github.event.action == 'closed'
     runs-on: ubuntu-latest
-    concurrency:
-      group: "pages"
-      cancel-in-progress: false
-    environment:
-      name: github-pages
     steps:
       - name: Checkout gh-pages branch
         uses: actions/checkout@v4
@@ -187,14 +165,6 @@ jobs:
           else
             echo "No preview directory found, nothing to remove"
           fi
-
-      - name: Upload updated site as Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: '.'
-
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
 
   accessibility_scanner:
     name: A11y Preview Scan (PR)

@@ -2,16 +2,22 @@
 
 ## Overview
 
-The site is hosted on GitHub Pages. There are two kinds of deployments:
+The site is hosted on GitHub Pages and uses three workflows working together:
 
-| Kind | URL | Trigger |
-|------|-----|---------|
-| **Production** | `https://a11yhood.org/` | Push a `v*` tag to `main` |
-| **PR preview** | `https://a11yhood.org/draft/<PR#>/` | Any push to a pull request |
+| Workflow | Trigger | Role |
+|----------|---------|------|
+| [Deploy to GitHub Pages](.github/workflows/deploy.yml) | Push a `v*` tag | Build production, commit to `gh-pages` branch |
+| [PR Preview](.github/workflows/pr-preview.yml) | PR push / close | Build preview, commit to `gh-pages` branch |
+| [Publish GitHub Pages](.github/workflows/pages-deploy.yml) | Push to `gh-pages` branch | Upload & deploy Pages artifact |
 
-Both are served from the same GitHub Pages deployment so previews and production
-coexist under one domain. The `gh-pages` branch is the source of truth — its root
-is the production build and its `draft/` subdirectory holds active PR previews.
+**Why three workflows?** GitHub Pages environment protection rules only allow
+deployments from the `gh-pages` branch, not from PR merge refs
+(`refs/pull/*/merge`). The build workflows commit their output to `gh-pages`,
+then `pages-deploy.yml` runs from that branch context and does the actual
+`actions/deploy-pages` call.
+
+The `gh-pages` branch root is the production build; `draft/<PR#>/` subdirectories
+hold active PR previews. Both are served from the same Pages deployment.
 
 ---
 
@@ -38,7 +44,8 @@ The [Deploy to GitHub Pages](.github/workflows/deploy.yml) workflow then:
 3. Checks out the `gh-pages` branch, `rsync`s the new build into the root
    **while preserving the `draft/` subdirectory** (active PR previews).
 4. Commits the update back to `gh-pages`.
-5. Uploads the entire `gh-pages` tree as a GitHub Pages artifact and deploys it.
+5. Pushes to `gh-pages`, which triggers [Publish GitHub Pages](.github/workflows/pages-deploy.yml)
+   to upload the full branch as the Pages artifact and deploy it.
 
 After a successful deploy, the [Accessibility Scanner](.github/workflows/a11y-scan.yml)
 runs automatically against the live site.
@@ -47,8 +54,10 @@ runs automatically against the live site.
 
 - If **tests** fail: fix the code, push to `main`, then re-tag (delete the old tag
   first with `git push --delete origin v1.2.3`, then create a new one).
-- If the **Pages deploy** step fails: re-run the workflow from the Actions tab
-  (`workflow_dispatch` is enabled).
+- If **deploy.yml** fails before pushing to `gh-pages`: fix and re-run `deploy.yml`
+   (or push a new tag).
+- If **pages-deploy.yml** fails: re-run `pages-deploy.yml` from the Actions tab
+   (`workflow_dispatch` is enabled there).
 
 ---
 
@@ -62,12 +71,22 @@ The [PR Preview](.github/workflows/pr-preview.yml) workflow:
 2. Builds the site with `VITE_BASE_URL=/draft/<PR#>/` so all asset and router
    paths are scoped to the preview URL.
 3. Checks out `gh-pages`, places the build under `draft/<PR#>/`, and commits.
-4. Uploads the full merged `gh-pages` tree as a Pages artifact and deploys —
-   the same mechanism used by production.
+4. Pushes to `gh-pages`, which triggers [Publish GitHub Pages](.github/workflows/pages-deploy.yml)
+   to deploy the merged site.
 5. Posts a comment on the PR with the preview URL.
 
 When a PR is **closed** (merged or abandoned), the `cleanup` job automatically
-removes `draft/<PR#>/` from `gh-pages` and redeploys to keep the site tidy.
+removes `draft/<PR#>/` from `gh-pages`; that push triggers `pages-deploy.yml`
+which redeploys the site without the preview.
+
+---
+
+## Publish workflow details
+
+[Publish GitHub Pages](.github/workflows/pages-deploy.yml) is the only workflow
+that calls `actions/deploy-pages` and targets the `github-pages` environment.
+It runs from `gh-pages` branch context, which satisfies environment protection
+rules and avoids PR ref deployment rejections.
 
 ### Forked PRs
 
