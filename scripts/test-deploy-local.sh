@@ -25,4 +25,4 @@ REQUIRE_GIT=0 ./scripts/merge-pages-root.sh ./dist "$TARGET_ROOT"
 
 echo "Local deploy simulation succeeded."
 echo "Referenced assets in simulated deployed index.html:"
-grep -o '/assets/[^" ]*' "$TARGET_ROOT/index.html" | sort -u
+grep -o '/assets/[^" ]*' "$TARGET_ROOT/index.html" | sort -u || true
