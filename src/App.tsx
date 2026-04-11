@@ -61,6 +61,21 @@ type ApiErrorLike = {
   }
 }
 
+function asProductArray(value: unknown): Product[] {
+  if (Array.isArray(value)) {
+    return value
+  }
+
+  if (value && typeof value === 'object') {
+    const candidate = value as { products?: unknown; items?: unknown; data?: unknown }
+    if (Array.isArray(candidate.products)) return candidate.products as Product[]
+    if (Array.isArray(candidate.items)) return candidate.items as Product[]
+    if (Array.isArray(candidate.data)) return candidate.data as Product[]
+  }
+
+  return []
+}
+
 export function ProductListPage({ 
   products, 
   ratings, 
@@ -193,8 +208,9 @@ export function ProductListPage({
 
   // Combine API-filtered tags with tags from current page of products, plus selected tags
   const allTags = useMemo(() => {
+    const normalizedProducts = asProductArray(products)
     const tagCounts = new Map<string, number>()
-    products.forEach(product => {
+    normalizedProducts.forEach(product => {
       if (product && product.tags) {
         product.tags.filter(Boolean).forEach(tag => {
           tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
@@ -818,7 +834,7 @@ function BlogPage({ blogPosts, blogPostsLoading, userAccount }: { blogPosts: Blo
               Manage Posts
             </Button>
           )}
-          <Button variant="ghost" onClick={() => navigate('/')} className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate('/')} className="flex items-center gap-2">
             ← Back to Products
           </Button>
         </div>
@@ -1046,7 +1062,7 @@ function CollectionsPage({
             <h1 className="text-3xl font-bold">My Collections</h1>
             <div className="flex items-center gap-2">
               <Button onClick={onCreateCollection}>Create Collection</Button>
-              <Button variant="ghost" onClick={() => navigate('/')}>
+              <Button variant="outline" onClick={() => navigate('/')}>
                 ← Back to Products
               </Button>
             </div>
@@ -1089,7 +1105,7 @@ function CollectionsPage({
       ) : (
         <div className="mb-6 flex items-center justify-between">
           <p className="text-lg text-muted-foreground">Log in to create your own collection</p>
-          <Button variant="ghost" onClick={() => navigate('/')}>
+          <Button variant="outline" onClick={() => navigate('/')}>
             ← Back to Products
           </Button>
         </div>
@@ -1263,7 +1279,7 @@ function ProfilePage({
 
   return (
     <div>
-      <Button variant="ghost" onClick={() => navigate('/')} className="mb-6">
+      <Button variant="outline" onClick={() => navigate('/')} className="mb-6">
         ← Back to Products
       </Button>
       <UserProfile 
@@ -1706,9 +1722,10 @@ function App() {
   // Combine filtered tags with tags from current page of products, plus any selected tags
   // Sort by frequency in current results (most common first)
   const allTags = useMemo(() => {
+    const normalizedProducts = asProductArray(products)
     // Count tag frequencies in current products
     const tagCounts = new Map<string, number>()
-    products.forEach(product => {
+    normalizedProducts.forEach(product => {
       if (product && product.tags) {
         product.tags.filter(Boolean).forEach(tag => {
           tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
@@ -1788,7 +1805,7 @@ function App() {
             APIService.getAllBlogPosts(false),
           ])
             .then(([products, ratings, blogPosts]) => {
-              setProducts(products)
+              setProducts(asProductArray(products))
               setRatings(ratings)
               setBlogPosts(blogPosts)
               setBlogPostsLoading(false)
@@ -1853,7 +1870,7 @@ function App() {
           APIService.getAllProducts(initialProductParams),
         ])
 
-        const loadedProducts = productsResult.status === 'fulfilled' ? productsResult.value : []
+        const loadedProducts = productsResult.status === 'fulfilled' ? asProductArray(productsResult.value) : []
         const totalCount = countResult.status === 'fulfilled' ? countResult.value : loadedProducts.length
         
         console.log('[App] Data loaded:', {
@@ -2008,12 +2025,13 @@ function App() {
         }
 
         if (productsResult.status === 'fulfilled') {
+          const fetchedProducts = asProductArray(productsResult.value)
           // Handle fallback for minRating filter
-          if ((minRating || 0) > 0 && productsResult.value.length === 0) {
+          if ((minRating || 0) > 0 && fetchedProducts.length === 0) {
             const fallbackParams = { ...params, minRating: undefined }
             try {
               const withoutRating = await APIService.getAllProducts(fallbackParams)
-              const clientFiltered = withoutRating.filter(p => {
+              const clientFiltered = asProductArray(withoutRating).filter(p => {
                 const productRatings = ratings.filter(r => r.productId === p.id)
                 if (productRatings.length > 0 && p.sourceRating) {
                   const userAverage = productRatings.reduce((sum, r) => sum + r.rating, 0) / productRatings.length
@@ -2032,10 +2050,10 @@ function App() {
               setProducts(clientFiltered)
             } catch (e) {
               console.warn('[App.fetchEffect] Fallback client-side rating filter failed:', e)
-              setProducts(productsResult.value)
+              setProducts(fetchedProducts)
             }
           } else {
-            setProducts(productsResult.value)
+            setProducts(fetchedProducts)
           }
         } else {
           console.error('Failed to load products:', productsResult.reason)
@@ -2046,7 +2064,7 @@ function App() {
           setFilteredTags(tagsResult.value)
         }
 
-        const fallbackCount = productsResult.status === 'fulfilled' ? productsResult.value.length : 0
+        const fallbackCount = productsResult.status === 'fulfilled' ? asProductArray(productsResult.value).length : 0
         const finalCount = countResult.status === 'fulfilled' ? countResult.value : fallbackCount
         
         setTotalProductCount(finalCount)
