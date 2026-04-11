@@ -68,6 +68,7 @@ jobs:
       - name: Checkout source branch
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           path: source-branch
 
       - name: Checkout gh-pages branch
@@ -193,7 +194,9 @@ jobs:
       - name: Ensure pages publish workflow exists on gh-pages
         run: |
           mkdir -p gh-pages-branch/.github/workflows
-          cp source-branch/.github/workflows/pages-deploy.yml gh-pages-branch/.github/workflows/pages-deploy.yml
+          if [ ! -f gh-pages-branch/.github/workflows/pages-deploy.yml ]; then
+            cp source-branch/.github/workflows/pages-deploy.yml gh-pages-branch/.github/workflows/pages-deploy.yml
+          fi
 
       - name: Remove PR preview directory
         env:
