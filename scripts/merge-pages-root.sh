@@ -71,12 +71,13 @@ if [ "$REQUIRE_GIT" = "1" ] && [ ! -d "${TARGET_ROOT}/.git" ]; then
 fi
 
 # Remove root-level entries while preserving git metadata, workflow copy,
-# and preview directories that should survive production deployments.
+# preview directories, and the custom-domain CNAME file.
 find "$TARGET_ROOT" -maxdepth 1 -mindepth 1 \
   ! -name '.git' \
   ! -name '.github' \
   ! -name 'draft' \
   ! -name 'pr-preview' \
+  ! -name 'CNAME' \
   -exec rm -rf {} +
 
 # Copy build output into target root.
