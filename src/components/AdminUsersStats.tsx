@@ -235,7 +235,7 @@ export function AdminUsersStats() {
       >
         <div className="flex justify-end mb-3">
           <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-48" aria-label="Sort users">
               <SelectValue placeholder="Sort users" />
             </SelectTrigger>
             <SelectContent>
@@ -290,7 +290,7 @@ export function AdminUsersStats() {
                             handleRoleChange(user.username || user.id, value)
                           }
                         >
-                          <SelectTrigger className="w-32">
+                          <SelectTrigger className="w-32" aria-label={`Change role for ${user.username || user.id}`}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>

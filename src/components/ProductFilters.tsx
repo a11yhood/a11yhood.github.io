@@ -107,7 +107,7 @@ export function ProductFilters({
 
         <Label className="text-base font-medium" htmlFor="sortby">Sort By
         <Select value={`${sortBy}-${sortOrder}`} onValueChange={onSortChange} >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full" id="sortby">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
