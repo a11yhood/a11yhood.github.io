@@ -13,9 +13,9 @@ jobs:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -28,9 +28,9 @@ jobs:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -53,7 +53,7 @@ jobs:
           VITE_BASE_URL: /pr-preview/${{ github.event.number }}/
         run: npx tsc -b --noCheck && npx vite build
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: vite-site-${{ github.event.number }}
           path: dist/
@@ -66,12 +66,12 @@ jobs:
       PREVIEW_URL: https://a11yhood.org/pr-preview/${{ github.event.number }}/
     steps:
       - name: Checkout source branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: source-branch
 
       - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: gh-pages
           path: gh-pages-branch
@@ -84,7 +84,7 @@ jobs:
         run: rm -rf gh-pages-branch/pr-preview/${{ github.event.number }}
 
       - name: Download PR build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: vite-site-${{ github.event.number }}
           path: /tmp/pr-build/
@@ -178,12 +178,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: source-branch
 
       - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: gh-pages
           path: gh-pages-branch

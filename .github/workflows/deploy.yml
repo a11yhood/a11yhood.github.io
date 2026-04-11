@@ -22,10 +22,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -51,7 +51,7 @@ jobs:
         run: npm run build:ghpages
 
       - name: Upload production build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: production-build
           path: dist/
@@ -61,13 +61,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: gh-pages
           fetch-depth: 1
 
       - name: Download production build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: production-build
           path: new-production/
@@ -87,7 +87,11 @@ jobs:
             --exclude='.github' \
             --exclude='draft' \
             --exclude='pr-preview' \
-            "$BUILD_SOURCE" .
+            "$BUILD_SOURCE" . || rc=$?
+          if [ "${rc:-0}" -ne 0 ] && [ "${rc:-0}" -ne 24 ]; then
+            echo "rsync failed with unexpected exit code ${rc}"
+            exit "$rc"
+          fi
           rm -rf new-production/
 
       # Committing to gh-pages triggers pages-deploy.yml which runs from the
