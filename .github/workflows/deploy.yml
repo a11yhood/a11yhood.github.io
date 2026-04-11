@@ -72,6 +72,11 @@ jobs:
           name: production-build
           path: new-production/
 
+      - name: Debug downloaded production artifact
+        run: |
+          echo "Downloaded artifact layout (top 3 levels):"
+          find new-production -maxdepth 3 -print | sort
+
       # Replace all root content with the new production build while preserving
       # preview subdirectories (legacy draft/ and current pr-preview/).
       - name: Merge production build into gh-pages root
@@ -80,6 +85,24 @@ jobs:
             BUILD_SOURCE="new-production/dist/"
           else
             BUILD_SOURCE="new-production/"
+          fi
+
+          echo "Selected BUILD_SOURCE=${BUILD_SOURCE}"
+
+          # Guardrail: never deploy a source-style index that references
+          # /src/main.tsx. A production Vite build should reference hashed
+          # files under /assets.
+          if [ ! -f "${BUILD_SOURCE}index.html" ]; then
+            echo "Build artifact is missing index.html at ${BUILD_SOURCE}index.html"
+            exit 1
+          fi
+          if grep -q 'src="/src/main.tsx"' "${BUILD_SOURCE}index.html"; then
+            echo "Refusing to deploy non-built index.html (contains /src/main.tsx)."
+            exit 1
+          fi
+          if [ ! -d "${BUILD_SOURCE}assets" ]; then
+            echo "Build artifact is missing assets/ directory at ${BUILD_SOURCE}assets"
+            exit 1
           fi
 
           rsync -av --delete \
@@ -92,6 +115,17 @@ jobs:
             echo "rsync failed with unexpected exit code ${rc}"
             exit "$rc"
           fi
+
+          # Post-copy sanity check on gh-pages root before commit.
+          if [ ! -d assets ]; then
+            echo "Post-merge validation failed: gh-pages root has no assets/"
+            exit 1
+          fi
+          if grep -q 'src="/src/main.tsx"' index.html; then
+            echo "Post-merge validation failed: index.html still references /src/main.tsx"
+            exit 1
+          fi
+
           rm -rf new-production/
 
       # Committing to gh-pages triggers pages-deploy.yml which runs from the
