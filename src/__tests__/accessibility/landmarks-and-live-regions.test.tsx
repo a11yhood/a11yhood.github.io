@@ -28,6 +28,21 @@ describe('Landmark Regions Accessibility', () => {
     )
   }
 
+  it('should have main landmark region on the home page (/)', async () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      const main = screen.getByRole('main')
+      expect(main).toBeInTheDocument()
+    })
+  })
+
   it('should have main landmark region', async () => {
     renderApp()
     
