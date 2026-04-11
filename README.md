@@ -46,10 +46,6 @@ To join our community and learn about contributing, go to the [community](https:
 │   │   ├── integration/
 │   │   └── security/
 │   └── App.tsx             # Main application
-├── scripts/                # Utility scripts
-│   ├── start-dev.sh        # Development server
-│   ├── start-prod.sh       # Production build server
-│   └── run-tests.sh        # Test runner
 └── public/                 # Static assets
 
 ```
@@ -59,7 +55,29 @@ To join our community and learn about contributing, go to the [community](https:
 ### Prerequisites
 
 - Node.js 18+ and npm
-- A Supabase account and project
+- pixi
+
+### Install Pixi (macOS)
+
+Visit https://pixi.prefix.dev for more information.
+
+Choose one option:
+
+```bash
+# Homebrew
+brew install pixi
+```
+
+```bash
+# Official installer
+curl -fsSL https://pixi.sh/install.sh | bash
+```
+
+Verify installation:
+
+```bash
+pixi --version
+```
 
 ### Installation
 
