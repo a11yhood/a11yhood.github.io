@@ -50,7 +50,7 @@ jobs:
           VITE_LOG_LEVEL: ${{ secrets.VITE_LOG_LEVEL }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_BASE_URL: /draft/${{ github.event.number }}/
+          VITE_BASE_URL: /pr-preview/${{ github.event.number }}/
         run: npx tsc -b --noCheck && npx vite build
 
       - uses: actions/upload-artifact@v4
@@ -63,7 +63,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     env:
-      PREVIEW_URL: https://a11yhood.org/draft/${{ github.event.number }}/
+      PREVIEW_URL: https://a11yhood.org/pr-preview/${{ github.event.number }}/
     steps:
       - name: Checkout gh-pages branch
         uses: actions/checkout@v4
@@ -74,7 +74,7 @@ jobs:
       # Remove stale files from a previous build of this same PR so renamed
       # or deleted assets don't linger.
       - name: Clear existing preview directory
-        run: rm -rf draft/${{ github.event.number }}
+        run: rm -rf pr-preview/${{ github.event.number }}
 
       - name: Download PR build
         uses: actions/download-artifact@v4
@@ -84,11 +84,11 @@ jobs:
 
       - name: Place build in preview directory
         run: |
-          mkdir -p draft/${{ github.event.number }}
+          mkdir -p pr-preview/${{ github.event.number }}
           if [ -d /tmp/pr-build/dist ]; then
-            cp -r /tmp/pr-build/dist/. draft/${{ github.event.number }}/
+            cp -r /tmp/pr-build/dist/. pr-preview/${{ github.event.number }}/
           else
-            cp -r /tmp/pr-build/. draft/${{ github.event.number }}/
+            cp -r /tmp/pr-build/. pr-preview/${{ github.event.number }}/
           fi
 
       # Committing to gh-pages triggers pages-deploy.yml which runs from the
@@ -98,7 +98,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A draft/${{ github.event.number }}/
+          git add -A pr-preview/${{ github.event.number }}/
           if git diff --cached --quiet; then
             echo "Nothing to commit, preview is already up to date"
           else
@@ -165,10 +165,10 @@ jobs:
 
       - name: Remove PR preview directory
         run: |
-          if [ -d "draft/${{ github.event.number }}" ]; then
+          if [ -d "pr-preview/${{ github.event.number }}" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git rm -rf "draft/${{ github.event.number }}/"
+            git rm -rf "pr-preview/${{ github.event.number }}/"
             git commit -m "Remove PR #${{ github.event.number }} preview"
             git push
           else
@@ -185,7 +185,7 @@ jobs:
       - uses: github/accessibility-scanner@v2
         with:
           urls: |
-            https://a11yhood.org/draft/${{ github.event.number }}/
+            https://a11yhood.org/pr-preview/${{ github.event.number }}/
           repository: a11yhood/a11yhood.github.io
           token: ${{ secrets.GH_TOKEN }}
           cache_key: a11yhood.org-pr-${{ github.event.number }}

@@ -73,7 +73,7 @@ jobs:
           path: new-production/
 
       # Replace all root content with the new production build while preserving
-      # the draft/ subdirectory (which holds active PR previews).
+      # preview subdirectories (legacy draft/ and current pr-preview/).
       - name: Merge production build into gh-pages root
         run: |
           if [ -d new-production/dist ]; then
@@ -85,6 +85,7 @@ jobs:
           rsync -av --delete \
             --exclude='.git' \
             --exclude='draft' \
+            --exclude='pr-preview' \
             "$BUILD_SOURCE" .
           rm -rf new-production/
 

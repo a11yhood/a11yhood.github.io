@@ -16,7 +16,7 @@ deployments from the `gh-pages` branch, not from PR merge refs
 then `pages-deploy.yml` runs from that branch context and does the actual
 `actions/deploy-pages` call.
 
-The `gh-pages` branch root is the production build; `draft/<PR#>/` subdirectories
+The `gh-pages` branch root is the production build; `pr-preview/<PR#>/` subdirectories
 hold active PR previews. Both are served from the same Pages deployment.
 
 ---
@@ -42,7 +42,7 @@ The [Deploy to GitHub Pages](.github/workflows/deploy.yml) workflow then:
 1. Runs `npm run test:run` against the tagged commit.
 2. Builds the site with `npm run build:ghpages` (sets `VITE_BASE_URL=/`).
 3. Checks out the `gh-pages` branch, `rsync`s the new build into the root
-   **while preserving the `draft/` subdirectory** (active PR previews).
+   **while preserving preview subdirectories** (active PR previews).
 4. Commits the update back to `gh-pages`.
 5. Pushes to `gh-pages`, which triggers [Publish GitHub Pages](.github/workflows/pages-deploy.yml)
    to upload the full branch as the Pages artifact and deploy it.
@@ -64,19 +64,19 @@ runs automatically against the live site.
 ## PR previews
 
 Every pull request automatically gets a full preview of the site at
-`https://a11yhood.org/draft/<PR#>/`.
+`https://a11yhood.org/pr-preview/<PR#>/`.
 
 The [PR Preview](.github/workflows/pr-preview.yml) workflow:
 1. Runs lint and tests on the PR branch.
-2. Builds the site with `VITE_BASE_URL=/draft/<PR#>/` so all asset and router
+2. Builds the site with `VITE_BASE_URL=/pr-preview/<PR#>/` so all asset and router
    paths are scoped to the preview URL.
-3. Checks out `gh-pages`, places the build under `draft/<PR#>/`, and commits.
+3. Checks out `gh-pages`, places the build under `pr-preview/<PR#>/`, and commits.
 4. Pushes to `gh-pages`, which triggers [Publish GitHub Pages](.github/workflows/pages-deploy.yml)
    to deploy the merged site.
 5. Posts a comment on the PR with the preview URL.
 
 When a PR is **closed** (merged or abandoned), the `cleanup` job automatically
-removes `draft/<PR#>/` from `gh-pages`; that push triggers `pages-deploy.yml`
+removes `pr-preview/<PR#>/` from `gh-pages`; that push triggers `pages-deploy.yml`
 which redeploys the site without the preview.
 
 ---

@@ -177,7 +177,7 @@ tag — merging to `main` alone does **not** deploy:
 git tag v1.2.3 && git push origin v1.2.3
 ```
 
-Every pull request also gets a live preview at `https://a11yhood.org/draft/<PR#>/`,
+Every pull request also gets a live preview at `https://a11yhood.org/pr-preview/<PR#>/`,
 automatically deployed and cleaned up by CI.
 
 See [DEPLOY.md](DEPLOY.md) for the full release process, PR preview details, and
