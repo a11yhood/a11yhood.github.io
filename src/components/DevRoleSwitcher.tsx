@@ -96,9 +96,9 @@ export function DevRoleSwitcher({ userAccount, onRoleChange }: DevRoleSwitcherPr
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-2">
-          <label className="text-xs font-medium text-muted-foreground">Active Dev Account</label>
+          <label htmlFor="dev-role-switcher-select" className="text-xs font-medium text-muted-foreground">Active Dev Account</label>
           <Select value={selectedUser} onValueChange={handleUserChange} disabled={isSwitching}>
-            <SelectTrigger className="bg-(--color-bg)">
+            <SelectTrigger id="dev-role-switcher-select" className="bg-(--color-bg)">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
