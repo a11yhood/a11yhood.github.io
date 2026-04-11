@@ -38,7 +38,6 @@ export function AboutPage() {
     <div className="max-w-4xl mx-auto px-4 py-10">
       <Card>
         <CardHeader>
-          {/* h1 satisfies WCAG page-has-heading-one; CardTitle renders as div and would not count */}
           <h1 className="text-xl leading-none font-semibold">About a11yhood</h1>
         </CardHeader>
         <CardContent>
