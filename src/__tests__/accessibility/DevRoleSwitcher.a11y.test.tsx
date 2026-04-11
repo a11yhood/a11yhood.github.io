@@ -56,4 +56,3 @@ describe('DevRoleSwitcher landmark region', () => {
     expect(results).toHaveNoViolations()
   })
 })
-
