@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { HomePage } from '@/components/HomePage'
+import App from '@/App'
+import { AuthProvider } from '@/contexts/AuthContext'
 import { createMockProduct } from '../helpers/create-mocks'
 import { runA11yScan } from '../helpers/a11y'
 import { FEATURED_TAG } from '@/lib/homepageRandom'
@@ -71,5 +73,21 @@ describe('HomePage accessibility smoke tests', () => {
 
     const results = await runA11yScan(container)
     expect(results).toHaveNoViolations()
+  })
+})
+
+describe('HomePage main landmark (landmark-one-main)', () => {
+  it('document has a main landmark when rendering the App at /', async () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('main')).toBeInTheDocument()
+    })
   })
 })
