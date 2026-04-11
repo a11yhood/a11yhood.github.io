@@ -44,7 +44,6 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_DEV_MODE: ${{ secrets.VITE_DEV_MODE }}
-          VITE_ENV: ${{ secrets.VITE_ENV }}
           VITE_LOG_LEVEL: ${{ secrets.VITE_LOG_LEVEL }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
@@ -60,79 +59,61 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout trusted merge script source
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.sha }}
+          path: trusted-workflow-source
+          sparse-checkout: |
+            scripts/merge-pages-root.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Checkout gh-pages branch
         uses: actions/checkout@v5
         with:
           ref: gh-pages
+          path: gh-pages-branch
           fetch-depth: 1
 
       - name: Download production build
         uses: actions/download-artifact@v5
         with:
           name: production-build
-          path: new-production/
+          path: ${{ runner.temp }}/new-production/
 
       - name: Debug downloaded production artifact
         run: |
           echo "Downloaded artifact layout (top 3 levels):"
-          find new-production -maxdepth 3 -print | sort
+          find "${RUNNER_TEMP}/new-production" -maxdepth 3 -print | sort
 
       # Replace all root content with the new production build while preserving
       # preview subdirectories (legacy draft/ and current pr-preview/).
       - name: Merge production build into gh-pages root
         run: |
-          if [ -d new-production/dist ]; then
-            BUILD_SOURCE="new-production/dist/"
+          cd gh-pages-branch
+          ARTIFACT_ROOT="${RUNNER_TEMP}/new-production"
+
+          if [ -d "${ARTIFACT_ROOT}/dist" ]; then
+            BUILD_SOURCE="${ARTIFACT_ROOT}/dist/"
           else
-            BUILD_SOURCE="new-production/"
+            BUILD_SOURCE="${ARTIFACT_ROOT}/"
           fi
 
           echo "Selected BUILD_SOURCE=${BUILD_SOURCE}"
 
-          # Guardrail: never deploy a source-style index that references
-          # /src/main.tsx. A production Vite build should reference hashed
-          # files under /assets.
-          if [ ! -f "${BUILD_SOURCE}index.html" ]; then
-            echo "Build artifact is missing index.html at ${BUILD_SOURCE}index.html"
-            exit 1
-          fi
-          if grep -q 'src="/src/main.tsx"' "${BUILD_SOURCE}index.html"; then
-            echo "Refusing to deploy non-built index.html (contains /src/main.tsx)."
-            exit 1
-          fi
-          if [ ! -d "${BUILD_SOURCE}assets" ]; then
-            echo "Build artifact is missing assets/ directory at ${BUILD_SOURCE}assets"
-            exit 1
-          fi
+          chmod +x ../trusted-workflow-source/scripts/merge-pages-root.sh
+          ../trusted-workflow-source/scripts/merge-pages-root.sh "${BUILD_SOURCE}" .
 
-          rsync -av --delete \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='draft' \
-            --exclude='pr-preview' \
-            "$BUILD_SOURCE" . || rc=$?
-          if [ "${rc:-0}" -ne 0 ] && [ "${rc:-0}" -ne 24 ]; then
-            echo "rsync failed with unexpected exit code ${rc}"
-            exit "$rc"
-          fi
-
-          # Post-copy sanity check on gh-pages root before commit.
-          if [ ! -d assets ]; then
-            echo "Post-merge validation failed: gh-pages root has no assets/"
-            exit 1
-          fi
-          if grep -q 'src="/src/main.tsx"' index.html; then
-            echo "Post-merge validation failed: index.html still references /src/main.tsx"
-            exit 1
-          fi
-
-          rm -rf new-production/
+          rm -rf "${ARTIFACT_ROOT}"
 
       # Committing to gh-pages triggers pages-deploy.yml which runs from the
       # gh-pages branch context (allowed by github-pages environment rules)
       # and does the actual actions/deploy-pages call.
       - name: Commit updated production to gh-pages
         run: |
+          cd gh-pages-branch
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A

@@ -157,7 +157,6 @@ VITE_API_URL=http://localhost:8000
 VITE_SUPABASE_URL=https://ztnxqktwvwlbepflxvzp.supabase.co
 VITE_SUPABASE_ANON_KEY=sb_publishable_...
 
-VITE_ENV=development
 VITE_LOG_LEVEL=debug
 ```
 
@@ -172,7 +171,6 @@ VITE_API_URL=https://localhost:8001
 VITE_SUPABASE_URL=https://ztnxqktwvwlbepflxvzp.supabase.co
 VITE_SUPABASE_ANON_KEY=sb_publishable_...
 
-VITE_ENV=production
 VITE_LOG_LEVEL=debug
 ```
 
