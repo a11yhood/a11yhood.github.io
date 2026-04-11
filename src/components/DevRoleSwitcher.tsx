@@ -62,7 +62,8 @@ export function DevRoleSwitcher({ userAccount, onRoleChange }: DevRoleSwitcherPr
 
   if (!isOpen) {
     return (
-      <div className="fixed bottom-4 right-4 z-50">
+      // aside landmark ensures axe region rule: all content must be in a landmark
+      <aside aria-label="Dev role switcher" className="fixed bottom-4 right-4 z-50">
         <Button
           variant="secondary"
           size="icon"
@@ -72,11 +73,13 @@ export function DevRoleSwitcher({ userAccount, onRoleChange }: DevRoleSwitcherPr
         >
           🧪
         </Button>
-      </div>
+      </aside>
     )
   }
 
   return (
+    // aside landmark ensures axe region rule: all content must be in a landmark
+    <aside aria-label="Dev role switcher">
     <Card className="fixed bottom-4 right-4 w-80 shadow-lg border-blue-200 bg-blue-50 z-50">
       <CardHeader className="pb-2 flex items-center justify-between gap-2">
         <CardTitle className="text-sm flex items-center gap-2">
@@ -96,9 +99,9 @@ export function DevRoleSwitcher({ userAccount, onRoleChange }: DevRoleSwitcherPr
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-2">
-          <label className="text-xs font-medium text-muted-foreground">Active Dev Account</label>
+          <label htmlFor="dev-role-select" className="text-xs font-medium text-muted-foreground">Active Dev Account</label>
           <Select value={selectedUser} onValueChange={handleUserChange} disabled={isSwitching}>
-            <SelectTrigger className="bg-(--color-bg)">
+            <SelectTrigger id="dev-role-select" className="bg-(--color-bg)">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -129,5 +132,6 @@ export function DevRoleSwitcher({ userAccount, onRoleChange }: DevRoleSwitcherPr
         </div>
       </CardContent>
     </Card>
+    </aside>
   )
 }
