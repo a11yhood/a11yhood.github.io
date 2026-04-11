@@ -11,8 +11,11 @@
     // string into just a query string, and then redirects the browser
     // to the new url with only a query string and hash fragment
     
-    // Store the path for SPA routing
-    var pathSegmentsToKeep = 0; // For / base path
+    // For PR preview paths (/pr-preview/N/...) keep the first 2 path
+    // segments so the redirect lands on the PR preview's own index.html
+    // rather than the root index.html (main site).
+    var parts = window.location.pathname.split('/');
+    var pathSegmentsToKeep = (parts[1] === 'pr-preview' && parts[2]) ? 2 : 0;
     
     var l = window.location;
     l.replace(
