@@ -46,7 +46,7 @@ async function createTestUser(): Promise<void> {
 
   userData = {
     id: userAccount.id,
-    login: userAccount.username,
+    username: userAccount.username,
     avatarUrl: userAccount.avatarUrl,
   }
 

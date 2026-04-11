@@ -1,0 +1,37 @@
+name: Accessibility Scanner
+
+on:
+  # Run as a post-deploy sanity check after every production deployment.
+  # Primary accessibility testing happens during development (unit tests with axe).
+  # This scanner is the final check against the live site.
+  workflow_run:
+    workflows: ["Deploy to GitHub Pages"]
+    types:
+      - completed
+
+  # Allow manual runs at any time (e.g. before a release, after a content update).
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  accessibility_scanner:
+    name: A11y Production Scan
+    # Only run when a deployment succeeded (skip if the deploy itself failed).
+    # workflow_dispatch runs unconditionally.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: github/accessibility-scanner@v2
+        with:
+          urls: |
+            https://a11yhood.org
+          repository: a11yhood/a11yhood.github.io
+          # The accessibility-scanner action requires a custom PAT; the default
+          # GITHUB_TOKEN is explicitly not supported by this action.
+          # See: https://github.com/marketplace/actions/accessibility-scanner#requirements
+          token: ${{ secrets.GH_TOKEN }}
+          cache_key: a11yhood.org

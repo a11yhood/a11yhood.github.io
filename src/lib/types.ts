@@ -53,12 +53,24 @@ export type Product = {
   stars?: number // Number of stars/followers/likes from source platform
 }
 
+/**
+ * Payload type for updating a product. Extends Product but allows null for
+ * image fields so they can be explicitly cleared via PATCH.
+ */
+export type ProductUpdate = Omit<Product, 'imageUrl' | 'imageAlt'> & {
+  imageUrl?: string | null
+  imageAlt?: string | null
+}
+
 export type Rating = {
   productId: string
   userId: string
   rating: number
   createdAt: number
 }
+
+/** Sentinel value used for soft-deleted discussion content. */
+export const DELETED_DISCUSSION_CONTENT = '[deleted]'
 
 export type Discussion = {
   id: string
@@ -77,17 +89,22 @@ export type Discussion = {
 
 export type UserData = {
   id: string
-  login: string
+  username: string
   avatarUrl?: string
 }
 
 export type UserAccount = {
   id: string
   username?: string
+  displayName?: string
   avatarUrl?: string
   email?: string
   role: 'user' | 'moderator' | 'admin'
-  createdAt?: string
+  bio?: string
+  location?: string
+  website?: string
+  preferences?: Record<string, any>
+  createdAt?: string | number
   joinedAt?: string
   lastActive?: string
 }
@@ -157,12 +174,11 @@ export type Collection = {
   slug?: string
   name: string
   description?: string
+  userId: string
   username: string
-  userId?: string
-  userName?: string
   productSlugs: string[]
-  createdAt: number
-  updatedAt: number
+  createdAt: string | number
+  updatedAt: string | number
   isPublic: boolean
 }
 
@@ -188,4 +204,22 @@ export type UserRequest = {
   reviewedBy?: string
   reviewerNote?: string
   productId?: string
+}
+
+export type SupportedSource = {
+  id: string
+  domain: string
+  name: string
+  description?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type ScraperJob = {
+  id: string
+  name: string
+  source: string
+  nextRunTime?: string
+  lastRunTime?: string
+  status?: string
 }

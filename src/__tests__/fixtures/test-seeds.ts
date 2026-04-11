@@ -23,19 +23,19 @@ export async function seedDevUsers(): Promise<void> {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: user.login,
+          username: user.username,
           email: user.email,
           displayName: user.displayName,
-          avatar_url: `https://avatars.githubusercontent.com/${user.login}`,
+          avatar_url: `https://avatars.githubusercontent.com/${user.username}`,
           role: user.role,
         }),
       })
 
       if (!response.ok) {
-        console.warn(`Failed to seed user ${user.login}: ${response.status}`)
+        console.warn(`Failed to seed user ${user.username}: ${response.status}`)
       }
     } catch (err) {
-      console.warn(`Error seeding user ${user.login}:`, err)
+      console.warn(`Error seeding user ${user.username}:`, err)
     }
   }
 }
@@ -68,12 +68,6 @@ export async function seedSupportedSources(): Promise<void> {
       name: 'AbleData',
       domain: 'abledata.acl.gov',
       scraper_type: 'abledata',
-      is_active: true,
-    },
-    {
-      name: 'GOAT',
-      domain: 'goatonline.org',
-      scraper_type: 'goat',
       is_active: true,
     },
   ]

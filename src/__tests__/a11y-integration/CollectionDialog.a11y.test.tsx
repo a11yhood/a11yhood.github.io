@@ -9,7 +9,7 @@ import type { Collection } from '@/lib/types'
 
 describe('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', () => {
   const testUserId = DEV_USERS.user.id
-  const testUsername = DEV_USERS.user.username || DEV_USERS.user.login
+  const testUsername = DEV_USERS.user.username
   let testProductSlug: string
   let testCollections: Collection[] = []
 

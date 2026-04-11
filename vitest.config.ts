@@ -15,6 +15,12 @@ export default defineConfig({
           '**/__tests__/types/**/*.test.{ts,tsx}',
           '**/__tests__/lib/api.base-url.test.ts',
           '**/__tests__/lib/source-ratings.test.ts',
+          '**/__tests__/lib/normalize-image-url.test.ts',
+          '**/__tests__/components/PublicProfile.test.tsx',
+          '**/__tests__/components/UserProfile.website.test.tsx',
+          '**/__tests__/components/HomePage.test.tsx',
+          '**/__tests__/accessibility/BlogPostDraftPage.a11y.test.tsx',
+          '**/__tests__/components/HomePage.a11y.test.tsx',
         ]
       : ['**/__tests__/**/*.test.{ts,tsx}'],
     exclude: [
@@ -28,6 +34,8 @@ export default defineConfig({
   define: {
     BASE_KV_SERVICE_URL: JSON.stringify('http://localhost:3000'),
     'import.meta.env.VITE_DEV_MODE': JSON.stringify('true'),
+    // Expose TEST_BACKEND_URL so tests can gate on backend availability
+    'import.meta.env.TEST_BACKEND_URL': JSON.stringify(process.env.TEST_BACKEND_URL ?? ''),
   },
   resolve: {
     alias: {

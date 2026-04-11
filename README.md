@@ -1,16 +1,8 @@
-# A11yhood - Accessible Product Reviews
+# A11yhood Front End Website
 
-A community platform for discovering, reviewing, and discussing open-source assistive technologies. A11yhood serves as a central hub for disabled makers, developers, and contributors to find, use, and contribute to accessibility projects.
+This is the main repository for the [A11yhood front end website](https://a11yhood.org). A11yhood is a community platform for discovering, reviewing, and discussing open-source assistive technologies. A11yhood serves as a central hub for disabled and non-disabled makers, developers, and contributors to find, use, and contribute to accessibility projects.
 
-## Features
-
-- **Product Discovery**: Automated scraping from GitHub, Ravelry, Thingiverse, and AbleData archives
-- **User Collections**: Create and share curated collections of accessibility products
-- **Blog Platform**: Community-driven content and discussions
-- **Review System**: Star ratings and detailed product reviews
-- **User Profiles**: Public profiles showcasing contributions and collections
-- **Admin Dashboard**: Moderation tools and analytics
-- **Accessible UI**: Built with WCAG compliance in mind
+To join our community and learn about contributing, go to the [community](https://github.com/a11yhood/community) repository. [Learn more](https://github.com/a11yhood)
 
 ## Tech Stack
 

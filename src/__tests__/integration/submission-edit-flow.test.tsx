@@ -18,7 +18,7 @@ vi.mock('sonner', () => ({
 describe('Submission Dialog Edit Flow', () => {
   const ownerUser: UserData = {
     id: 'user-1',
-    login: 'owner',
+    username: 'owner',
     avatarUrl: 'https://example.com/avatar.jpg',
   }
 
@@ -31,7 +31,7 @@ describe('Submission Dialog Edit Flow', () => {
 
   const nonOwnerUser: UserData = {
     id: 'user-2',
-    login: 'nonowner',
+    username: 'nonowner',
     avatarUrl: 'https://example.com/avatar2.jpg',
   }
 

@@ -30,14 +30,14 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
 
   const userRole = userAccount?.role || 'user'
 
+  useEffect(() => {
+    loadRequests()
+  }, [user.id])
+
   // Admins do not see personal request cards (moderator/product manager) in their panel
   if (userRole === 'admin') {
     return null
   }
-
-  useEffect(() => {
-    loadRequests()
-  }, [user.id])
 
   const loadRequests = async () => {
     setLoading(true)
@@ -62,7 +62,7 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
     try {
       await APIService.createUserRequest({
         userId: user.id,
-        userName: user.login,
+        userName: user.username,
         userAvatarUrl: user.avatarUrl,
         type: requestType,
         message: message.trim(),
@@ -186,8 +186,8 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
                   request={request}
                   userLookup={{
                     [user.id]: {
-                      name: user.login,
-                      username: user.login,
+                      name: user.username,
+                      username: user.username,
                       role: userAccount?.role || 'user',
                     },
                   }}

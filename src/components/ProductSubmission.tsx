@@ -159,7 +159,10 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
         if (p.description) setDescription(p.description)
         if (p.type) setType(p.type)
         if (p.tags) setTags(p.tags)
-        if (p.imageUrl || p.image) setImageUrl(p.imageUrl || p.image)
+        if (p.imageUrl || p.image) {
+          setImageUrl(p.imageUrl || p.image)
+          if (p.imageAlt) setImageAlt(p.imageAlt)
+        }
         if (p.sourceLastUpdated || p.source_last_updated) setSourceLastUpdated(p.sourceLastUpdated || p.source_last_updated)
         if (p.source) setSource(p.source)
         if (p.sourceUrls && Array.isArray(p.sourceUrls)) setSourceUrls(p.sourceUrls)
@@ -262,7 +265,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
       newErrors.imageAlt = 'Alt text is required when an image is provided'
     }
 
-    if (imageAlt && imageAlt.trim() && imageAlt.trim().length < 10) {
+    if (imageUrl && imageAlt && imageAlt.trim() && imageAlt.trim().length < 10) {
       newErrors.imageAlt = 'Alt text should be at least 10 characters'
     }
 
@@ -284,9 +287,17 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
   }
 
   const handleAddTag = () => {
-    const normalizedTag = tagInput.trim().toLowerCase()
-    if (normalizedTag && !tags.some((t) => t.toLowerCase() === normalizedTag)) {
-      setTags([...tags, normalizedTag])
+    const seen = new Set(tags.map((t) => t.toLowerCase()))
+    const newTags: string[] = []
+    for (const raw of tagInput.split(',')) {
+      const t = raw.trim().toLowerCase()
+      if (t && !seen.has(t)) {
+        seen.add(t)
+        newTags.push(t)
+      }
+    }
+    if (newTags.length > 0) {
+      setTags([...tags, ...newTags])
       setTagInput('')
     }
   }
@@ -694,7 +705,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Add tags (press Enter)"
+                    placeholder="Add tags (press Enter or use commas)"
                     autoComplete="off"
                   />
                   <Button type="button" onClick={handleAddTag} variant="secondary">

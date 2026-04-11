@@ -85,14 +85,16 @@ export function AdminUsersStats() {
     switch (sortBy) {
       case 'contributions':
         return b.totalContributions - a.totalContributions
-      case 'recent':
+      case 'recent': {
         const bLastActive = a.lastActive ? new Date(a.lastActive).getTime() : 0
         const aLastActive = b.lastActive ? new Date(b.lastActive).getTime() : 0
         return aLastActive - bLastActive
-      case 'joined':
+      }
+      case 'joined': {
         const bJoinedAt = b.joinedAt ? new Date(b.joinedAt).getTime() : 0
         const aJoinedAt = a.joinedAt ? new Date(a.joinedAt).getTime() : 0
         return bJoinedAt - aJoinedAt
+      }
       default:
         return 0
     }

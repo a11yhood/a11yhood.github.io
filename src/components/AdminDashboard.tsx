@@ -27,7 +27,8 @@ import { ThingiverseSettings } from '@/components/ThingiverseSettings'
 import { BlogManager } from '@/components/BlogManager'
 import { BlogPostEditor } from '@/components/BlogPostEditor'
 import { GitHubSettings } from '@/components/GitHubSettings'
-import { GOATSettings } from '@/components/GOATSettings'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Label } from '@/components/ui/label'
 
 type AdminDashboardProps = {
   onBack: () => void
@@ -36,9 +37,11 @@ type AdminDashboardProps = {
   userAccount: UserAccount | null
   ravelryAuthTimestamp?: number
   onBlogPostsUpdate?: () => void
+  adminVerboseLoggingEnabled: boolean
+  onAdminVerboseLoggingChange: (enabled: boolean) => void
 }
 
-export function AdminDashboard({ onBack, products, onProductsUpdate, userAccount, ravelryAuthTimestamp, onBlogPostsUpdate }: AdminDashboardProps) {
+export function AdminDashboard({ onBack, products, onProductsUpdate, userAccount, ravelryAuthTimestamp, onBlogPostsUpdate, adminVerboseLoggingEnabled, onAdminVerboseLoggingChange }: AdminDashboardProps) {
   const [loading, setLoading] = useState(false)
   const [showBlogEditor, setShowBlogEditor] = useState(false)
   const [blogEditorPost, setBlogEditorPost] = useState<BlogPost | null>(null)
@@ -102,6 +105,33 @@ export function AdminDashboard({ onBack, products, onProductsUpdate, userAccount
         </div>
       </div>
 
+      {userAccount?.role === 'admin' && (
+        <Card>
+          <CardContent className="pt-6 space-y-3">
+            <div>
+              <h2 className="font-semibold">Production Logging</h2>
+              <p className="text-sm text-muted-foreground">
+                Control verbose browser logging for this admin session.
+              </p>
+            </div>
+            <RadioGroup
+              value={adminVerboseLoggingEnabled ? 'on' : 'off'}
+              onValueChange={(value) => onAdminVerboseLoggingChange(value === 'on')}
+              className="grid gap-2"
+            >
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="on" id="admin-logging-on" />
+                <Label htmlFor="admin-logging-on">On (verbose debug logs)</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="off" id="admin-logging-off" />
+                <Label htmlFor="admin-logging-off">Off (info/warn/error only)</Label>
+              </div>
+            </RadioGroup>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Products Section */}
       {userAccount?.role === 'admin' && (
         <div className="space-y-6 mt-6">
@@ -136,7 +166,7 @@ export function AdminDashboard({ onBack, products, onProductsUpdate, userAccount
               <BlogManager
                 onCreateNew={handleOpenNewPost}
                 onEditPost={handleEditPost}
-                userAccount={userAccount ? { id: userAccount.id, login: userAccount.username } : null}
+                userAccount={userAccount ? { id: userAccount.id, username: userAccount.username } : null}
                 onPostsUpdate={onBlogPostsUpdate}
                 reloadKey={blogManagerReloadKey}
               />
@@ -144,7 +174,7 @@ export function AdminDashboard({ onBack, products, onProductsUpdate, userAccount
           </CollapsibleCard>
           <CollapsibleCard
             title="Authorization Settings"
-            description="Manage Ravelry, Thingiverse, GitHub, and GOAT OAuth credentials"
+            description="Manage Ravelry, Thingiverse, and GitHub OAuth credentials"
             defaultOpen
           >
             <div className="space-y-6">
@@ -158,10 +188,6 @@ export function AdminDashboard({ onBack, products, onProductsUpdate, userAccount
                 onProductsUpdate={onProductsUpdate}
               />
               <GitHubSettings
-                products={products}
-                onProductsUpdate={onProductsUpdate}
-              />
-              <GOATSettings
                 products={products}
                 onProductsUpdate={onProductsUpdate}
               />

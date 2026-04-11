@@ -3,10 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - gh-pages
-  pull_request:
-    branches:
-      - gh-pages
+      - main
   workflow_dispatch:
 
 permissions:
@@ -57,7 +54,7 @@ jobs:
           path: './dist'
 
   deploy:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/gh-pages'
+    if: github.ref == 'refs/heads/main' 
     needs: build
     runs-on: ubuntu-latest
     environment:

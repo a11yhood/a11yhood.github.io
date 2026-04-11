@@ -7,7 +7,8 @@
  * 
  * Security: Never bypasses backend validation; all authorization enforced server-side.
  */
-import { UserAccount, UserActivity, Product, Rating, Discussion, ScrapingLog, BlogPost, Collection, CollectionCreateInput, UserRequest } from './types'
+import { UserAccount, UserActivity, Product, ProductUpdate, Rating, Discussion, ScrapingLog, BlogPost, Collection, CollectionCreateInput, UserRequest, SupportedSource, ScraperJob } from './types'
+import { logger } from './logger'
 import { ProductUrl, ProductUrlCreate, ProductUrlUpdate } from '../types/product-url'
 
 // Use relative path for dev/preview (Vite proxy will handle it), or explicit URL if configured
@@ -42,7 +43,7 @@ export function getApiBaseUrl(
 let getAuthToken: (() => Promise<string | null>) | null = null
 
 export function setAuthTokenGetter(getter: () => Promise<string | null>) {
-  console.log('[API] setAuthTokenGetter called - token getter registered')
+  logger.debug('[API] setAuthTokenGetter called - token getter registered')
   getAuthToken = getter
 }
 
@@ -100,17 +101,26 @@ class APIError extends Error {
 async function handleResponse<T>(response: Response): Promise<T> {
   const isCountRequest = response.url.includes('/products/count')
   const isDeleteRequest = response.url.includes('/disconnect') || response.url.includes('/delete')
+  const contentType = response.headers.get('content-type') || ''
   
-  console.log('[API.handleResponse] Processing response:', {
+  logger.debug('[API.handleResponse] Processing response:', {
     url: response.url,
     status: response.status,
     statusText: response.statusText,
     ok: response.ok,
-    contentType: response.headers.get('content-type'),
+    contentType,
   })
   
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: response.statusText }))
+    let errorData: any = { message: response.statusText }
+
+    if (contentType.includes('application/json')) {
+      errorData = await response.json().catch(() => ({ message: response.statusText }))
+    } else {
+      const errorText = await response.text().catch(() => '')
+      errorData = { message: errorText?.trim() || response.statusText }
+    }
+
     // FastAPI returns errors with 'detail' field, fallback to 'message' for other APIs
     const errorMessage = errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`
     console.error('[API.handleResponse] Error response:', {
@@ -128,16 +138,29 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
   if (response.status === 204 || response.status === 205) {
     // No content to parse
-    console.log('[API.handleResponse] No content response (204/205):', { status: response.status })
+    logger.debug('[API.handleResponse] No content response (204/205):', { status: response.status })
     return undefined as T
   }
   const data = await response.json()
   if (isCountRequest) {
-    console.log('[API.handleResponse] Count response:', { url: response.url, rawData: data })
+    logger.debug('[API.handleResponse] Count response:', { url: response.url, rawData: data })
   }
   if (isDeleteRequest) {
-    console.log('[API.handleResponse] Delete response:', { url: response.url, status: response.status, data })
+    logger.debug('[API.handleResponse] Delete response:', { url: response.url, status: response.status, data })
   }
+  
+  // Special logging for product update responses
+  if (response.url.includes('/products/') && response.status === 200 && data && typeof data === 'object') {
+    logger.debug('[API.handleResponse] 🖼️ Product update response:', {
+      url: response.url,
+      hasImageUrl: 'image_url' in data,
+      hasImageAlt: 'image_alt' in data,
+      imageUrl: (data as any).image_url,
+      imageAlt: (data as any).image_alt,
+      rawData: data
+    })
+  }
+  
   return toCamelCase(data) as T
 }
 
@@ -149,7 +172,7 @@ async function request<T>(
   const url = `${base}/api${endpoint}`
   const startTime = performance.now()
   
-  console.debug('[API] Request details:', { 
+  logger.debug('[API] Request details:', { 
     endpoint, 
     base, 
     url,
@@ -161,7 +184,7 @@ async function request<T>(
   if (endpoint.includes('?')) {
     const [path, queryString] = endpoint.split('?')
     const params = new URLSearchParams(queryString)
-    console.debug('[API] Query parameters:', Object.fromEntries(params.entries()))
+    logger.debug('[API] Query parameters:', Object.fromEntries(params.entries()))
   }
   
   // For public user profile reads (base endpoint and /stats), skip auth.
@@ -181,19 +204,50 @@ async function request<T>(
   const token = omitAuth ? null : (getAuthToken ? await getAuthToken() : null)
   const shouldSendAuth = !!token && !omitAuth
   
-  console.debug('[API] Making request:', { endpoint, hasTokenGetter: !!getAuthToken, hasToken: !!token, omitAuth, shouldSendAuth })
+  logger.debug('[API] Making request:', { endpoint, hasTokenGetter: !!getAuthToken, hasToken: !!token, omitAuth, shouldSendAuth })
 
   // Convert body to snake_case if present
   const processedOptions = { ...options }
+  let payloadPreview: string | null = null
   if (processedOptions.body && typeof processedOptions.body === 'string') {
     try {
       const bodyObj = JSON.parse(processedOptions.body)
       const snakeCaseBody = toSnakeCase(bodyObj)
-      console.debug('[API] Body conversion - camelCase:', bodyObj)
-      console.debug('[API] Body conversion - snake_case:', snakeCaseBody)
+      logger.debug('[API] Body conversion - camelCase:', bodyObj)
+      logger.debug('[API] Body conversion - snake_case:', snakeCaseBody)
+      
+      // Special logging for image fields
+      if (endpoint.includes('/products/') && (bodyObj.imageUrl !== undefined || bodyObj.imageAlt !== undefined)) {
+        logger.debug('[API] 🖼️ Image fields in update:', {
+          camelCase: { imageUrl: bodyObj.imageUrl, imageAlt: bodyObj.imageAlt },
+          snakeCase: { image_url: snakeCaseBody.image_url, image_alt: snakeCaseBody.image_alt }
+        })
+      }
+      
       processedOptions.body = JSON.stringify(snakeCaseBody)
+      payloadPreview = processedOptions.body
     } catch {
       // If body is not JSON, leave it as is
+      payloadPreview = String(processedOptions.body)
+    }
+  }
+
+  // Log the final request payload only in dev mode (never in production to avoid leaking sensitive data)
+  if (import.meta.env.DEV && processedOptions.body) {
+    try {
+      const bodyAsString = typeof processedOptions.body === 'string' ? processedOptions.body : payloadPreview
+      const parsedBody = bodyAsString ? JSON.parse(bodyAsString) : null
+      logger.debug(`[API] ${endpoint} - Final JSON being sent:`, parsedBody)
+      const method = (options.method || 'GET').toUpperCase()
+      if (endpoint.startsWith('/collections') && (method === 'POST' || method === 'PUT')) {
+        logger.debug(`[API] ${method} ${endpoint} payload: ${JSON.stringify(parsedBody)}`)
+      }
+    } catch {
+      logger.debug(`[API] ${endpoint} - Final payload being sent:`, processedOptions.body)
+      const method = (options.method || 'GET').toUpperCase()
+      if (endpoint.startsWith('/collections') && (method === 'POST' || method === 'PUT')) {
+        logger.debug(`[API] ${method} ${endpoint} payload: ${String(processedOptions.body)}`)
+      }
     }
   }
 
@@ -211,7 +265,9 @@ async function request<T>(
   
   const endTime = performance.now()
   const duration = endTime - startTime
-  console.info(`[API] ${options.method || 'GET'} ${endpoint}: ${duration.toFixed(1)}ms`)
+  const method = (options.method || 'GET').toUpperCase()
+  // Only log timing; never include payload in production logs to avoid leaking sensitive data
+  logger.debug(`[API] ${method} ${endpoint}: ${duration.toFixed(1)}ms`)
   
   return result
 }
@@ -243,19 +299,25 @@ export class APIService {
     })
   }
   
-  static async getUserAccount(username: string): Promise<UserAccount | null> {
-    return request<UserAccount | null>(`/users/${encodeURIComponent(username)}`)
+  // Get user account by internal user ID (Supabase UUID)
+  static async getUserAccount(userId: string): Promise<UserAccount | null> {
+    return request<UserAccount | null>(`/users/${encodeURIComponent(userId)}`)
+  }
+
+  // Get user account by display username (canonical frontend/backend identity)
+  static async getUserByUsername(username: string): Promise<UserAccount | null> {
+    return request<UserAccount | null>(`/users/by-username/${encodeURIComponent(username)}`)
   }
 
   static async createOrUpdateUserAccount(
+    userId: string,
     username: string,
-    login: string,
-    avatarUrl: string,
+    avatarUrl?: string,
     email?: string
   ): Promise<UserAccount> {
-    return request<UserAccount>(`/users/${encodeURIComponent(username)}` , {
+    return request<UserAccount>(`/users/${encodeURIComponent(userId)}` , {
       method: 'PUT',
-      body: JSON.stringify({ username: login, avatarUrl, email }),
+      body: JSON.stringify({ username, avatarUrl, email }),
     })
   }
 
@@ -375,8 +437,8 @@ export class APIService {
       params.set('offset', String(options.offset))
     }
     const suffix = params.toString() ? `?${params.toString()}` : ''
-    console.debug('[API] getAllProducts URL:', `/products${suffix}`)
-    console.debug('[API] Source filters:', options?.sources)
+    logger.debug('[API] getAllProducts URL:', `/products${suffix}`)
+    logger.debug('[API] Source filters:', options?.sources)
     return request<Product[]>(`/products${suffix}`, { signal: options?.signal })
   }
 
@@ -440,7 +502,7 @@ export class APIService {
     const suffix = params.toString() ? `?${params.toString()}` : ''
     const endpoint = `/products/count${suffix}`
     
-    console.log('[API.getProductCountBySource] Request:', {
+    logger.debug('[API.getProductCountBySource] Request:', {
       source,
       includeBanned: options?.includeBanned,
       queryString: params.toString(),
@@ -450,7 +512,7 @@ export class APIService {
     
     try {
       const data = await request<{ count: number }>(endpoint)
-      console.log('[API.getProductCountBySource] Success response:', {
+      logger.debug('[API.getProductCountBySource] Success response:', {
         source,
         count: data.count,
         rawData: data,
@@ -501,11 +563,11 @@ export class APIService {
       if (type) params.append('type', type)
     })
     const suffix = params.toString() ? `?${params.toString()}` : ''
-    console.log('[API.getFilteredTags] Calling /products/tags' + suffix, 'with options:', options)
+    logger.debug('[API.getFilteredTags] Calling /products/tags' + suffix, 'with options:', options)
     const data = await request<{ tags: string[] }>(`/products/tags${suffix}`)
-    console.log('[API.getFilteredTags] Response tags count:', data.tags?.length || 0, 'tags:', data.tags?.slice(0, 20))
+    logger.debug('[API.getFilteredTags] Response tags count:', data.tags?.length || 0, 'tags:', data.tags?.slice(0, 20))
     const hasHtmlAudioElement = data.tags?.some(tag => tag.toLowerCase() === 'htmlaudioelement')
-    console.log('[API.getFilteredTags] Contains "htmlaudioelement":', hasHtmlAudioElement, 'all tags:', data.tags)
+    logger.debug('[API.getFilteredTags] Contains "htmlaudioelement":', hasHtmlAudioElement, 'all tags:', data.tags)
     return data.tags || []
   }
   static async getProduct(productIdOrSlug: string): Promise<Product | null> {
@@ -557,7 +619,7 @@ export class APIService {
     const controller = supportsAbort ? new AbortController() : null
     const timeout = controller ? setTimeout(() => controller.abort(), 12000) : null // Safety timeout
 
-    const load = async (withSignal: boolean) => request('/scrapers/load-url', {
+    const load = async (withSignal: boolean) => request<{ success: boolean; product?: Partial<Product>; message?: string; source?: string }>('/scrapers/load-url', {
       method: 'POST',
       body: JSON.stringify({ url }),
       ...(withSignal && controller ? { signal: controller.signal } : {}),
@@ -589,14 +651,14 @@ export class APIService {
 
   static async updateProduct(
     productId: string,
-    updates: Partial<Product>,
+    updates: Partial<ProductUpdate>,
     editorId?: string
   ): Promise<Product | null> {
-    console.log('[API.updateProduct] Raw updates received:', updates)
-    console.log('[API.updateProduct] EditorId:', editorId)
+    logger.debug('[API.updateProduct] Raw updates received:', updates)
+    logger.debug('[API.updateProduct] EditorId:', editorId)
     
     // Extract only editable fields that match backend's ProductUpdate schema
-    const editableUpdates: Partial<Product> = {
+    const editableUpdates: Partial<ProductUpdate & { editorId?: string }> = {
       name: updates.name,
       description: updates.description,
       source: updates.source,
@@ -606,15 +668,29 @@ export class APIService {
       imageAlt: updates.imageAlt,
       tags: updates.tags,
     }
-    // Remove undefined fields
+    
+    // Include editorId if provided
+    if (editorId) {
+      editableUpdates.editorId = editorId
+    }
+    
+    // Remove undefined fields, but keep null values (null = explicitly clear the field)
     Object.keys(editableUpdates).forEach(key => {
-      if (editableUpdates[key as keyof typeof editableUpdates] === undefined) {
+      const value = editableUpdates[key as keyof typeof editableUpdates]
+      if (value === undefined) {
         delete editableUpdates[key as keyof typeof editableUpdates]
       }
+      // Keep null values - they indicate an intentional clear/delete
     })
     
-    console.log('[API.updateProduct] Filtered editable updates (camelCase):', editableUpdates)
-    console.log('[API.updateProduct] Target endpoint:', `/products/${productId}`)
+    logger.debug('[API.updateProduct] Filtered editable updates (camelCase):', editableUpdates)
+    logger.debug('[API.updateProduct] Image fields being sent:', {
+      imageUrl: editableUpdates.imageUrl,
+      imageAlt: editableUpdates.imageAlt,
+      hasImageUrl: 'imageUrl' in editableUpdates,
+      hasImageAlt: 'imageAlt' in editableUpdates
+    })
+    logger.debug('[API.updateProduct] Target endpoint:', `/products/${productId}`)
     
     return request<Product | null>(`/products/${productId}`, {
       method: 'PATCH',
@@ -623,13 +699,13 @@ export class APIService {
   }
 
   static async deleteProduct(productSlug: string): Promise<void> {
-    console.log('[API.deleteProduct] Starting delete for product slug:', productSlug)
+    logger.debug('[API.deleteProduct] Starting delete for product slug:', productSlug)
     const endpoint = `/products/${productSlug}`
     const requestOptions = {
       method: 'DELETE',
     }
     
-    console.log('[API.deleteProduct] Request details:', {
+    logger.debug('[API.deleteProduct] Request details:', {
       endpoint,
       method: requestOptions.method,
       fullUrl: `${getApiBaseUrl()}/api${endpoint}`
@@ -637,15 +713,15 @@ export class APIService {
     
     try {
       const result = await request<void>(endpoint, requestOptions)
-      console.log('[API.deleteProduct] Delete successful:', {
-        productId,
+      logger.debug('[API.deleteProduct] Delete successful:', {
+        productSlug,
         result,
         resultType: typeof result
       })
       return result
     } catch (error) {
       console.error('[API.deleteProduct] Delete failed:', {
-        productId,
+        productSlug,
         endpoint,
         error: error instanceof Error ? error.message : String(error),
         errorStatus: (error as any)?.status,
@@ -657,14 +733,14 @@ export class APIService {
   }
 
   static async deleteProductsBySource(source: string): Promise<{ deletedCount: number }> {
-    console.log('[API.deleteProductsBySource] Starting bulk delete for source:', source)
+    logger.debug('[API.deleteProductsBySource] Starting bulk delete for source:', source)
     
     // Backend expects 'source' as a query parameter
     const params = new URLSearchParams()
     params.set('source', source)
     const endpoint = `/products/bulk-delete?${params.toString()}`
     
-    console.log('[API.deleteProductsBySource] Request details:', {
+    logger.debug('[API.deleteProductsBySource] Request details:', {
       source,
       queryParam: params.toString(),
       endpoint,
@@ -675,7 +751,7 @@ export class APIService {
       const result = await request<{ deletedCount: number }>(endpoint, {
         method: 'POST',
       })
-      console.log('[API.deleteProductsBySource] ✅ SUCCESS - Backend deleted:', {
+      logger.debug('[API.deleteProductsBySource] ✅ SUCCESS - Backend deleted:', {
         source,
         deletedCount: result.deletedCount,
         result
@@ -693,13 +769,13 @@ export class APIService {
   }
 
   static async deleteProductsByIds(productIds: string[]): Promise<{ deletedCount: number }> {
-    console.log('[API] deleteProductsByIds called for IDs:', productIds)
+    logger.debug('[API] deleteProductsByIds called for IDs:', productIds)
     const params = new URLSearchParams()
     productIds.forEach(id => params.append('product_ids', id))
     const result = await request<{ deletedCount: number }>(`/products/bulk-delete?${params.toString()}`, {
       method: 'POST',
     })
-    console.log('[API] deleteProductsByIds result:', result)
+    logger.debug('[API] deleteProductsByIds result:', result)
     return result
   }
 
@@ -712,23 +788,23 @@ export class APIService {
     reason?: string,
     bannedBy?: string
   ): Promise<Product | null> {
-    console.log('[API.banProduct] Request start', { productId, reason, bannedBy })
+    logger.debug('[API.banProduct] Request start', { productId, reason, bannedBy })
     const safeId = encodeURIComponent(productId)
     const result = await request<Product | null>(`/products/${safeId}/ban`, {
       method: 'POST',
       body: JSON.stringify({ reason, bannedBy }),
     })
-    console.log('[API.banProduct] Response', { productId, ok: !!result, banned: result?.banned, bannedBy: result?.bannedBy })
+    logger.debug('[API.banProduct] Response', { productId, ok: !!result, banned: result?.banned, bannedBy: result?.bannedBy })
     return result
   }
 
   static async unbanProduct(productId: string): Promise<Product | null> {
-    console.log('[API.unbanProduct] Request start', { productId })
+    logger.debug('[API.unbanProduct] Request start', { productId })
     const safeId = encodeURIComponent(productId)
     const result = await request<Product | null>(`/products/${safeId}/unban`, {
       method: 'POST',
     })
-    console.log('[API.unbanProduct] Response', { productId, ok: !!result, banned: result?.banned })
+    logger.debug('[API.unbanProduct] Response', { productId, ok: !!result, banned: result?.banned })
     return result
   }
 
@@ -890,6 +966,29 @@ export class APIService {
   static async getOAuthConfig(platform: string): Promise<any> {
     return request(`/scrapers/oauth/${platform}/config`)
   }
+
+  static async upsertOAuthConfig(
+    platform: string,
+    config: {
+      clientId?: string
+      clientSecret?: string
+      redirectUri?: string
+      accessToken?: string
+      refreshToken?: string
+    }
+  ): Promise<any> {
+    return request(`/scrapers/oauth-configs/${platform}`, {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    })
+  }
+
+  static async completeOAuthCallback(platform: string, code: string): Promise<any> {
+    return request(`/scrapers/oauth/${platform}/callback?code=${encodeURIComponent(code)}`, {
+      method: 'POST',
+    })
+  }
+
   static async getScraperSearchTerms(platform: 'github' | 'thingiverse' | 'ravelry'): Promise<{ searchTerms: string[] }> {
     return request(`/scrapers/${platform}/search-terms`)
   }
@@ -950,7 +1049,7 @@ export class APIService {
   static async getCollection(collectionSlug: string): Promise<Collection | null> {
     const result = await request<Collection | null>(`/collections/${collectionSlug}`)
     if (result) {
-      console.log(`[API] getCollection(${collectionSlug}):`, {
+      logger.debug(`[API] getCollection(${collectionSlug}):`, {
         id: result.id,
         name: result.name,
         productSlugsCount: result.productSlugs?.length || 0,
@@ -989,8 +1088,8 @@ export class APIService {
       sources?: string[]
       types?: string[]
       tags?: string[]
+      tagsMode?: string
       minRating?: number
-      createdBy?: string
     }
   ): Promise<Collection> {
     return request<Collection>('/collections/from-search', {
@@ -1016,12 +1115,12 @@ export class APIService {
   }
 
   static async addProductToCollection(collectionSlug: string, productSlug: string): Promise<Collection | null> {
-    console.log(`[API] addProductToCollection(${collectionSlug}, ${productSlug}) - sending POST request`)
+    logger.debug(`[API] addProductToCollection(${collectionSlug}, ${productSlug}) - sending POST request`)
     const result = await request<Collection | null>(`/collections/${collectionSlug}/products/${productSlug}`, {
       method: 'POST',
     })
     if (result) {
-      console.log(`[API] ✅ addProductToCollection response:`, {
+      logger.debug(`[API] ✅ addProductToCollection response:`, {
         id: result.id,
         name: result.name,
         productSlugsCount: result.productSlugs?.length || 0,
@@ -1154,6 +1253,44 @@ export class APIService {
   static async resetRequestsTable(): Promise<{ success: boolean }> {
     return request<{ success: boolean }>('/requests/reset', {
       method: 'POST',
+    })
+  }
+
+  static async getScheduledScrapers(): Promise<{ status: string; jobs: ScraperJob[] }> {
+    return request<{ status: string; jobs: ScraperJob[] }>('/scrapers/schedule')
+  }
+
+  // Supported Sources CRUD
+  static async getSupportedSources(): Promise<SupportedSource[]> {
+    return request<SupportedSource[]>('/supported-sources')
+  }
+
+  static async getSupportedSource(sourceId: string): Promise<SupportedSource | null> {
+    return request<SupportedSource | null>(`/supported-sources/${encodeURIComponent(sourceId)}`)
+  }
+
+  static async createSupportedSource(
+    source: Omit<SupportedSource, 'id' | 'createdAt' | 'updatedAt'>
+  ): Promise<SupportedSource> {
+    return request<SupportedSource>('/supported-sources', {
+      method: 'POST',
+      body: JSON.stringify(source),
+    })
+  }
+
+  static async updateSupportedSource(
+    sourceId: string,
+    updates: Partial<Omit<SupportedSource, 'id' | 'createdAt' | 'updatedAt'>>
+  ): Promise<SupportedSource | null> {
+    return request<SupportedSource | null>(`/supported-sources/${encodeURIComponent(sourceId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    })
+  }
+
+  static async deleteSupportedSource(sourceId: string): Promise<void> {
+    await request(`/supported-sources/${encodeURIComponent(sourceId)}`, {
+      method: 'DELETE',
     })
   }
 }

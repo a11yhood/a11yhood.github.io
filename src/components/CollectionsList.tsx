@@ -1,9 +1,15 @@
+import { useState, useMemo } from 'react'
 import { Collection, Product } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Trash, Lock, LockOpen, Pencil } from '@phosphor-icons/react'
+import { Trash, Lock, LockOpen, Pencil, FolderOpen } from '@phosphor-icons/react'
 import { formatDistanceToNow } from 'date-fns'
+import { useNavigate } from 'react-router-dom'
+import { pickCollectionImage } from '@/lib/collectionUtils'
+import { ProductFilterTag } from '@/components/ProductFilterTag'
+import { getProductsPathForTag } from '@/lib/tagRoutes'
+import MarkdownText from '@/components/ui/MarkdownText'
 
 type CollectionsListProps = {
   collections: Collection[]
@@ -12,6 +18,7 @@ type CollectionsListProps = {
   onDeleteCollection: (collectionSlug: string) => void
   onEditCollection?: (collection: Collection) => void
   currentUserId?: string
+  isFirstLoadComplete?: boolean
 }
 
 export function CollectionsList({
@@ -21,15 +28,60 @@ export function CollectionsList({
   onDeleteCollection,
   onEditCollection,
   currentUserId,
+  isFirstLoadComplete = true,
 }: CollectionsListProps) {
-  const getProductsInCollection = (collection: Collection) => {
-    return (products || []).filter(p => (collection.productSlugs || []).includes(p.slug))
+  const navigate = useNavigate()
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
+
+  // Index products by slug once for O(1) per-collection lookups.
+  const productsBySlug = useMemo(() => {
+    const map = new Map<string, Product>()
+    ;(products || []).forEach(p => { if (p.slug) map.set(p.slug, p) })
+    return map
+  }, [products])
+
+  const getProductsInCollection = (collection: Collection) =>
+    (collection.productSlugs || []).flatMap(slug => {
+      const p = productsBySlug.get(slug)
+      return p ? [p] : []
+    })
+
+  // Compute a representative image for each collection once per data change.
+  const collectionImages = useMemo(() => {
+    const result: Record<string, ReturnType<typeof pickCollectionImage>> = {}
+    const usedProductKeys = new Set<string>()
+
+    collections.forEach(collection => {
+      const collectionProducts = (collection.productSlugs || []).flatMap(slug => {
+        const p = productsBySlug.get(slug)
+        return p ? [p] : []
+      })
+      const picked = pickCollectionImage(collectionProducts, { usedProductKeys })
+      result[collection.id] = picked
+      if (picked?.productKey) {
+        usedProductKeys.add(picked.productKey)
+      }
+    })
+    return result
+  }, [collections, productsBySlug])
+
+  const getTopTagsForCollection = (collectionProducts: Product[], limit = 5) => {
+    const tagCounts = new Map<string, number>()
+    collectionProducts.forEach(product => {
+      product?.tags?.forEach(tag => {
+        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+      })
+    })
+    return Array.from(tagCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([tag]) => tag)
   }
 
   if (!collections || collections.length === 0) {
     return (
       <div className="text-center py-12" role="status">
-        <p className="text-muted-foreground">No collections found</p>
+        <p className="text-muted-foreground">{isFirstLoadComplete ? 'No collections found' : 'Loading...'}</p>
       </div>
     )
   }
@@ -39,13 +91,47 @@ export function CollectionsList({
       {collections.map((collection) => {
         const collectionProducts = getProductsInCollection(collection)
         const isOwner = currentUserId === collection.userId
+        const img = imageErrors[collection.id] ? undefined : collectionImages[collection.id]
+        const topTags = getTopTagsForCollection(collectionProducts)
         
         return (
-          <Card key={collection.id} className="hover:shadow-md transition-shadow">
+          <Card
+            key={collection.id}
+            className="hover:shadow-md transition-shadow overflow-hidden cursor-pointer"
+            onClick={(e) => {
+              const target = e.target as HTMLElement | null
+              if (target?.closest('button, a, input, select, textarea')) {
+                return
+              }
+              onSelectCollection(collection)
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label={`View collection: ${collection.name}`}
+            onKeyDown={(e) => {
+              if (e.target !== e.currentTarget) return
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onSelectCollection(collection)
+              }
+            }}
+          >
+            <div className="w-full h-40 bg-muted overflow-hidden flex items-center justify-center">
+              {img ? (
+                <img
+                  src={img.imageUrl}
+                  alt={img.imageAlt || `${img.name} image`}
+                  className="w-full h-full object-cover object-center"
+                  onError={() => setImageErrors(prev => ({ ...prev, [collection.id]: true }))}
+                />
+              ) : (
+                <FolderOpen size={48} className="text-muted-foreground/30" aria-hidden="true" />
+              )}
+            </div>
             <CardHeader>
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <CardTitle className="text-lg truncate">{collection.name}</CardTitle>
+                  <CardTitle className="text-lg line-clamp-2">{collection.name}</CardTitle>
                   <CardDescription className="flex items-center gap-2 mt-1">
                     {collection.isPublic ? (
                       <LockOpen size={14} className="text-muted-foreground" />
@@ -87,13 +173,16 @@ export function CollectionsList({
             </CardHeader>
             <CardContent>
               {collection.description && (
-                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                  {collection.description}
-                </p>
+                <MarkdownText
+                  text={collection.description}
+                  className="text-sm text-muted-foreground mb-3 line-clamp-2"
+                />
               )}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
-                  {(collection.productSlugs || []).length} {(collection.productSlugs || []).length === 1 ? 'product' : 'products'}
+                  {isFirstLoadComplete
+                    ? `${(collection.productSlugs || []).length} ${(collection.productSlugs || []).length === 1 ? 'product' : 'products'}`
+                    : 'Products: ?'}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   Updated {formatDistanceToNow(collection.updatedAt, { addSuffix: true })}
@@ -113,13 +202,20 @@ export function CollectionsList({
                   )}
                 </div>
               )}
-              <Button
-                variant="outline"
-                className="w-full mt-4"
-                onClick={() => onSelectCollection(collection)}
-              >
-                View Collection
-              </Button>
+              {topTags.length > 0 && (
+                <ul className="mt-2 flex flex-wrap gap-1">
+                  {topTags.map((tag) => (
+                    <li key={tag}>
+                      <ProductFilterTag
+                        tag={tag}
+                        selected={false}
+                        onTagClick={(clickedTag) => navigate(getProductsPathForTag(clickedTag))}
+                        variant="list"
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
         )

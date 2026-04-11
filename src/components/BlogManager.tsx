@@ -13,7 +13,7 @@ import { toast } from 'sonner'
 type BlogManagerProps = {
   onCreateNew: () => void
   onEditPost: (post: BlogPost) => void
-  userAccount: { id: string; login: string } | null
+  userAccount: { id: string; username: string } | null
   onPostsUpdate?: () => void
   reloadKey?: number
 }

@@ -10,7 +10,7 @@ describe('ProductSubmission Accessibility Tests', () => {
   // Use dev-token based users (no API calls needed in beforeEach)
   const testUser: UserData = {
     id: `test-a11y-user-${Date.now()}`,
-    login: `testuser${Date.now()}`,
+    username: `testuser${Date.now()}`,
     avatarUrl: 'https://example.com/avatar.jpg',
   }
 
@@ -64,7 +64,9 @@ describe('ProductSubmission Accessibility Tests', () => {
     })
   })
 
-  describe('Form Labels and Accessibility (Story 3.1)', () => {
+  // Requires a running backend — set TEST_BACKEND_URL=http://localhost:8000 to enable
+  const describeWithBackend = import.meta.env.TEST_BACKEND_URL ? describe : describe.skip
+  describeWithBackend('Form Labels and Accessibility (Story 3.1)', () => {
     beforeEach(async () => {
       renderWithRouter(<ProductSubmission user={testUser} onSubmit={vi.fn()} />)
       const triggerButton = screen.getByRole('button', { name: /submit product/i })
@@ -130,7 +132,7 @@ describe('ProductSubmission Accessibility Tests', () => {
     })
   })
 
-  describe('Image Alt Text Accessibility (Story 3.1)', () => {
+  describeWithBackend('Image Alt Text Accessibility (Story 3.1)', () => {
     beforeEach(async () => {
       renderWithRouter(<ProductSubmission user={testUser} onSubmit={vi.fn()} />)
       const triggerButton = screen.getByRole('button', { name: /submit product/i })

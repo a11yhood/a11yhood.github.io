@@ -1,18 +1,20 @@
-import { useState } from 'react'
-import { ArrowLeft, Link as LinkIcon, Trash, FolderOpen, Plus, Prohibit, CheckCircle } from '@phosphor-icons/react'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowLeft, Link as LinkIcon, Trash, Prohibit, CheckCircle } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { StarRating } from './StarRating'
 import { DiscussionSection } from './DiscussionSection'
 import { TagManager } from './TagManager'
-import { LoginPrompt } from './LoginPrompt'
+import { CollectionsManager } from './CollectionsManager'
 import { ProductEditDialog } from './ProductEditDialog'
 import { AddToCollectionDialog } from './AddToCollectionDialog'
 import { CreateCollectionDialog } from './CreateCollectionDialog'
 import { ProductEditors } from './ProductEditors'
 import { CollapsibleCard } from './CollapsibleCard'
-import { Product, Rating, Discussion, UserData, Collection, CollectionCreateInput, UserAccount } from '@/lib/types'
+import { Product, ProductUpdate, Rating, Discussion, UserData, Collection, CollectionCreateInput, UserAccount } from '@/lib/types'
+import { APIService } from '@/lib/api'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faUniversalAccess } from '@fortawesome/free-solid-svg-icons'
 import { formatSourceLabel, getSourceIcon, calculateAverageRating, getCanonicalHost, formatRelativeTime } from '@/lib/utils'
@@ -28,14 +30,14 @@ type ProductDetailProps = {
   onBack: () => void
   onRate: (rating: number) => void
   onDiscuss: (content: string, parentId?: string) => void
-  onAddTag: (tag: string) => void
+  onAddTag: (tag: string) => void | Promise<void>
   onAddToCollection?: (collectionSlug: string) => void
   onRemoveFromCollection?: (collectionSlug: string) => void
   onCreateCollection?: (collection: CollectionCreateInput) => void
   allTags: string[]
   allProductTypes?: string[]
   onDelete?: (productId: string) => void
-  onEdit?: (updatedProduct: Product) => void
+  onEdit?: (updatedProduct: ProductUpdate) => void
   onToggleBan?: (product: Product, reason?: string) => void
   onEditDiscussion?: (id: string, content: string) => void
   onDeleteDiscussion?: (id: string) => void
@@ -69,12 +71,59 @@ export function ProductDetail({
   autoOpenEdit,
   autoOpenOwnershipRequest,
 }: ProductDetailProps) {
+  const navigate = useNavigate()
   const [imageError, setImageError] = useState(false)
+  const [localCollections, setLocalCollections] = useState<Collection[]>(userCollections)
+  const collectionLoadStartedRef = useRef(false)
   const shouldShowImage = !!product.imageUrl && !imageError
   const canModerate = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
   const isEditor = !!userAccount?.id && (product.editorIds?.includes(userAccount.id) || false)
   const [showAddToCollectionDialog, setShowAddToCollectionDialog] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
+  const prevShowAddToCollectionDialogRef = useRef(false)
+
+  // Load collections function (extracted for reuse)
+  const loadCollections = async () => {
+    if (!user) return
+    try {
+      const [userCollections, publicCollections] = await Promise.all([
+        APIService.getUserCollections(),
+        APIService.getPublicCollections(),
+      ])
+      // Combine user's collections with public collections (avoid duplicates by ID)
+      const allCollections = [...userCollections]
+      publicCollections.forEach(pub => {
+        if (!allCollections.some(c => c.id === pub.id)) {
+          allCollections.push(pub)
+        }
+      })
+      setLocalCollections(allCollections)
+      collectionLoadStartedRef.current = true
+    } catch (error) {
+      // Silently handle errors - collections are optional
+      console.debug('Failed to load collections:', error)
+    }
+  }
+
+  // Load collections on mount and whenever user state changes
+  useEffect(() => {
+    collectionLoadStartedRef.current = false
+    loadCollections()
+  }, [user])
+
+  // Refresh collections when add-to-collection dialog opens or closes
+  useEffect(() => {
+    if (user) {
+      if (showAddToCollectionDialog && !prevShowAddToCollectionDialogRef.current) {
+        // Dialog is opening - refresh to get latest data
+        loadCollections()
+      } else if (!showAddToCollectionDialog && prevShowAddToCollectionDialogRef.current) {
+        // Dialog is closing - refresh to reflect any changes made
+        loadCollections()
+      }
+    }
+    prevShowAddToCollectionDialogRef.current = showAddToCollectionDialog
+  }, [showAddToCollectionDialog, user])
 
   console.log('[ProductDetail] Filtering ratings:', {
     productId: product.id,
@@ -107,7 +156,7 @@ export function ProductDetail({
 
   const handleDelete = () => {
     const targetId = product.slug || product.id
-    if (onDelete && targetId && confirm(`Are you sure you want to delete "${product.name}"? This action cannot be undone.`)) {
+    if (onDelete && targetId) {
       onDelete(targetId)
       onBack()
     }
@@ -155,18 +204,6 @@ export function ProductDetail({
         </Button>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {user && onAddToCollection && (
-            <Button
-              variant="outline"
-              onClick={() => setShowAddToCollectionDialog(true)}
-              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3"
-              aria-label="Add to collection"
-            >
-              <Plus size={18} />
-              <FolderOpen size={18} />
-              <span className="hidden sm:inline">Add to Collection</span>
-            </Button>
-          )}
           {user && (canModerate || isEditor) && (
             <>
               {onEdit && !product.banned && (
@@ -306,7 +343,11 @@ export function ProductDetail({
                 </span>
               </div>
             ) : (
-              <LoginPrompt context="rate" />
+              <div className="flex items-center gap-3 sm:gap-4">
+                <StarRating value={averageRating} readonly size={24} className="shrink-0" />
+                <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
+                </span>
+              </div>
             )}
           </div>
 
@@ -317,6 +358,15 @@ export function ProductDetail({
               allTags={allTags}
               onAddTag={onAddTag}
               user={user}
+            />
+          </div>
+
+          <div className="mb-6 sm:mb-8">
+            <CollectionsManager
+              productSlug={product.slug}
+              userCollections={localCollections}
+              user={user}
+              onOpenAddDialog={() => setShowAddToCollectionDialog(true)}
             />
           </div>
         </div>
@@ -337,7 +387,7 @@ export function ProductDetail({
           <CollapsibleCard title="Editors" defaultOpen={false}>
             <ProductEditors
               productId={product.id}
-              username={user?.login || null}
+              username={user?.username || null}
               isEditor={!!user && (product.editorIds?.includes(user.id) || false)}
               userAccount={userAccount}
               onEditorsChange={() => {}}
@@ -347,14 +397,22 @@ export function ProductDetail({
         </div>
       </div>
 
-      {user && onAddToCollection && onRemoveFromCollection && (
+      {user && showAddToCollectionDialog && onAddToCollection && onRemoveFromCollection && (
         <AddToCollectionDialog
           open={showAddToCollectionDialog}
           onOpenChange={setShowAddToCollectionDialog}
-          collections={userCollections}
+          collections={localCollections}
           productSlug={product.slug}
-          onAddToCollection={onAddToCollection}
-          onRemoveFromCollection={onRemoveFromCollection}
+          onAddToCollection={async (collectionSlug) => {
+            await onAddToCollection(collectionSlug)
+            // Refresh collections after adding
+            await loadCollections()
+          }}
+          onRemoveFromCollection={async (collectionSlug) => {
+            await onRemoveFromCollection(collectionSlug)
+            // Refresh collections after removing
+            await loadCollections()
+          }}
           onCreateNew={() => {
             setShowAddToCollectionDialog(false)
             setShowCreateCollectionDialog(true)
@@ -366,12 +424,14 @@ export function ProductDetail({
         <CreateCollectionDialog
           open={showCreateCollectionDialog}
           onOpenChange={setShowCreateCollectionDialog}
-          onCreateCollection={(collectionData) => {
-            onCreateCollection(collectionData)
+          onCreateCollection={async (collectionData) => {
+            await onCreateCollection(collectionData)
             setShowCreateCollectionDialog(false)
+            // Refresh collections list after creating a new one
+            await loadCollections()
           }}
           initialProductSlugs={[product.slug]}
-          username={user.login}
+          username={user.username}
         />
       )}
     </div>

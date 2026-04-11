@@ -22,6 +22,7 @@ import { APIService } from '@/lib/api'
 import { UserRequestsPanel } from '@/components/UserRequestsPanel'
 import { Pencil, MapPin, Globe, CalendarBlank, ChartBar, Package, Article, CaretDown, CaretRight } from '@phosphor-icons/react'
 import { toast } from 'sonner'
+import { getProductsPathForTag } from '@/lib/tagRoutes'
 
 type UserProfileProps = {
   userAccount: UserAccount
@@ -56,7 +57,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
 
   useEffect(() => {
     const loadStats = async () => {
-      const userStats = await APIService.getUserStats(userAccount.id)
+      const userStats = await APIService.getUserStats(userAccount.username || userAccount.id)
       setStats(userStats)
     }
     loadStats()
@@ -103,8 +104,12 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
   }, [userAccount.id, userAccount.role])
 
   const handleSave = async () => {
+    if (!userAccount.username) {
+      toast.error('Cannot update profile: username is missing')
+      return
+    }
     try {
-      await APIService.updateUserProfile(userAccount.githubId, {
+      await APIService.updateUserProfile(userAccount.username, {
         displayName: displayName.trim() || undefined,
         bio: bio.trim() || undefined,
         location: location.trim() || undefined,
@@ -151,7 +156,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                     )}
                   </CardTitle>
                   {userAccount.displayName && (
-                    <p className="text-sm text-muted-foreground">@{userAccount.login}</p>
+                    <p className="text-sm text-muted-foreground">@{userAccount.username}</p>
                   )}
                 </div>
                 {userAccount.bio && (
@@ -164,26 +169,36 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                       {userAccount.location}
                     </div>
                   )}
-                  {userAccount.website && (
-                    <a
-                      href={userAccount.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 hover:text-primary"
-                    >
-                      <Globe size={16} />
-                      Website
-                    </a>
+                  {userAccount.website && (() => {
+                    try {
+                      const url = new URL(userAccount.website)
+                      if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+                      return (
+                        <a
+                          href={url.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 hover:text-primary"
+                        >
+                          <Globe size={16} />
+                          Website
+                        </a>
+                      )
+                    } catch {
+                      return null
+                    }
+                  })()}
+                  {userAccount.createdAt && (
+                    <div className="flex items-center gap-1">
+                      <CalendarBlank size={16} />
+                      Joined {formatDate(new Date(userAccount.createdAt).getTime())}
+                    </div>
                   )}
-                  <div className="flex items-center gap-1">
-                    <CalendarBlank size={16} />
-                    Joined {formatDate(userAccount.createdAt)}
-                  </div>
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Link to={`/profile/${userAccount.login}`} className="inline-block">
+              <Link to={`/profile/${userAccount.username}`} className="inline-block">
                 <Button size="sm" variant="ghost">
                   View Public Profile
                 </Button>
@@ -366,12 +381,23 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                   <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                     <ul className="flex flex-wrap gap-1">
                       {product.tags?.slice(0, 3).map((tag) => (
-                        <li><Badge key={tag} variant="secondary" className="text-[11px]">
-                          {tag}
-                        </Badge></li>
+                        <li key={tag}>
+                          <Link
+                            to={getProductsPathForTag(tag)}
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={`Filter products by tag ${tag}`}
+                          >
+                            <Badge
+                              variant="secondary"
+                              className="text-[11px] cursor-pointer transition-all duration-150 hover:bg-primary/15 hover:text-primary hover:-translate-y-0.5"
+                            >
+                              {tag}
+                            </Badge>
+                          </Link>
+                        </li>
                       ))}
                       {product.tags && product.tags.length > 3 && (
-                        <Badge variant="secondary" className="text-[11px]">+{product.tags.length - 3}</Badge>
+                        <li><Badge variant="secondary" className="text-[11px]">+{product.tags.length - 3}</Badge></li>
                       )}
                     </ul>
                     {product.sourceUrl && (

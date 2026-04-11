@@ -1,18 +1,23 @@
 import { memo, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { StarRating } from './StarRating'
-import { Product, Rating, UserData } from '@/lib/types'
+import { Product, Rating, UserData, Collection } from '@/lib/types'
 import { cn, formatSourceLabel, getSourceIcon, calculateAverageRating, formatRelativeTime } from '@/lib/utils'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import MarkdownText from '@/components/ui/MarkdownText'
-import { Prohibit, Trash } from '@phosphor-icons/react'
+import { Prohibit, Trash, FolderOpen } from '@phosphor-icons/react'
+import { ProductFilterTag } from '@/components/ProductFilterTag'
 
 type ProductListItemProps = {
   product: Product
   ratings: Rating[]
+  collections?: Collection[]
+  selectedTags?: string[]
   href?: string
   onNavigate?: () => void
+  onTagClick?: (tag: string) => void
   user?: UserData | null
   onRate?: (productId: string, rating: number) => void
   showBannedBadge?: boolean
@@ -21,11 +26,15 @@ type ProductListItemProps = {
   onDelete?: (productId: string) => void
 }
 
-export const ProductListItem = memo(function ProductListItem({ product, ratings, href, onNavigate, user, onRate, showBannedBadge, canModerate, onToggleBan, onDelete }: ProductListItemProps) {
+export const ProductListItem = memo(function ProductListItem({ product, ratings, collections, selectedTags = [], href, onNavigate, onTagClick, user, onRate, showBannedBadge, canModerate, onToggleBan, onDelete }: ProductListItemProps) {
   const [imageError, setImageError] = useState(false)
   const productRatings = useMemo(() => ratings.filter((r) => r.productId === product.id), [ratings, product.id])
   const averageRating = useMemo(() => calculateAverageRating(product.sourceRating, productRatings, product.id), [product.sourceRating, productRatings, product.id])
   const userRating = useMemo(() => user ? productRatings.find((r) => r.userId === user.id)?.rating : undefined, [user, productRatings])
+  const productCollections = useMemo(
+    () => collections ? collections.filter((c) => product.slug && (c.productSlugs ?? []).includes(product.slug)) : [],
+    [collections, product.slug]
+  )
 
   const handleRate = (rating: number) => {
     if (onRate) {
@@ -35,8 +44,9 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (onDelete && window.confirm(`Are you sure you want to delete "${product.name}"?`)) {
-      onDelete(product.id)
+    if (onDelete) {
+      const targetId = product.slug || product.id
+      onDelete(targetId)
     }
   }
 
@@ -145,8 +155,13 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
             <div className="flex flex-wrap gap-1.5 text-sm text-muted-foreground">
   	    <ul className="flex flex-wrap gap-1.5">
                 {product.tags.slice(0, 20).map((tag) => (
-                  <li key={tag} className="px-1.5 py-0 bg-muted rounded-sm text-xs whitespace-nowrap">
-                    {tag}
+                  <li key={tag}>
+                    <ProductFilterTag
+                      tag={tag}
+                      selected={selectedTags.includes(tag)}
+                      onTagClick={onTagClick}
+                      variant="list"
+                    />
                   </li>
                 ))}
                 {product.tags.length > 20 && (
@@ -227,6 +242,29 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
             </Button>
           )}
         </div>
+
+        {productCollections.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <FolderOpen size={12} />
+              Collections:
+            </span>
+            <ul className="flex flex-wrap gap-1">
+              {productCollections.map((c) => (
+                <li key={c.id}>
+                  <Link
+                    to={`/collections/${c.slug || c.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
+                      {c.name}
+                    </Badge>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -237,11 +275,16 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
   if (prevProps.onRate !== nextProps.onRate) return false
   if (prevProps.showBannedBadge !== nextProps.showBannedBadge) return false
   if (prevProps.onClick !== nextProps.onClick) return false
+  if (prevProps.onTagClick !== nextProps.onTagClick) return false
+  if (prevProps.selectedTags !== nextProps.selectedTags) return false
   
   // Compare only this product's ratings
   const prevProductRatings = prevProps.ratings.filter(r => r.productId === prevProps.product.id)
   const nextProductRatings = nextProps.ratings.filter(r => r.productId === nextProps.product.id)
   if (prevProductRatings.length !== nextProductRatings.length) return false
+
+  // Compare collections containing this product
+  if (prevProps.collections !== nextProps.collections) return false
   
   // If all checks pass, skip re-render
   return true

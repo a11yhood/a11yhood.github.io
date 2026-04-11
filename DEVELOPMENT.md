@@ -4,6 +4,13 @@ This guide explains how to set up and run the a11yhood frontend in different env
 
 ## Quick Start
 
+## Identity Field Best Practice
+
+- Use `username` as the canonical user identifier in frontend code, API payloads, and route params.
+- Do not introduce new `login` fields for user identity.
+- If touching legacy code that still uses `login`, migrate it to `username` in the same change when practical.
+- Prefer route patterns like `/profile/:username` and `/account/:username`.
+
 ### Development Environment (Recommended for Active Development)
 ```bash
 # Terminal 1: Start the test backend (port 8000 with local test database)
