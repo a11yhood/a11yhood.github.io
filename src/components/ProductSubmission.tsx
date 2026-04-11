@@ -1,5 +1,5 @@
 import { useState, useImperativeHandle, forwardRef, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -65,7 +65,6 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
   const [existingProduct, setExistingProduct] = useState<Product | null>(null)
   const [isScrapingUrl, setIsScrapingUrl] = useState(false)
   const [urlToCheck, setUrlToCheck] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Expose close method to parent via ref
   useImperativeHandle(ref, () => ({
@@ -96,7 +95,6 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
     setExistingProduct(null)
     setIsScrapingUrl(false)
     setUrlToCheck('')
-    setIsSubmitting(false)
   }
   
   const normalizeUrl = (url: string): string => {
@@ -328,11 +326,9 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
     e.preventDefault()
 
     if (!validateForm()) {
-      setIsSubmitting(false)
       return
     }
 
-    setIsSubmitting(true)
     const normalizedLastUpdated = (() => {
       if (!sourceLastUpdated) return undefined
       if (typeof sourceLastUpdated === 'number') return sourceLastUpdated
@@ -360,7 +356,6 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
     }
 
     onSubmit(productData)
-    setIsSubmitting(false)
     setOpen(false)
     resetForm()
   }

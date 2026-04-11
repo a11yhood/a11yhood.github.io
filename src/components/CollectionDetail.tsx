@@ -40,6 +40,7 @@ export function CollectionDetail({
   onDeleteCollection,
   onEditCollection,
 }: CollectionDetailProps) {
+  void onDeleteProduct
   const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(false)
   const [resolvedCreatorUsername, setResolvedCreatorUsername] = useState('')

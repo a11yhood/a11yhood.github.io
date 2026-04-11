@@ -6,7 +6,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ChatCircle } from '@phosphor-icons/react'
 import { Discussion, UserAccount, UserData, DELETED_DISCUSSION_CONTENT } from '@/lib/types'
 import { formatDistanceToNow } from 'date-fns'
-import { Label } from '@/components/ui/label'
 
 type DiscussionSectionProps = {
   discussions: Discussion[]
@@ -116,8 +115,9 @@ function DiscussionItem({
                           setEditError(null)
                         await onEditDiscussion(discussion.id, trimmed)
                         setIsEditing(false)
-                      } catch (err: any) {
-                        setEditError(err?.message || 'Failed to save. Please try again.')
+                      } catch (err: unknown) {
+                        const message = err instanceof Error ? err.message : 'Failed to save. Please try again.'
+                        setEditError(message)
                       } finally {
                         setIsSavingEdit(false)
                       }

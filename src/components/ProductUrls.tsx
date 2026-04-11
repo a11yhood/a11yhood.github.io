@@ -4,7 +4,6 @@ import { APIService } from '../lib/api'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
-import { Label } from './ui/label'
 
 interface ProductUrlsProps {
   productId: string
@@ -22,22 +21,21 @@ export function ProductUrls({ productId, isEditor, onUrlsChange }: ProductUrlsPr
 
   // Load URLs on mount
   useEffect(() => {
-    loadUrls()
-  }, [productId])
-
-  const loadUrls = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await APIService.getProductUrls(productId)
-      setUrls(data)
-      onUrlsChange?.(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load URLs')
-    } finally {
-      setLoading(false)
+    const loadUrls = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const data = await APIService.getProductUrls(productId)
+        setUrls(data)
+        onUrlsChange?.(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load URLs')
+      } finally {
+        setLoading(false)
+      }
     }
-  }
+    loadUrls()
+  }, [productId, onUrlsChange])
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
