@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened, closed]
 
 permissions:
-  contents: write      # Commit PR preview to gh-pages branch
+  contents: read       # Read repository contents; pushes use PAT instead
   pull-requests: write # Post preview URL comment
 
 jobs:
@@ -70,6 +70,7 @@ jobs:
         with:
           ref: gh-pages
           fetch-depth: 1
+          persist-credentials: false
 
       # Remove stale files from a previous build of this same PR so renamed
       # or deleted assets don't linger.
@@ -95,9 +96,16 @@ jobs:
       # gh-pages branch context (allowed by github-pages environment rules)
       # and does the actual actions/deploy-pages call.
       - name: Commit preview to gh-pages
+        env:
+          GH_PAGES_PUSH_PAT: ${{ secrets.GH_PAGES_PUSH_PAT }}
         run: |
+          if [ -z "$GH_PAGES_PUSH_PAT" ]; then
+            echo "Missing required secret: GH_PAGES_PUSH_PAT"
+            exit 1
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GH_PAGES_PUSH_PAT}@github.com/${{ github.repository }}.git"
           git add -A pr-preview/${{ github.event.number }}/
           if git diff --cached --quiet; then
             echo "Nothing to commit, preview is already up to date"
@@ -162,12 +170,20 @@ jobs:
         with:
           ref: gh-pages
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Remove PR preview directory
+        env:
+          GH_PAGES_PUSH_PAT: ${{ secrets.GH_PAGES_PUSH_PAT }}
         run: |
+          if [ -z "$GH_PAGES_PUSH_PAT" ]; then
+            echo "Missing required secret: GH_PAGES_PUSH_PAT"
+            exit 1
+          fi
           if [ -d "pr-preview/${{ github.event.number }}" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
+            git remote set-url origin "https://x-access-token:${GH_PAGES_PUSH_PAT}@github.com/${{ github.repository }}.git"
             git rm -rf "pr-preview/${{ github.event.number }}/"
             git commit -m "Remove PR #${{ github.event.number }} preview"
             git push
