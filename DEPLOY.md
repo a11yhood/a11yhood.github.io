@@ -90,9 +90,14 @@ rules and avoids PR ref deployment rejections.
 
 ### Forked PRs
 
-Forked PRs cannot access repository secrets, so the accessibility scanner
-step is skipped for them. All other jobs (lint, build, deploy) run normally.
+Forked PRs cannot access repository secrets, and their workflow token is
+typically read-only. In practice, that means only checks that do not require
+secrets or repository writes are expected to run normally.
 
+For PR previews specifically, the build depends on repository `VITE_*` secrets
+and deployment updates `gh-pages`, so preview build/deploy (and related PR
+comments) may be skipped or fail for forked PRs unless the workflow explicitly
+gates those steps to non-fork pull requests.
 ---
 
 ## Repository settings required

@@ -76,10 +76,16 @@ jobs:
       # the draft/ subdirectory (which holds active PR previews).
       - name: Merge production build into gh-pages root
         run: |
+          if [ -d new-production/dist ]; then
+            BUILD_SOURCE="new-production/dist/"
+          else
+            BUILD_SOURCE="new-production/"
+          fi
+
           rsync -av --delete \
             --exclude='.git' \
             --exclude='draft' \
-            new-production/ .
+            "$BUILD_SOURCE" .
           rm -rf new-production/
 
       # Committing to gh-pages triggers pages-deploy.yml which runs from the
