@@ -288,7 +288,7 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
                     href="https://www.ravelry.com/pro/developer" 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="text-primary hover:underline font-medium"
+                    className="text-primary underline hover:opacity-80 font-medium"
                   >
                     Ravelry Developer Settings
                   </a>

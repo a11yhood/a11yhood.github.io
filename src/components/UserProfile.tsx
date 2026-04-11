@@ -198,7 +198,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Link to={`/profile/${userAccount.username}`} className="inline-block">
+              <Link to={`/profile/${userAccount.username}`} className="no-underline inline-block">
                 <Button size="sm" variant="ghost">
                   View Public Profile
                 </Button>
@@ -386,10 +386,11 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                             to={getProductsPathForTag(tag)}
                             onClick={(e) => e.stopPropagation()}
                             aria-label={`Filter products by tag ${tag}`}
+                            className="no-underline"
                           >
                             <Badge
-                              variant="secondary"
-                              className="text-[11px] cursor-pointer transition-all duration-150 hover:bg-primary/15 hover:text-primary hover:-translate-y-0.5"
+                              variant="outline"
+                              className="text-[11px] cursor-pointer transition-all duration-150 hover:bg-accent hover:text-accent-foreground motion-safe:hover:-translate-y-0.5"
                             >
                               {tag}
                             </Badge>
