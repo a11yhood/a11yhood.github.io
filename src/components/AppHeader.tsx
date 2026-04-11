@@ -90,13 +90,14 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
       <nav aria-label="Primary navigation" className="max-w-7xl mx-auto px-6 h-full">
         <div className="flex items-center justify-between gap-4 h-full bg-(--color-bg)">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/')}
+            {/* Logo link: aria-label provides the accessible name; image is decorative */}
+            <Link
+              to="/"
               className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded flex items-center flex-shrink-0"
-              title="a11yhood Home"
+              aria-label="a11yhood home"
             >
-              <img src={logoImage} alt="a11yhood" className="h-[18px] w-auto flex-shrink-0" />
-            </button>
+              <img src={logoImage} alt="" aria-hidden="true" className="h-[18px] w-auto flex-shrink-0" />
+            </Link>
             <Link
               to="/about"
               className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
