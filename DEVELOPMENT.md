@@ -1,6 +1,6 @@
 # Development Guide for a11yhood Frontend
 
-This guide explains how to set up and run the a11yhood frontend in different environments.
+This guide explains how to set up and run the a11yhood frontend in different environments. 
 
 ## Quick Start
 

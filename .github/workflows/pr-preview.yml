@@ -2,14 +2,15 @@ name: PR Preview
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, closed]
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: write      # Commit PR preview to gh-pages branch
+  pull-requests: write # Post preview URL comment
 
 jobs:
   lint:
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,6 +25,7 @@ jobs:
         run: npm run lint
 
   build:
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,8 +35,9 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - name: Install dependencies
-        run: npm ci
-      - run: npm install @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu
+        run: |
+          npm ci
+          npm install --no-save @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu
       - name: Run tests
         env:
           CI: true
@@ -47,8 +50,8 @@ jobs:
           VITE_LOG_LEVEL: ${{ secrets.VITE_LOG_LEVEL }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_BASE_URL: /draft/${{ github.event.number }}/
-        run: npx vite build
+          VITE_BASE_URL: /pr-preview/${{ github.event.number }}/
+        run: npx tsc -b --noCheck && npx vite build
 
       - uses: actions/upload-artifact@v4
         with:
@@ -56,25 +59,46 @@ jobs:
           path: dist/
 
   deploy-preview:
+    if: github.event.action != 'closed'
     needs: build
     runs-on: ubuntu-latest
     env:
-      PREVIEW_URL: https://a11yhood.org/draft/${{ github.event.number }}/
+      PREVIEW_URL: https://a11yhood.org/pr-preview/${{ github.event.number }}/
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
         with:
           ref: gh-pages
           fetch-depth: 1
-      - uses: actions/download-artifact@v4
+
+      # Remove stale files from a previous build of this same PR so renamed
+      # or deleted assets don't linger.
+      - name: Clear existing preview directory
+        run: rm -rf pr-preview/${{ github.event.number }}
+
+      - name: Download PR build
+        uses: actions/download-artifact@v4
         with:
           name: vite-site-${{ github.event.number }}
-          path: draft/${{ github.event.number }}/
-      - run: ls -lathr draft/${{ github.event.number }}/    
-      - name: Commit and push preview
+          path: /tmp/pr-build/
+
+      - name: Place build in preview directory
+        run: |
+          mkdir -p pr-preview/${{ github.event.number }}
+          if [ -d /tmp/pr-build/dist ]; then
+            cp -r /tmp/pr-build/dist/. pr-preview/${{ github.event.number }}/
+          else
+            cp -r /tmp/pr-build/. pr-preview/${{ github.event.number }}/
+          fi
+
+      # Committing to gh-pages triggers pages-deploy.yml which runs from the
+      # gh-pages branch context (allowed by github-pages environment rules)
+      # and does the actual actions/deploy-pages call.
+      - name: Commit preview to gh-pages
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A draft/${{ github.event.number }}/
+          git add -A pr-preview/${{ github.event.number }}/
           if git diff --cached --quiet; then
             echo "Nothing to commit, preview is already up to date"
           else
@@ -126,17 +150,43 @@ jobs:
               });
             }
 
+  # When a PR is closed (merged or abandoned), remove its preview from
+  # gh-pages. The commit triggers pages-deploy.yml which redeploys Pages
+  # from the gh-pages branch context (allowed by environment protection rules).
+  cleanup:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 1
+
+      - name: Remove PR preview directory
+        run: |
+          if [ -d "pr-preview/${{ github.event.number }}" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git rm -rf "pr-preview/${{ github.event.number }}/"
+            git commit -m "Remove PR #${{ github.event.number }} preview"
+            git push
+          else
+            echo "No preview directory found, nothing to remove"
+          fi
+
   accessibility_scanner:
     name: A11y Preview Scan (PR)
     needs: deploy-preview
     runs-on: ubuntu-latest
     # accessibility-scanner requires a custom PAT; forked PRs cannot access repository secrets.
-    if: ${{ github.event.pull_request.head.repo.fork == false }}
+    if: ${{ github.event.action != 'closed' && github.event.pull_request.head.repo.fork == false }}
     steps:
       - uses: github/accessibility-scanner@v2
         with:
           urls: |
-            https://a11yhood.org/draft/${{ github.event.number }}/
+            https://a11yhood.org/pr-preview/${{ github.event.number }}/
           repository: a11yhood/a11yhood.github.io
           token: ${{ secrets.GH_TOKEN }}
           cache_key: a11yhood.org-pr-${{ github.event.number }}
+
