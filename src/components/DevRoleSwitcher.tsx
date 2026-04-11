@@ -62,7 +62,7 @@ export function DevRoleSwitcher({ userAccount, onRoleChange }: DevRoleSwitcherPr
 
   if (!isOpen) {
     return (
-      <div className="fixed bottom-4 right-4 z-50">
+      <aside aria-label="Dev role switcher" className="fixed bottom-4 right-4 z-50">
         <Button
           variant="secondary"
           size="icon"
@@ -72,62 +72,64 @@ export function DevRoleSwitcher({ userAccount, onRoleChange }: DevRoleSwitcherPr
         >
           🧪
         </Button>
-      </div>
+      </aside>
     )
   }
 
   return (
-    <Card className="fixed bottom-4 right-4 w-80 shadow-lg border-blue-200 bg-blue-50 z-50">
-      <CardHeader className="pb-2 flex items-center justify-between gap-2">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-          Dev Mode: Role Switcher
-        </CardTitle>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsOpen(false)}
-          aria-expanded={isOpen}
-          aria-label="Collapse dev role switcher"
-          className="h-8 px-2"
-        >
-          Hide
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-muted-foreground">Active Dev Account</label>
-          <Select value={selectedUser} onValueChange={handleUserChange} disabled={isSwitching}>
-            <SelectTrigger className="bg-(--color-bg)">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="user">👤 regular_user</SelectItem>
-              <SelectItem value="moderator">🛡️ moderator_user</SelectItem>
-              <SelectItem value="admin">👑 admin_user</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="pt-1 border-t border-blue-200">
-          <p className="text-xs text-blue-700 leading-snug">
-            {selectedUser === 'user' && '✓ Testing regular user permissions'}
-            {selectedUser === 'moderator' && '✓ Testing moderator permissions'}
-            {selectedUser === 'admin' && '✓ Testing admin permissions (all features)'}
-          </p>
-        </div>
-
-        <div className="text-xs text-muted-foreground space-y-1">
-          <div>Logged in as: <span className="font-mono font-semibold">{userAccount?.username}</span></div>
-          <div>Current dev-user: <span className="font-mono">{selectedUser}</span></div>
-          <div className="flex items-center gap-2">
-            <span>Role:</span>
-            <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-              {userAccount?.role ?? 'unknown'}
-            </span>
+    <aside aria-label="Dev role switcher">
+      <Card className="fixed bottom-4 right-4 w-80 shadow-lg border-blue-200 bg-blue-50 z-50">
+        <CardHeader className="pb-2 flex items-center justify-between gap-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+            Dev Mode: Role Switcher
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsOpen(false)}
+            aria-expanded={isOpen}
+            aria-label="Collapse dev role switcher"
+            className="h-8 px-2"
+          >
+            Hide
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground">Active Dev Account</label>
+            <Select value={selectedUser} onValueChange={handleUserChange} disabled={isSwitching}>
+              <SelectTrigger className="bg-(--color-bg)">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">👤 regular_user</SelectItem>
+                <SelectItem value="moderator">🛡️ moderator_user</SelectItem>
+                <SelectItem value="admin">👑 admin_user</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+
+          <div className="pt-1 border-t border-blue-200">
+            <p className="text-xs text-blue-700 leading-snug">
+              {selectedUser === 'user' && '✓ Testing regular user permissions'}
+              {selectedUser === 'moderator' && '✓ Testing moderator permissions'}
+              {selectedUser === 'admin' && '✓ Testing admin permissions (all features)'}
+            </p>
+          </div>
+
+          <div className="text-xs text-muted-foreground space-y-1">
+            <div>Logged in as: <span className="font-mono font-semibold">{userAccount?.username}</span></div>
+            <div>Current dev-user: <span className="font-mono">{selectedUser}</span></div>
+            <div className="flex items-center gap-2">
+              <span>Role:</span>
+              <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                {userAccount?.role ?? 'unknown'}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </aside>
   )
 }
