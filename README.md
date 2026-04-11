@@ -77,8 +77,17 @@ Verify installation:
 ```bash
 pixi --version
 ```
+### Using Pixi
+
+Use Pixi to provide the project runtime, then run npm commands inside that environment.
 
 ### Installation
+
+We assume throughout that you are already running pixi. 
+
+```bash
+ pixi shell
+```
 
 1. **Clone the repository**
    ```bash
@@ -88,7 +97,7 @@ pixi --version
 
 2. **Install Node + npm dependencies via Pixi**
    ```bash
-   pixi run install-node
+   npm install
    ```
 
 3. **Set up environment variables**
@@ -99,7 +108,7 @@ pixi --version
 
 4. **Start the development server**
    ```bash
-   pixi run npm run dev
+   npm run dev
    ```
 
    The application will be available at `http://localhost:5173`
@@ -108,49 +117,54 @@ pixi --version
 
 ```bash
 # Run tests in watch mode
-pixi run npm test
+npm test
 
 # Run tests once
-pixi run npm run test:run
+npm run test:run
 
 # Run tests with coverage
-pixi run npm run test:coverage
+npm run test:coverage
 
 # Run tests with UI
-pixi run npm run test:ui
+npm run test:ui
+
+# Lint
+npm run lint
+
+# Accessibility
+npm run test:a11y
+npm run test:a11y-integration
+
 ```
 
 ### Building for Production
 
 ```bash
 # Build the application
-pixi run npm run build
+npm run build
 
 # Preview the production build
-pixi run npm run preview
+npm run preview
 ```
 
-## Development
+### Bundle-only Vite build via Pixi task
+Note: this skips tests and TypeScript type checking
 
-### Common Commands (via Pixi)
+```bash
+pixi run build-vite
 
-- `pixi run install-node` - Install Node/npm dependencies
-- `pixi run npm run dev` - Start development server
-- `pixi run npm run build` - Build for production (includes tests and type checking)
-- `pixi run npm run preview` - Preview production build locally
-- `pixi run npm test` - Run tests in watch mode
-- `pixi run npm run test:run` - Run tests once
-- `pixi run npm run test:coverage` - Generate test coverage report
-- `pixi run npm run lint` - Run ESLint
+# Production preview
+npm run preview
+```
 
-### Code Quality
+# Code Quality
 
 The project includes:
-- **ESLint** for code linting
+- **ESLint** for code linting 
 - **TypeScript** for type safety
 - **Vitest** for unit and integration testing
 - **React Testing Library** for component testing
-- Accessibility tests for critical UI components
+- Accessibility tests for critical UI components 
 
 ## Key Features Explained
 
