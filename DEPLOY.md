@@ -113,7 +113,7 @@ to open PRs or contribute code.
 |---------|-------|
 | **Pages → Source** | GitHub Actions |
 | **Environment → `github-pages`** | Must exist; `id-token: write` depends on it |
-| **Secrets** | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_URL`, `VITE_DEV_MODE`, `VITE_ENV`, `VITE_LOG_LEVEL`, `GH_TOKEN`, `GH_PAGES_PUSH_PAT` |
+| **Secrets** | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_URL`, `VITE_DEV_MODE`, `VITE_LOG_LEVEL`, `GH_TOKEN`, `GH_PAGES_PUSH_PAT` |
 
 The `GH_TOKEN` secret is used for accessibility testing. It must be a personal access token with repo scope — the
 default `GITHUB_TOKEN` is not supported by the `github/accessibility-scanner`
