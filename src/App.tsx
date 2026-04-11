@@ -843,6 +843,7 @@ function BlogPostPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userA
   if (!post) {
     return (
       <div className="text-center py-12">
+        <h1 className="text-2xl font-bold mb-2">Blog Post Not Found</h1>
         <p className="text-lg text-muted-foreground">Blog post not found</p>
         <Button variant="outline" onClick={() => navigate('/blog')} className="mt-4">
           Back to Blog
