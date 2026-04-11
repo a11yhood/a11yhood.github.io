@@ -1,48 +1,70 @@
 # Development Guide for a11yhood Frontend
 
-This guide explains how to set up and run the a11yhood frontend in different environments. 
+This guide explains how to set up and run the a11yhood frontend with different backends.
+
+## Need Help?
+
+Check these resources:
+- [`vite.config.ts`](vite.config.ts) - Vite configuration with proxy settings
+- [`env.example`](env.example) - Development environment variables
+- [`.github/workflows/`](.github/workflows/) - CI/CD configuration for reference
 
 ## Quick Start
 
-## Identity Field Best Practice
-
-- Use `username` as the canonical user identifier in frontend code, API payloads, and route params.
-- Do not introduce new `login` fields for user identity.
-- If touching legacy code that still uses `login`, migrate it to `username` in the same change when practical.
-- Prefer route patterns like `/profile/:username` and `/account/:username`.
-
 ### Development Environment (Recommended for Active Development)
-```bash
-# Terminal 1: Start the test backend (port 8000 with local test database)
-# (Backend repository setup - outside scope of this guide)
 
-# Terminal 2: Start the frontend
-./scripts/start-dev.sh
+Start by running 
+```bash
+pixi shell
+```
+and do everything in there.
+
+Use this setup for hot-reload development with a local dev backend:
+
+```bash
+# Terminal 1: Start the development backend (port 8002 with local test database)
+# (Backend repository setup - outside scope of this guide)
+# Backend should be running on: http://localhost:8002
+
+# Terminal 2: Start the frontend dev server
+
+npm run dev
+
 # Frontend runs on: https://localhost:5173
 # Hot reload: Enabled (changes reflect immediately)
 ```
 
 ### Production Environment (For Testing Production Build)
+
+Use this setup to test the actual production build with a local production backend:
+
 ```bash
 # Terminal 1: Start the production backend (port 8001 with Supabase)
 # (Backend repository setup - outside scope of this guide)
+# Backend should be running on: https://localhost:8001
 
-# Terminal 2: Start the frontend
-./scripts/start-prod.sh
+# Terminal 2: Build and preview the production build
+
+npm run build && npm run preview
 # Frontend runs on: https://localhost:4173
 # Tests actual production build with real database
 ```
+
+## Backend Ports
+- **localprod backend**: `:8001` (HTTPS, with Supabase) - For testing production builds locally
+- **localdev backend**: `:8002` (HTTP, with local test database) - For active development
+- **Real servers**: Use their respective domain URLs (e.g., `https://api.example.com`)
 
 ## Environment Comparison
 
 | Aspect | Development (Dev) | Production (Prod) |
 |--------|-------------------|-------------------|
-| **Script** | `./scripts/start-dev.sh` | `./scripts/start-prod.sh` |
+| **Command** | `npm run dev` | `npm run build && npm run preview` |
 | **Env File** | `.env.local` | `.env.production.local` |
 | **Frontend Port** | 5173 | 4173 |
 | **Frontend URL** | https://localhost:5173 | https://localhost:4173 |
-| **Backend Port** | 8000 (HTTP) | 8001 (HTTPS) |
-| **Backend URL** | http://localhost:8000 | https://localhost:8001 |
+| **Backend Port (Local)** | 8002 (HTTP) | 8001 (HTTPS) |
+| **Backend URL (Local)** | http://localhost:8002 | https://localhost:8001 |
 | **Database** | Local test database | Supabase (production) |
 | **Build Type** | Dev server (no build step) | Production build (minified) |
 | **Hot Reload** | ✅ Enabled | ❌ Disabled |
@@ -51,16 +73,28 @@ This guide explains how to set up and run the a11yhood frontend in different env
 
 ## Development Environment Details
 
-### Setup
+### Setup for Local Dev Backend
 
-1. **Start Test Backend**: Run your backend on `http://localhost:8000` with local test database configured
-2. **Environment File**: Uses `.env.local` with `VITE_API_URL=http://localhost:8000`
-3. **Start Frontend**: Run `./scripts/start-dev.sh`
+1. **Start Dev Backend**: Run your backend on `http://localhost:8002` with local test database configured
+2. **Environment File**: Creates `.env.local` with `VITE_API_URL=http://localhost:8002` (optional—Vite proxies by default)
+3. **Start Frontend**: Run `npm run dev`
+
+### Setup for Real Server Backend
+
+If your backend is running on a real server:
+
+```bash
+# Create or update .env.local
+echo "VITE_API_URL=https://your-api-domain.com" >> .env.local
+
+# Start frontend (it will connect to the real server)
+npm run dev
+```
 
 ### Key Features
 
 - **Vite Dev Server**: Uses Vite's built-in development server with hot module replacement (HMR)
-- **Automatic Proxy**: Vite's dev server automatically proxies `/api` requests to `http://localhost:8000`
+- **Automatic Proxy**: Vite's dev server automatically proxies `/api` requests to the backend (or `http://localhost:8002` by default)
 - **No CORS Issues**: Requests go through the proxy, avoiding cross-origin errors
 - **Fast Feedback**: Changes to code hot reload instantly in the browser
 - **Full Debugging**: Source maps available for easy browser debugging
@@ -68,11 +102,11 @@ This guide explains how to set up and run the a11yhood frontend in different env
 ### Workflow
 
 ```bash
-# 1. Backend must be running on port 8000
-curl http://localhost:8000/health  # Should return success
+# 1. Backend must be running on port 8002 (local) or accessible via VITE_API_URL
+curl http://localhost:8002/health  # Should return success
 
 # 2. Start development environment
-./scripts/start-dev.sh
+npm run dev
 
 # 3. Open frontend in browser
 # Frontend auto-opens or navigate to: https://localhost:5173
@@ -82,23 +116,37 @@ curl http://localhost:8000/health  # Should return success
 
 ## Production Environment Details
 
-### Setup
+### Setup for Local Prod Backend
 
 1. **Start Production Backend**: Run your backend on `https://localhost:8001` with Supabase configured
-2. **Environment File**: Uses `.env.production.local` with `VITE_API_URL=https://localhost:8001`
-3. **Start Frontend**: Run `./scripts/start-prod.sh`
+2. **Environment File**: Create `.env.production.local` with `VITE_API_URL=https://localhost:8001`
+3. **Build and Preview Frontend**: Run `npm run build && npm run preview`
+
+### Setup for Real Server Backend
+
+If your backend is running on a real server:
+
+```bash
+# Create .env.production.local
+echo "VITE_API_URL=https://your-api-domain.com" >> .env.production.local
+
+# Build and preview (it will connect to the real server)
+npm run build && npm run preview
+```
 
 ### Important: CORS Configuration
 
 In production preview mode, the frontend makes **direct requests** to the backend (no proxy). This means:
 
-- Frontend origin: `https://localhost:4173`
-- Backend origin: `https://localhost:8001`
+**For local preview** (`https://localhost:4173` → `https://localhost:8001`):
 - **Required**: Backend must be configured to accept CORS from `https://localhost:4173`
 
-#### Backend CORS Configuration
+**For real servers**:
+- **Required**: Backend must be configured to accept CORS from your actual frontend domain
 
-Your backend needs to allow requests from the preview frontend. Example for FastAPI:
+#### Backend CORS Configuration Example (FastAPI)
+
+Update your backend to allow requests from the frontend:
 
 ```python
 from fastapi.middleware.cors import CORSMiddleware
@@ -106,8 +154,9 @@ from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://localhost:4173",  # Production preview frontend
-        "https://localhost:5173",  # Development frontend (if needed)
+        "https://localhost:4173",        # Local production preview
+        "https://localhost:5173",        # Local development (if needed)
+        "https://your-frontend-domain",  # Real server
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -126,52 +175,21 @@ app.add_middleware(
 ### Workflow
 
 ```bash
-# 1. Backend must be running on port 8001 with CORS enabled
+# 1. Backend must be running on port 8001 (local) with CORS enabled
 curl -k https://localhost:8001/health  # Should return success
 
-# 2. Start production environment
-./scripts/start-prod.sh
-# This will:
-# - Run tests
-# - Build the frontend for production
-# - Serve the built files on port 4173
+# 2. Build for production
+npm run build
 
-# 3. Open frontend in browser
+# 3. Preview the production build locally
+npm run preview
+# Frontend serves on: https://localhost:4173
+
+# 4. Open frontend in browser
 # Navigate to: https://localhost:4173
 
-# 4. Make changes? You must rebuild:
-# - Either restart ./scripts/start-prod.sh
-# - Or manually run: npm run build && npm run preview
-```
-
-## Environment Variables
-
-### Development (.env.local)
-
-```dotenv
-# Frontend URL
-# http://localhost:8000 - Test backend with local database
-VITE_API_URL=http://localhost:8000
-
-# Supabase (used in production only, set to dummy values)
-VITE_SUPABASE_URL=https://ztnxqktwvwlbepflxvzp.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_...
-
-VITE_LOG_LEVEL=debug
-```
-
-### Production (.env.production.local)
-
-```dotenv
-# Frontend URL
-# https://localhost:8001 - Production backend with Supabase
-VITE_API_URL=https://localhost:8001
-
-# Real Supabase credentials
-VITE_SUPABASE_URL=https://ztnxqktwvwlbepflxvzp.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_...
-
-VITE_LOG_LEVEL=debug
+# 5. Make code changes?
+# - Re-run: npm run build && npm run preview
 ```
 
 ## Troubleshooting
@@ -185,10 +203,13 @@ lsof -i :5173
 kill -9 <PID>
 ```
 
-**Problem**: Backend not responding on port 8000
+**Problem**: Backend not responding on port 8002 (local) or VITE_API_URL (real server)
 ```bash
-# Check if backend is running
-curl http://localhost:8000/health
+# Check if local backend is running
+curl http://localhost:8002/health
+
+# Or verify your VITE_API_URL in .env.local
+cat .env.local | grep VITE_API_URL
 
 # If not running, start it (outside this repository)
 ```
@@ -196,58 +217,19 @@ curl http://localhost:8000/health
 **Problem**: CORS errors in dev mode
 ```
 This should NOT happen in dev mode due to Vite proxy.
-Check that VITE_API_URL=http://localhost:8000 in .env.local
+Check that Vite is proxying correctly:
+  - Port 5173 is running (npm run dev)
+  - Backend is accessible at its configured URL
+For real servers, ensure your backend allows CORS from https://localhost:5173
 ```
 
-### Prod Environment
+### Production Environment
 
-**Problem**: CORS error: "No 'Access-Control-Allow-Origin' header"
+**Problem**: CORS errors at https://localhost:4173
 ```
-This is expected if backend CORS is not configured.
-See "Backend CORS Configuration" section above.
-Make sure backend allows: https://localhost:4173
-```
-
-**Problem**: Port 4173 already in use
-```bash
-# Kill existing preview server
-pkill -f "vite preview"
-# Or run the stop script
-./scripts/stop-prod.sh
-```
-
-**Problem**: Frontend builds but shows blank page
-1. Open browser DevTools
-2. Check Console tab for errors
-3. Check Network tab - API requests should succeed (no 404s)
-4. Verify backend is running and has CORS enabled
-
-## API Request Flow Diagram
-
-### Development (with Vite proxy)
-```
-Browser (https://localhost:5173)
-  ↓
-Vite Dev Server Proxy (localhost:5173)
-  ↓
-Backend (http://localhost:8000)
-  ↓
-Test Database
-
-✅ No CORS issues - same origin
-```
-
-### Production (direct requests)
-```
-Browser (https://localhost:4173)
-  ↓
-Direct Request (CORS required)
-  ↓
-Backend (https://localhost:8001)
-  ↓
-Supabase Database
-
-⚠️ CORS must be configured on backend
+Production preview mode does NOT use Vite proxy.
+Backend must explicitly allow CORS from https://localhost:4173
+Update your backend's CORS configuration accordingly.
 ```
 
 ## Common Tasks
@@ -257,14 +239,8 @@ Supabase Database
 # Stop the current environment
 pkill -f "npm.*dev"
 
-# Start production environment
-./scripts/start-prod.sh
-```
-
-### Rebuild Production Without Restarting
-```bash
-npm run build -- --mode production
-npm run preview
+# Start production build and preview
+npm run build && npm run preview
 ```
 
 ### View Build Output
@@ -287,10 +263,10 @@ du -sh dist/
 - **Dev**: https://localhost:5173 → F12
 - **Prod**: https://localhost:4173 → F12
 
-## Need Help?
+## Identity Field Best Practice
 
-Check these resources:
-- [`vite.config.ts`](vite.config.ts) - Vite configuration with proxy settings
-- [`.env.local`](.env.local) - Development environment variables
-- [`.env.production.local`](.env.production.local) - Production environment variables
-- [`.github/workflows/`](.github/workflows/) - CI/CD configuration for reference
+- Use `username` as the canonical user identifier in frontend code, API payloads, and route params.
+- Do not introduce new `login` fields for user identity.
+- If touching legacy code that still uses `login`, migrate it to `username` in the same change when practical.
+- Prefer route patterns like `/profile/:username` and `/account/:username`.
+

@@ -7,7 +7,7 @@ import type { UserData, UserAccount } from '@/lib/types'
 
 /**
  * Integration: Unsupported domain triggers request dialog using live backend.
- * Requires backend running at http://localhost:8000 (start with start-dev.sh).
+ * Requires backend running at http://localhost:8002 (run: npm run dev).
  */
 describe('Unsupported domain flow (live backend)', () => {
   const user: UserData = {
