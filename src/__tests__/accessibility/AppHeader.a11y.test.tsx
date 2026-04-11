@@ -8,6 +8,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { AppHeader } from '@/components/AppHeader'
 import { runA11yScan } from '../helpers/a11y'
 import type { UserData, UserAccount } from '@/lib/types'
+import { createMockUserAccount } from '../helpers/create-mocks'
 
 function renderHeader(user: UserData | null = null, userAccount: UserAccount | null = null) {
   return render(
@@ -48,8 +49,8 @@ describe('AppHeader logo link accessibility', () => {
   })
 
   it('logo link has discernible text when user is authenticated', async () => {
-    const user = { id: 'u1', username: 'alice', avatarUrl: undefined } as UserData
-    const userAccount = { id: 'u1', username: 'alice', role: 'user' } as UserAccount
+    const user: UserData = { id: 'u1', username: 'alice' }
+    const userAccount = createMockUserAccount({ id: 'u1', username: 'alice' })
 
     const { container } = renderHeader(user, userAccount)
 
