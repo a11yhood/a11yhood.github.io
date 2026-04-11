@@ -74,9 +74,29 @@
     font-weight: 600;
   }
 
+  /*
+   * WCAG 1.4.1 / link-in-text-block: links within body text must be
+   * distinguishable without relying on color alone.  Apply a permanent
+   * underline to any anchor that lives inside a paragraph, list item,
+   * table cell, or definition-list term/description so that sighted users
+   * who cannot distinguish colours can still identify the link.
+   *
+   * Navigation links, card wrappers, and icon-only links intentionally
+   * opt out with the `no-underline` utility class where appropriate.
+   */
+  p a:not(.no-underline),
+  li a:not(.no-underline),
+  td a:not(.no-underline),
+  dt a:not(.no-underline),
+  dd a:not(.no-underline) {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
   .prose a {
     color: var(--primary);
     text-decoration: underline;
+    text-underline-offset: 2px;
   }
 
   .prose a:hover {

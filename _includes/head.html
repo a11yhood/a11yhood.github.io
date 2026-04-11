@@ -20,6 +20,16 @@
       font-weight: 400;
       font-style: normal;
     }
+    /*
+     * WCAG 1.4.1 / link-in-text-block: links within body text must be
+     * distinguishable without relying on color alone.  The minima theme
+     * only underlines links on hover, which fails the rule.  Override here
+     * to ensure inline links always carry a permanent underline.
+     */
+    p a, li a, td a, dt a, dd a {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
     </style>
   </head>
 <!-- <link rel="manifest" href="/images/site.webmanifest">
