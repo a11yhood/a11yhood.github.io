@@ -94,7 +94,8 @@
   }
 
   a:not(.no-underline):hover {
-    opacity: 0.75;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
   }
 
   .prose a {

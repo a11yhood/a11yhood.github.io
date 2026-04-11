@@ -257,7 +257,7 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
                     onClick={(e) => e.stopPropagation()}
                     className="no-underline"
                   >
-                    <Badge variant="outline" className="text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground hover:-translate-y-0.5 transition-all">
+                    <Badge variant="outline" className="text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground motion-safe:hover:-translate-y-0.5 transition-all">
                       {c.name}
                     </Badge>
                   </Link>
