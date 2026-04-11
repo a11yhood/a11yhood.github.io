@@ -41,7 +41,7 @@ export function ProductFilterTag({
             clickable ? 'cursor-pointer hover:-translate-y-0.5' : 'cursor-default',
             selected
               ? 'bg-primary text-primary-foreground hover:bg-primary/90 ring-1 ring-primary/40'
-              : 'border-border/70 hover:bg-primary/15 hover:text-primary',
+              : 'border-border/70 hover:bg-primary/25 hover:text-primary',
           )}
         >
           {tag}
@@ -53,7 +53,7 @@ export function ProductFilterTag({
             clickable ? 'cursor-pointer hover:-translate-y-0.5' : 'cursor-default bg-muted',
             selected
               ? 'bg-primary text-primary-foreground ring-1 ring-primary/40 hover:bg-primary/90'
-              : 'bg-muted hover:bg-primary/15 hover:text-primary',
+              : 'bg-muted hover:bg-primary/25 hover:text-primary',
           )}
         >
           {tag}

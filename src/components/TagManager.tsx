@@ -157,7 +157,7 @@ export function TagManager({
           currentTags.map((tag) => (
             <li key={tag}>
               <Link to={getProductsPathForTag(tag)} aria-label={`View all products tagged with ${tag}`} className="no-underline">
-                <Badge variant="outline" className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors">
+                <Badge variant="outline" className="cursor-pointer hover:bg-accent hover:text-accent-foreground hover:-translate-y-0.5 transition-all">
                   {tag}
                 </Badge>
               </Link>

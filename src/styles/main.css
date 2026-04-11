@@ -93,6 +93,10 @@
     text-underline-offset: 2px;
   }
 
+  a:not(.no-underline):hover {
+    opacity: 0.75;
+  }
+
   .prose a {
     color: var(--primary);
     text-decoration: underline;
