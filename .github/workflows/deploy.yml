@@ -59,10 +59,22 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout trusted merge script source
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.sha }}
+          path: trusted-workflow-source
+          sparse-checkout: |
+            scripts/merge-pages-root.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Checkout gh-pages branch
         uses: actions/checkout@v5
         with:
           ref: gh-pages
+          path: gh-pages-branch
           fetch-depth: 1
 
       - name: Download production build
@@ -80,6 +92,7 @@ jobs:
       # preview subdirectories (legacy draft/ and current pr-preview/).
       - name: Merge production build into gh-pages root
         run: |
+          cd gh-pages-branch
           ARTIFACT_ROOT="${RUNNER_TEMP}/new-production"
 
           if [ -d "${ARTIFACT_ROOT}/dist" ]; then
@@ -90,7 +103,8 @@ jobs:
 
           echo "Selected BUILD_SOURCE=${BUILD_SOURCE}"
 
-          ./scripts/merge-pages-root.sh "${BUILD_SOURCE}" .
+          chmod +x ../trusted-workflow-source/scripts/merge-pages-root.sh
+          ../trusted-workflow-source/scripts/merge-pages-root.sh "${BUILD_SOURCE}" .
 
           rm -rf "${ARTIFACT_ROOT}"
 
@@ -99,6 +113,7 @@ jobs:
       # and does the actual actions/deploy-pages call.
       - name: Commit updated production to gh-pages
         run: |
+          cd gh-pages-branch
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A

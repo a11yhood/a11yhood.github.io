@@ -41,15 +41,24 @@ if [ ! -d "${BUILD_SOURCE}assets" ]; then
   exit 1
 fi
 
+extract_asset_refs() {
+  local html_file="$1"
+  grep -Eo '(src|href)=["'"'"']/assets/[^"'"'"' >]+' "$html_file" \
+    | sed -E 's/^(src|href)=["'"'"'](\/assets\/[^"'"'"']+)$/\2/' \
+    | sort -u || true
+}
+
 missing_asset=0
 while IFS= read -r asset_ref; do
   [ -z "$asset_ref" ] && continue
+  asset_ref="${asset_ref%%\?*}"
+  asset_ref="${asset_ref%%\#*}"
   asset_path="${asset_ref#/}"
   if [ ! -f "${BUILD_SOURCE}${asset_path}" ]; then
     echo "Build artifact index.html references missing file: ${asset_ref}"
     missing_asset=1
   fi
-done < <(grep -o '/assets/[^" ]*' "${BUILD_SOURCE}index.html" | sort -u)
+done < <(extract_asset_refs "${BUILD_SOURCE}index.html")
 
 if [ "$missing_asset" -ne 0 ]; then
   echo "Refusing to deploy build with broken asset references in index.html"
@@ -86,12 +95,14 @@ fi
 missing_deployed_asset=0
 while IFS= read -r asset_ref; do
   [ -z "$asset_ref" ] && continue
+  asset_ref="${asset_ref%%\?*}"
+  asset_ref="${asset_ref%%\#*}"
   asset_path="${asset_ref#/}"
   if [ ! -f "${TARGET_ROOT}/${asset_path}" ]; then
     echo "Post-merge validation failed: index.html references missing file ${asset_ref}"
     missing_deployed_asset=1
   fi
-done < <(grep -o '/assets/[^" ]*' "${TARGET_ROOT}/index.html" | sort -u)
+done < <(extract_asset_refs "${TARGET_ROOT}/index.html")
 
 if [ "$missing_deployed_asset" -ne 0 ]; then
   echo "Post-merge validation failed: broken asset references in deployed index.html"
