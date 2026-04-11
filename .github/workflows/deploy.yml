@@ -1,13 +1,17 @@
 name: Deploy to GitHub Pages
 
 on:
+  # Only deploy production when a version tag is pushed (e.g. v1.2.3).
+  # This acts as a deliberate quality gate: you create the tag after
+  # verifying the build is ready for production.
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
+  # Allow manual re-deploys (e.g. after environment config changes).
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write   # Needed to commit updated production build to gh-pages branch
   pages: write
   id-token: write
 
@@ -18,7 +22,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    environment: github-pages
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -49,19 +52,60 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build:ghpages
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Upload production build artifact
+        uses: actions/upload-artifact@v4
         with:
-          path: './dist'
+          name: production-build
+          path: dist/
 
   deploy:
-    if: github.ref == 'refs/heads/main' 
     needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 1
+
+      - name: Download production build
+        uses: actions/download-artifact@v4
+        with:
+          name: production-build
+          path: new-production/
+
+      # Replace all root content with the new production build while preserving
+      # the draft/ subdirectory (which holds active PR previews).
+      - name: Merge production build into gh-pages root
+        run: |
+          rsync -av --delete \
+            --exclude='.git' \
+            --exclude='draft' \
+            new-production/ .
+          rm -rf new-production/
+
+      - name: Commit updated production to gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing to commit, production is already up to date"
+          else
+            git commit -m "Deploy production ${{ github.ref_name }}"
+            git push
+          fi
+
+      # Upload the entire gh-pages content (production root + all PR previews)
+      # as the single Pages artifact so both production and previews are served.
+      - name: Upload merged site as Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
