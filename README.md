@@ -144,11 +144,12 @@ npm run dev
 # or
 ./scripts/start-dev.sh
 
-# Production build
-pixi run build-vite
-# or
+# Full production build (recommended: includes tests and type checking)
 npm run build
 
+# Bundle-only Vite build via Pixi task
+# Note: this skips tests and TypeScript type checking
+pixi run build-vite
 # Production preview
 npm run preview
 # or
