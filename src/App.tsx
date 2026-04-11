@@ -3046,7 +3046,7 @@ function App() {
   return (
     <div className="min-h-screen bg-(--color-bg)">
       {showSignup && user ? (
-        <main>
+        <main id="main-content">
           <UserSignup
             user={{
               id: user.id,
