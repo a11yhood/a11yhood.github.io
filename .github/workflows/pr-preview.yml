@@ -13,9 +13,9 @@ jobs:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -28,9 +28,9 @@ jobs:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -53,7 +53,7 @@ jobs:
           VITE_BASE_URL: /pr-preview/${{ github.event.number }}/
         run: npx tsc -b --noCheck && npx vite build
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: vite-site-${{ github.event.number }}
           path: dist/
@@ -65,31 +65,50 @@ jobs:
     env:
       PREVIEW_URL: https://a11yhood.org/pr-preview/${{ github.event.number }}/
     steps:
+      - name: Checkout trusted workflow source
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository }}
+          ref: refs/heads/${{ github.event.repository.default_branch }}
+          path: trusted-workflow-source
+          sparse-checkout: |
+            .github/workflows/pages-deploy.yml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: gh-pages
+          path: gh-pages-branch
           fetch-depth: 1
           persist-credentials: false
 
       # Remove stale files from a previous build of this same PR so renamed
       # or deleted assets don't linger.
       - name: Clear existing preview directory
-        run: rm -rf pr-preview/${{ github.event.number }}
+        run: rm -rf gh-pages-branch/pr-preview/${{ github.event.number }}
 
       - name: Download PR build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: vite-site-${{ github.event.number }}
           path: /tmp/pr-build/
 
       - name: Place build in preview directory
         run: |
-          mkdir -p pr-preview/${{ github.event.number }}
+          mkdir -p gh-pages-branch/pr-preview/${{ github.event.number }}
           if [ -d /tmp/pr-build/dist ]; then
-            cp -r /tmp/pr-build/dist/. pr-preview/${{ github.event.number }}/
+            cp -r /tmp/pr-build/dist/. gh-pages-branch/pr-preview/${{ github.event.number }}/
           else
-            cp -r /tmp/pr-build/. pr-preview/${{ github.event.number }}/
+            cp -r /tmp/pr-build/. gh-pages-branch/pr-preview/${{ github.event.number }}/
+          fi
+
+      - name: Seed pages publish workflow on gh-pages if missing
+        run: |
+          if [ ! -f gh-pages-branch/.github/workflows/pages-deploy.yml ]; then
+            mkdir -p gh-pages-branch/.github/workflows
+            cp trusted-workflow-source/.github/workflows/pages-deploy.yml gh-pages-branch/.github/workflows/pages-deploy.yml
           fi
 
       # Committing to gh-pages triggers pages-deploy.yml which runs from the
@@ -99,6 +118,7 @@ jobs:
         env:
           GH_PAGES_PUSH_PAT: ${{ secrets.GH_PAGES_PUSH_PAT }}
         run: |
+          cd gh-pages-branch
           if [ -z "$GH_PAGES_PUSH_PAT" ]; then
             echo "Missing required secret: GH_PAGES_PUSH_PAT"
             exit 1
@@ -107,6 +127,9 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${GH_PAGES_PUSH_PAT}@github.com/${{ github.repository }}.git"
           git add -A pr-preview/${{ github.event.number }}/
+          if ! git diff --quiet -- .github/workflows/pages-deploy.yml || [ -n "$(git ls-files --others --exclude-standard -- .github/workflows/pages-deploy.yml)" ]; then
+            git add .github/workflows/pages-deploy.yml
+          fi
           if git diff --cached --quiet; then
             echo "Nothing to commit, preview is already up to date"
           else
@@ -165,30 +188,66 @@ jobs:
     if: github.event.action == 'closed' && github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout trusted workflow source
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository }}
+          ref: refs/heads/${{ github.event.repository.default_branch }}
+          path: trusted-workflow-source
+          sparse-checkout: |
+            .github/workflows/pages-deploy.yml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: gh-pages
+          path: gh-pages-branch
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Seed pages publish workflow on gh-pages if missing
+        run: |
+          if [ ! -f gh-pages-branch/.github/workflows/pages-deploy.yml ]; then
+            mkdir -p gh-pages-branch/.github/workflows
+            cp trusted-workflow-source/.github/workflows/pages-deploy.yml gh-pages-branch/.github/workflows/pages-deploy.yml
+          fi
 
       - name: Remove PR preview directory
         env:
           GH_PAGES_PUSH_PAT: ${{ secrets.GH_PAGES_PUSH_PAT }}
         run: |
+          cd gh-pages-branch
           if [ -z "$GH_PAGES_PUSH_PAT" ]; then
             echo "Missing required secret: GH_PAGES_PUSH_PAT"
             exit 1
           fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GH_PAGES_PUSH_PAT}@github.com/${{ github.repository }}.git"
+          REMOVED_PREVIEW=0
+          WORKFLOW_CHANGED=0
           if [ -d "pr-preview/${{ github.event.number }}" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git remote set-url origin "https://x-access-token:${GH_PAGES_PUSH_PAT}@github.com/${{ github.repository }}.git"
             git rm -rf "pr-preview/${{ github.event.number }}/"
-            git commit -m "Remove PR #${{ github.event.number }} preview"
-            git push
-          else
+            REMOVED_PREVIEW=1
+          fi
+          if ! git diff --quiet -- .github/workflows/pages-deploy.yml || [ -n "$(git ls-files --others --exclude-standard -- .github/workflows/pages-deploy.yml)" ]; then
+            git add .github/workflows/pages-deploy.yml
+            WORKFLOW_CHANGED=1
+          fi
+          if git diff --cached --quiet; then
             echo "No preview directory found, nothing to remove"
+          else
+            if [ "$REMOVED_PREVIEW" -eq 1 ]; then
+              COMMIT_MSG="Remove PR #${{ github.event.number }} preview"
+            elif [ "$WORKFLOW_CHANGED" -eq 1 ]; then
+              COMMIT_MSG="Seed pages deploy workflow on gh-pages"
+            else
+              COMMIT_MSG="Update gh-pages metadata"
+            fi
+            git commit -m "$COMMIT_MSG"
+            git push
           fi
 
   accessibility_scanner:
