@@ -54,7 +54,6 @@ To join our community and learn about contributing, go to the [community](https:
 
 ### Prerequisites
 
-- Node.js 18+ and npm
 - pixi
 
 ### Install Pixi (macOS)
@@ -89,6 +88,7 @@ pixi --version
 
 2. **Install dependencies**
    ```bash
+   pixi shell
    npm install
    ```
 
@@ -137,6 +137,31 @@ npm run build
 npm run preview
 
 # Or use the production script
+./scripts/start-prod.sh
+```
+
+### Using Pixi
+
+Use Pixi to provide the project runtime, then run npm commands inside that environment.
+
+```bash
+# Enter the Pixi environment
+pixi shell
+
+# Development (hot reload)
+npm run dev
+# or
+./scripts/start-dev.sh
+
+# Full production build (recommended: includes tests and type checking)
+npm run build
+
+# Bundle-only Vite build via Pixi task
+# Note: this skips tests and TypeScript type checking
+pixi run build-vite
+# Production preview
+npm run preview
+# or
 ./scripts/start-prod.sh
 ```
 

@@ -4,9 +4,14 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
 
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 permissions:
-  contents: read       # Read repository contents; pushes use PAT instead
-  pull-requests: write # Post preview URL comment
+  contents: read
+  issues: write
+  pull-requests: write
 
 jobs:
   lint:
@@ -29,29 +34,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - name: Install dependencies
-        run: |
-          npm ci
-          npm install --no-save @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu
+      - uses: prefix-dev/setup-pixi@v0.8.8
       - name: Run tests
         env:
           CI: true
-        run: npm run test:run
+        run: pixi run test
       - name: Build for GitHub Pages
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
-          VITE_DEV_MODE: ${{ secrets.VITE_DEV_MODE }}
-          VITE_ENV: ${{ secrets.VITE_ENV }}
-          VITE_LOG_LEVEL: ${{ secrets.VITE_LOG_LEVEL }}
+          VITE_DEV_MODE: 'true'
+          VITE_ENV: development
+          VITE_LOG_LEVEL: debug
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_BASE_URL: /pr-preview/${{ github.event.number }}/
-        run: npx tsc -b --noCheck && npx vite build
+        run: pixi run build-vite
 
       - uses: actions/upload-artifact@v5
         with:
@@ -84,8 +81,6 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      # Remove stale files from a previous build of this same PR so renamed
-      # or deleted assets don't linger.
       - name: Clear existing preview directory
         run: rm -rf gh-pages-branch/pr-preview/${{ github.event.number }}
 
@@ -111,9 +106,6 @@ jobs:
             cp trusted-workflow-source/.github/workflows/pages-deploy.yml gh-pages-branch/.github/workflows/pages-deploy.yml
           fi
 
-      # Committing to gh-pages triggers pages-deploy.yml which runs from the
-      # gh-pages branch context (allowed by github-pages environment rules)
-      # and does the actual actions/deploy-pages call.
       - name: Commit preview to gh-pages
         env:
           GH_PAGES_PUSH_PAT: ${{ secrets.GH_PAGES_PUSH_PAT }}
@@ -181,9 +173,6 @@ jobs:
               });
             }
 
-  # When a PR is closed (merged or abandoned), remove its preview from
-  # gh-pages. The commit triggers pages-deploy.yml which redeploys Pages
-  # from the gh-pages branch context (allowed by environment protection rules).
   cleanup:
     if: github.event.action == 'closed' && github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
@@ -254,7 +243,6 @@ jobs:
     name: A11y Preview Scan (PR)
     needs: deploy-preview
     runs-on: ubuntu-latest
-    # accessibility-scanner requires a custom PAT; forked PRs cannot access repository secrets.
     if: ${{ github.event.action != 'closed' && github.event.pull_request.head.repo.fork == false }}
     steps:
       - uses: github/accessibility-scanner@v2
@@ -264,4 +252,5 @@ jobs:
           repository: a11yhood/a11yhood.github.io
           token: ${{ secrets.GH_TOKEN }}
           cache_key: a11yhood.org-pr-${{ github.event.number }}
+
 
