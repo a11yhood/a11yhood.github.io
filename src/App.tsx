@@ -1518,7 +1518,7 @@ function App() {
       const newParams = new URLSearchParams(searchParams)
       newParams.delete('type')
       nextTypes.forEach((t) => newParams.append('type', t))
-      setSearchParams(newParams, { replace: true })
+      setSearchParams(newParams, { replace: false })
       return nextTypes
     })
   }
@@ -1531,7 +1531,7 @@ function App() {
       const newParams = new URLSearchParams(searchParams)
       newParams.delete('source')
       nextSources.forEach((s) => newParams.append('source', s))
-      setSearchParams(newParams, { replace: true })
+      setSearchParams(newParams, { replace: false })
       return nextSources
     })
   }
@@ -1544,7 +1544,7 @@ function App() {
       const newParams = new URLSearchParams(searchParams)
       newParams.delete('tag')
       nextTags.forEach((t) => newParams.append('tag', t))
-      setSearchParams(newParams, { replace: true })
+      setSearchParams(newParams, { replace: false })
       return nextTags
     })
   }
@@ -1566,7 +1566,7 @@ function App() {
     newParams.delete('source')
     newParams.delete('minRating')
     newParams.delete('updatedSince')
-    setSearchParams(newParams, { replace: true })
+    setSearchParams(newParams, { replace: false })
   }
 
   const handleMinRatingChange = (rating: number) => {
@@ -1577,7 +1577,7 @@ function App() {
     } else {
       newParams.delete('minRating')
     }
-    setSearchParams(newParams, { replace: true })
+    setSearchParams(newParams, { replace: false })
   }
 
   const handleUpdatedSinceChange = (date: string | null) => {
@@ -1588,7 +1588,7 @@ function App() {
     } else {
       newParams.delete('updatedSince')
     }
-    setSearchParams(newParams, { replace: true })
+    setSearchParams(newParams, { replace: false })
   }
 
   const handleSortChange = (value: string) => {
@@ -1603,7 +1603,7 @@ function App() {
     // Persist sort choice in URL so it can be shared / restored on navigation
     const newParams = new URLSearchParams(searchParams)
     newParams.set('sort', value)
-    setSearchParams(newParams)
+    setSearchParams(newParams, { replace: false })
   }
 
   // Keep default sorting route-aware unless the user explicitly picks a sort.
