@@ -93,7 +93,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
             {/* Logo link: aria-label provides the accessible name; image is decorative */}
             <Link
               to="/"
-              className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded flex items-center flex-shrink-0"
+              className="no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded flex items-center flex-shrink-0"
               aria-label="a11yhood home"
             >
               <img src={logoImage} alt="" aria-hidden="true" className="h-[18px] w-auto flex-shrink-0" />

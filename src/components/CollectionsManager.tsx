@@ -1,7 +1,7 @@
 import { FolderOpen, Plus } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import { Collection, UserData } from '@/lib/types'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
 type CollectionsManagerProps = {
   productSlug?: string
@@ -16,8 +16,6 @@ export function CollectionsManager({
   user,
   onOpenAddDialog,
 }: CollectionsManagerProps) {
-  const navigate = useNavigate()
-
   const productCollections = productSlug
     ? userCollections.filter(c => (c.productSlugs ?? []).includes(productSlug))
     : []
@@ -43,18 +41,14 @@ export function CollectionsManager({
       <ul className="flex flex-wrap gap-2">
         {productCollections.map((collection) => (
           <li key={collection.id}>
-            <a
-              href={`/collections/${collection.slug || collection.id}`}
-              onClick={(e) => {
-                e.preventDefault()
-                navigate(`/collections/${collection.slug || collection.id}`)
-              }}
+            <Link
+              to={`/collections/${collection.slug || collection.id}`}
               className="no-underline"
             >
               <Badge variant="outline" className="cursor-pointer hover:bg-accent hover:text-accent-foreground motion-safe:hover:-translate-y-0.5 transition-all">
                 {collection.name}
               </Badge>
-            </a>
+            </Link>
           </li>
         ))}
       </ul>
