@@ -59,10 +59,10 @@ function withApiProxy(target: string) {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, projectRoot, '')
-  const apiProxyTarget = env.VITE_API_URL || env.VITE_BACKEND_URL || 'https://localhost:8000'
+  const apiProxyTarget = process.env.VITE_API_URL || env.VITE_API_URL || 'https://localhost:8000'
 
   return {
-    base: env.VITE_BASE_URL || '/',
+    base: process.env.VITE_BASE_URL || env.VITE_BASE_URL || '/',
     plugins: [
       react(),
       tailwindcss(),
