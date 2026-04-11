@@ -86,7 +86,7 @@ which redeploys the site without the preview.
 [Publish GitHub Pages](.github/workflows/pages-deploy.yml) is the only workflow
 that calls `actions/deploy-pages` and targets the `github-pages` environment.
 It runs from `gh-pages` branch context, which satisfies environment protection
-rules and avoids PR ref deployment rejections.
+rules and avoids PR ref deployment rejections. 
 
 ### Forked PRs
 
