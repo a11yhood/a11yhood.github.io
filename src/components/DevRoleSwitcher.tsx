@@ -20,6 +20,7 @@ type DevRoleSwitcherProps = {
 }
 
 export function DevRoleSwitcher({ userAccount, onRoleChange }: DevRoleSwitcherProps) {
+  void onRoleChange
   const [selectedUser, setSelectedUser] = useState<'user' | 'moderator' | 'admin'>('user')
   const [isSwitching, setIsSwitching] = useState(false)
   const [isOpen, setIsOpen] = useState(true)

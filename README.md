@@ -46,10 +46,6 @@ To join our community and learn about contributing, go to the [community](https:
 │   │   ├── integration/
 │   │   └── security/
 │   └── App.tsx             # Main application
-├── scripts/                # Utility scripts
-│   ├── start-dev.sh        # Development server
-│   ├── start-prod.sh       # Production build server
-│   └── run-tests.sh        # Test runner
 └── public/                 # Static assets
 
 ```
@@ -58,8 +54,29 @@ To join our community and learn about contributing, go to the [community](https:
 
 ### Prerequisites
 
-- Node.js 18+ and npm
 - pixi
+
+### Install Pixi (macOS)
+
+Visit https://pixi.prefix.dev for more information.
+
+Choose one option:
+
+```bash
+# Homebrew
+brew install pixi
+```
+
+```bash
+# Official installer
+curl -fsSL https://pixi.sh/install.sh | bash
+```
+
+Verify installation:
+
+```bash
+pixi --version
+```
 
 ### Installation
 
@@ -193,6 +210,21 @@ Products are automatically scraped from:
 - **Public**: Browse and search products
 - **Authenticated**: Create collections, review products, submit content
 - **Admin**: Moderate content, manage users, view analytics
+
+## Deployment
+
+The site is hosted on GitHub Pages. Production deploys are gated behind a version
+tag — merging to `main` alone does **not** deploy:
+
+```bash
+git tag v1.2.3 && git push origin v1.2.3
+```
+
+Every pull request also gets a live preview at `https://a11yhood.org/pr-preview/<PR#>/`,
+automatically deployed and cleaned up by CI.
+
+See [DEPLOY.md](DEPLOY.md) for the full release process, PR preview details, and
+required repository settings.
 
 ## Contributing
 

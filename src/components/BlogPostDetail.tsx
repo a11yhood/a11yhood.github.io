@@ -2,7 +2,7 @@ import { BlogPost } from '@/lib/types'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Star } from '@phosphor-icons/react'
+import { ArrowLeft } from '@phosphor-icons/react'
 import { renderMarkdown } from '@/lib/markdown'
 import { useState, useEffect } from 'react'
 
@@ -36,7 +36,6 @@ export function BlogPostDetail({ post, onBack, onEdit }: BlogPostDetailProps) {
   useEffect(() => {
     // Lightweight visibility debug for header behavior
     if (post.headerImage) {
-      // eslint-disable-next-line no-console
       console.debug('[BlogPostDetail] headerImage', {
         preview: post.headerImage.slice(0, 30),
         isDataUrl: post.headerImage.startsWith('data:'),

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useRef } from 'react'
 import { BlogPost } from '@/lib/types'
 import { APIService } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -102,7 +102,7 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
       const base64 = await handleImageUpload(file)
       setHeaderImage(base64)
       toast.success('Header image uploaded')
-    } catch (error) {
+    } catch {
       toast.error('Failed to upload image')
     }
   }

@@ -1,7 +1,6 @@
 import { BlogPost } from '@/lib/types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Star, ArrowRight } from '@phosphor-icons/react'
 
 type BlogPostListProps = {
@@ -132,7 +131,6 @@ function BlogPostCard({
     >
       {post.headerImage && (
         <div className="relative w-full h-48 overflow-hidden bg-muted">
-          {/* eslint-disable-next-line no-console */}
           {post.headerImage && console.debug('[BlogPostCard] headerImage', {
             preview: post.headerImage.slice(0, 30),
             isDataUrl: post.headerImage.startsWith('data:'),

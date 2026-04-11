@@ -11,8 +11,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { Routes, Route, Navigate, Link, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { MagnifyingGlass, UserCircle, SignOut, ChartBar, BookOpen, Gear, Rows, SquaresFour } from '@phosphor-icons/react'
+import { MagnifyingGlass, Rows, SquaresFour } from '@phosphor-icons/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faLayerGroup } from '@fortawesome/free-solid-svg-icons'
 import { Toaster } from '@/components/ui/sonner'
@@ -20,7 +19,6 @@ import { ProductCard } from '@/components/ProductCard'
 import { ProductListItem } from '@/components/ProductListItem'
 import { ProductDetail } from '@/components/ProductDetail'
 import { ProductFilters } from '@/components/ProductFilters'
-import { ProductSubmission } from '@/components/ProductSubmission'
 import { UserProfile } from '@/components/UserProfile'
 import { AdminDashboard } from '@/components/AdminDashboard'
 import { AdminUsersStats } from '@/components/AdminUsersStats'
@@ -35,7 +33,6 @@ import { CreateCollectionDialog } from '@/components/CreateCollectionDialog'
 import { EditCollectionDialog } from '@/components/EditCollectionDialog'
 import { AboutPage } from '@/components/AboutPage'
 import { UserSignup } from '@/components/UserSignup'
-import { FeaturedBlogCarousel } from '@/components/FeaturedBlogCarousel'
 import { HomePage } from '@/components/HomePage'
 import { SearchPage } from '@/components/SearchPage'
 import { Product, ProductUpdate, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput } from '@/lib/types'
@@ -45,7 +42,6 @@ import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 // API adapter disabled - using real backend API now
 // import '@/lib/api-adapter'
 import { toast } from 'sonner'
-import logoImage from '@/assets/images/ahood-200.png'
 import { useAuth } from '@/contexts/AuthContext'
 import { AppHeader } from '@/components/AppHeader'
 import { AppFooter } from '@/components/AppFooter'
@@ -54,6 +50,16 @@ import { PublicProfile } from '@/components/PublicProfile'
 import { Switch } from '@/components/ui/switch'
 
 console.log('✓ [App.tsx] All imports loaded')
+
+type ApiErrorLike = {
+  status?: number
+  message?: string
+  data?: {
+    detail?: string
+    type?: string
+    debug_info?: unknown
+  }
+}
 
 export function ProductListPage({ 
   products, 
@@ -151,8 +157,13 @@ export function ProductListPage({
   const navigate = useNavigate()
   const initialColumns = typeof window !== 'undefined' && window.innerWidth >= 1024 ? 3 : 1
   const [columnCount, setColumnCount] = useState<1 | 3>(initialColumns as 1 | 3)
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024)
   const [page, setPage] = useState(1)
+
+  // These are intentionally accepted for API compatibility with SearchPage props.
+  void blogPosts
+  void popularTags
+  void onCreateCollection
+  void onSearchChange
 
   // Sync local page with parent's currentPage
   useEffect(() => {
@@ -163,29 +174,11 @@ export function ProductListPage({
   useEffect(() => {
     const handleResize = () => {
       const nextIsMobile = window.innerWidth < 1024
-      setIsMobile(nextIsMobile)
       setColumnCount(nextIsMobile ? 1 : 3)
     }
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
-
-  const getAverageRating = (productId: string) => {
-    const productRatings = ratings.filter((r) => r.productId === productId)
-    const product = products.find(p => p.id === productId)
-    
-    if (productRatings.length > 0 && product?.sourceRating) {
-      const userAverage = productRatings.reduce((sum, r) => sum + r.rating, 0) / productRatings.length
-      return (userAverage + product.sourceRating) / 2
-    }
-    if (productRatings.length > 0) {
-      return productRatings.reduce((sum, r) => sum + r.rating, 0) / productRatings.length
-    }
-    if (product?.sourceRating) {
-      return product.sourceRating
-    }
-    return 0
-  }
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(totalProductCount / pageSize))
@@ -196,8 +189,6 @@ export function ProductListPage({
   }, [totalProductCount, page, pageSize, onPageChange])
 
   const totalPages = Math.max(1, Math.ceil(totalProductCount / pageSize))
-  const startIndex = 0 // Backend handles pagination via limit/offset
-  const endIndex = products.length
   const paginatedProducts = products
 
   // Combine API-filtered tags with tags from current page of products, plus selected tags
@@ -719,8 +710,7 @@ function ProductDetailPageWrapper({
 }) {
   const { slug } = useParams()
   const [searchParams] = useSearchParams()
-  const autoOpenEdit = searchParams.get('edit') === '1'
-  const autoOpenOwnershipRequest = searchParams.get('requestEdit') === '1'
+  void searchParams
   
   const [localRatings, setLocalRatings] = useState<Rating[]>(ratings)
   const [localDiscussions, setLocalDiscussions] = useState<Discussion[]>(discussions)
@@ -853,6 +843,7 @@ function BlogPostPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userA
   if (!post) {
     return (
       <div className="text-center py-12">
+        <h1 className="text-2xl font-bold mb-2">Blog Post Not Found</h1>
         <p className="text-lg text-muted-foreground">Blog post not found</p>
         <Button variant="outline" onClick={() => navigate('/blog')} className="mt-4">
           Back to Blog
@@ -937,7 +928,7 @@ function CollectionsPage({
       try {
         const result = await APIService.getPublicCollections('updated_at')
         setPublicCollections(result)
-      } catch (e) {
+      } catch {
         // ignore errors for now
       } finally {
         setPublicCollectionsFirstLoadComplete(true)
@@ -1198,7 +1189,7 @@ function CollectionDetailPage({
         try {
           const fetched = await APIService.getCollection(collectionSlug)
           setExternalCollection(fetched)
-        } catch (e) {
+        } catch {
           setExternalCollection(null)
         }
       }
@@ -1251,7 +1242,7 @@ function CollectionDetailPage({
             setExternalCollection(updated)
             toast.success(`Collection is now ${nextPublic ? 'public' : 'private'}`)
           }
-        } catch (e) {
+        } catch {
           toast.error('Failed to update collection visibility')
         }
       }}
@@ -1398,7 +1389,6 @@ function App() {
   const [pageSize, setPageSize] = useState(50)
   
   console.log('✓ [App] State initialized')
-  const navigate = useNavigate()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [user, setUser] = useState<UserData | null>(null)
@@ -1422,13 +1412,11 @@ function App() {
   const [initialCollectionDescription, setInitialCollectionDescription] = useState<string>('')
   const [initialCollectionIsPublic, setInitialCollectionIsPublic] = useState<boolean>(true)
   const [showSignup, setShowSignup] = useState(false)
-  const [isNewUser, setIsNewUser] = useState(false)
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
   const oauthProcessedRef = useRef(false)
   const [ravelryAuthTimestamp, setRavelryAuthTimestamp] = useState(0)
   const isTestEnv = import.meta.env.MODE === 'test'
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
-  const [thingiverseAuthTimestamp, setThingiverseAuthTimestamp] = useState(0)
   const [adminVerboseLoggingEnabled, setAdminVerboseLoggingEnabled] = useState(true)
 
   useEffect(() => {
@@ -1468,6 +1456,30 @@ function App() {
     const sortedB = [...b].sort()
     return sortedA.every((v, i) => v === sortedB[i])
   }
+
+  // Helper to parse the combined "sort" URL param (e.g. "rating-desc") into sortBy / sortOrder.
+  // Returns null if the value is absent or malformed so callers can fall back to defaults.
+  const parseSortParam = (param: string | null): { sortBy: 'rating' | 'updated_at' | 'created_at'; sortOrder: 'asc' | 'desc' } | null => {
+    if (!param) return null
+    const idx = param.lastIndexOf('-')
+    if (idx === -1) return null
+    const by = param.slice(0, idx)
+    const order = param.slice(idx + 1)
+    if ((by === 'rating' || by === 'updated_at' || by === 'created_at') && (order === 'asc' || order === 'desc')) {
+      return { sortBy: by, sortOrder: order }
+    }
+    return null
+  }
+
+  const parseMinRatingParam = (param: string | null): number => {
+    const parsed = Number(param)
+    return Number.isInteger(parsed) && parsed >= 1 && parsed <= 5 ? parsed : 0
+  }
+
+  const parseUpdatedSinceParam = (param: string | null): string | null => {
+    if (!param) return null
+    return /^\d{4}-\d{2}-\d{2}$/.test(param) ? param : null
+  }
   
   // Filter states - initialize from URL params
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
@@ -1475,12 +1487,24 @@ function App() {
   const [selectedTypes, setSelectedTypes] = useState<string[]>(() => normalizeParamArray(searchParams.getAll('type')))
   const [selectedSources, setSelectedSources] = useState<string[]>(() => normalizeParamArray(searchParams.getAll('source')))
   const [selectedTags, setSelectedTags] = useState<string[]>(() => normalizeParamArray(searchParams.getAll('tag')))
-  const [minRating, setMinRating] = useState(0)
-  const [updatedSince, setUpdatedSince] = useState<string | null>(null) // ISO date string
-  const [committedUpdatedSince, setCommittedUpdatedSince] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<'rating' | 'updated_at' | 'created_at'>('created_at')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [sortHasChanged, setSortHasChanged] = useState(false)
+  const [minRating, setMinRating] = useState(() => parseMinRatingParam(searchParams.get('minRating')))
+  const [updatedSince, setUpdatedSince] = useState<string | null>(() => parseUpdatedSinceParam(searchParams.get('updatedSince'))) // YYYY-MM-DD string
+  const [committedUpdatedSince, setCommittedUpdatedSince] = useState<string | null>(() => parseUpdatedSinceParam(searchParams.get('updatedSince')))
+  const defaultSort = { sortBy: 'created_at' as const, sortOrder: 'desc' as const }
+  const initialSort = parseSortParam(searchParams.get('sort'))
+  const [sortBy, setSortBy] = useState<'rating' | 'updated_at' | 'created_at'>(() => {
+    return initialSort?.sortBy ?? defaultSort.sortBy
+  })
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => {
+    return initialSort?.sortOrder ?? defaultSort.sortOrder
+  })
+  const [sortHasChanged, setSortHasChanged] = useState(() => {
+    if (!initialSort) return false
+    return (
+      initialSort.sortBy !== defaultSort.sortBy ||
+      initialSort.sortOrder !== defaultSort.sortOrder
+    )
+  })
   const [isSearching, setIsSearching] = useState(false)
   
   // Track the latest search request to ignore stale responses
@@ -1495,7 +1519,7 @@ function App() {
       const newParams = new URLSearchParams(searchParams)
       newParams.delete('type')
       nextTypes.forEach((t) => newParams.append('type', t))
-      setSearchParams(newParams, { replace: true })
+      setSearchParams(newParams, { replace: false })
       return nextTypes
     })
   }
@@ -1508,7 +1532,7 @@ function App() {
       const newParams = new URLSearchParams(searchParams)
       newParams.delete('source')
       nextSources.forEach((s) => newParams.append('source', s))
-      setSearchParams(newParams, { replace: true })
+      setSearchParams(newParams, { replace: false })
       return nextSources
     })
   }
@@ -1521,7 +1545,7 @@ function App() {
       const newParams = new URLSearchParams(searchParams)
       newParams.delete('tag')
       nextTags.forEach((t) => newParams.append('tag', t))
-      setSearchParams(newParams, { replace: true })
+      setSearchParams(newParams, { replace: false })
       return nextTags
     })
   }
@@ -1532,6 +1556,7 @@ function App() {
     setSelectedSources([])
     setMinRating(0)
     setUpdatedSince(null)
+    setCommittedUpdatedSince(null)
     setSearchQuery('')
     setSearchInputValue('')
     // Clear search and filter params from URL
@@ -1540,11 +1565,31 @@ function App() {
     newParams.delete('tag')
     newParams.delete('type')
     newParams.delete('source')
-    setSearchParams(newParams, { replace: true })
+    newParams.delete('minRating')
+    newParams.delete('updatedSince')
+    setSearchParams(newParams, { replace: false })
+  }
+
+  const handleMinRatingChange = (rating: number) => {
+    setMinRating(rating)
+    const newParams = new URLSearchParams(searchParams)
+    if (rating > 0) {
+      newParams.set('minRating', String(rating))
+    } else {
+      newParams.delete('minRating')
+    }
+    setSearchParams(newParams, { replace: false })
   }
 
   const handleUpdatedSinceChange = (date: string | null) => {
     setUpdatedSince(date)
+    const newParams = new URLSearchParams(searchParams)
+    if (date) {
+      newParams.set('updatedSince', date)
+    } else {
+      newParams.delete('updatedSince')
+    }
+    setSearchParams(newParams, { replace: false })
   }
 
   const handleSortChange = (value: string) => {
@@ -1556,6 +1601,10 @@ function App() {
     setSortOrder(newSortOrder)
     setSortHasChanged(true) // Mark that sort has been explicitly changed
     setCurrentPage(1) // Reset to first page when sorting changes
+    // Persist sort choice in URL so it can be shared / restored on navigation
+    const newParams = new URLSearchParams(searchParams)
+    newParams.set('sort', value)
+    setSearchParams(newParams, { replace: false })
   }
 
   // Keep default sorting route-aware unless the user explicitly picks a sort.
@@ -1564,7 +1613,7 @@ function App() {
       return
     }
 
-    const defaultSortByForRoute: 'created_at' = 'created_at'
+    const defaultSortByForRoute = 'created_at' as const
 
     if (sortBy !== defaultSortByForRoute || sortOrder !== 'desc') {
       setSortBy(defaultSortByForRoute)
@@ -1602,7 +1651,7 @@ function App() {
     // No longer needed since search happens on every keystroke
   }
 
-  const handleSearchInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleSearchInputKeyDown = () => {
     // No longer needed since search happens on every keystroke
   }
 
@@ -1625,6 +1674,8 @@ function App() {
     const urlTags = normalizeParamArray(searchParams.getAll('tag'))
     const urlTypes = normalizeParamArray(searchParams.getAll('type'))
     const urlSources = normalizeParamArray(searchParams.getAll('source'))
+    const urlMinRating = parseMinRatingParam(searchParams.get('minRating'))
+    const urlUpdatedSince = parseUpdatedSinceParam(searchParams.get('updatedSince'))
     
     setSelectedTags(current => {
       return arraysEqual(current, urlTags) ? current : urlTags
@@ -1635,6 +1686,21 @@ function App() {
     setSelectedSources(current => {
       return arraysEqual(current, urlSources) ? current : urlSources
     })
+    setMinRating(current => current === urlMinRating ? current : urlMinRating)
+    setUpdatedSince(current => current === urlUpdatedSince ? current : urlUpdatedSince)
+    setCommittedUpdatedSince(current => current === urlUpdatedSince ? current : urlUpdatedSince)
+
+    // Sync sort from URL
+    const parsed = parseSortParam(searchParams.get('sort'))
+    if (parsed) {
+      setSortBy(current => current === parsed.sortBy ? current : parsed.sortBy)
+      setSortOrder(current => current === parsed.sortOrder ? current : parsed.sortOrder)
+      setSortHasChanged(true)
+    } else {
+      // When `sort` is missing or malformed in the URL, clear the "changed" flag
+      // so state does not appear to be driven by a stale sort parameter.
+      setSortHasChanged(false)
+    }
   }, [searchParams, location.pathname])
 
   // Combine filtered tags with tags from current page of products, plus any selected tags
@@ -1826,7 +1892,7 @@ function App() {
     }
     
     loadData()
-  }, [location.pathname])
+  }, [location.pathname, pageSize, searchParams])
 
   // Use AuthContext (supports both dev mode and production)
   const { user: authUser, loading: authLoading, getAccessToken, signIn, signOut } = useAuth()
@@ -1851,7 +1917,7 @@ function App() {
     }
 
     // Check if this is the initial load with no filters (skip to avoid duplicate from initial load)
-    const defaultSortByForRoute: 'created_at' = 'created_at'
+    const defaultSortByForRoute = 'created_at' as const
     const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 &&
       selectedTypes.length === 0 && selectedTags.length === 0 &&
       minRating === 0 && committedUpdatedSince === null &&
@@ -1871,7 +1937,6 @@ function App() {
 
     const abortController = new AbortController()
     const currentSearchId = ++latestSearchIdRef.current
-    let debounceTimer: ReturnType<typeof setTimeout>
 
     const fetchProducts = async () => {
       try {
@@ -1945,8 +2010,7 @@ function App() {
         if (productsResult.status === 'fulfilled') {
           // Handle fallback for minRating filter
           if ((minRating || 0) > 0 && productsResult.value.length === 0) {
-            const fallbackParams = { ...params }
-            delete (fallbackParams as any).minRating
+            const fallbackParams = { ...params, minRating: undefined }
             try {
               const withoutRating = await APIService.getAllProducts(fallbackParams)
               const clientFiltered = withoutRating.filter(p => {
@@ -2007,13 +2071,13 @@ function App() {
       }
     }
 
-    debounceTimer = setTimeout(fetchProducts, 400)
+    const debounceTimer = setTimeout(fetchProducts, 400)
 
     return () => {
       clearTimeout(debounceTimer)
       abortController.abort()
     }
-  }, [searchQuery, includeBanned, selectedTypes, selectedSources, selectedTags, minRating, committedUpdatedSince, currentPage, dataLoaded, pageSize, location.pathname, sortBy, sortOrder])
+  }, [searchQuery, includeBanned, selectedTypes, selectedSources, selectedTags, minRating, committedUpdatedSince, currentPage, dataLoaded, pageSize, location.pathname, sortBy, sortOrder, allProductSources, ratings, sortHasChanged])
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -2057,18 +2121,18 @@ function App() {
           
           if (isTestEnv) {
             setShowSignup(false)
-            setIsNewUser(false)
           }
           return
-        } catch (err: any) {
-          const status = err?.status ?? 0
+        } catch (err: unknown) {
+          const status = (err as ApiErrorLike)?.status ?? 0
           if (status === 404) {
             // New user — create account
             console.log('📨 [App] User account not found, creating...')
           } else if (status) {
+            const message = (err as ApiErrorLike)?.message
             console.error('Failed to fetch user account from /users/me:', {
               status,
-              message: err?.message,
+              message,
             })
             return
           }
@@ -2113,9 +2177,11 @@ function App() {
             )
             // Success! Break out of retry loop
             break
-          } catch (error: any) {
+          } catch (error: unknown) {
             // Check if this is a uniqueness constraint error (409 Conflict or contains "unique" in message)
-            const isUniqueError = error?.status === 409 || (error?.message && error.message.toLowerCase().includes('unique'))
+            const apiError = error as ApiErrorLike
+            const errorMessage = apiError.message?.toLowerCase()
+            const isUniqueError = apiError.status === 409 || Boolean(errorMessage && errorMessage.includes('unique'))
             
             if (isUniqueError && retries < maxRetries - 1) {
               // Username taken - append random suffix and retry
@@ -2148,11 +2214,9 @@ function App() {
         console.log('🔐 [App] New user account created:', { username: account.username, role: account.role })
         
         if (!isTestEnv) {
-          setIsNewUser(true)
           setShowSignup(true)
         } else {
           setShowSignup(false)
-          setIsNewUser(false)
         }
       } catch (error) {
         console.error('Failed to load user account:', error)
@@ -2511,13 +2575,13 @@ function App() {
         setDiscussions((current) => (current || []).map((d) => (d.id === discussionId ? { ...d, ...updated } : d)))
         toast.success('Post updated')
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // rollback optimistic update
       setDiscussions((current) => {
         const list = current || []
         return list.map((d) => (d.id === discussionId && previous ? previous : d))
       })
-      const message = error?.message || 'Failed to update post'
+      const message = (error as ApiErrorLike)?.message || 'Failed to update post'
       console.error('Failed to update discussion:', error)
       toast.error(message)
       throw error
@@ -2546,9 +2610,9 @@ function App() {
 
       setDiscussions((current) => (current || []).map((d) => (d.id === discussionId ? { ...d, ...updated } as Discussion : d)))
       toast.success(block ? 'Post blocked' : 'Post unblocked')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to toggle block on discussion:', error)
-      const message = error?.message || (block ? 'Failed to block post' : 'Failed to unblock post')
+      const message = (error as ApiErrorLike)?.message || (block ? 'Failed to block post' : 'Failed to unblock post')
       toast.error(message)
     }
   }
@@ -2736,11 +2800,17 @@ function App() {
       )
       
       setRatings((currentRatings) =>
-        (currentRatings || []).filter(r => r.productId !== productSlug && (r as any).productSlug !== productSlug)
+        (currentRatings || []).filter(r => {
+          const maybeWithProductSlug = r as Rating & { productSlug?: string }
+          return r.productId !== productSlug && maybeWithProductSlug.productSlug !== productSlug
+        })
       )
       
       setDiscussions((currentDiscussions) =>
-        (currentDiscussions || []).filter(d => d.productId !== productSlug && (d as any).productSlug !== productSlug)
+        (currentDiscussions || []).filter(d => {
+          const maybeWithProductSlug = d as Discussion & { productSlug?: string }
+          return d.productId !== productSlug && maybeWithProductSlug.productSlug !== productSlug
+        })
       )
       
       toast.success('Product deleted successfully')
@@ -2885,7 +2955,7 @@ function App() {
 
   const handleCreateCollectionFromSearch = async (collectionData: CollectionCreateInput) => {
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         name: collectionData.name,
         description: collectionData.description,
         isPublic: collectionData.isPublic,
@@ -2904,16 +2974,17 @@ function App() {
       setCollections((current) => [newCollection, ...current])
       setShowCreateCollectionFromSearchDialog(false)
       toast.success('Collection created from search results!')
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const apiError = error as ApiErrorLike
       console.error('[CreateCollectionFromSearch] Error response:', {
-        message: error.message,
-        status: error.status,
-        detail: error.data?.detail,
-        type: error.data?.type,
-        debugInfo: error.data?.debug_info,
-        fullData: error.data
+        message: apiError.message,
+        status: apiError.status,
+        detail: apiError.data?.detail,
+        type: apiError.data?.type,
+        debugInfo: apiError.data?.debug_info,
+        fullData: apiError.data
       })
-      const errorDetail = error.data?.detail || error.message || 'Failed to create collection from search'
+      const errorDetail = apiError.data?.detail || apiError.message || 'Failed to create collection from search'
       toast.error(errorDetail)
     }
   }
@@ -2964,13 +3035,11 @@ function App() {
 
   const handleCompleteSignup = () => {
     setShowSignup(false)
-    setIsNewUser(false)
     toast.success('Welcome to a11yhood!')
   }
 
   const handleSkipSignup = () => {
     setShowSignup(false)
-    setIsNewUser(false)
     toast.success('Welcome to a11yhood!')
   }
 
@@ -2991,7 +3060,7 @@ function App() {
           <a
             href="#main-content"
             className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            onClick={(e) => {
+            onClick={() => {
               const main = document.getElementById('main-content') as HTMLElement | null
               if (main) {
                 // Ensure main is programmatically focusable, then move focus
@@ -3078,7 +3147,7 @@ function App() {
                   selectedSources={selectedSources}
                   onSourceToggle={handleSourceToggle}
                   minRating={minRating}
-                  onMinRatingChange={setMinRating}
+                  onMinRatingChange={handleMinRatingChange}
                   updatedSince={updatedSince}
                   onUpdatedSinceChange={handleUpdatedSinceChange}
                   sortBy={sortBy}

@@ -33,6 +33,7 @@ export function CreateCollectionDialog({
   description = 'Create a new collection to organize related products',
   hideProductSlugs = false,
 }: CreateCollectionDialogProps) {
+  void hideProductSlugs
   const [name, setName] = useState('')
   const [collectionDescription, setCollectionDescription] = useState('')
   const [isPublic, setIsPublic] = useState(true)

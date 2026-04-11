@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { PencilSimple } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,7 +11,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { logger } from '@/lib/logger'
 import {
@@ -67,14 +66,6 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
     }
     return types
   }, [allProductTypes, product.type])
-
-  const lastUpdatedTs = useMemo(() => {
-    const ts = (product as any).sourceLastUpdated ?? (product as any).source_last_updated
-    if (!ts) return null
-    if (typeof ts === 'number') return ts
-    const parsed = Date.parse(ts)
-    return Number.isNaN(parsed) ? null : parsed
-  }, [product])
 
   if (!canEdit) return null
 

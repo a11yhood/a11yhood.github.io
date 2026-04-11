@@ -273,6 +273,24 @@ async function request<T>(
 }
 
 export class APIService {
+  private static normalizeCollection(collection: Collection): Collection {
+    const raw = collection as Collection & {
+      userName?: string
+    }
+
+    return {
+      ...collection,
+      username:
+        collection.username ||
+        raw.userName ||
+        '',
+    }
+  }
+
+  private static normalizeCollections(collections: Collection[]): Collection[] {
+    return (collections || []).map((collection) => APIService.normalizeCollection(collection))
+  }
+
   // Backwards-compatible alias so tests can call APIService.setAuthTokenGetter
   static setAuthTokenGetter(getter: () => Promise<string | null>) {
     setAuthTokenGetter(getter)
@@ -779,6 +797,47 @@ export class APIService {
     return result
   }
 
+  static async deleteProductsByFilters(filters: {
+    source?: string
+    sources?: string[]
+    type?: string
+    types?: string[]
+    tags?: string[]
+    tagsMode?: 'or' | 'and'
+    minRating?: number
+    updatedSince?: string
+    maxAge?: number
+    search?: string
+    createdBy?: string
+    includeBanned?: boolean
+  }): Promise<{ deletedCount: number }> {
+    console.log('[API] deleteProductsByFilters called with filters:', filters)
+    const params = new URLSearchParams()
+    
+    // Add single-value filters (map camelCase -> snake_case for backend)
+    if (filters.source) params.set('source', filters.source)
+    if (filters.type) params.set('type', filters.type)
+    if (filters.tagsMode) params.set('tags_mode', filters.tagsMode)
+    if (filters.minRating !== undefined) params.set('min_rating', String(filters.minRating))
+    if (filters.updatedSince) params.set('updated_since', filters.updatedSince)
+    if (filters.maxAge !== undefined) params.set('max_age', String(filters.maxAge))
+    if (filters.search) params.set('search', filters.search)
+    if (filters.createdBy) params.set('created_by', filters.createdBy)
+    if (filters.includeBanned) params.set('include_banned', String(filters.includeBanned))
+    
+    // Add array-value filters using repeated singular keys (consistent with getAllProducts)
+    filters.sources?.forEach(s => { if (s) params.append('source', s) })
+    filters.types?.forEach(t => { if (t) params.append('type', t) })
+    filters.tags?.forEach(tag => { if (tag) params.append('tags', tag) })
+    
+    const suffix = params.toString() ? `?${params.toString()}` : ''
+    const result = await request<{ deletedCount: number }>(`/products/bulk-delete${suffix}`, {
+      method: 'POST',
+    })
+    console.log('[API] deleteProductsByFilters result:', result, 'with filters:', filters)
+    return result
+  }
+
   static async getProductsByUser(username: string): Promise<Product[]> {
     return request<Product[]>(`/users/${encodeURIComponent(username)}/products`)
   }
@@ -1043,11 +1102,13 @@ export class APIService {
   }
 
   static async getAllCollections(): Promise<Collection[]> {
-    return request<Collection[]>('/collections')
+    const result = await request<Collection[]>('/collections')
+    return APIService.normalizeCollections(result)
   }
 
   static async getCollection(collectionSlug: string): Promise<Collection | null> {
     const result = await request<Collection | null>(`/collections/${collectionSlug}`)
+    const normalized = result ? APIService.normalizeCollection(result) : null
     if (result) {
       logger.debug(`[API] getCollection(${collectionSlug}):`, {
         id: result.id,
@@ -1056,12 +1117,13 @@ export class APIService {
         productSlugs: result.productSlugs,
       })
     }
-    return result
+    return normalized
   }
 
   static async getUserCollections(): Promise<Collection[]> {
     // Gets the authenticated user's collections
-    return request<Collection[]>('/collections')
+    const result = await request<Collection[]>('/collections')
+    return APIService.normalizeCollections(result)
   }
 
   static async getPublicCollections(sortBy?: 'created_at' | 'product_count' | 'updated_at', search?: string): Promise<Collection[]> {
@@ -1069,14 +1131,16 @@ export class APIService {
     if (sortBy) params.append('sort_by', sortBy)
     if (search) params.append('search', search)
     const query = params.toString() ? `?${params.toString()}` : ''
-    return request<Collection[]>(`/collections/public${query}`)
+    const result = await request<Collection[]>(`/collections/public${query}`)
+    return APIService.normalizeCollections(result)
   }
 
   static async createCollection(collection: CollectionCreateInput): Promise<Collection> {
-    return request<Collection>('/collections', {
+    const result = await request<Collection>('/collections', {
       method: 'POST',
       body: JSON.stringify(collection),
     })
+    return APIService.normalizeCollection(result)
   }
 
   static async createCollectionFromSearch(
@@ -1092,20 +1156,22 @@ export class APIService {
       minRating?: number
     }
   ): Promise<Collection> {
-    return request<Collection>('/collections/from-search', {
+    const result = await request<Collection>('/collections/from-search', {
       method: 'POST',
       body: JSON.stringify(searchParams),
     })
+    return APIService.normalizeCollection(result)
   }
 
   static async updateCollection(
     collectionId: string,
     updates: Partial<Omit<Collection, 'id' | 'createdAt' | 'updatedAt' | 'userId' | 'userName' | 'username' | 'productSlugs'>>
   ): Promise<Collection | null> {
-    return request<Collection | null>(`/collections/${collectionId}`, {
+    const result = await request<Collection | null>(`/collections/${collectionId}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     })
+    return result ? APIService.normalizeCollection(result) : null
   }
 
   static async deleteCollection(collectionSlug: string): Promise<{ message: string }> {
@@ -1119,6 +1185,7 @@ export class APIService {
     const result = await request<Collection | null>(`/collections/${collectionSlug}/products/${productSlug}`, {
       method: 'POST',
     })
+    const normalized = result ? APIService.normalizeCollection(result) : null
     if (result) {
       logger.debug(`[API] ✅ addProductToCollection response:`, {
         id: result.id,
@@ -1129,20 +1196,22 @@ export class APIService {
     } else {
       console.error(`[API] ❌ addProductToCollection returned null/undefined`)
     }
-    return result
+    return normalized
   }
 
   static async removeProductFromCollection(collectionSlug: string, productSlug: string): Promise<Collection | null> {
-    return request<Collection | null>(`/collections/${collectionSlug}/products/${productSlug}`, {
+    const result = await request<Collection | null>(`/collections/${collectionSlug}/products/${productSlug}`, {
       method: 'DELETE',
     })
+    return result ? APIService.normalizeCollection(result) : null
   }
 
   static async addMultipleProductsToCollection(collectionSlug: string, productSlugs: string[]): Promise<Collection | null> {
-    return request<Collection | null>(`/collections/${collectionSlug}/products`, {
+    const result = await request<Collection | null>(`/collections/${collectionSlug}/products`, {
       method: 'POST',
       body: JSON.stringify({ productSlugs }),
     })
+    return result ? APIService.normalizeCollection(result) : null
   }
 
   static async getUserRequests(username: string): Promise<UserRequest[]> {

@@ -1,13 +1,13 @@
 import { Collection, Product, Rating, UserAccount } from '@/lib/types'
 import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Card, CardHeader, CardDescription, CardContent } from '@/components/ui/card'
 import { ArrowLeft, Lock, LockOpen, Trash, Pencil } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductFilterTag } from '@/components/ProductFilterTag'
 import { formatDistanceToNow } from 'date-fns'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { APIService } from '@/lib/api'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
 import MarkdownText from '@/components/ui/MarkdownText'
 
@@ -40,8 +40,10 @@ export function CollectionDetail({
   onDeleteCollection,
   onEditCollection,
 }: CollectionDetailProps) {
+  void onDeleteProduct
   const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(false)
+  const [resolvedCreatorUsername, setResolvedCreatorUsername] = useState('')
 
   // Products individually fetched by this component (not present in globalProducts).
   // Stored in a ref so mutations don't trigger re-renders; `fetchVersion` is bumped
@@ -150,6 +152,37 @@ export function CollectionDetail({
       .map(([tag]) => tag)
   }, [collectionProducts])
 
+  const creatorUsername =
+    collection.username ||
+    (collection as Collection & { userName?: string }).userName ||
+    ''
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (creatorUsername) {
+      setResolvedCreatorUsername(creatorUsername)
+      return () => { cancelled = true }
+    }
+
+    setResolvedCreatorUsername('')
+    if (!collection.userId) {
+      return () => { cancelled = true }
+    }
+
+    APIService.getUserAccount(collection.userId)
+      .then((user) => {
+        if (cancelled) return
+        setResolvedCreatorUsername(user?.username || '')
+      })
+      .catch(() => {
+        if (cancelled) return
+        setResolvedCreatorUsername('')
+      })
+
+    return () => { cancelled = true }
+  }, [creatorUsername, collection.userId])
+
   return (
     <div>
       <Button variant="ghost" onClick={onBack} className="mb-6">
@@ -161,7 +194,8 @@ export function CollectionDetail({
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <CardTitle className="text-2xl mb-2">{collection.name}</CardTitle>
+              {/* h1 satisfies WCAG page-has-heading-one; CardTitle renders as div and would not count */}
+              <h1 className="leading-none font-semibold text-2xl mb-2">{collection.name}</h1>
               <div className="flex items-center gap-3">
                 <CardDescription className="flex items-center gap-2">
                   {collection.isPublic ? (
@@ -224,7 +258,16 @@ export function CollectionDetail({
           <div className="flex flex-wrap gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Created by:</span>{' '}
-              <span className="font-medium">{collection.username}</span>
+              {resolvedCreatorUsername ? (
+                <Link
+                  to={`/profile/${resolvedCreatorUsername}`}
+                  className="font-medium hover:underline"
+                >
+                  {resolvedCreatorUsername}
+                </Link>
+              ) : (
+                <span className="font-medium">Unknown</span>
+              )}
             </div>
             <div>
               <span className="text-muted-foreground">Products:</span>{' '}
