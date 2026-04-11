@@ -30,6 +30,11 @@ cmd = "npx vite build"
 depends-on = ["install-node"]
 # outputs = ["_site/**/*"]
 
+[tasks.test]
+description = "run vitest unit tests"
+cmd = "npm run test:run"
+depends-on = ["install-node"]
+
 [tasks.install-node]
 description = "install node and npm dependencies"
 cmd = "npm install"
