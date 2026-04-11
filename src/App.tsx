@@ -3046,15 +3046,17 @@ function App() {
   return (
     <div className="min-h-screen bg-(--color-bg)">
       {showSignup && user ? (
-        <UserSignup
-          user={{
-            id: user.id,
-            username: user.username || '',
-            avatarUrl: user.avatarUrl || userAccount?.avatarUrl || ''
-          }}
-          onComplete={handleCompleteSignup}
-          onSkip={handleSkipSignup}
-        />
+        <main>
+          <UserSignup
+            user={{
+              id: user.id,
+              username: user.username || '',
+              avatarUrl: user.avatarUrl || userAccount?.avatarUrl || ''
+            }}
+            onComplete={handleCompleteSignup}
+            onSkip={handleSkipSignup}
+          />
+        </main>
       ) : (
         <>
           <a

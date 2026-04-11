@@ -34,7 +34,7 @@ export function UserSignup({ user, onComplete, onSkip }: UserSignupProps) {
   }
 
   return (
-    <main className="min-h-screen bg-(--color-bg) flex items-center justify-center px-6 py-12">
+    <div className="min-h-screen bg-(--color-bg) flex items-center justify-center px-6 py-12">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -171,6 +171,6 @@ export function UserSignup({ user, onComplete, onSkip }: UserSignupProps) {
           </CardFooter>
         </form>
       </Card>
-    </main>
+    </div>
   )
 }
