@@ -389,8 +389,8 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                             className="no-underline"
                           >
                             <Badge
-                              variant="secondary"
-                              className="text-[11px] cursor-pointer transition-all duration-150 hover:bg-primary/15 hover:text-primary hover:-translate-y-0.5"
+                              variant="outline"
+                              className="text-[11px] cursor-pointer transition-all duration-150 hover:bg-accent hover:text-accent-foreground hover:-translate-y-0.5"
                             >
                               {tag}
                             </Badge>

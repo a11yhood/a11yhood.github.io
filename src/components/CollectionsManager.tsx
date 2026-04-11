@@ -51,7 +51,7 @@ export function CollectionsManager({
               }}
               className="no-underline"
             >
-              <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/80">
+              <Badge variant="outline" className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors">
                 {collection.name}
               </Badge>
             </a>

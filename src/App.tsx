@@ -818,7 +818,7 @@ function BlogPage({ blogPosts, blogPostsLoading, userAccount }: { blogPosts: Blo
               Manage Posts
             </Button>
           )}
-          <Button variant="ghost" onClick={() => navigate('/')} className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate('/')} className="flex items-center gap-2">
             ← Back to Products
           </Button>
         </div>
@@ -1046,7 +1046,7 @@ function CollectionsPage({
             <h1 className="text-3xl font-bold">My Collections</h1>
             <div className="flex items-center gap-2">
               <Button onClick={onCreateCollection}>Create Collection</Button>
-              <Button variant="ghost" onClick={() => navigate('/')}>
+              <Button variant="outline" onClick={() => navigate('/')}>
                 ← Back to Products
               </Button>
             </div>
@@ -1089,7 +1089,7 @@ function CollectionsPage({
       ) : (
         <div className="mb-6 flex items-center justify-between">
           <p className="text-lg text-muted-foreground">Log in to create your own collection</p>
-          <Button variant="ghost" onClick={() => navigate('/')}>
+          <Button variant="outline" onClick={() => navigate('/')}>
             ← Back to Products
           </Button>
         </div>
@@ -1263,7 +1263,7 @@ function ProfilePage({
 
   return (
     <div>
-      <Button variant="ghost" onClick={() => navigate('/')} className="mb-6">
+      <Button variant="outline" onClick={() => navigate('/')} className="mb-6">
         ← Back to Products
       </Button>
       <UserProfile 

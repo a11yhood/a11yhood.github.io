@@ -193,7 +193,7 @@ export function ProductDetail({
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center gap-3 justify-between mb-4 sm:mb-6 sm:flex-nowrap">
         <Button
-          variant="ghost"
+          variant="outline"
           onClick={onBack}
           className="-ml-2 flex items-center gap-1 sm:gap-2 px-2 sm:px-3"
           aria-label="Back to products"
@@ -313,7 +313,7 @@ export function ProductDetail({
                 href={product.sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="no-underline inline-flex items-center gap-2 px-3 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium"
               >
                 {sourceIcon && <FontAwesomeIcon icon={sourceIcon} className="w-4 h-4" />}
                 View on {sourceHost}
