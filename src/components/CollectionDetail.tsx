@@ -1,6 +1,6 @@
 import { Collection, Product, Rating, UserAccount } from '@/lib/types'
 import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Card, CardHeader, CardDescription, CardContent } from '@/components/ui/card'
 import { ArrowLeft, Lock, LockOpen, Trash, Pencil } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductFilterTag } from '@/components/ProductFilterTag'
@@ -194,7 +194,7 @@ export function CollectionDetail({
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <CardTitle className="text-2xl mb-2">{collection.name}</CardTitle>
+              <h1 className="leading-none font-semibold text-2xl mb-2">{collection.name}</h1>
               <div className="flex items-center gap-3">
                 <CardDescription className="flex items-center gap-2">
                   {collection.isPublic ? (

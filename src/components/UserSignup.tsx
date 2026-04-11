@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card'
 import { UserAccount } from '@/lib/types'
 import { CheckCircle } from '@phosphor-icons/react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -42,7 +42,7 @@ export function UserSignup({ user, onComplete, onSkip }: UserSignupProps) {
               <CheckCircle size={48} className="text-primary" weight="duotone" />
             </div>
           </div>
-          <CardTitle className="text-3xl">Welcome to a11yhood!</CardTitle>
+          <h1 className="leading-none font-semibold text-3xl">Welcome to a11yhood!</h1>
           <CardDescription className="text-base mt-2">
             Complete your profile to get started (or skip for now)
           </CardDescription>
@@ -146,7 +146,7 @@ export function UserSignup({ user, onComplete, onSkip }: UserSignupProps) {
             </fieldset>
 
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
-              <h3 className="font-semibold mb-2 text-sm">What you can do on a11yhood:</h3>
+              <h2 className="font-semibold mb-2 text-sm">What you can do on a11yhood:</h2>
               <ul className="text-sm space-y-1 text-muted-foreground">
                 <li>✓ Browse and find access solutions</li>
                 <li>✓ Rate products you've tried</li>

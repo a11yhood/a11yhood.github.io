@@ -1086,11 +1086,14 @@ function CollectionsPage({
           )}
         </>
       ) : (
-        <div className="mb-6 flex items-center justify-between">
-          <p className="text-lg text-muted-foreground">Log in to create your own collection</p>
-          <Button variant="ghost" onClick={() => navigate('/')}>
-            ← Back to Products
-          </Button>
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold">Collections</h1>
+            <Button variant="ghost" onClick={() => navigate('/')}>
+              ← Back to Products
+            </Button>
+          </div>
+          <p className="text-muted-foreground mt-2">Log in to create your own collection</p>
         </div>
       )}
 
@@ -1201,6 +1204,7 @@ function CollectionDetailPage({
   if (!effectiveCollection) {
     return (
       <div className="text-center py-12">
+        <h1 className="text-2xl font-bold mb-4">Collection Not Found</h1>
         <p className="text-lg text-muted-foreground">Collection not found</p>
         <Button variant="outline" onClick={() => navigate('/collections')} className="mt-4">
           Back to Collections
