@@ -59,10 +59,22 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout trusted merge script source
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.sha }}
+          path: trusted-workflow-source
+          sparse-checkout: |
+            scripts/merge-pages-root.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Checkout gh-pages branch
         uses: actions/checkout@v5
         with:
           ref: gh-pages
+          path: gh-pages-branch
           fetch-depth: 1
 
       - name: Download production build
@@ -80,6 +92,7 @@ jobs:
       # preview subdirectories (legacy draft/ and current pr-preview/).
       - name: Merge production build into gh-pages root
         run: |
+          cd gh-pages-branch
           ARTIFACT_ROOT="${RUNNER_TEMP}/new-production"
 
           if [ -d "${ARTIFACT_ROOT}/dist" ]; then
@@ -90,43 +103,8 @@ jobs:
 
           echo "Selected BUILD_SOURCE=${BUILD_SOURCE}"
 
-          # Guardrail: never deploy a source-style index that references
-          # /src/main.tsx. A production Vite build should reference hashed
-          # files under /assets.
-          if [ ! -f "${BUILD_SOURCE}index.html" ]; then
-            echo "Build artifact is missing index.html at ${BUILD_SOURCE}index.html"
-            exit 1
-          fi
-          if grep -q 'src="/src/main.tsx"' "${BUILD_SOURCE}index.html"; then
-            echo "Refusing to deploy non-built index.html (contains /src/main.tsx)."
-            exit 1
-          fi
-          if [ ! -d "${BUILD_SOURCE}assets" ]; then
-            echo "Build artifact is missing assets/ directory at ${BUILD_SOURCE}assets"
-            exit 1
-          fi
-
-          rsync -av --delete \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='draft' \
-            --exclude='pr-preview' \
-            --exclude='new-production' \
-            "$BUILD_SOURCE" . || rc=$?
-          if [ "${rc:-0}" -ne 0 ] && [ "${rc:-0}" -ne 24 ]; then
-            echo "rsync failed with unexpected exit code ${rc}"
-            exit "$rc"
-          fi
-
-          # Post-copy sanity check on gh-pages root before commit.
-          if [ ! -d assets ]; then
-            echo "Post-merge validation failed: gh-pages root has no assets/"
-            exit 1
-          fi
-          if grep -q 'src="/src/main.tsx"' index.html; then
-            echo "Post-merge validation failed: index.html still references /src/main.tsx"
-            exit 1
-          fi
+          chmod +x ../trusted-workflow-source/scripts/merge-pages-root.sh
+          ../trusted-workflow-source/scripts/merge-pages-root.sh "${BUILD_SOURCE}" .
 
           rm -rf "${ARTIFACT_ROOT}"
 
@@ -135,6 +113,7 @@ jobs:
       # and does the actual actions/deploy-pages call.
       - name: Commit updated production to gh-pages
         run: |
+          cd gh-pages-branch
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A

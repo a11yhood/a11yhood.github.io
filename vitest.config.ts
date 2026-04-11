@@ -24,6 +24,7 @@ export default defineConfig({
           '**/__tests__/accessibility/HomePage.a11y.test.tsx',
           '**/__tests__/accessibility/AboutPage.a11y.test.tsx',
           '**/__tests__/accessibility/landmarks-and-live-regions.test.tsx',
+          '**/__tests__/accessibility/html-lang-attribute.test.ts',
         ]
       : ['**/__tests__/**/*.test.{ts,tsx}'],
     exclude: [

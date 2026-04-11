@@ -30,9 +30,25 @@ cmd = "npx vite build"
 depends-on = ["install-node"]
 # outputs = ["_site/**/*"]
 
+[tasks.test]
+description = "run vitest unit tests"
+cmd = "npm run test:run"
+depends-on = ["install-node"]
+
+[tasks.build-ghpages]
+description = "build the production gh-pages bundle"
+cmd = "VITE_BASE_URL=/ npm run build"
+
+depends-on = ["install-node"]
+
+[tasks.test-deploy-local]
+description = "simulate production deployment merge into gh-pages and validate assets"
+depends-on = ["build-ghpages"]
+cmd = "./scripts/test-deploy-local.sh"
+
 [tasks.install-node]
 description = "install node and npm dependencies"
-cmd = "npm install"
+cmd = "npm ci && npm install --no-save @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu"
 inputs = ["package.json"]
 outputs = ["package-lock.json"]
 
