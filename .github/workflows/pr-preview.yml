@@ -239,4 +239,18 @@ jobs:
             git push
           fi
 
+  accessibility_scanner:
+    name: A11y Preview Scan (PR)
+    needs: deploy-preview
+    runs-on: ubuntu-latest
+    if: ${{ github.event.action != 'closed' && github.event.pull_request.head.repo.fork == false }}
+    steps:
+      - uses: github/accessibility-scanner@v2
+        with:
+          urls: |
+            https://a11yhood.org/pr-preview/${{ github.event.number }}/
+          repository: a11yhood/a11yhood.github.io
+          token: ${{ secrets.GH_TOKEN }}
+          cache_key: a11yhood.org-pr-${{ github.event.number }}
+
 
