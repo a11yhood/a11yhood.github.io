@@ -80,6 +80,7 @@ A community platform for discovering, reviewing, and discussing open-source assi
 2. **Install dependencies**
    ```bash
    pixi shell
+   npm install
    ```
 
 3. **Set up environment variables**
