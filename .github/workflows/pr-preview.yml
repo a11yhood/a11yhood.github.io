@@ -59,7 +59,7 @@ jobs:
           path: dist/
 
   deploy-preview:
-    if: github.event.action != 'closed'
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.fork == false
     needs: build
     runs-on: ubuntu-latest
     env:
@@ -162,7 +162,7 @@ jobs:
   # gh-pages. The commit triggers pages-deploy.yml which redeploys Pages
   # from the gh-pages branch context (allowed by environment protection rules).
   cleanup:
-    if: github.event.action == 'closed'
+    if: github.event.action == 'closed' && github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout gh-pages branch
