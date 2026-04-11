@@ -100,7 +100,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
             </Link>
             <Link
               to="/about"
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`no-underline flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 location.pathname.startsWith('/about') 
                   ? 'bg-primary text-primary-foreground' 
                   : 'hover:bg-accent hover:text-accent-foreground'
@@ -111,7 +111,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
             </Link>
             <Link
               to="/blog"
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`no-underline flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 location.pathname.startsWith('/blog') 
                   ? 'bg-primary text-primary-foreground' 
                   : 'hover:bg-accent hover:text-accent-foreground'
@@ -132,7 +132,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
             )}
             <Link
               to="/collections"
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`no-underline flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 location.pathname.startsWith('/collections') 
                   ? 'bg-primary text-primary-foreground' 
                   : 'hover:bg-accent hover:text-accent-foreground'
@@ -143,7 +143,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
             </Link>
             <Link
               to="/products"
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`no-underline flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 location.pathname.startsWith('/products') 
                   ? 'bg-primary text-primary-foreground' 
                   : 'hover:bg-accent hover:text-accent-foreground'

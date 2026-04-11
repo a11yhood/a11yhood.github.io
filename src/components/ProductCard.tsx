@@ -168,7 +168,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
                 <a
                   href={href}
                   onClick={handleNameClick}
-                  className="line-clamp-2 break-words hover:text-primary transition-colors"
+                  className="no-underline line-clamp-2 break-words hover:text-primary transition-colors"
                 >
                   {product.name}
                 </a>
@@ -231,6 +231,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
                     <Link
                       to={`/collections/${c.slug || c.id}`}
                       onClick={(e) => e.stopPropagation()}
+                      className="no-underline"
                     >
                       <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
                         {c.name}

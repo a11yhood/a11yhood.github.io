@@ -198,7 +198,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Link to={`/profile/${userAccount.username}`} className="inline-block">
+              <Link to={`/profile/${userAccount.username}`} className="no-underline inline-block">
                 <Button size="sm" variant="ghost">
                   View Public Profile
                 </Button>
@@ -386,6 +386,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                             to={getProductsPathForTag(tag)}
                             onClick={(e) => e.stopPropagation()}
                             aria-label={`Filter products by tag ${tag}`}
+                            className="no-underline"
                           >
                             <Badge
                               variant="secondary"

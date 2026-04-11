@@ -21,12 +21,12 @@
       font-style: normal;
     }
     /*
-     * WCAG 1.4.1 / link-in-text-block: links within body text must be
-     * distinguishable without relying on color alone.  The minima theme
-     * only underlines links on hover, which fails the rule.  Override here
-     * to ensure inline links always carry a permanent underline.
+     * WCAG 1.4.1: every anchor must be visually distinguishable from
+     * surrounding content without relying on color alone.  Apply underlines
+     * globally; navigation links that act as buttons can override with
+     * the no-underline class.
      */
-    p a, li a, td a, dt a, dd a {
+    a:not(.no-underline) {
       text-decoration: underline;
       text-underline-offset: 2px;
     }

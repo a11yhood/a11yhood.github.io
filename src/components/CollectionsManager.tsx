@@ -49,6 +49,7 @@ export function CollectionsManager({
                 e.preventDefault()
                 navigate(`/collections/${collection.slug || collection.id}`)
               }}
+              className="no-underline"
             >
               <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/80">
                 {collection.name}

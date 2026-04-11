@@ -313,7 +313,7 @@ export function ProductDetail({
                 href={product.sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium"
+                className="no-underline inline-flex items-center gap-2 px-3 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium"
               >
                 {sourceIcon && <FontAwesomeIcon icon={sourceIcon} className="w-4 h-4" />}
                 View on {sourceHost}

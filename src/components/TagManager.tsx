@@ -156,7 +156,7 @@ export function TagManager({
         {currentTags && currentTags.length > 0 ? (
           currentTags.map((tag) => (
             <li key={tag}>
-              <Link to={getProductsPathForTag(tag)} aria-label={`View all products tagged with ${tag}`}>
+              <Link to={getProductsPathForTag(tag)} aria-label={`View all products tagged with ${tag}`} className="no-underline">
                 <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/80 transition-colors">
                   {tag}
                 </Badge>

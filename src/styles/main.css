@@ -75,20 +75,20 @@
   }
 
   /*
-   * WCAG 1.4.1 / link-in-text-block: links within body text must be
-   * distinguishable without relying on color alone.  Apply a permanent
-   * underline to any anchor that lives inside a paragraph, list item,
-   * table cell, or definition-list term/description so that sighted users
-   * who cannot distinguish colours can still identify the link.
+   * WCAG 1.4.1: every anchor with visible text must be distinguishable from
+   * surrounding content without relying on color alone.  Underline is the
+   * universally understood indicator for a link.
    *
-   * Navigation links, card wrappers, and icon-only links intentionally
-   * opt out with the `no-underline` utility class where appropriate.
+   * This rule applies globally so ALL links — whether inline in a paragraph,
+   * standalone in a card footer, or inside a navigation area — are visually
+   * identifiable.
+   *
+   * Navigational links that look like buttons/pills (nav bar items, badge
+   * links, card wrapper links, button-style CTAs) should opt out via the
+   * Tailwind `no-underline` utility class when their context already makes
+   * them clearly interactive.
    */
-  p a:not(.no-underline),
-  li a:not(.no-underline),
-  td a:not(.no-underline),
-  dt a:not(.no-underline),
-  dd a:not(.no-underline) {
+  a:not(.no-underline) {
     text-decoration: underline;
     text-underline-offset: 2px;
   }
