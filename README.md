@@ -54,7 +54,6 @@ To join our community and learn about contributing, go to the [community](https:
 
 ### Prerequisites
 
-- Node.js 18+ and npm
 - pixi
 
 ### Install Pixi (macOS)
@@ -87,26 +86,20 @@ pixi --version
    cd a11yhood.github.io
    ```
 
-2. **Install dependencies**
+2. **Install Node + npm dependencies via Pixi**
    ```bash
-   npm install
+   pixi run install-node
    ```
 
 3. **Set up environment variables**
-   
+
    Create a `.env.local` file (and/or `.env.production.local` for production):
-   ```env
-   VITE_SUPABASE_URL=your_supabase_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
-   
+
    See `env.example` for all available configuration options.
 
 4. **Start the development server**
    ```bash
-   npm run dev
-   # or use the script
-   ./scripts/start-dev.sh
+   pixi run npm run dev
    ```
 
    The application will be available at `http://localhost:5173`
@@ -115,42 +108,40 @@ pixi --version
 
 ```bash
 # Run tests in watch mode
-npm test
+pixi run npm test
 
 # Run tests once
-npm run test:run
+pixi run npm run test:run
 
 # Run tests with coverage
-npm run test:coverage
+pixi run npm run test:coverage
 
 # Run tests with UI
-npm run test:ui
+pixi run npm run test:ui
 ```
 
 ### Building for Production
 
 ```bash
 # Build the application
-npm run build
+pixi run npm run build
 
 # Preview the production build
-npm run preview
-
-# Or use the production script
-./scripts/start-prod.sh
+pixi run npm run preview
 ```
 
 ## Development
 
-### Available Scripts
+### Common Commands (via Pixi)
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production (includes tests and type checking)
-- `npm run preview` - Preview production build locally
-- `npm test` - Run tests in watch mode
-- `npm run test:run` - Run tests once
-- `npm run test:coverage` - Generate test coverage report
-- `npm run lint` - Run ESLint
+- `pixi run install-node` - Install Node/npm dependencies
+- `pixi run npm run dev` - Start development server
+- `pixi run npm run build` - Build for production (includes tests and type checking)
+- `pixi run npm run preview` - Preview production build locally
+- `pixi run npm test` - Run tests in watch mode
+- `pixi run npm run test:run` - Run tests once
+- `pixi run npm run test:coverage` - Generate test coverage report
+- `pixi run npm run lint` - Run ESLint
 
 ### Code Quality
 
