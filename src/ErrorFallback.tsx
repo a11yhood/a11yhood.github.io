@@ -10,7 +10,7 @@ export const ErrorFallback = ({ error, resetErrorBoundary }) => {
 
   return (
     <div className="min-h-screen bg-(--color-bg) flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <main className="w-full max-w-md">
         <Alert variant="destructive" className="mb-6">
           <AlertTriangleIcon />
           <AlertTitle>We have encountered a runtime error</AlertTitle>
@@ -34,7 +34,7 @@ export const ErrorFallback = ({ error, resetErrorBoundary }) => {
           <RefreshCwIcon />
           Try Again
         </Button>
-      </div>
+      </main>
     </div>
   );
 }

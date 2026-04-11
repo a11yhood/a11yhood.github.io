@@ -34,7 +34,7 @@ export function AboutPage() {
   }, [])
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-10">
+    <div className="max-w-4xl mx-auto px-4 py-10">
       <Card>
         <CardHeader>
           {/* h1 satisfies WCAG page-has-heading-one; CardTitle renders as div and would not count */}
@@ -55,6 +55,6 @@ export function AboutPage() {
           )}
         </CardContent>
       </Card>
-    </main>
+    </div>
   )
 }
