@@ -12,13 +12,6 @@ describe('AdminUsersStats accessibility', () => {
       </MemoryRouter>
     )
     const results = await axe(container)
-    if (results.violations.length > 0) {
-      console.log('VIOLATIONS:', JSON.stringify(results.violations.map((v: any) => ({
-        id: v.id,
-        description: v.description,
-        nodes: v.nodes.map((n: any) => n.html)
-      })), null, 2))
-    }
     expect(results).toHaveNoViolations()
   })
 })

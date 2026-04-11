@@ -25,7 +25,7 @@ const defaultProps = {
 }
 
 describe('ProductFilters accessibility', () => {
-  it('has no axe violations', async () => {
+  it('has no button-name violations', async () => {
     const { container } = render(
       <MemoryRouter>
         <ProductFilters {...defaultProps} />

@@ -96,9 +96,9 @@ export function DevRoleSwitcher({ userAccount, onRoleChange }: DevRoleSwitcherPr
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-2">
-          <label className="text-xs font-medium text-muted-foreground">Active Dev Account</label>
+          <label id="dev-role-label" className="text-xs font-medium text-muted-foreground">Active Dev Account</label>
           <Select value={selectedUser} onValueChange={handleUserChange} disabled={isSwitching}>
-            <SelectTrigger className="bg-(--color-bg)">
+            <SelectTrigger className="bg-(--color-bg)" aria-labelledby="dev-role-label">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
