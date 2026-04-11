@@ -185,7 +185,7 @@ export function CollectionDetail({
 
   return (
     <div>
-      <Button variant="ghost" onClick={onBack} className="mb-6">
+      <Button variant="outline" onClick={onBack} className="mb-6">
         <ArrowLeft size={18} className="mr-2" />
         Back to Collections
       </Button>

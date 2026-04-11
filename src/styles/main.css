@@ -74,9 +74,34 @@
     font-weight: 600;
   }
 
+  /*
+   * WCAG 1.4.1: every anchor with visible text must be distinguishable from
+   * surrounding content without relying on color alone.  Underline is the
+   * universally understood indicator for a link.
+   *
+   * This rule applies globally so ALL links — whether inline in a paragraph,
+   * standalone in a card footer, or inside a navigation area — are visually
+   * identifiable.
+   *
+   * Navigational links that look like buttons/pills (nav bar items, badge
+   * links, card wrapper links, button-style CTAs) should opt out via the
+   * Tailwind `no-underline` utility class when their context already makes
+   * them clearly interactive.
+   */
+  a:not(.no-underline) {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  a:not(.no-underline):hover {
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+  }
+
   .prose a {
     color: var(--primary);
     text-decoration: underline;
+    text-underline-offset: 2px;
   }
 
   .prose a:hover {
