@@ -106,6 +106,23 @@ jobs:
             exit 1
           fi
 
+          # Guardrail: ensure every /assets/* reference in index.html exists
+          # in the selected build source before copying.
+          missing_asset=0
+          while IFS= read -r asset_ref; do
+            [ -z "$asset_ref" ] && continue
+            asset_path="${asset_ref#/}"
+            if [ ! -f "${BUILD_SOURCE}${asset_path}" ]; then
+              echo "Build artifact index.html references missing file: ${asset_ref}"
+              missing_asset=1
+            fi
+          done < <(grep -o '/assets/[^" ]*' "${BUILD_SOURCE}index.html" | sort -u)
+
+          if [ "$missing_asset" -ne 0 ]; then
+            echo "Refusing to deploy build with broken asset references in index.html"
+            exit 1
+          fi
+
           rsync -av --delete \
             --exclude='.git' \
             --exclude='.github' \
@@ -125,6 +142,22 @@ jobs:
           fi
           if grep -q 'src="/src/main.tsx"' index.html; then
             echo "Post-merge validation failed: index.html still references /src/main.tsx"
+            exit 1
+          fi
+
+          # Post-merge guardrail: ensure deployed root index references existing assets.
+          missing_deployed_asset=0
+          while IFS= read -r asset_ref; do
+            [ -z "$asset_ref" ] && continue
+            asset_path="${asset_ref#/}"
+            if [ ! -f "${asset_path}" ]; then
+              echo "Post-merge validation failed: index.html references missing file ${asset_ref}"
+              missing_deployed_asset=1
+            fi
+          done < <(grep -o '/assets/[^" ]*' index.html | sort -u)
+
+          if [ "$missing_deployed_asset" -ne 0 ]; then
+            echo "Post-merge validation failed: broken asset references in deployed index.html"
             exit 1
           fi
 
