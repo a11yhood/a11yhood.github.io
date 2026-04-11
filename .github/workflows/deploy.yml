@@ -84,6 +84,7 @@ jobs:
 
           rsync -av --delete \
             --exclude='.git' \
+            --exclude='.github' \
             --exclude='draft' \
             --exclude='pr-preview' \
             "$BUILD_SOURCE" .
