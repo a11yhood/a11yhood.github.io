@@ -195,7 +195,7 @@ export function ThingiverseSettings({ onAuthComplete, products = [], onProductsU
                     href="https://www.thingiverse.com/apps/create" 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="text-primary hover:underline font-medium"
+                    className="text-primary underline hover:opacity-80 font-medium"
                   >
                     Thingiverse Apps
                   </a>

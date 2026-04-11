@@ -48,7 +48,7 @@ export function BlogPostDetail({ post, onBack, onEdit }: BlogPostDetailProps) {
   return (
     <div className="space-y-6">
       {/* Back Button */}
-      <Button variant="ghost" size="sm" onClick={onBack}>
+      <Button variant="outline" size="sm" onClick={onBack}>
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back to Blog
       </Button>
