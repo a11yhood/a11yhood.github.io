@@ -65,13 +65,12 @@ describe('link-in-text-block – inline links must carry a visual indicator beyo
   })
 
   it('inline link within <li> has the underline class applied', () => {
-    const { container } = render(
+    const { getByRole } = render(
       <InlineTextLink className="text-primary underline hover:opacity-80 font-medium" />
     )
-    const link = container.querySelector('a')
-    expect(link).not.toBeNull()
+    const link = getByRole('link', { name: 'Example Settings' })
     // The underline class ensures text-decoration: underline is applied even
     // when surrounding text has a similar color, satisfying WCAG 1.4.1.
-    expect(link!.className).toContain('underline')
+    expect(link.className).toContain('underline')
   })
 })

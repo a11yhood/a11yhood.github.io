@@ -390,7 +390,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                           >
                             <Badge
                               variant="outline"
-                              className="text-[11px] cursor-pointer transition-all duration-150 hover:bg-accent hover:text-accent-foreground hover:-translate-y-0.5"
+                              className="text-[11px] cursor-pointer transition-all duration-150 hover:bg-accent hover:text-accent-foreground motion-safe:hover:-translate-y-0.5"
                             >
                               {tag}
                             </Badge>
