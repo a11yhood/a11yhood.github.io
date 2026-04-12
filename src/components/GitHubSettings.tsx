@@ -195,7 +195,7 @@ export function GitHubSettings({ onAuthComplete, products = [], onProductsUpdate
                     href="https://github.com/settings/tokens?type=pat" 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="text-primary hover:underline font-medium"
+                    className="text-primary underline hover:opacity-80 font-medium"
                   >
                     GitHub Personal Access Tokens
                   </a>

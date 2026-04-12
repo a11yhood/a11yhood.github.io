@@ -93,7 +93,7 @@ export function AdminDashboard({ onBack, products, onProductsUpdate, userAccount
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <Button variant="ghost" onClick={onBack} className="mb-2">
+          <Button variant="outline" onClick={onBack} className="mb-2">
             ← Back to Products
           </Button>
           <h1 className="text-3xl font-bold">{userAccount?.role === 'admin' ? 'Admin Dashboard' : 'Moderator Dashboard'}</h1>

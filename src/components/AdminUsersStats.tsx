@@ -234,8 +234,9 @@ export function AdminUsersStats() {
         defaultOpen
       >
         <div className="flex justify-end mb-3">
+          <label htmlFor="users-sort-select" className="sr-only">Sort users by</label>
           <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger id="users-sort-select" className="w-48">
               <SelectValue placeholder="Sort users" />
             </SelectTrigger>
             <SelectContent>
@@ -290,7 +291,10 @@ export function AdminUsersStats() {
                             handleRoleChange(user.username || user.id, value)
                           }
                         >
-                          <SelectTrigger className="w-32">
+                          <SelectTrigger
+                            className="w-32"
+                            aria-label={`Change role for ${user.username || user.id}`}
+                          >
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
