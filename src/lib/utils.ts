@@ -106,6 +106,15 @@ export function calculateAverageRating(
   return 0
 }
 
+export function toIsoTimestamp(timestamp?: number | string | Date | null): string | undefined {
+  if (timestamp === null || timestamp === undefined) return undefined
+
+  const date = timestamp instanceof Date ? timestamp : new Date(timestamp)
+  if (Number.isNaN(date.getTime())) return undefined
+
+  return date.toISOString()
+}
+
 /**
  * Format a timestamp as a relative time string (e.g., "last week", "2 months ago").
  * 

@@ -22,11 +22,11 @@ function createMockBlogPost(overrides?: Partial<BlogPost>): BlogPost {
     excerpt: 'Test excerpt',
     authorId: 'author-1',
     authorName: 'Author One',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    publishDate: Date.now(),
+    createdAt: '2026-04-15T12:00:00.000Z',
+    updatedAt: '2026-04-15T12:30:00.000Z',
+    publishDate: '2026-04-15T13:00:00.000Z',
     published: true,
-    publishedAt: Date.now(),
+    publishedAt: '2026-04-15T13:00:00.000Z',
     ...overrides,
   }
 }
@@ -78,8 +78,8 @@ describe('HomePage', () => {
 
   it('hides secondary news posts on mobile while keeping the first post visible', () => {
     const blogPosts = [
-      createMockBlogPost({ id: 'post-1', title: 'First Post', slug: 'first-post', publishDate: 200 }),
-      createMockBlogPost({ id: 'post-2', title: 'Second Post', slug: 'second-post', publishDate: 100 }),
+      createMockBlogPost({ id: 'post-1', title: 'First Post', slug: 'first-post', publishDate: '2026-04-16T00:00:00.000Z' }),
+      createMockBlogPost({ id: 'post-2', title: 'Second Post', slug: 'second-post', publishDate: '2026-04-15T00:00:00.000Z' }),
     ]
 
     render(

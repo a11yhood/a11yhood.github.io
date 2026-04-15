@@ -92,6 +92,47 @@ class APIError extends Error {
   }
 }
 
+function isLegacyNumericTimestamp(value: unknown): boolean {
+  return typeof value === 'number' || (typeof value === 'string' && /^\d+$/.test(value.trim()))
+}
+
+function assertIsoTimestamp(value: unknown, fieldName: string, context: string): string {
+  if (typeof value !== 'string') {
+    if (isLegacyNumericTimestamp(value)) {
+      throw new APIError(`${context} uses a legacy numeric timestamp for ${fieldName}. Use an ISO 8601 string instead.`, 400, {
+        field: fieldName,
+        value,
+        type: 'LegacyTimestampError',
+      })
+    }
+
+    throw new APIError(`${context} requires ${fieldName} to be an ISO 8601 string.`, 400, {
+      field: fieldName,
+      value,
+      type: 'InvalidTimestampError',
+    })
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    throw new APIError(`${context} requires ${fieldName} to be a non-empty ISO 8601 string.`, 400, {
+      field: fieldName,
+      value,
+      type: 'InvalidTimestampError',
+    })
+  }
+
+  if (isLegacyNumericTimestamp(trimmed) || Number.isNaN(Date.parse(trimmed))) {
+    throw new APIError(`${context} requires ${fieldName} to be an ISO 8601 string.`, 400, {
+      field: fieldName,
+      value,
+      type: 'InvalidTimestampError',
+    })
+  }
+
+  return trimmed
+}
+
 /**
  * Process API response and handle errors.
  * 
@@ -376,15 +417,53 @@ export class APIService {
     })
   }
 
+  private static validateBlogPostPayload<T extends Partial<Pick<BlogPost, 'publishDate' | 'publishedAt'>>>(
+    payload: T
+  ): T {
+    const validatedPayload = { ...payload }
+
+    if ('publishDate' in validatedPayload && validatedPayload.publishDate !== undefined) {
+      validatedPayload.publishDate = assertIsoTimestamp(validatedPayload.publishDate, 'publishDate', 'Blog post payload') as T['publishDate']
+    }
+
+    if ('publishedAt' in validatedPayload && validatedPayload.publishedAt !== undefined) {
+      validatedPayload.publishedAt = assertIsoTimestamp(validatedPayload.publishedAt, 'publishedAt', 'Blog post payload') as T['publishedAt']
+    }
+
+    return validatedPayload
+  }
+
+  private static validateActivity(activity: UserActivity, context: string): UserActivity {
+    return {
+      ...activity,
+      timestamp: assertIsoTimestamp(activity.timestamp, 'timestamp', context),
+    }
+  }
+
+  private static validateBlogPostResponse(post: BlogPost, context: string): BlogPost {
+    return {
+      ...post,
+      createdAt: assertIsoTimestamp(post.createdAt, 'createdAt', context),
+      updatedAt: assertIsoTimestamp(post.updatedAt, 'updatedAt', context),
+      publishDate: post.publishDate === undefined ? undefined : assertIsoTimestamp(post.publishDate, 'publishDate', context),
+      publishedAt: post.publishedAt === undefined ? undefined : assertIsoTimestamp(post.publishedAt, 'publishedAt', context),
+    }
+  }
+
   static async logUserActivity(activity: UserActivity): Promise<UserActivity> {
-    return request<UserActivity>('/activities', {
+    const validatedActivity = APIService.validateActivity(activity, 'Activity payload')
+
+    const result = await request<UserActivity>('/activities', {
       method: 'POST',
-      body: JSON.stringify(activity),
+      body: JSON.stringify(validatedActivity),
     })
+
+    return APIService.validateActivity(result, 'Activity response')
   }
 
   static async getUserActivities(username: string, limit = 50): Promise<UserActivity[]> {
-    return request<UserActivity[]>(`/activities?username=${encodeURIComponent(username)}&limit=${limit}`)
+    const result = await request<UserActivity[]>(`/activities?username=${encodeURIComponent(username)}&limit=${limit}`)
+    return result.map((activity) => APIService.validateActivity(activity, 'Activity response'))
   }
 
   static async getUserStats(username: string): Promise<{
@@ -1067,32 +1146,39 @@ export class APIService {
     })
   }
   static async getAllBlogPosts(includeUnpublished = false): Promise<BlogPost[]> {
-    return request<BlogPost[]>(`/blog-posts?includeUnpublished=${includeUnpublished}`)
+    const result = await request<BlogPost[]>(`/blog-posts?includeUnpublished=${includeUnpublished}`)
+    return result.map((post) => APIService.validateBlogPostResponse(post, 'Blog post response'))
   }
 
   static async getBlogPost(postId: string): Promise<BlogPost | null> {
-    return request<BlogPost | null>(`/blog-posts/${postId}`)
+    const result = await request<BlogPost | null>(`/blog-posts/${postId}`)
+    return result ? APIService.validateBlogPostResponse(result, 'Blog post response') : null
   }
 
   static async getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
-    return request<BlogPost | null>(`/blog-posts/slug/${slug}`)
+    const result = await request<BlogPost | null>(`/blog-posts/slug/${slug}`)
+    return result ? APIService.validateBlogPostResponse(result, 'Blog post response') : null
   }
 
   static async createBlogPost(post: Omit<BlogPost, 'id' | 'createdAt' | 'updatedAt'>): Promise<BlogPost> {
-    return request<BlogPost>('/blog-posts', {
+    const result = await request<BlogPost>('/blog-posts', {
       method: 'POST',
-      body: JSON.stringify(post),
+      body: JSON.stringify(APIService.validateBlogPostPayload(post)),
     })
+
+    return APIService.validateBlogPostResponse(result, 'Blog post response')
   }
 
   static async updateBlogPost(
     postId: string,
     updates: Partial<Omit<BlogPost, 'id' | 'createdAt'>>
   ): Promise<BlogPost | null> {
-    return request<BlogPost | null>(`/blog-posts/${postId}`, {
+    const result = await request<BlogPost | null>(`/blog-posts/${postId}`, {
       method: 'PATCH',
-      body: JSON.stringify(updates),
+      body: JSON.stringify(APIService.validateBlogPostPayload(updates)),
     })
+
+    return result ? APIService.validateBlogPostResponse(result, 'Blog post response') : null
   }
 
   static async deleteBlogPost(postId: string): Promise<{ success: boolean }> {
