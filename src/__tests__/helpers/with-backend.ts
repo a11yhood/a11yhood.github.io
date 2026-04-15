@@ -6,7 +6,8 @@ import { describe } from 'vitest'
  *
  * The skip decision is made at test-collection time using the
  * `__BACKEND_AVAILABLE__` global set by `setup.ts`, which reads
- * `process.env.VITEST_BACKEND_AVAILABLE` populated by `globalSetup.ts`.
+ * `process.env.VITEST_BACKEND_AVAILABLE` populated by `globalSetup.ts`
+ * after performing an HTTP health check against the configured backend URL.
  *
  * Usage:
  *   import { describeWithBackend } from '../helpers/with-backend'

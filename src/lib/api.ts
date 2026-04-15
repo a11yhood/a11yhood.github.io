@@ -96,7 +96,20 @@ function isLegacyNumericTimestamp(value: unknown): boolean {
   return typeof value === 'number' || (typeof value === 'string' && /^\d+$/.test(value.trim()))
 }
 
+// Strict ISO 8601 datetime pattern: YYYY-MM-DDTHH:MM:SS[.sss][Z|±HH:MM]
+const ISO_8601_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})$/
+
 function assertIsoTimestamp(value: unknown, fieldName: string, context: string): string {
+  // Detect digit-only strings (e.g. "1713182400000") as legacy numeric timestamps
+  // before the typeof check, so they get the LegacyTimestampError type consistently
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+    throw new APIError(`${context} uses a legacy numeric timestamp for ${fieldName}. Use an ISO 8601 string instead.`, 400, {
+      field: fieldName,
+      value,
+      type: 'LegacyTimestampError',
+    })
+  }
+
   if (typeof value !== 'string') {
     if (isLegacyNumericTimestamp(value)) {
       throw new APIError(`${context} uses a legacy numeric timestamp for ${fieldName}. Use an ISO 8601 string instead.`, 400, {
@@ -122,7 +135,10 @@ function assertIsoTimestamp(value: unknown, fieldName: string, context: string):
     })
   }
 
-  if (isLegacyNumericTimestamp(trimmed) || Number.isNaN(Date.parse(trimmed))) {
+  // Strict ISO 8601 check: regex match + round-trip validation to reject
+  // non-ISO formats that Date.parse() would otherwise accept (e.g. "April 15, 2026")
+  const parsed = new Date(trimmed)
+  if (!ISO_8601_RE.test(trimmed) || Number.isNaN(parsed.getTime())) {
     throw new APIError(`${context} requires ${fieldName} to be an ISO 8601 string.`, 400, {
       field: fieldName,
       value,
