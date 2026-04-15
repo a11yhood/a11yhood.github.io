@@ -1,21 +1,21 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ProductCard } from '@/components/ProductCard'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 import type { Product, Rating } from '@/lib/types'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = (globalThis as any).__TEST_API_BASE__
 
 let productFromApi: Product
 let ratingsFromApi: Rating[]
 let authHeader: { Authorization: string }
 
-describe('ProductCard - API-backed', () => {
+describeWithBackend('ProductCard - API-backed', () => {
   beforeAll(async () => {
     // Use existing seeded dev user
     const testUser = DEV_USERS.admin
-    const testUserId = testUser.id
-    authHeader = { Authorization: getDevToken(testUserId) }
+    authHeader = { Authorization: getDevToken(testUser.role) }
 
     // Create a product via the API
     const productName = `Test Product ${Date.now()}`

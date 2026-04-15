@@ -42,7 +42,7 @@ This guide explains how to set up and run the a11yhood frontend in different env
 | **Frontend Port** | 5173 | 4173 |
 | **Frontend URL** | https://localhost:5173 | https://localhost:4173 |
 | **Backend Port** | 8000 (HTTP) | 8001 (HTTPS) |
-| **Backend URL** | http://localhost:8000 | https://localhost:8001 |
+| **Backend URL** | http://localhost:8002 | https://localhost:8001 |
 | **Database** | Local test database | Supabase (production) |
 | **Build Type** | Dev server (no build step) | Production build (minified) |
 | **Hot Reload** | ✅ Enabled | ❌ Disabled |
@@ -53,14 +53,14 @@ This guide explains how to set up and run the a11yhood frontend in different env
 
 ### Setup
 
-1. **Start Test Backend**: Run your backend on `http://localhost:8000` with local test database configured
-2. **Environment File**: Uses `.env.local` with `VITE_API_URL=http://localhost:8000`
+1. **Start Test Backend**: Run your backend on `http://localhost:8002` with local test database configured
+2. **Environment File**: Uses `.env.local` with `VITE_API_URL=http://localhost:8002`
 3. **Start Frontend**: Run `./scripts/start-dev.sh`
 
 ### Key Features
 
 - **Vite Dev Server**: Uses Vite's built-in development server with hot module replacement (HMR)
-- **Automatic Proxy**: Vite's dev server automatically proxies `/api` requests to `http://localhost:8000`
+- **Automatic Proxy**: Vite's dev server automatically proxies `/api` requests to `http://localhost:8002`
 - **No CORS Issues**: Requests go through the proxy, avoiding cross-origin errors
 - **Fast Feedback**: Changes to code hot reload instantly in the browser
 - **Full Debugging**: Source maps available for easy browser debugging
@@ -69,7 +69,7 @@ This guide explains how to set up and run the a11yhood frontend in different env
 
 ```bash
 # 1. Backend must be running on port 8000
-curl http://localhost:8000/health  # Should return success
+curl http://localhost:8002/health  # Should return success
 
 # 2. Start development environment
 ./scripts/start-dev.sh
@@ -150,15 +150,19 @@ curl -k https://localhost:8001/health  # Should return success
 
 ```dotenv
 # Frontend URL
-# http://localhost:8000 - Test backend with local database
-VITE_API_URL=http://localhost:8000
+# http://localhost:8002 - Test backend with local database
+VITE_API_URL=http://localhost:8002
 
-# Supabase (used in production only, set to dummy values)
-VITE_SUPABASE_URL=https://ztnxqktwvwlbepflxvzp.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_...
+# Dev auth mode (no Supabase required)
+VITE_DEV_MODE=true
+VITE_DEV_USER=admin
 
 VITE_LOG_LEVEL=debug
 ```
+
+Supabase variables are optional in dev mode and only required for production auth flows.
+
+For test-focused setup, see `env.example.test`.
 
 ### Production (.env.production.local)
 
@@ -188,7 +192,7 @@ kill -9 <PID>
 **Problem**: Backend not responding on port 8000
 ```bash
 # Check if backend is running
-curl http://localhost:8000/health
+curl http://localhost:8002/health
 
 # If not running, start it (outside this repository)
 ```
@@ -196,7 +200,7 @@ curl http://localhost:8000/health
 **Problem**: CORS errors in dev mode
 ```
 This should NOT happen in dev mode due to Vite proxy.
-Check that VITE_API_URL=http://localhost:8000 in .env.local
+Check that VITE_API_URL=http://localhost:8002 in .env.local
 ```
 
 ### Prod Environment
@@ -230,7 +234,7 @@ Browser (https://localhost:5173)
   ↓
 Vite Dev Server Proxy (localhost:5173)
   ↓
-Backend (http://localhost:8000)
+Backend (http://localhost:8002)
   ↓
 Test Database
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = (globalThis as any).__TEST_API_BASE__
 
 describe('User Stats Integration Tests - joined_at and last_active', () => {
   let testUserId: string
@@ -27,7 +27,7 @@ describe('User Stats Integration Tests - joined_at and last_active', () => {
         if (userRes.ok) {
           const user = await userRes.json()
           testUserId = user.id
-          authToken = `dev-token-${testUserId}`
+          authToken = getDevToken(DEV_USERS.user.role)
 
           // Set up the auth token getter for APIService
           setAuthTokenGetter(async () => authToken)

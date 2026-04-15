@@ -1,4 +1,5 @@
 import { beforeAll, describe, it, expect } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
@@ -8,13 +9,14 @@ import { APIService, setAuthTokenGetter } from '@/lib/api'
 
 const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
-  : 'http://localhost:8000/api'
+  : (globalThis as any).__TEST_API_BASE__
 
 const uniqueSuffix = `pagination-a11y-${Date.now()}`
 const searchTerm = uniqueSuffix
 let authToken: string
 
 beforeAll(async () => {
+  if (!(globalThis as any).__BACKEND_AVAILABLE__) return
   // Create a real user in the backend and use dev-token auth with retry logic
   const userId = `${uniqueSuffix}-user`
   let lastError: Error | null = null
@@ -52,11 +54,11 @@ beforeAll(async () => {
     throw lastError || new Error('Failed to create test user after 3 attempts')
   }
 
-  authToken = `dev-token-${user.id}`
+  authToken = `dev-token-${user.role}`
   setAuthTokenGetter(async () => authToken)
 })
 
-describe('Pagination Accessibility (real backend data)', () => {
+describeWithBackend('Pagination Accessibility (real backend data)', () => {
   const renderApp = () =>
     render(
       <BrowserRouter>

@@ -30,57 +30,19 @@
  * ✓ 403 errors → OAuth token may need refresh
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it } from 'vitest'
 
 describe('RavelryScraper', () => {
   // These tests require OAuth setup and should be run manually
   // See header comments for testing instructions
   
   describe('Manual Testing Checklist', () => {
-    it('should verify OAuth configuration before scraping', () => {
-      // Manual test: Verify OAuth is configured in Admin Settings
-      // Expected: Scraper should throw error if not configured
-      expect(true).toBe(true)
-    })
-
-    it('should find both knitting AND crochet patterns', () => {
-      // Manual test: Run scraper and check results
-      // Expected: Products should have mix of type='knitting' and type='crochet'
-      // Known issue: If only one type appears, check API results or category list
-      expect(true).toBe(true)
-    })
-
-    it('should handle 403 errors gracefully and continue', () => {
-      // Manual test: Some patterns may return 403 (permission/paywall)
-      // Expected: Scraper continues with other patterns, doesn't crash
-      expect(true).toBe(true)
-    })
-
-    it('should respect test mode limit of 5 products', () => {
-      // Manual test: Run in test mode
-      // Expected: Should stop after 5 products found
-      expect(true).toBe(true)
-    })
-
-    it('should complete and update status to "success"', () => {
-      // Manual test: After scraping completes
-      // Expected: Debug info shows status='success', endTime set, productsFound > 0
-      // Known issue: If shows "running" forever, Promise may not be resolving
-      expect(true).toBe(true)
-    })
-
-    it('should save all scraped products to database', () => {
-      // Manual test: Check product list after scraping
-      // Expected: All scraped products appear in product list with correct types
-      // Known issue: Check console for "Creating product:" logs
-      expect(true).toBe(true)
-    })
-
-    it('should stop immediately when halt button is clicked', () => {
-      // Manual test: Click "Stop Scraper" during scraping
-      // Expected: Scraper stops within a few seconds, logs show "halted by user"
-      // Fixed: Now checks globalThis.__scraperShouldHalt flag in loops
-      expect(true).toBe(true)
-    })
+    it.todo('manual: verify OAuth configuration before scraping')
+    it.todo('manual: find both knitting and crochet patterns')
+    it.todo('manual: handle 403 errors gracefully and continue')
+    it.todo('manual: respect test mode limit of 5 products')
+    it.todo('manual: complete and update status to success')
+    it.todo('manual: save all scraped products to database')
+    it.todo('manual: stop immediately when halt button is clicked')
   })
 })

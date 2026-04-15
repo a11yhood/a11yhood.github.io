@@ -179,8 +179,8 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
   };
 
   const getAccessToken = async (): Promise<string | null> => {
-    // Return dev token in format backend expects: dev-token-<user_id>
-    const token = getDevToken(devUserFixture.id);
+    // Return dev token in format backend expects: dev-token-<role>
+    const token = getDevToken(devUserFixture.role);
     console.log('[DevAuthProvider] getAccessToken called, returning:', token);
     return token;
   };

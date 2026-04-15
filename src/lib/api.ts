@@ -38,7 +38,7 @@ export function getApiBaseUrl(
 }
 
 // Token getter function set by AuthContext on app load.
-// In dev mode: returns dev-token-<user_id>
+// In dev mode: returns dev-token-<role> (e.g., dev-token-admin)
 // In prod mode: returns Supabase session access token
 let getAuthToken: (() => Promise<string | null>) | null = null
 
@@ -606,7 +606,7 @@ export class APIService {
 
   static async productExistsByUrl(url: string): Promise<{ exists: boolean; product?: Product }> {
     // Use a manual fetch so we can treat 404 as {exists:false} without throwing
-    const endpoint = `/products/exists?url=${encodeURIComponent(url)}`
+    const endpoint = `/products/exists?source_url=${encodeURIComponent(url)}`
     const base = getApiBaseUrl()
     const fullUrl = `${base}/api${endpoint}`
     const token = getAuthToken ? await getAuthToken() : null

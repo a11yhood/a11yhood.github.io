@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeAll } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 import { runAllSeeds } from '../fixtures/test-seeds'
 
-const API_BASE = 'http://localhost:8000/api'
-const adminToken = getDevToken(DEV_USERS.admin.id)
-const userToken = getDevToken(DEV_USERS.user.id)
+const API_BASE = (globalThis as any).__TEST_API_BASE__
+const adminToken = getDevToken(DEV_USERS.admin.role)
+const userToken = getDevToken(DEV_USERS.user.role)
 
-describe('Blog Post Authorization (backend enforced)', () => {
+describeWithBackend('Blog Post Authorization (backend enforced)', () => {
   beforeAll(async () => {
     await runAllSeeds()
   })

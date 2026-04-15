@@ -1,5 +1,7 @@
-import { describe, it, beforeAll, expect, vi } from 'vitest'
+import { it, beforeAll, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { describeWithBackend } from '../helpers/with-backend'
 import type { Product, Rating } from '@/lib/types'
 import { ProductListItem } from '@/components/ProductListItem'
 import { ProductCard } from '@/components/ProductCard'
@@ -51,11 +53,11 @@ async function fetchBackendProducts(): Promise<void> {
   }
 }
 
-describe('Updated timestamp integration (backend)', () => {
+describeWithBackend('Updated timestamp integration (backend)', () => {
   beforeAll(async () => {
     // Register a dev token getter using seeded test user
     // DEV_USERS.admin is seeded in the backend test database
-    setAuthTokenGetter(async () => getDevToken(DEV_USERS.admin.id))
+    setAuthTokenGetter(async () => getDevToken(DEV_USERS.admin.role))
     await fetchBackendProducts()
   })
 
@@ -64,70 +66,50 @@ describe('Updated timestamp integration (backend)', () => {
   })
 
   it('renders Updated in ProductListItem when timestamp exists', () => {
-    if (!productWithUpdated) {
-      console.log('[Test] Skipping ProductListItem test: no product available')
-      expect(true).toBe(true) // Graceful skip
-      return
-    }
+    expect(productWithUpdated, 'No product available for ProductListItem assertion').not.toBeNull()
     const ts = (productWithUpdated as Product).sourceLastUpdated as number | string | undefined
     const fmt = formatRelativeTime(ts)
     console.log('[Test] ProductListItem sourceLastUpdated:', ts, 'formatted:', fmt)
     render(<ProductListItem product={productWithUpdated as Product} ratings={ratings} onClick={vi.fn()} />)
-    // Should render "Updated <time>" if timestamp is valid
-    if (fmt) {
-      const updatedEl = screen.getByText(/Updated/i)
-      expect(updatedEl).toBeInTheDocument()
-    } else {
-      console.log('[Test] Timestamp formatted as empty; skipping render assertion')
-    }
+    expect(fmt).toBeTruthy()
+    const updatedEl = screen.getByText(/Updated/i)
+    expect(updatedEl).toBeInTheDocument()
   })
 
   it('renders Updated in ProductCard when timestamp exists', () => {
-    if (!productWithUpdated) {
-      console.log('[Test] Skipping ProductCard test: no product available')
-      expect(true).toBe(true) // Graceful skip
-      return
-    }
+    expect(productWithUpdated, 'No product available for ProductCard assertion').not.toBeNull()
     const ts = (productWithUpdated as Product).sourceLastUpdated as number | string | undefined
     const fmt = formatRelativeTime(ts)
     console.log('[Test] ProductCard sourceLastUpdated:', ts, 'formatted:', fmt)
     render(<ProductCard product={productWithUpdated as Product} ratings={ratings} onClick={vi.fn()} />)
-    if (fmt) {
-      const updatedEls = screen.getAllByText(/Updated/i)
-      expect(updatedEls.length).toBeGreaterThanOrEqual(1)
-    } else {
-      console.log('[Test] Timestamp formatted as empty; skipping render assertion')
-    }
+    expect(fmt).toBeTruthy()
+    const updatedEls = screen.getAllByText(/Updated/i)
+    expect(updatedEls.length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders Last Updated in ProductDetail when timestamp exists', () => {
-    if (!productWithUpdated) {
-      console.log('[Test] Skipping ProductDetail test: no product available')
-      expect(true).toBe(true) // Graceful skip
-      return
-    }
+    expect(productWithUpdated, 'No product available for ProductDetail assertion').not.toBeNull()
     const ts = (productWithUpdated as Product).sourceLastUpdated as number | string | undefined
     const fmt = formatRelativeTime(ts)
     console.log('[Test] ProductDetail sourceLastUpdated:', ts, 'formatted:', fmt)
     render(
-      <ProductDetail
-        product={productWithUpdated as Product}
-        ratings={ratings}
-        discussions={[]}
-        user={null}
-        userCollections={[]}
-        onBack={vi.fn()}
-        onRate={vi.fn()}
-        onDiscuss={vi.fn()}
-        onAddTag={vi.fn()}
-        allTags={(productWithUpdated as Product).tags || []}
-      />
+      <MemoryRouter>
+        <ProductDetail
+          product={productWithUpdated as Product}
+          ratings={ratings}
+          discussions={[]}
+          user={null}
+          userCollections={[]}
+          onBack={vi.fn()}
+          onRate={vi.fn()}
+          onDiscuss={vi.fn()}
+          onAddTag={vi.fn()}
+          allTags={(productWithUpdated as Product).tags || []}
+        />
+      </MemoryRouter>
     )
-    if (fmt) {
-      const updatedEl = screen.getByText(/Last Updated/i)
-      expect(updatedEl).toBeInTheDocument()
-    } else {
-      console.log('[Test] Timestamp formatted as empty; skipping render assertion')
-    }
+    expect(fmt).toBeTruthy()
+    const updatedEl = screen.getByText(/Last Updated/i)
+    expect(updatedEl).toBeInTheDocument()
   })
 })

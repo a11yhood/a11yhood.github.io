@@ -1,4 +1,5 @@
 import { describe, it, beforeAll, expect, vi } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen } from '@testing-library/react'
 import { ProductListItem } from '@/components/ProductListItem'
 import type { Product, Rating } from '@/lib/types'
@@ -6,10 +7,11 @@ import { createMockProduct, createMockRating } from '../helpers/create-mocks'
 
 let product: Product | null = null
 let ratings: Rating[] = []
+const API_BASE = (globalThis as any).__TEST_API_BASE__
 
 async function fetchBackendProduct(): Promise<void> {
   try {
-    const resp = await fetch('http://localhost:8000/api/products?limit=1')
+    const resp = await fetch(`${API_BASE}/products?limit=1`)
     if (resp.ok) {
       const items = await resp.json()
       if (items && items.length > 0) {
@@ -29,7 +31,7 @@ async function fetchBackendProduct(): Promise<void> {
           imageUrl: p.image_url ?? p.imageUrl,
           imageAlt: p.name,
         }
-        const r = await fetch(`http://localhost:8000/api/products/${product.id}/ratings`)
+        const r = await fetch(`${API_BASE}/products/${product.id}/ratings`)
         if (r.ok) {
           const raw = await r.json()
           ratings = raw.map((x: any) => ({
@@ -59,7 +61,7 @@ function getRatings(pid: string): Rating[] {
       ]
 }
 
-describe('ProductListItem - Integration', () => {
+describeWithBackend('ProductListItem - Integration', () => {
   beforeAll(async () => {
     await fetchBackendProduct()
   })

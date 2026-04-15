@@ -6,6 +6,7 @@
  * - Screen reader announcements
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor } from '@testing-library/react'
 import { BrowserRouter, MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
@@ -188,15 +189,13 @@ describe('Empty State Status Announcements', () => {
   })
 })
 
-// Requires a running backend — set TEST_BACKEND_URL=http://localhost:8000 to enable
-const describeWithBackend = import.meta.env.TEST_BACKEND_URL ? describe : describe.skip
 describeWithBackend('Loading State Accessibility', () => {
   let testUserId: string
   let productId: string
 
   beforeAll(async () => {
     testUserId = DEV_USERS.user.id
-    APIService.setAuthTokenGetter(async () => getDevToken(testUserId))
+    APIService.setAuthTokenGetter(async () => getDevToken(DEV_USERS.user.role))
     
     // Create a test product
     const product = await APIService.createProduct({

@@ -42,16 +42,38 @@ export function getDevUser(userKey: string) {
 }
 
 /**
- * Get dev token for a user ID.
- * Format: dev-token-<user_id>
+ * Get dev token for a role.
+ * Format: dev-token-<role>
+ * Backend maps role → user from seeded test database.
  */
-export function getDevToken(userId: string): string {
-  return `dev-token-${userId}`
+export function getDevToken(roleOrUserId: string): string {
+  // Support both old UUID-based calls (from tests) and new role-based calls
+  // If it's a known role name, use it directly; otherwise treat as legacy UUID
+  const ROLE_NAMES = ['admin', 'moderator', 'user']
+  const role = ROLE_NAMES.includes(roleOrUserId.toLowerCase()) 
+    ? roleOrUserId.toLowerCase()
+    : extractRoleFromUserId(roleOrUserId)
+  
+  return `dev-token-${role}`
 }
 
 /**
- * Verify a dev token and extract user ID.
- * Returns user ID if valid dev token, null otherwise.
+ * Extract role from a user ID by looking it up in DEV_USERS.
+ * Used for backward compatibility with tests that pass user IDs.
+ */
+function extractRoleFromUserId(userId: string): string {
+  for (const [role, user] of Object.entries(DEV_USERS)) {
+    if (user.id === userId) {
+      return role
+    }
+  }
+  // Fallback: if not found, assume it was already a role name
+  return userId.toLowerCase()
+}
+
+/**
+ * Verify a dev token and extract role.
+ * Returns role if valid dev token, null otherwise.
  */
 export function parseDevToken(token: string): string | null {
   if (token && token.startsWith('dev-token-')) {

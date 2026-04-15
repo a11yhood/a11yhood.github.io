@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { ReactElement } from 'react'
@@ -7,6 +8,7 @@ import { ProductSubmission } from '@/components/ProductSubmission'
 import { ScraperService } from '@/lib/scrapers'
 import { toast } from 'sonner'
 import { APIService } from '@/lib/api'
+import { getDevToken } from '@/lib/dev-users'
 import type { Product, UserData } from '@/lib/types'
 
 // Mock sonner toast notifications
@@ -63,17 +65,17 @@ const normalizeTestUrl = (url: string) => {
 
 const render = (ui: ReactElement) => rtlRender(<MemoryRouter>{ui}</MemoryRouter>)
 
-describe('ProductSubmission', () => {
+describeWithBackend('ProductSubmission', () => {
   const mockOnSubmit = vi.fn()
   const mockOnRequestOwnership = vi.fn()
   let originalFetch: typeof fetch
-  const API_BASE = 'http://localhost:8000'
+  const API_BASE = (globalThis as any).__TEST_BACKEND_BASE__
   let currentUser = mockUser
 
   // Helper to switch auth context to a different user
   const switchUser = (user: UserData) => {
     currentUser = user
-    APIService.setAuthTokenGetter(async () => `dev-token-${user.id}`)
+    APIService.setAuthTokenGetter(async () => getDevToken(DEV_USERS.user.role))
   }
 
   beforeEach(async () => {
@@ -116,7 +118,7 @@ describe('ProductSubmission', () => {
 
     // Default auth context and users
     currentUser = mockUser
-    APIService.setAuthTokenGetter(async () => `dev-token-${currentUser.id}`)
+    APIService.setAuthTokenGetter(async () => getDevToken(DEV_USERS.user.role))
   })
 
   afterEach(async () => {

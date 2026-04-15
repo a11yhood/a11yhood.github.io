@@ -1,4 +1,5 @@
 import { beforeAll, afterAll, describe, it, expect } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
@@ -7,8 +8,9 @@ import { APIService } from '@/lib/api'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 import type { UserData, UserAccount } from '@/lib/types'
 
-describe('ProfileEdit Accessibility Tests (Story 1.3)', () => {
+describeWithBackend('ProfileEdit Accessibility Tests (Story 1.3)', () => {
   const testUserId = DEV_USERS.user.id
+  const testRole = DEV_USERS.user.role
   let testUser: UserData
   let testAccount: UserAccount
 
@@ -17,7 +19,7 @@ describe('ProfileEdit Accessibility Tests (Story 1.3)', () => {
   }
 
   beforeAll(async () => {
-    APIService.setAuthTokenGetter(async () => getDevToken(testUserId))
+    APIService.setAuthTokenGetter(async () => getDevToken(testRole))
 
     testUser = {
       id: testUserId,

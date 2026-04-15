@@ -2,18 +2,31 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Please check your .env.local file.');
+function missingSupabaseConfigError(): never {
+  throw new Error(
+    'Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to use production auth flows.'
+  );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,  // Enable persistence so session survives OAuth redirects
-    detectSessionInUrl: true,
-  },
-});
+export const supabase = hasSupabaseConfig
+  ? createClient(supabaseUrl!, supabaseAnonKey!, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,  // Enable persistence so session survives OAuth redirects
+        detectSessionInUrl: true,
+      },
+    })
+  : ({
+      auth: {
+        getUser: async () => missingSupabaseConfigError(),
+        getSession: async () => missingSupabaseConfigError(),
+        signInWithOAuth: async () => missingSupabaseConfigError(),
+        signOut: async () => missingSupabaseConfigError(),
+        onAuthStateChange: () => missingSupabaseConfigError(),
+      },
+    } as any);
 
 // Helper to get current user
 export const getCurrentUser = async () => {

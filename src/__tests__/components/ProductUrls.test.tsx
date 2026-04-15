@@ -1,13 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ProductUrls } from '../../components/ProductUrls'
 import { APIService } from '../../lib/api'
+import { getDevToken } from '../../lib/dev-users'
 import { getValidProductType } from '../testData'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = (globalThis as any).__TEST_API_BASE__
 
-describe('ProductUrls Integration Tests', () => {
+describeWithBackend('ProductUrls Integration Tests', () => {
   let testProductId: string
   let testUserId: string
   let authHeader: { Authorization: string }
@@ -58,7 +60,7 @@ describe('ProductUrls Integration Tests', () => {
     }
 
     testUserId = user.id
-    authHeader = { Authorization: `dev-token-${testUserId}` }
+    authHeader = { Authorization: getDevToken(testUserId) }
     APIService.setAuthTokenGetter(async () => authHeader.Authorization)
 
     // Create test product using APIService (handles snake_case conversion)

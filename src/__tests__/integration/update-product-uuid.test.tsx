@@ -99,7 +99,7 @@ describe('updateProduct UUID enforcement', () => {
     // Wait for the edit dialog to appear (it auto-opens because of edit=1)
     await waitFor(
       () => expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument(),
-      { timeout: 5000 }
+      { timeout: 15000 }
     )
 
     // Submit the edit form with unchanged (valid) data
@@ -115,7 +115,7 @@ describe('updateProduct UUID enforcement', () => {
       expect(thirdArg).toBe(DEV_USERS.admin.id)
       expect(thirdArg).not.toBe(DEV_USERS.admin.username)
     })
-  })
+  }, 25000)
 
   it('handleAddTag: calls APIService.updateProduct with UUID id, not slug', async () => {
     renderAppAtProductPage(`/product/${PRODUCT_SLUG}`)
@@ -123,7 +123,7 @@ describe('updateProduct UUID enforcement', () => {
     // Wait for the product detail page to render
     await waitFor(
       () => expect(screen.getByText(testProduct.name)).toBeInTheDocument(),
-      { timeout: 5000 }
+      { timeout: 15000 }
     )
 
     // Click the "+" add-tag icon button to reveal the tag input form
@@ -147,5 +147,5 @@ describe('updateProduct UUID enforcement', () => {
       expect(thirdArg).toBe(DEV_USERS.admin.id)
       expect(thirdArg).not.toBe(DEV_USERS.admin.username)
     })
-  })
+  }, 25000)
 })

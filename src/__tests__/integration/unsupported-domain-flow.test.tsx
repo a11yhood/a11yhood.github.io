@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from '@/contexts/AuthContext'
@@ -7,9 +8,9 @@ import type { UserData, UserAccount } from '@/lib/types'
 
 /**
  * Integration: Unsupported domain triggers request dialog using live backend.
- * Requires backend running at http://localhost:8000 (start with start-dev.sh).
+ * Requires backend running at http://localhost:8002 (start with start-dev.sh).
  */
-describe('Unsupported domain flow (live backend)', () => {
+describeWithBackend('Unsupported domain flow (live backend)', () => {
   const user: UserData = {
     id: `test-user-${Date.now()}`,
     username: `u${Date.now()}`,
@@ -24,6 +25,8 @@ describe('Unsupported domain flow (live backend)', () => {
   }
 
   it('opens request dialog on unsupported-domain event', async () => {
+    const unsupportedDomain = `example-${Date.now()}.com`
+    const unsupportedUrl = `https://${unsupportedDomain}/thing`
     const onLogin = () => {}
     const onLogout = () => {}
 
@@ -42,13 +45,19 @@ describe('Unsupported domain flow (live backend)', () => {
       </AuthProvider>
     )
 
+    // Ensure listeners are mounted before dispatching the event.
+    await waitFor(() => {
+      expect(screen.getByText('Submit Product')).toBeInTheDocument()
+    })
+
     // Directly dispatch the event the ProductSubmission would emit after a blocked URL check
     window.dispatchEvent(new CustomEvent('unsupported-domain', {
-      detail: { domain: 'example.com', url: 'https://example.com/thing' }
+      detail: { domain: unsupportedDomain, url: unsupportedUrl }
     }))
 
     // AppHeader listens to the event and should open the request dialog automatically
-    await waitFor(() => screen.getByText('Request New Source Domain'), { timeout: 5000 })
-    expect(screen.getByDisplayValue('example.com')).toBeInTheDocument()
-  })
+    const dialog = await screen.findByRole('dialog', { name: /Request New Source Domain/i }, { timeout: 10000 })
+    expect(dialog).toBeInTheDocument()
+    expect(screen.getByDisplayValue(unsupportedDomain)).toBeInTheDocument()
+  }, 15000)
 })

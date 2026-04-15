@@ -1,4 +1,5 @@
 import { beforeAll, describe, it, expect, vi } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { StarRating } from '@/components/StarRating'
 import { APIError, APIService } from '@/lib/api'
@@ -6,6 +7,7 @@ import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 import type { Rating } from '@/lib/types'
 
 const testUserId = DEV_USERS.user.id
+const testRole = DEV_USERS.user.role
 const productUrl = `https://github.com/test/a11y-star-${Date.now()}`
 const defaultSeedRating = 4
 let productId: string
@@ -42,7 +44,7 @@ const ensureRating = async (value = defaultSeedRating) => {
 }
 
 beforeAll(async () => {
-  APIService.setAuthTokenGetter(async () => getDevToken(testUserId))
+  APIService.setAuthTokenGetter(async () => getDevToken(testRole))
 
   const product = await APIService.createProduct({
     name: 'Star Rating Target',
@@ -56,7 +58,7 @@ beforeAll(async () => {
   await ensureRating()
 })
 
-describe('StarRating Accessibility Tests', () => {
+describeWithBackend('StarRating Accessibility Tests', () => {
   it('should have proper ARIA attributes for interactive rating', () => {
     render(<StarRating value={0} onChange={vi.fn()} />)
 

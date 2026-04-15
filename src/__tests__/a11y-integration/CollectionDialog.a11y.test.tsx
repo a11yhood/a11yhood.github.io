@@ -1,4 +1,5 @@
 import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CreateCollectionDialog } from '@/components/CreateCollectionDialog'
@@ -7,14 +8,15 @@ import { APIService } from '@/lib/api'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 import type { Collection } from '@/lib/types'
 
-describe('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', () => {
+describeWithBackend('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', () => {
   const testUserId = DEV_USERS.user.id
+  const testRole = DEV_USERS.user.role
   const testUsername = DEV_USERS.user.username
   let testProductSlug: string
   let testCollections: Collection[] = []
 
   beforeAll(async () => {
-    APIService.setAuthTokenGetter(async () => getDevToken(testUserId))
+    APIService.setAuthTokenGetter(async () => getDevToken(testRole))
 
     // Create a test product
     const product = await APIService.createProduct({

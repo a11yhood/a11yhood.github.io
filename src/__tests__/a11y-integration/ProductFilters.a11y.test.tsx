@@ -1,4 +1,5 @@
 import { beforeAll, describe, it, expect, vi } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ProductFilters } from '@/components/ProductFilters'
 import { APIService } from '@/lib/api'
@@ -7,10 +8,10 @@ import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 let typesFromApi: string[] = []
 let tagsFromApi: string[] = []
 let sourcesFromApi: string[] = []
-const testUserId = DEV_USERS.user.id
+const testRole = DEV_USERS.user.role
 
 beforeAll(async () => {
-  APIService.setAuthTokenGetter(async () => getDevToken(testUserId))
+  APIService.setAuthTokenGetter(async () => getDevToken(testRole))
 
   // Seed a couple of products to derive real types/tags
   const products = await Promise.all([
@@ -35,7 +36,7 @@ beforeAll(async () => {
   sourcesFromApi = Array.from(new Set(products.map((p) => p.source).filter(Boolean)))
 })
 
-describe('ProductFilters Accessibility Tests', () => {
+describeWithBackend('ProductFilters Accessibility Tests', () => {
   it('should have proper heading hierarchy', () => {
     render(
       <ProductFilters

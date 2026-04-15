@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route, useNavigate, useParams } from 'react-router-dom'
@@ -8,7 +9,7 @@ import { APIService } from '@/lib/api'
 import { getValidProductType } from '../testData'
 import type { Product, UserAccount, UserData } from '@/lib/types'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = (globalThis as any).__TEST_API_BASE__
 
 let userAccount: UserAccount
 let userData: UserData
@@ -50,7 +51,7 @@ async function createTestUser(): Promise<void> {
     avatarUrl: userAccount.avatarUrl,
   }
 
-  authHeader = { Authorization: `dev-token-${userAccount.id}` }
+  authHeader = { Authorization: getDevToken(userAccount.role) }
   APIService.setAuthTokenGetter(async () => authHeader.Authorization)
         return // Success
       }
@@ -104,7 +105,7 @@ async function deleteOwnedProduct(): Promise<void> {
   }).catch(() => undefined)
 }
 
-describe('UserProfile owned products navigation', () => {
+describeWithBackend('UserProfile owned products navigation', () => {
   beforeAll(async () => {
     await createTestUser()
     await createOwnedProduct()

@@ -1,16 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ProductSubmission } from '@/components/ProductSubmission'
 import { APIService } from '@/lib/api'
+import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 import type { UserData } from '@/lib/types'
 
 describe('ProductSubmission Accessibility Tests', () => {
   // Use dev-token based users (no API calls needed in beforeEach)
   const testUser: UserData = {
-    id: `test-a11y-user-${Date.now()}`,
-    username: `testuser${Date.now()}`,
+    id: DEV_USERS.user.id,
+    username: DEV_USERS.user.username,
     avatarUrl: 'https://example.com/avatar.jpg',
   }
 
@@ -21,7 +23,7 @@ describe('ProductSubmission Accessibility Tests', () => {
 
   beforeEach(async () => {
     // Set auth token getter for dev mode
-    APIService.setAuthTokenGetter(async () => `dev-token-${testUser.id}`)
+    APIService.setAuthTokenGetter(async () => getDevToken(DEV_USERS.user.role))
     vi.clearAllMocks()
   })
 
@@ -64,8 +66,6 @@ describe('ProductSubmission Accessibility Tests', () => {
     })
   })
 
-  // Requires a running backend — set TEST_BACKEND_URL=http://localhost:8000 to enable
-  const describeWithBackend = import.meta.env.TEST_BACKEND_URL ? describe : describe.skip
   describeWithBackend('Form Labels and Accessibility (Story 3.1)', () => {
     beforeEach(async () => {
       renderWithRouter(<ProductSubmission user={testUser} onSubmit={vi.fn()} />)

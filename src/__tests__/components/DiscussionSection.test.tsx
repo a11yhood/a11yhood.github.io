@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DiscussionSection } from '@/components/DiscussionSection'
@@ -10,7 +11,7 @@ import type { Discussion, UserData } from '@/lib/types'
 
 type TestUser = UserData & { token: string }
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = (globalThis as any).__TEST_API_BASE__
 
 // Use existing seeded dev users instead of creating new ones
 function getTestUser(role: 'admin' | 'moderator' | 'user'): TestUser {
@@ -19,7 +20,7 @@ function getTestUser(role: 'admin' | 'moderator' | 'user'): TestUser {
     id: devUser.id,
     username: devUser.username,
     avatarUrl: undefined,
-    token: getDevToken(devUser.id),
+    token: getDevToken(devUser.role),
   }
 }
 
@@ -80,7 +81,7 @@ const DiscussionHarness = ({ productId, user }: { productId: string; user: TestU
   )
 }
 
-describe('DiscussionSection Integration Tests (live API)', () => {
+describeWithBackend('DiscussionSection Integration Tests (live API)', () => {
   let owner: TestUser
   let helper: TestUser
   let productId: string

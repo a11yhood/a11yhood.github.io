@@ -1,4 +1,5 @@
 import { describe, it, beforeAll, expect, vi } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen } from '@testing-library/react'
 import { ProductDetail } from '@/components/ProductDetail'
 import type { Product, Rating, Discussion } from '@/lib/types'
@@ -7,10 +8,11 @@ import { createMockProduct, createMockRating, createMockDiscussion } from '../he
 let product: Product | null = null
 let ratings: Rating[] = []
 let discussions: Discussion[] = []
+const API_BASE = (globalThis as any).__TEST_API_BASE__
 
 async function fetchBackendData(): Promise<void> {
   try {
-    const resp = await fetch('http://localhost:8000/api/products?limit=1')
+    const resp = await fetch(`${API_BASE}/products?limit=1`)
     if (resp.ok) {
       const items = await resp.json()
       if (items && items.length > 0) {
@@ -30,7 +32,7 @@ async function fetchBackendData(): Promise<void> {
           imageUrl: p.image_url ?? p.imageUrl,
           imageAlt: p.name,
         }
-        const r = await fetch(`http://localhost:8000/api/products/${product.id}/ratings`)
+        const r = await fetch(`${API_BASE}/products/${product.id}/ratings`)
         if (r.ok) {
           const raw = await r.json()
           ratings = raw.map((x: any) => ({
@@ -40,7 +42,7 @@ async function fetchBackendData(): Promise<void> {
             createdAt: (x.created_at ?? x.createdAt) ? new Date(x.created_at ?? x.createdAt).getTime() : Date.now(),
           }))
         }
-        const ds = await fetch(`http://localhost:8000/api/products/${product.id}/discussions`)
+        const ds = await fetch(`${API_BASE}/products/${product.id}/discussions`)
         if (ds.ok) {
           const raw = await ds.json()
           discussions = raw.map((x: any) => ({
@@ -76,7 +78,7 @@ function getDiscussions(pid: string): Discussion[] {
   return discussions.length > 0 ? discussions : []
 }
 
-describe('ProductDetail - Integration', () => {
+describeWithBackend('ProductDetail - Integration', () => {
   beforeAll(async () => {
     await fetchBackendData()
   })

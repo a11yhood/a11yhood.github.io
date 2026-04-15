@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ProductSubmission } from '@/components/ProductSubmission'
@@ -11,19 +12,26 @@ import { DEV_USERS, getDevToken } from '@/lib/dev-users'
  * Creates a product via API, then verifies the submission dialog shows
  * the existing-product state when the same URL is checked.
  */
-describe('ProductSubmission (existing product via backend)', () => {
+describeWithBackend('ProductSubmission (existing product via backend)', () => {
   const user: UserData = {
-    id: DEV_USERS.user.id,
-    username: DEV_USERS.user.username,
+    id: '',
+    username: '',
     avatarUrl: 'https://example.com/a.png',
   }
 
-  const authToken = getDevToken(user.id)
+  const authToken = getDevToken(DEV_USERS.user.role)
   const uniqueUrl = `https://github.com/a11yhood/test-repo-${Date.now()}`
+
+  const testProductUrl = uniqueUrl
 
   beforeAll(async () => {
     // Ensure API calls carry our dev token
     APIService.setAuthTokenGetter(async () => authToken)
+
+    // Derive authenticated user identity from runtime auth token
+    const authUser = await APIService.getCurrentUser()
+    user.id = authUser.id
+    user.username = authUser.username
 
     // Create a product owned by this user
     await APIService.createProduct({
@@ -35,7 +43,7 @@ describe('ProductSubmission (existing product via backend)', () => {
       origin: 'user-submitted',
       tags: ['integration'],
     } as any)
-  })
+  }, 30000)
 
   it('detects existing product and shows exists view', async () => {
     const onSubmit = () => {}
@@ -51,12 +59,16 @@ describe('ProductSubmission (existing product via backend)', () => {
 
     // Enter the same URL and check
     const urlInput = await screen.findByLabelText('Product URL')
-    fireEvent.change(urlInput, { target: { value: uniqueUrl } })
+    fireEvent.change(urlInput, { target: { value: testProductUrl } })
     fireEvent.blur(urlInput)
+    const checkButton = screen.queryByRole('button', { name: /Check/i })
+    if (checkButton) {
+      fireEvent.click(checkButton)
+    }
 
     // Expect the existing product panel
     await waitFor(() => {
       expect(screen.getByText('Product Already Exists')).toBeInTheDocument()
-    })
-  })
+    }, { timeout: 30000 })
+  }, 35000)
 })

@@ -458,7 +458,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  {user && existingProduct.ownerIds?.includes(user.id) ? (
+                  {user && existingProduct.editorIds?.includes(user.id) ? (
                     <Button size="sm" onClick={() => handleNavigateToProduct(existingProduct.slug, { edit: true })}>
                       Edit product
                     </Button>
