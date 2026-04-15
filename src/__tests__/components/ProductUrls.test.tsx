@@ -60,7 +60,7 @@ describeWithBackend('ProductUrls Integration Tests', () => {
     }
 
     testUserId = user.id
-    authHeader = { Authorization: getDevToken(testUserId) }
+    authHeader = { Authorization: getDevToken(user.role) }
     APIService.setAuthTokenGetter(async () => authHeader.Authorization)
 
     // Create test product using APIService (handles snake_case conversion)
