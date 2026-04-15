@@ -1,5 +1,8 @@
 import { DEV_USERS, getDevToken } from '../lib/dev-users'
 
+/** Milliseconds to wait for backend health check before considering it unavailable. */
+const HEALTH_CHECK_TIMEOUT_MS = 3000
+
 function shouldResetDevDbForRun(argv: string[]): boolean {
   // Ignore the first entries (node + vitest binary path)
   const args = argv.slice(2).map(arg => arg.replace(/\\/g, '/').replace(/\/$/, ''))
@@ -21,24 +24,25 @@ function shouldResetDevDbForRun(argv: string[]): boolean {
  * helpers/with-backend.ts, which skips the suite when the flag is false.
  */
 export async function setup() {
-  const backendUrl = (
+  const backendBase = (
     process.env.TEST_BACKEND_URL ||
     process.env.VITE_API_URL ||
     'http://localhost:8002'
   ).replace(/\/$/, '')
 
   // Local HTTPS backends often use self-signed certs in dev.
-  // Relax TLS verification only for localhost test targets.
-  if (/^https:\/\/localhost(?::\d+)?$/i.test(backendUrl)) {
+  // Relax TLS verification only when targeting localhost.
+  if (/^https:\/\/localhost(?::\d+)?$/i.test(backendBase)) {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
   }
 
   let backendAvailable = false
+  const healthUrl = `${backendBase}/health`
   try {
     const controller = new AbortController()
-    const tid = setTimeout(() => controller.abort(), 3000)
-    const res = await fetch(`${backendUrl}/health`, { signal: controller.signal })
-    clearTimeout(tid)
+    const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS)
+    const res = await fetch(healthUrl, { signal: controller.signal })
+    clearTimeout(timeout)
     backendAvailable = res.ok
   } catch {
     // backend not reachable — backendAvailable stays false
@@ -48,7 +52,7 @@ export async function setup() {
 
   if (backendAvailable && shouldResetDevDbForRun(process.argv)) {
     const adminToken = getDevToken(DEV_USERS.admin.role)
-    const resetRes = await fetch(`${backendUrl}/api/dev/reset`, {
+    const resetRes = await fetch(`${backendBase}/api/dev/reset`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${adminToken}`,
@@ -67,7 +71,7 @@ export async function setup() {
     console.warn(
       '\n' +
       '┌──────────────────────────────────────────────────────────────┐\n' +
-      `│  ⚠️  Backend not available at ${backendUrl}\n` +
+      `│  ⚠️  Backend not available at ${backendBase}\n` +
       '│  Integration and security tests will be skipped.\n' +
       '│  ▶ Start the backend and re-run to include all tests.\n' +
       '│  ▶ Unit tests only:  CI=true npm run test:run\n' +

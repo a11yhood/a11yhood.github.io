@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckCircle, X, FloppyDisk, Eye, Image as ImageIcon, Trash, UserPlus } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { renderMarkdown } from '@/lib/markdown'
+import { toIsoTimestamp } from '@/lib/utils'
 
 type BlogPostEditorProps = {
   post?: BlogPost
@@ -164,7 +165,7 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
     try {
       let savedPost: BlogPost
       
-      const parsedPublishDate = publishDate ? new Date(publishDate).getTime() : undefined
+      const parsedPublishDate = publishDate ? toIsoTimestamp(publishDate) : undefined
 
       if (post) {
         // Update existing post
@@ -178,7 +179,7 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
           tags: tags.split(',').map(t => t.trim()).filter(t => t),
           published,
           featured,
-          publishedAt: published && !post.published ? Date.now() : post.publishedAt,
+          publishedAt: published && !post.published ? new Date().toISOString() : post.publishedAt,
           authorNames,
           publishDate: parsedPublishDate,
         })
@@ -203,7 +204,7 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
           authorId,
           authorName: authorNames[0],
           authorNames,
-          publishedAt: published ? Date.now() : undefined,
+          publishedAt: published ? new Date().toISOString() : undefined,
           publishDate: parsedPublishDate,
         })
       }

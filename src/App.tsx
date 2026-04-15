@@ -2506,13 +2506,13 @@ function App() {
           userId: user.id,
           productId: savedRating.productId,
           type: 'rating',
-          timestamp: Date.now(),
+          timestamp: new Date().toISOString(),
         })
         APIService.logUserActivity({
           userId: user.id,
           type: 'rating',
           productId: savedRating.productId,
-          timestamp: Date.now(),
+          timestamp: new Date().toISOString(),
           metadata: { rating },
         }).catch(err => {
           console.error('[handleRate] Failed to log rating activity:', err)
@@ -2566,7 +2566,7 @@ function App() {
           userId: user.id,
           type: 'discussion',
           productId: newDiscussion.productId,
-          timestamp: Date.now(),
+          timestamp: new Date().toISOString(),
           metadata: { parentId },
         }).catch(err => console.warn('Failed to log discussion activity:', err))
       }
@@ -2694,7 +2694,7 @@ function App() {
               userId: user.id,
               type: 'tag',
               productId: product.id,
-              timestamp: Date.now(),
+              timestamp: new Date().toISOString(),
               metadata: { tag: normalizedTag },
             }).catch(err => console.warn('Failed to log tag activity:', err))
           }
@@ -2878,7 +2878,7 @@ function App() {
             userId: user.id,
             type: 'product_submit',
             productId: updatedProduct.id,
-            timestamp: Date.now(),
+            timestamp: new Date().toISOString(),
             metadata: { action: 'edit' },
           })
         } catch (activityError) {

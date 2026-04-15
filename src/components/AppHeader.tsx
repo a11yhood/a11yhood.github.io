@@ -166,7 +166,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                       userId: user.id,
                       type: 'product_submit',
                       productId: newProduct.id,
-                      timestamp: Date.now(),
+                      timestamp: new Date().toISOString(),
                     })
                     toast.success('Product submitted successfully! You are now an editor of this product.')
                     onProductCreated?.()

@@ -117,7 +117,7 @@ export type UserActivity = {
   userId: string
   type: 'product_submit' | 'rating' | 'discussion' | 'tag'
   productId?: string
-  timestamp: number
+  timestamp: string
   metadata?: Record<string, any>
 }
 
@@ -156,13 +156,13 @@ export type BlogPost = {
   authorName: string // Display name of the primary author
   authorIds?: string[] // User IDs of all authors (includes primary author)
   authorNames?: string[] // Display names of all authors (includes primary author)
-  createdAt: number // Timestamp when created
-  updatedAt: number // Timestamp of last edit
-  publishDate?: number // Custom publication date (for backdating posts)
+  createdAt: string // ISO 8601 timestamp when created
+  updatedAt: string // ISO 8601 timestamp of last edit
+  publishDate?: string // ISO 8601 custom publication date (for backdating posts)
   
   // Publishing
   published: boolean // Whether the post is visible to users
-  publishedAt?: number // Timestamp when published
+  publishedAt?: string // ISO 8601 timestamp when published
   
   // Organization
   tags?: string[] // Topic tags for categorization

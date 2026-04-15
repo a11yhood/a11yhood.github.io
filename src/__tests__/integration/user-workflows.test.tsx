@@ -94,7 +94,7 @@ describeWithBackend('Product Submission Workflow', () => {
       userId: testUserId,
       type: 'product_submit',
       productId: testProductId,
-      timestamp: Date.now(),
+      timestamp: new Date().toISOString(),
     }
 
     const result = await APIService.logUserActivity(activity)
@@ -123,7 +123,7 @@ describeWithBackend('Product Rating Workflow', () => {
       userId: testUserId,
       type: 'rating',
       productId: testProductId,
-      timestamp: Date.now(),
+      timestamp: new Date().toISOString(),
       metadata: { rating },
     }
 
@@ -176,7 +176,7 @@ describeWithBackend('Discussion Participation Workflow', () => {
       userId: testUserId,
       type: 'discussion',
       productId: testProductId,
-      timestamp: Date.now(),
+      timestamp: new Date().toISOString(),
       metadata: { parentId: 'parent-123' },
     }
 
@@ -196,7 +196,7 @@ describeWithBackend('Activity Logging', () => {
       userId: testUserId,
       type: 'product_submit',
       productId: testProductId,
-      timestamp: Date.now(),
+      timestamp: new Date().toISOString(),
     })
 
     const activities = await APIService.getUserActivities(testUserId)
@@ -217,7 +217,7 @@ describeWithBackend('Activity Logging', () => {
         userId: testUserId,
         type,
         productId: testProductId,
-        timestamp: Date.now(),
+        timestamp: new Date().toISOString(),
       }
 
       const result = await APIService.logUserActivity(activity)
@@ -353,7 +353,7 @@ describeWithBackend('Error Handling in Workflows', () => {
       userId: 'non-existent-user',
       type: 'rating',
       productId: testProductId,
-      timestamp: Date.now(),
+      timestamp: new Date().toISOString(),
     }
 
     await expect(APIService.logUserActivity(activity)).rejects.toBeInstanceOf(APIError)

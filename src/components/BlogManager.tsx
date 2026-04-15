@@ -52,7 +52,7 @@ export function BlogManager({ onCreateNew, onEditPost, userAccount, onPostsUpdat
     try {
       const updated = await APIService.updateBlogPost(post.id, {
         published: !post.published,
-        publishedAt: !post.published ? Date.now() : undefined,
+        publishedAt: !post.published ? new Date().toISOString() : undefined,
       })
 
       if (updated) {
