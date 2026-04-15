@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { describeWithBackend } from '../helpers/with-backend'
 import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { ReactElement } from 'react'
@@ -8,7 +7,7 @@ import { ProductSubmission } from '@/components/ProductSubmission'
 import { ScraperService } from '@/lib/scrapers'
 import { toast } from 'sonner'
 import { APIService } from '@/lib/api'
-import { getDevToken } from '@/lib/dev-users'
+import { getDevToken, DEV_USERS } from '@/lib/dev-users'
 import type { Product, UserData } from '@/lib/types'
 
 // Mock sonner toast notifications
@@ -65,7 +64,7 @@ const normalizeTestUrl = (url: string) => {
 
 const render = (ui: ReactElement) => rtlRender(<MemoryRouter>{ui}</MemoryRouter>)
 
-describeWithBackend('ProductSubmission', () => {
+describe('ProductSubmission', () => {
   const mockOnSubmit = vi.fn()
   const mockOnRequestOwnership = vi.fn()
   let originalFetch: typeof fetch

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
+import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 
 const API_BASE = (globalThis as any).__TEST_API_BASE__
 
