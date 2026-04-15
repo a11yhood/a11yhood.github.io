@@ -134,7 +134,7 @@ npm run test:coverage
 npm run test:ui
 
 # Run integration tests against local or other backend
-TEST_BACKEND_URL=https:backend-url npm run test:integration
+TEST_BACKEND_URL=https://backend-url npm run test:integration
 ```
 
 Notes:
