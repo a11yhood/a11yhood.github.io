@@ -34,7 +34,7 @@ export function BlogPostList({ posts, isLoading = false, onSelectPost, showReadM
   const sortedPosts = [...posts].sort((a, b) => {
     const dateA = a.publishDate || a.publishedAt || a.createdAt
     const dateB = b.publishDate || b.publishedAt || b.createdAt
-    return dateB - dateA
+    return Date.parse(dateB) - Date.parse(dateA)
   })
 
   const featuredPosts = sortedPosts.filter(p => p.featured)

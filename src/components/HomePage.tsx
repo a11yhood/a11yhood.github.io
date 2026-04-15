@@ -51,7 +51,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
       .sort((a, b) => {
         const dateA = a.publishDate || a.publishedAt || a.createdAt
         const dateB = b.publishDate || b.publishedAt || b.createdAt
-        return dateB - dateA
+        return Date.parse(dateB) - Date.parse(dateA)
       })
       .slice(0, NEWS_POST_LIMIT)
   }, [normalizedBlogPosts])

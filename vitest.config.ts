@@ -7,6 +7,7 @@ export default defineConfig({
   test: {
     globals: false,
     environment: 'jsdom',
+    globalSetup: './src/__tests__/globalSetup.ts',
     setupFiles: './src/__tests__/setup.ts',
     // In CI, only run pure unit tests (no backend dependencies)
     include: process.env.CI 
@@ -14,6 +15,7 @@ export default defineConfig({
           '**/__tests__/helpers/**/*.test.{ts,tsx}',
           '**/__tests__/types/**/*.test.{ts,tsx}',
           '**/__tests__/lib/api.base-url.test.ts',
+          '**/__tests__/lib/api.timestamp-validation.test.ts',
           '**/__tests__/lib/source-ratings.test.ts',
           '**/__tests__/lib/normalize-image-url.test.ts',
           '**/__tests__/components/PublicProfile.test.tsx',

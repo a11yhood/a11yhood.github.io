@@ -106,6 +106,41 @@ export function calculateAverageRating(
   return 0
 }
 
+export function toIsoTimestamp(timestamp?: number | string | Date | null): string | undefined {
+  if (timestamp === null || timestamp === undefined) return undefined
+
+  let date: Date
+
+  if (timestamp instanceof Date) {
+    date = timestamp
+  } else if (typeof timestamp === 'string') {
+    const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(timestamp)
+
+    if (dateOnlyMatch) {
+      const year = Number(dateOnlyMatch[1])
+      const monthIndex = Number(dateOnlyMatch[2]) - 1
+      const day = Number(dateOnlyMatch[3])
+
+      date = new Date(year, monthIndex, day)
+
+      if (
+        date.getFullYear() !== year ||
+        date.getMonth() !== monthIndex ||
+        date.getDate() !== day
+      ) {
+        return undefined
+      }
+    } else {
+      date = new Date(timestamp)
+    }
+  } else {
+    date = new Date(timestamp)
+  }
+  if (Number.isNaN(date.getTime())) return undefined
+
+  return date.toISOString()
+}
+
 /**
  * Format a timestamp as a relative time string (e.g., "last week", "2 months ago").
  * 
