@@ -1,3 +1,6 @@
+/** Milliseconds to wait for the backend health check before assuming it is unavailable. */
+const HEALTH_CHECK_TIMEOUT_MS = 3000
+
 /**
  * Vitest global setup – runs once before any test files are collected.
  *
@@ -17,7 +20,7 @@ export async function setup() {
 
   try {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 3000)
+    const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS)
 
     const response = await fetch(healthUrl, { signal: controller.signal })
     clearTimeout(timeout)

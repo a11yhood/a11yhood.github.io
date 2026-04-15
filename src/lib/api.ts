@@ -96,8 +96,8 @@ function isLegacyNumericTimestamp(value: unknown): boolean {
   return typeof value === 'number' || (typeof value === 'string' && /^\d+$/.test(value.trim()))
 }
 
-// Strict ISO 8601 datetime pattern: YYYY-MM-DDTHH:MM:SS[.sss][Z|±HH:MM]
-const ISO_8601_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})$/
+// Strict ISO 8601 datetime pattern: YYYY-MM-DDTHH:MM:SS[.sss][Z|±HH:MM|±HHMM]
+const ISO_8601_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}|[+-]\d{4})$/
 
 function assertIsoTimestamp(value: unknown, fieldName: string, context: string): string {
   // Detect digit-only strings (e.g. "1713182400000") as legacy numeric timestamps
