@@ -482,11 +482,11 @@ export class APIService {
   ): T {
     const validatedPayload = { ...payload }
 
-    if ('publishDate' in validatedPayload && validatedPayload.publishDate !== undefined) {
+    if ('publishDate' in validatedPayload && validatedPayload.publishDate != null) {
       validatedPayload.publishDate = assertIsoTimestamp(validatedPayload.publishDate, 'publishDate', 'Blog post payload') as T['publishDate']
     }
 
-    if ('publishedAt' in validatedPayload && validatedPayload.publishedAt !== undefined) {
+    if ('publishedAt' in validatedPayload && validatedPayload.publishedAt != null) {
       validatedPayload.publishedAt = assertIsoTimestamp(validatedPayload.publishedAt, 'publishedAt', 'Blog post payload') as T['publishedAt']
     }
 
@@ -505,8 +505,8 @@ export class APIService {
       ...post,
       createdAt: assertIsoTimestamp(post.createdAt, 'createdAt', context),
       updatedAt: assertIsoTimestamp(post.updatedAt, 'updatedAt', context),
-      publishDate: post.publishDate === undefined ? undefined : assertIsoTimestamp(post.publishDate, 'publishDate', context),
-      publishedAt: post.publishedAt === undefined ? undefined : assertIsoTimestamp(post.publishedAt, 'publishedAt', context),
+      publishDate: post.publishDate == null ? post.publishDate : assertIsoTimestamp(post.publishDate, 'publishDate', context),
+      publishedAt: post.publishedAt == null ? post.publishedAt : assertIsoTimestamp(post.publishedAt, 'publishedAt', context),
     }
   }
 
