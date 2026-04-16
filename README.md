@@ -214,11 +214,7 @@ Products are automatically scraped from:
 The site is hosted on GitHub Pages. Production deploys are gated behind a version
 tag — merging to `main` alone does **not** deploy:
 
-```bash
-git tag v1.2.3 && git push origin v1.2.3
-```
-
-Every pull request also gets a live preview at `https://a11yhood.org/pr-preview/<PR#>/`,
+Every pull request gets a live preview at `https://a11yhood.org/pr-preview/<PR#>/`,
 automatically deployed and cleaned up by CI.
 
 See [DEPLOY.md](DEPLOY.md) for the full release process, PR preview details, and
@@ -231,6 +227,9 @@ We welcome contributions! Please:
 2. Create a feature branch
 3. Make your changes with tests
 4. Submit a pull request
+
+For contribution norms, review expectations, and release conventions across A11yhood,
+see the community guide: [Community CONTRIBUTING.md](https://github.com/a11yhood/community/blob/main/CONTRIBUTING.md).
 
 ## Partners and Funders
 
