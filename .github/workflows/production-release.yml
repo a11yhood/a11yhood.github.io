@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Production Release
 
 on:
   # Only deploy production when a version tag is pushed (e.g. v1.2.3).
