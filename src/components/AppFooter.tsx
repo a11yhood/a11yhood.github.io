@@ -94,13 +94,13 @@ export function AppFooter() {
                 GOAT
               </a>
             </div>
-            <p
-              className="mt-3 text-xs text-muted-foreground"
-              aria-label={`Application version ${appVersion}`}
-            >
-              Version {appVersion}
-            </p>
           </nav>
+          <p
+            className="mt-3 text-xs text-muted-foreground"
+            aria-label={`Application version ${appVersion}`}
+          >
+            Version {appVersion}
+          </p>
         </div>
       </div>
     </footer>
