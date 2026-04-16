@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
@@ -11,15 +12,15 @@ import { DEV_USERS, getDevToken } from '@/lib/dev-users'
  * Integration: Tests tag entry functionality with comma-separated values
  * and Enter key submission using the actual backend.
  */
-describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
+describeWithBackend('ProductSubmission - Tag Entry (Backend Integration)', () => {
   const user: UserData = {
     id: DEV_USERS.user.id,
     username: DEV_USERS.user.username,
     avatarUrl: 'https://example.com/a.png',
   }
 
-  const authToken = getDevToken(user.id)
-  const uniqueUrl = `https://github.com/test/tag-test-${Date.now()}`
+  const authToken = getDevToken(DEV_USERS.user.role)
+  const uniqueUrl = `https://github.com/nonexistent-a11yhood-repo-${Date.now()}/project`
 
   beforeAll(async () => {
     // Ensure API calls use dev token
@@ -39,10 +40,8 @@ describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
     fireEvent.change(urlInput, { target: { value: testUrl } })
     fireEvent.click(screen.getByText('Check'))
 
-    // Wait for manual form to appear
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Product Name/i)).toBeInTheDocument()
-    })
+    // Wait for manual form to appear; backend URL checks can be slow when full suite runs.
+    await screen.findByLabelText(/Product Name/i, {}, { timeout: 30000 })
   }
 
   it('should add a single tag when Enter is pressed', async () => {
@@ -64,7 +63,7 @@ describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
 
     // Verify input is cleared after adding
     expect(tagInput).toHaveValue('')
-  })
+  }, 30000)
 
   it('should add multiple comma-separated tags when Enter is pressed', async () => {
     render(
@@ -73,7 +72,7 @@ describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
       </BrowserRouter>
     )
 
-    await openFormWithUrl(`https://github.com/test/multi-tag-${Date.now()}`)
+    await openFormWithUrl(`https://github.com/nonexistent-a11yhood-repo-${Date.now()}/multi-tag`)
 
     const tagInput = screen.getByPlaceholderText(/Add tags/i)
     fireEvent.change(tagInput, { target: { value: 'grip, eating utensils, dexterity' } })
@@ -87,7 +86,7 @@ describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
 
     // Verify input is cleared after adding
     expect(tagInput).toHaveValue('')
-  })
+  }, 30000)
 
   it('should add comma-separated tags when Add button is clicked', async () => {
     render(
@@ -96,7 +95,7 @@ describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
       </BrowserRouter>
     )
 
-    await openFormWithUrl(`https://github.com/test/button-tag-${Date.now()}`)
+    await openFormWithUrl(`https://github.com/nonexistent-a11yhood-repo-${Date.now()}/button-tag`)
 
     const tagInput = screen.getByPlaceholderText(/Add tags/i)
     fireEvent.change(tagInput, { target: { value: 'rubber tubing, forks' } })
@@ -109,7 +108,7 @@ describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
 
     // Verify input is cleared after adding
     expect(tagInput).toHaveValue('')
-  })
+  }, 30000)
 
   it('should not add duplicate tags from comma-separated input', async () => {
     render(
@@ -118,7 +117,7 @@ describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
       </BrowserRouter>
     )
 
-    await openFormWithUrl(`https://github.com/test/dup-tag-${Date.now()}`)
+    await openFormWithUrl(`https://github.com/nonexistent-a11yhood-repo-${Date.now()}/dup-tag`)
 
     const tagInput = screen.getByPlaceholderText(/Add tags/i)
 
@@ -141,7 +140,7 @@ describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
     // Should still only have one "grip" remove button
     const removeGripButtons = screen.getAllByRole('button', { name: /Remove grip tag/i })
     expect(removeGripButtons).toHaveLength(1)
-  })
+  }, 30000)
 
   it('should trim whitespace from comma-separated tags', async () => {
     render(
@@ -150,7 +149,7 @@ describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
       </BrowserRouter>
     )
 
-    await openFormWithUrl(`https://github.com/test/trim-tag-${Date.now()}`)
+    await openFormWithUrl(`https://github.com/nonexistent-a11yhood-repo-${Date.now()}/trim-tag`)
 
     const tagInput = screen.getByPlaceholderText(/Add tags/i)
     fireEvent.change(tagInput, { target: { value: '  grip  ,  eating utensils  ,  dexterity  ' } })
@@ -161,7 +160,7 @@ describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
       expect(screen.getByText('eating utensils')).toBeInTheDocument()
       expect(screen.getByText('dexterity')).toBeInTheDocument()
     })
-  })
+  }, 30000)
 
   it('should save tags when submitting a new product', async () => {
     const user = userEvent.setup()
@@ -184,17 +183,15 @@ describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
       </BrowserRouter>
     )
 
-    const testUrl = `https://github.com/test/save-tags-${Date.now()}`
+    const testUrl = `https://github.com/nonexistent-a11yhood-repo-${Date.now()}/save-tags`
     fireEvent.click(screen.getByText('Submit Product'))
     
     const urlInput = await screen.findByLabelText('Product URL')
     fireEvent.change(urlInput, { target: { value: testUrl } })
     fireEvent.click(screen.getByText('Check'))
 
-    // Wait for manual form to appear
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Product Name/i)).toBeInTheDocument()
-    })
+    // Wait for manual form to appear; backend URL checks can be slow when full suite runs.
+    await screen.findByLabelText(/Product Name/i, {}, { timeout: 30000 })
 
     // Fill required fields first
     const nameInput = screen.getByLabelText(/Product Name/i)
@@ -230,5 +227,5 @@ describe('ProductSubmission - Tag Entry (Backend Integration)', () => {
 
     expect(submittedProduct?.tags).toEqual(['grip', 'eating utensils', 'dexterity'])
     expect(submittedProduct?.name).toBe('Test Product with Tags')
-  })
+  }, 45000)
 })

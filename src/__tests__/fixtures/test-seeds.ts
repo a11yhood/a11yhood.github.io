@@ -9,7 +9,7 @@
 
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = (globalThis as any).__TEST_API_BASE__
 
 /**
  * Ensure dev users exist in the database.
@@ -49,36 +49,32 @@ export async function seedSupportedSources(): Promise<void> {
     {
       name: 'GitHub',
       domain: 'github.com',
-      scraper_type: 'github_repo',
-      is_active: true,
+      description: 'GitHub repositories and projects',
     },
     {
       name: 'Ravelry',
       domain: 'ravelry.com',
-      scraper_type: 'ravelry_pattern',
-      is_active: true,
+      description: 'Ravelry patterns and projects',
     },
     {
       name: 'Thingiverse',
       domain: 'thingiverse.com',
-      scraper_type: 'thingiverse_thing',
-      is_active: true,
+      description: 'Thingiverse models and designs',
     },
     {
       name: 'AbleData',
       domain: 'abledata.acl.gov',
-      scraper_type: 'abledata',
-      is_active: true,
+      description: 'AbleData assistive technology resources',
     },
   ]
 
   // Use admin token for seeding
-  const adminToken = getDevToken(DEV_USERS.admin.id)
+  const adminToken = getDevToken(DEV_USERS.admin.role)
 
   for (const source of sources) {
     try {
       // Check if source already exists
-      const checkRes = await fetch(`${API_BASE}/sources/supported`, {
+      const checkRes = await fetch(`${API_BASE}/supported-sources`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`,
         },
@@ -97,7 +93,7 @@ export async function seedSupportedSources(): Promise<void> {
       }
 
       // Create source if it doesn't exist
-      const createRes = await fetch(`${API_BASE}/sources`, {
+      const createRes = await fetch(`${API_BASE}/supported-sources`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

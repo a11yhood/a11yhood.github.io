@@ -35,7 +35,11 @@ export function BlogPostDraftPage({ userAccount }: BlogPostDraftPageProps) {
         setPost(fetchedPost)
         setIsLoading(false)
       })
-      .catch(() => {
+      .catch((fetchError) => {
+        console.warn('[BlogPostDraftPage] Failed to load draft post', {
+          postId: id,
+          error: fetchError,
+        })
         setError('Failed to load draft post')
         setIsLoading(false)
       })

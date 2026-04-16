@@ -5,20 +5,20 @@
  * rejects dangerous URLs that could lead to XSS or SSRF attacks.
  */
 import { describe, it, expect, beforeAll } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 import { runAllSeeds } from '../fixtures/test-seeds'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = (globalThis as any).__TEST_API_BASE__
 
-const testUserId = DEV_USERS.user.id
-const authToken = getDevToken(testUserId)
+const authToken = getDevToken(DEV_USERS.user.role)
 
 const authHeaders = {
   'Content-Type': 'application/json',
   'Authorization': `Bearer ${authToken}`,
 }
 
-describe('Backend URL Validation Security', () => {
+describeWithBackend('Backend URL Validation Security', () => {
   beforeAll(async () => {
     await runAllSeeds()
   })
@@ -32,7 +32,7 @@ describe('Backend URL Validation Security', () => {
           name: 'XSS Test Product',
           description: 'Testing javascript: URL rejection',
           source_url: 'javascript:alert(1)',
-          source: 'manual',
+          source: 'user-submitted',
           type: 'Other',
         }),
       })
@@ -49,7 +49,7 @@ describe('Backend URL Validation Security', () => {
           name: 'Data URL Test',
           description: 'Testing data: URL rejection',
           source_url: 'data:text/html,<script>alert(1)</script>',
-          source: 'manual',
+          source: 'user-submitted',
           type: 'Other',
         }),
       })
@@ -65,7 +65,7 @@ describe('Backend URL Validation Security', () => {
           name: 'File URL Test',
           description: 'Testing file: URL rejection',
           source_url: 'file:///etc/passwd',
-          source: 'manual',
+          source: 'user-submitted',
           type: 'Other',
         }),
       })
@@ -83,7 +83,7 @@ describe('Backend URL Validation Security', () => {
           name: 'Invalid URL Test',
           description: 'Testing invalid URL rejection',
           source_url: 'not-a-valid-url',
-          source: 'manual',
+          source: 'user-submitted',
           type: 'Other',
         }),
       })
@@ -99,7 +99,7 @@ describe('Backend URL Validation Security', () => {
           name: 'Empty URL Test',
           description: 'Testing empty URL rejection',
           source_url: '',
-          source: 'manual',
+          source: 'user-submitted',
           type: 'Other',
         }),
       })
@@ -117,7 +117,7 @@ describe('Backend URL Validation Security', () => {
           name: 'Valid HTTPS Product',
           description: 'Testing valid https URL acceptance',
           source_url: 'https://github.com/user/repo',
-          source: 'manual',
+          source: 'user-submitted',
           type: 'Software',
         }),
       })
@@ -131,10 +131,10 @@ describe('Backend URL Validation Security', () => {
         headers: authHeaders,
         body: JSON.stringify({
           name: 'Valid HTTP Product',
-          description: 'Testing valid http URL acceptance',
-          source_url: 'http://example.com/product',
-          source: 'manual',
-          type: 'Other',
+          description: 'Testing valid http URL acceptance for supported domains',
+          source_url: 'http://github.com/user/repo',
+          source: 'user-submitted',
+          type: 'Software',
         }),
       })
 
@@ -151,9 +151,9 @@ describe('Backend URL Validation Security', () => {
         body: JSON.stringify({
           name: 'URL Link Test Product',
           description: 'For testing additional URL validation',
-          source_url: 'https://example.com/product',
-          source: 'manual',
-          type: 'Other',
+          source_url: `https://github.com/user/url-link-test-${Date.now()}`,
+          source: 'user-submitted',
+          type: 'Software',
         }),
       })
 
@@ -181,9 +181,9 @@ describe('Backend URL Validation Security', () => {
         body: JSON.stringify({
           name: 'URL Link Valid Test',
           description: 'For testing valid additional URLs',
-          source_url: 'https://example.com/product',
-          source: 'manual',
-          type: 'Other',
+          source_url: `https://github.com/user/url-link-valid-${Date.now()}`,
+          source: 'user-submitted',
+          type: 'Software',
         }),
       })
 

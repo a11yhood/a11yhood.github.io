@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
@@ -34,10 +34,11 @@ export function AboutPage() {
   }, [])
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-10">
+    // Rendered inside App's <main> landmark — use div to avoid nested <main> elements
+    <div className="max-w-4xl mx-auto px-4 py-10">
       <Card>
         <CardHeader>
-          <CardTitle>About a11yhood</CardTitle>
+          <h1 className="text-xl leading-none font-semibold">About a11yhood</h1>
         </CardHeader>
         <CardContent>
           {isLoading && (
@@ -54,6 +55,6 @@ export function AboutPage() {
           )}
         </CardContent>
       </Card>
-    </main>
+    </div>
   )
 }

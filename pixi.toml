@@ -27,14 +27,41 @@ depends-on = ["install-pages"]
 [tasks.build-vite]
 description = "build the vite website for production"
 cmd = "npx vite build"
-depends-on = ["install-node"]
+depends-on = ["install-dev"]
 # outputs = ["_site/**/*"]
+
+[tasks.test]
+description = "run vitest unit tests"
+cmd = "npm run test:run"
+depends-on = ["install-dev"]
+
+[tasks.build-ghpages]
+description = "build the production gh-pages bundle"
+cmd = "VITE_BASE_URL=/ npm run build"
+
+depends-on = ["install-dev"]
+
+[tasks.test-deploy-local]
+description = "simulate production deployment merge into gh-pages and validate assets"
+depends-on = ["build-ghpages"]
+cmd = "./scripts/test-deploy-local.sh"
 
 [tasks.install-node]
 description = "install node and npm dependencies"
-cmd = "npm install"
+cmd = "npm ci && npm install --no-save @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu"
 inputs = ["package.json"]
 outputs = ["package-lock.json"]
+
+[tasks.install-dev]
+description = "install node and npm dependencies for local development"
+cmd = "npm ci"
+inputs = ["package.json"]
+outputs = ["package-lock.json"]
+
+[tasks.dev]
+description = "start frontend dev server connected to local backend (default port 8002, override via VITE_API_URL in .env.local)"
+cmd = "npm run dev"
+depends-on = ["install-dev"]
 
 [dependencies]
 # ruby = ">=3.4.8,<4"

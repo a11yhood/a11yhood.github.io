@@ -21,23 +21,44 @@ if (!('ResizeObserver' in globalThis)) {
 // Mock fetch globally for KV operations
 const kvStore = new Map()
 
+const resolvedBackendBase = (process.env.TEST_BACKEND_URL || process.env.VITE_API_URL || 'http://localhost:8002').replace(/\/$/, '')
+;(globalThis as any).__TEST_BACKEND_BASE__ = resolvedBackendBase
+;(globalThis as any).__TEST_API_BASE__ = `${resolvedBackendBase}/api`
+
+// Local HTTPS test backends may use self-signed certs.
+// Relax TLS verification only when targeting localhost.
+if (/^https:\/\/localhost(?::\d+)?$/i.test(resolvedBackendBase)) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+}
+
+// Set by globalSetup.ts after health-checking the backend.
+// Defaults to true so tests still run when globalSetup is bypassed.
+;(globalThis as any).__BACKEND_AVAILABLE__ = process.env.VITEST_BACKEND_AVAILABLE !== '0'
+
 beforeAll(() => {
   const originalFetch = global.fetch
-  
+  const backendBase = (globalThis as any).__TEST_BACKEND_BASE__ as string
+  const backendOrigin = new URL(backendBase).origin
+
   global.fetch = vi.fn(async (url, options) => {
     const method = options?.method || 'GET'
     const urlStr = url as string
     
     // Rewrite relative /api requests to backend base URL for integration tests
     if (urlStr.startsWith('/api/')) {
-      const backendBase = process.env.VITE_API_URL || 'http://localhost:8000'
       const abs = `${backendBase}${urlStr}`
       return originalFetch(abs, options as any)
     }
 
     // Allow absolute calls to backend to pass through untouched
-    if (urlStr.startsWith('http://localhost:8000') || urlStr.startsWith('https://localhost:8000')) {
-      return originalFetch(url as any, options as any)
+    if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+      try {
+        if (new URL(urlStr).origin === backendOrigin) {
+          return originalFetch(url as any, options as any)
+        }
+      } catch {
+        // Ignore parse failures; non-backend absolute URLs are handled below.
+      }
     }
     
     // Handle POST to base URL (keys listing)

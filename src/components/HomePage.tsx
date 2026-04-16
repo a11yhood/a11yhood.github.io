@@ -28,14 +28,17 @@ type HomePageProps = {
 export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRate }: HomePageProps) {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
+  const normalizedProducts = Array.isArray(products) ? products : []
+  const normalizedBlogPosts = Array.isArray(blogPosts) ? blogPosts : []
+
   const randomProducts = useMemo(() => {
-    if (products.length === 0) {
+    if (normalizedProducts.length === 0) {
       return Array.from({ length: RANDOM_PRODUCT_COUNT }, () => null)
     }
 
-    const selected = selectFeaturedRandomProducts(products, RANDOM_PRODUCT_COUNT)
+    const selected = selectFeaturedRandomProducts(normalizedProducts, RANDOM_PRODUCT_COUNT)
     return selected
-  }, [products])
+  }, [normalizedProducts])
 
   const visibleRandomProducts = useMemo(
     () => randomProducts.filter((product): product is Product => product !== null),
@@ -43,15 +46,15 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
   )
 
   const recentBlogPosts = useMemo(() => {
-    return blogPosts
+    return normalizedBlogPosts
       .filter(post => post.published)
       .sort((a, b) => {
         const dateA = a.publishDate || a.publishedAt || a.createdAt
         const dateB = b.publishDate || b.publishedAt || b.createdAt
-        return dateB - dateA
+        return Date.parse(dateB) - Date.parse(dateA)
       })
       .slice(0, NEWS_POST_LIMIT)
-  }, [blogPosts])
+  }, [normalizedBlogPosts])
 
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault()

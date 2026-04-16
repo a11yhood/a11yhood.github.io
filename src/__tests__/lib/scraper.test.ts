@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { ScraperService } from '@/lib/scrapers'
 import type { Product } from '@/lib/types'
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000'
+const BACKEND_URL = (globalThis as any).__TEST_BACKEND_BASE__
 
 let backendProducts: Product[] = []
 
@@ -40,7 +41,7 @@ function requireProducts(): Product[] {
   return backendProducts
 }
 
-describe('ScraperService', () => {
+describeWithBackend('ScraperService', () => {
   beforeAll(async () => {
     await fetchBackendProducts()
   })

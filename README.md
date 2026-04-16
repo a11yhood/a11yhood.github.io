@@ -69,6 +69,7 @@ brew install pixi
 
 ```bash
 # Official installer
+# Works for Linux/Mac only 
 curl -fsSL https://pixi.sh/install.sh | bash
 ```
 
@@ -88,14 +89,25 @@ pixi --version
 
 2. **Install Node + npm dependencies via Pixi**
    ```bash
-   pixi run install-node
+   pixi shell
+   npm install
    ```
 
 3. **Set up environment variables**
 
-   Create a `.env.local` file (and/or `.env.production.local` for production):
+   Minimal `.env.local` for local development:
+   ```env
+   VITE_DEV_MODE=true
+   VITE_DEV_USER=admin
+   ```
 
-   See `env.example` for all available configuration options.
+   Production auth flows require Supabase values:
+   ```env
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+   See `env.example` and `env.example.test` for full configuration options.
 
 4. **Start the development server**
    ```bash
@@ -107,18 +119,27 @@ pixi --version
 ### Running Tests
 
 ```bash
+pixi shell
+
 # Run tests in watch mode
-pixi run npm test
+npm test
 
 # Run tests once
-pixi run npm run test:run
+npm run test:run
 
 # Run tests with coverage
-pixi run npm run test:coverage
+npm run test:coverage
 
 # Run tests with UI
-pixi run npm run test:ui
+npm run test:ui
+
+# Run integration tests against local or other backend
+TEST_BACKEND_URL=https://backend-url npm run test:integration
 ```
+
+Notes:
+- Unit tests can run without Supabase variables.
+- Integration tests require a running backend and valid dev auth mode (`VITE_DEV_MODE=true`).
 
 ### Building for Production
 
@@ -128,6 +149,31 @@ pixi run npm run build
 
 # Preview the production build
 pixi run npm run preview
+```
+
+### Using Pixi
+
+Use Pixi to provide the project runtime, then run npm commands inside that environment.
+
+```bash
+# Enter the Pixi environment
+pixi shell
+
+# Development (hot reload)
+npm run dev
+# or
+./scripts/start-dev.sh
+
+# Full production build (recommended: includes tests and type checking)
+npm run build
+
+# Bundle-only Vite build via Pixi task
+# Note: this skips tests and TypeScript type checking
+pixi run build-vite
+# Production preview
+npm run preview
+# or
+./scripts/start-prod.sh
 ```
 
 ## Development

@@ -1,4 +1,5 @@
 import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen } from '@testing-library/react'
 import { ProductCard } from '@/components/ProductCard'
 import { APIService } from '@/lib/api'
@@ -7,9 +8,10 @@ import type { Product, Rating, UserAccount } from '@/lib/types'
 
 // Uses real API data (dev-token) per Agent Guide accessibility testing requirements.
 
-describe('ProductCard Accessibility Tests', () => {
+describeWithBackend('ProductCard Accessibility Tests', () => {
   const testUserId = DEV_USERS.user.id
-  const adminUserId = DEV_USERS.admin.id
+  const testRole = DEV_USERS.user.role
+  const adminRole = DEV_USERS.admin.role
   const productSourceUrl = `https://github.com/test/a11y-product-${Date.now()}`
 
   let product: Product
@@ -19,9 +21,9 @@ describe('ProductCard Accessibility Tests', () => {
 
   beforeAll(async () => {
     // Create test users
-    APIService.setAuthTokenGetter(async () => getDevToken(testUserId))
+    APIService.setAuthTokenGetter(async () => getDevToken(testRole))
     adminAccount = {
-      id: adminUserId,
+      id: DEV_USERS.admin.id,
       username: DEV_USERS.admin.username,
       avatarUrl: 'https://example.com/avatar-admin.jpg',
       role: 'admin',
@@ -47,7 +49,7 @@ describe('ProductCard Accessibility Tests', () => {
 
     // Create ratings from two users
     ratings = []
-    APIService.setAuthTokenGetter(async () => getDevToken(testUserId))
+    APIService.setAuthTokenGetter(async () => getDevToken(testRole))
     ratings.push(
       await APIService.createRating({
         productId: product.id,
@@ -57,18 +59,18 @@ describe('ProductCard Accessibility Tests', () => {
       })
     )
 
-    APIService.setAuthTokenGetter(async () => getDevToken(adminUserId))
+    APIService.setAuthTokenGetter(async () => getDevToken(adminRole))
     ratings.push(
       await APIService.createRating({
         productId: product.id,
-        userId: adminUserId,
+        userId: DEV_USERS.admin.id,
         rating: 5,
         createdAt: Date.now(),
       })
     )
 
     // Default auth back to regular user for render flows
-    APIService.setAuthTokenGetter(async () => getDevToken(testUserId))
+    APIService.setAuthTokenGetter(async () => getDevToken(testRole))
   })
 
   afterAll(async () => {

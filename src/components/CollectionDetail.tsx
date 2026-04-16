@@ -1,6 +1,6 @@
 import { Collection, Product, Rating, UserAccount } from '@/lib/types'
 import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Card, CardHeader, CardDescription, CardContent } from '@/components/ui/card'
 import { ArrowLeft, Lock, LockOpen, Trash, Pencil } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductFilterTag } from '@/components/ProductFilterTag'
@@ -175,8 +175,12 @@ export function CollectionDetail({
         if (cancelled) return
         setResolvedCreatorUsername(user?.username || '')
       })
-      .catch(() => {
+      .catch((error) => {
         if (cancelled) return
+        console.warn('[CollectionDetail] Failed to resolve creator username', {
+          userId: collection.userId,
+          error,
+        })
         setResolvedCreatorUsername('')
       })
 
@@ -185,7 +189,7 @@ export function CollectionDetail({
 
   return (
     <div>
-      <Button variant="ghost" onClick={onBack} className="mb-6">
+      <Button variant="outline" onClick={onBack} className="mb-6">
         <ArrowLeft size={18} className="mr-2" />
         Back to Collections
       </Button>
@@ -194,7 +198,8 @@ export function CollectionDetail({
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <CardTitle className="text-2xl mb-2">{collection.name}</CardTitle>
+              {/* h1 satisfies WCAG page-has-heading-one; CardTitle renders as div and would not count */}
+              <h1 className="leading-none font-semibold text-2xl mb-2">{collection.name}</h1>
               <div className="flex items-center gap-3">
                 <CardDescription className="flex items-center gap-2">
                   {collection.isPublic ? (

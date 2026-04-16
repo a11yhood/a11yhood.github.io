@@ -38,7 +38,7 @@ export function getApiBaseUrl(
 }
 
 // Token getter function set by AuthContext on app load.
-// In dev mode: returns dev-token-<user_id>
+// In dev mode: returns dev-token-<role> (e.g., dev-token-admin)
 // In prod mode: returns Supabase session access token
 let getAuthToken: (() => Promise<string | null>) | null = null
 
@@ -90,6 +90,63 @@ class APIError extends Error {
     super(message)
     this.name = 'APIError'
   }
+}
+
+function isLegacyNumericTimestamp(value: unknown): boolean {
+  return typeof value === 'number' || (typeof value === 'string' && /^\d+$/.test(value.trim()))
+}
+
+// Strict ISO 8601 datetime pattern: YYYY-MM-DDTHH:MM:SS[.sss][Z|±HH:MM|±HHMM]
+const ISO_8601_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}|[+-]\d{4})$/
+
+function assertIsoTimestamp(value: unknown, fieldName: string, context: string): string {
+  // Detect digit-only strings (e.g. "1713182400000") as legacy numeric timestamps
+  // before the typeof check, so they get the LegacyTimestampError type consistently
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+    throw new APIError(`${context} uses a legacy numeric timestamp for ${fieldName}. Use an ISO 8601 string instead.`, 400, {
+      field: fieldName,
+      value,
+      type: 'LegacyTimestampError',
+    })
+  }
+
+  if (typeof value !== 'string') {
+    if (isLegacyNumericTimestamp(value)) {
+      throw new APIError(`${context} uses a legacy numeric timestamp for ${fieldName}. Use an ISO 8601 string instead.`, 400, {
+        field: fieldName,
+        value,
+        type: 'LegacyTimestampError',
+      })
+    }
+
+    throw new APIError(`${context} requires ${fieldName} to be an ISO 8601 string.`, 400, {
+      field: fieldName,
+      value,
+      type: 'InvalidTimestampError',
+    })
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    throw new APIError(`${context} requires ${fieldName} to be a non-empty ISO 8601 string.`, 400, {
+      field: fieldName,
+      value,
+      type: 'InvalidTimestampError',
+    })
+  }
+
+  // Strict ISO 8601 check: regex match + round-trip validation to reject
+  // non-ISO formats that Date.parse() would otherwise accept (e.g. "April 15, 2026")
+  const parsed = new Date(trimmed)
+  if (!ISO_8601_RE.test(trimmed) || Number.isNaN(parsed.getTime())) {
+    throw new APIError(`${context} requires ${fieldName} to be an ISO 8601 string.`, 400, {
+      field: fieldName,
+      value,
+      type: 'InvalidTimestampError',
+    })
+  }
+
+  return trimmed
 }
 
 /**
@@ -376,15 +433,53 @@ export class APIService {
     })
   }
 
+  private static validateBlogPostPayload<T extends Partial<Pick<BlogPost, 'publishDate' | 'publishedAt'>>>(
+    payload: T
+  ): T {
+    const validatedPayload = { ...payload }
+
+    if ('publishDate' in validatedPayload && validatedPayload.publishDate !== undefined) {
+      validatedPayload.publishDate = assertIsoTimestamp(validatedPayload.publishDate, 'publishDate', 'Blog post payload') as T['publishDate']
+    }
+
+    if ('publishedAt' in validatedPayload && validatedPayload.publishedAt !== undefined) {
+      validatedPayload.publishedAt = assertIsoTimestamp(validatedPayload.publishedAt, 'publishedAt', 'Blog post payload') as T['publishedAt']
+    }
+
+    return validatedPayload
+  }
+
+  private static validateActivity(activity: UserActivity, context: string): UserActivity {
+    return {
+      ...activity,
+      timestamp: assertIsoTimestamp(activity.timestamp, 'timestamp', context),
+    }
+  }
+
+  private static validateBlogPostResponse(post: BlogPost, context: string): BlogPost {
+    return {
+      ...post,
+      createdAt: assertIsoTimestamp(post.createdAt, 'createdAt', context),
+      updatedAt: assertIsoTimestamp(post.updatedAt, 'updatedAt', context),
+      publishDate: post.publishDate === undefined ? undefined : assertIsoTimestamp(post.publishDate, 'publishDate', context),
+      publishedAt: post.publishedAt === undefined ? undefined : assertIsoTimestamp(post.publishedAt, 'publishedAt', context),
+    }
+  }
+
   static async logUserActivity(activity: UserActivity): Promise<UserActivity> {
-    return request<UserActivity>('/activities', {
+    const validatedActivity = APIService.validateActivity(activity, 'Activity payload')
+
+    const result = await request<UserActivity>('/activities', {
       method: 'POST',
-      body: JSON.stringify(activity),
+      body: JSON.stringify(validatedActivity),
     })
+
+    return APIService.validateActivity(result, 'Activity response')
   }
 
   static async getUserActivities(username: string, limit = 50): Promise<UserActivity[]> {
-    return request<UserActivity[]>(`/activities?username=${encodeURIComponent(username)}&limit=${limit}`)
+    const result = await request<UserActivity[]>(`/activities?username=${encodeURIComponent(username)}&limit=${limit}`)
+    return result.map((activity) => APIService.validateActivity(activity, 'Activity response'))
   }
 
   static async getUserStats(username: string): Promise<{
@@ -606,7 +701,7 @@ export class APIService {
 
   static async productExistsByUrl(url: string): Promise<{ exists: boolean; product?: Product }> {
     // Use a manual fetch so we can treat 404 as {exists:false} without throwing
-    const endpoint = `/products/exists?url=${encodeURIComponent(url)}`
+    const endpoint = `/products/exists?source_url=${encodeURIComponent(url)}`
     const base = getApiBaseUrl()
     const fullUrl = `${base}/api${endpoint}`
     const token = getAuthToken ? await getAuthToken() : null
@@ -1067,32 +1162,39 @@ export class APIService {
     })
   }
   static async getAllBlogPosts(includeUnpublished = false): Promise<BlogPost[]> {
-    return request<BlogPost[]>(`/blog-posts?includeUnpublished=${includeUnpublished}`)
+    const result = await request<BlogPost[]>(`/blog-posts?includeUnpublished=${includeUnpublished}`)
+    return result.map((post) => APIService.validateBlogPostResponse(post, 'Blog post response'))
   }
 
   static async getBlogPost(postId: string): Promise<BlogPost | null> {
-    return request<BlogPost | null>(`/blog-posts/${postId}`)
+    const result = await request<BlogPost | null>(`/blog-posts/${postId}`)
+    return result ? APIService.validateBlogPostResponse(result, 'Blog post response') : null
   }
 
   static async getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
-    return request<BlogPost | null>(`/blog-posts/slug/${slug}`)
+    const result = await request<BlogPost | null>(`/blog-posts/slug/${slug}`)
+    return result ? APIService.validateBlogPostResponse(result, 'Blog post response') : null
   }
 
   static async createBlogPost(post: Omit<BlogPost, 'id' | 'createdAt' | 'updatedAt'>): Promise<BlogPost> {
-    return request<BlogPost>('/blog-posts', {
+    const result = await request<BlogPost>('/blog-posts', {
       method: 'POST',
-      body: JSON.stringify(post),
+      body: JSON.stringify(APIService.validateBlogPostPayload(post)),
     })
+
+    return APIService.validateBlogPostResponse(result, 'Blog post response')
   }
 
   static async updateBlogPost(
     postId: string,
     updates: Partial<Omit<BlogPost, 'id' | 'createdAt'>>
   ): Promise<BlogPost | null> {
-    return request<BlogPost | null>(`/blog-posts/${postId}`, {
+    const result = await request<BlogPost | null>(`/blog-posts/${postId}`, {
       method: 'PATCH',
-      body: JSON.stringify(updates),
+      body: JSON.stringify(APIService.validateBlogPostPayload(updates)),
     })
+
+    return result ? APIService.validateBlogPostResponse(result, 'Blog post response') : null
   }
 
   static async deleteBlogPost(postId: string): Promise<{ success: boolean }> {
@@ -1280,9 +1382,13 @@ export class APIService {
       const response = await request<{ products: Product[] }>(`/users/${encodeURIComponent(username)}/owned-products`)
       return response.products || []
     } catch (error) {
-      // If endpoint doesn't exist, return empty array
-      console.warn('Owned products endpoint not available:', error)
-      return []
+      // Backward compatibility for older backends that lack this endpoint.
+      // Do not swallow auth/network/server errors.
+      if (error instanceof APIError && error.status === 404) {
+        console.warn('Owned products endpoint not available:', error)
+        return []
+      }
+      throw error
     }
   }
 

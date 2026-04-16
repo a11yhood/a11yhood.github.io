@@ -21,7 +21,7 @@ describe('Keyboard Navigation Tests', () => {
     renderApp()
 
     await waitFor(() => {
-      expect(screen.getByAltText('a11yhood')).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /a11yhood home/i })).toBeInTheDocument()
     }, { timeout: 5000 })
 
     await user.tab()

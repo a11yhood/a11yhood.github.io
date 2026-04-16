@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DiscussionSection } from '@/components/DiscussionSection'
@@ -10,7 +11,7 @@ import type { Discussion, UserData } from '@/lib/types'
 
 type TestUser = UserData & { token: string }
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = (globalThis as any).__TEST_API_BASE__
 
 // Use existing seeded dev users instead of creating new ones
 function getTestUser(role: 'admin' | 'moderator' | 'user'): TestUser {
@@ -19,7 +20,7 @@ function getTestUser(role: 'admin' | 'moderator' | 'user'): TestUser {
     id: devUser.id,
     username: devUser.username,
     avatarUrl: undefined,
-    token: getDevToken(devUser.id),
+    token: getDevToken(devUser.role),
   }
 }
 
@@ -80,7 +81,7 @@ const DiscussionHarness = ({ productId, user }: { productId: string; user: TestU
   )
 }
 
-describe('DiscussionSection Integration Tests (live API)', () => {
+describeWithBackend('DiscussionSection Integration Tests (live API)', () => {
   let owner: TestUser
   let helper: TestUser
   let productId: string
@@ -110,12 +111,24 @@ describe('DiscussionSection Integration Tests (live API)', () => {
     // Safely cleanup only if owner exists
     if (owner?.token && productId) {
       activeToken = owner.token
-      await fetch(`${API_BASE}/products/${productId}`, {
-        method: 'DELETE',
-        headers: { Authorization: owner.token },
-      }).catch(() => {
-        // ignore cleanup failures
-      })
+      try {
+        const response = await fetch(`${API_BASE}/products/${productId}`, {
+          method: 'DELETE',
+          headers: { Authorization: owner.token },
+        })
+
+        if (!response.ok) {
+          const details = await response.text().catch(() => '')
+          console.warn(
+            `[DiscussionSection.test] Cleanup failed for product ${productId}: ${response.status} ${response.statusText} ${details}`
+          )
+        }
+      } catch (error) {
+        console.warn(
+          `[DiscussionSection.test] Cleanup request threw for product ${productId}:`,
+          error
+        )
+      }
     }
   })
 
@@ -156,8 +169,13 @@ describe('DiscussionSection Integration Tests (live API)', () => {
       expect(screen.getByRole('button', { name: /posting/i })).toBeInTheDocument()
     })
 
+    // Ensure submission settles before teardown so we don't race product cleanup.
     await waitFor(() => {
       expect(screen.getByText('Posting state check')).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^post$/i })).toBeInTheDocument()
     })
   })
 

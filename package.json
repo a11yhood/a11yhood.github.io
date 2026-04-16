@@ -1,7 +1,7 @@
 {
     "name": "a11yhood",
     "private": true,
-    "version": "0.0.0",
+    "version": "0.1.0",
     "type": "module",
     "scripts": {
         "dev": "vite",
@@ -13,6 +13,7 @@
         "test": "vitest",
         "test:ui": "vitest --ui",
         "test:run": "vitest run",
+        "test:integration": "vitest run src/__tests__/integration --reporter=verbose",
         "test:a11y": "vitest run src/__tests__/accessibility",
         "test:a11y:integration": "vitest run src/__tests__/a11y-integration",
         "test:coverage": "vitest run --coverage",
@@ -92,6 +93,7 @@
         "@eslint/js": "^9.21.0",
         "@tailwindcss/postcss": "^4.2.0",
         "@testing-library/jest-dom": "^6.5.0",
+        "@testing-library/dom": "^10.4.1",
         "@testing-library/react": "^16.0.0",
         "@testing-library/user-event": "^14.6.1",
         "@types/react": "^19.0.10",
