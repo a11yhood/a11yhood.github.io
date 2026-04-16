@@ -1,53 +1,23 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
+import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = (globalThis as any).__TEST_API_BASE__
 
 describe('User Stats Integration Tests - joined_at and last_active', () => {
   let testUserId: string
   let authToken: string
 
   beforeEach(async () => {
-    // Create test user with retry logic
-    const userId = `test-user-${Date.now()}`
-    let lastError: Error | null = null
-    let userRes: Response | null = null
-    
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        userRes = await fetch(`${API_BASE}/users/${userId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username: `testuser${Date.now()}`,
-            email: `test${Date.now()}@example.com`,
-          }),
-        })
+    // Use dev-token user and resolve the real backend user ID for authorization-safe updates.
+    authToken = getDevToken(DEV_USERS.user.role)
+    setAuthTokenGetter(async () => authToken)
 
-        if (userRes.ok) {
-          const user = await userRes.json()
-          testUserId = user.id
-          authToken = `dev-token-${testUserId}`
-
-          // Set up the auth token getter for APIService
-          setAuthTokenGetter(async () => authToken)
-          return // Success
-        }
-
-        lastError = new Error(`Failed to create test user: ${userRes.statusText}`)
-        
-        if (attempt < 2) {
-          await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt)))
-        }
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err))
-        if (attempt < 2) {
-          await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt)))
-        }
-      }
+    const me = await APIService.getCurrentUser()
+    if (!me?.id) {
+      throw new Error('Failed to resolve current user ID for user-stats tests')
     }
-    
-    throw lastError || new Error('Failed to create test user after 3 attempts')
+    testUserId = me.id
   })
 
   afterEach(async () => {

@@ -1,73 +1,37 @@
-import { beforeAll, describe, it, expect } from 'vitest'
+import { beforeAll, describe, it, expect, vi } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { BrowserRouter } from 'react-router-dom'
+import { MemoryRouter } from 'react-router-dom'
 import App from '@/App'
 import { AuthProvider } from '@/contexts/AuthContext'
-import { APIService, setAuthTokenGetter } from '@/lib/api'
-
-const API_BASE = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/api`
-  : 'http://localhost:8000/api'
-
-const uniqueSuffix = `pagination-a11y-${Date.now()}`
-const searchTerm = uniqueSuffix
-let authToken: string
+import { APIService } from '@/lib/api'
+import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 
 beforeAll(async () => {
-  // Create a real user in the backend and use dev-token auth with retry logic
-  const userId = `${uniqueSuffix}-user`
-  let lastError: Error | null = null
-  let user: any = null
-  
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const userRes = await fetch(`${API_BASE}/users/${userId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: `pagination-${uniqueSuffix}`,
-          email: `pagination-${uniqueSuffix}@example.com`,
-        }),
-      })
+  if (!(globalThis as any).__BACKEND_AVAILABLE__) return
 
-      if (userRes.ok) {
-        user = await userRes.json()
-        break
-      }
-
-      lastError = new Error(`Failed to create test user: ${userRes.status} ${userRes.statusText}`)
-      if (attempt < 2) {
-        await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt)))
-      }
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err))
-      if (attempt < 2) {
-        await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt)))
-      }
-    }
-  }
-
-  if (!user) {
-    throw lastError || new Error('Failed to create test user after 3 attempts')
-  }
-
-  authToken = `dev-token-${user.id}`
-  setAuthTokenGetter(async () => authToken)
+  vi.spyOn(APIService, 'getAllBlogPosts').mockResolvedValue([])
+  APIService.setAuthTokenGetter(async () => getDevToken(DEV_USERS.user.role))
+  await APIService.createProduct({
+    name: `Pagination Visibility Product ${Date.now()}`,
+    description: 'Product used to ensure the list toolbar renders during pagination accessibility tests.',
+    type: 'Software',
+    sourceUrl: `https://github.com/test/pagination-${Date.now()}`,
+    tags: ['featured'],
+  })
 })
 
-describe('Pagination Accessibility (real backend data)', () => {
+describeWithBackend('Pagination Accessibility (real backend data)', () => {
   const renderApp = () =>
     render(
-      <BrowserRouter>
+      <MemoryRouter initialEntries={['/products']}>
         <AuthProvider>
           <App />
         </AuthProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     )
 
   it('exposes accessible pagination controls', async () => {
-    const user = userEvent.setup()
     renderApp()
 
     // Wait for search input to be available
@@ -75,8 +39,13 @@ describe('Pagination Accessibility (real backend data)', () => {
     expect(searchInput).toBeInTheDocument()
     
     // Pagination controls should exist (buttons with page size numbers)
-    const pageSize30 = await screen.findByRole('button', { name: '30' }, { timeout: 5000 })
-    expect(pageSize30).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '30' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '50' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '100' })).toBeInTheDocument()
+    }, { timeout: 5000 })
 
   }, 10000)
+
+  it.todo('navigates to page 2 when enough products exist (requires backend dev row limit >= 40 to exceed smallest page size of 30)')
 })

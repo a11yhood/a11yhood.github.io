@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ProductSubmission } from '@/components/ProductSubmission'
@@ -7,26 +8,25 @@ import { APIService } from '@/lib/api'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 
 /**
- * Integration: manual form appears when scraping fails or product not found.
- * Uses a unique GitHub URL and live backend. Scraping may fail (offline),
- * which is acceptable — the component should fall back to the manual form.
+ * Integration: manual form appears after URL check.
+ * Uses an unsupported domain URL to avoid dependence on external scraper latency.
  */
-describe('ProductSubmission (manual form on new GitHub URL)', () => {
+describeWithBackend('ProductSubmission (manual form on new GitHub URL)', () => {
   const user: UserData = {
     id: DEV_USERS.user.id,
     username: DEV_USERS.user.username,
     avatarUrl: 'https://example.com/a.png',
   }
 
-  const authToken = getDevToken(user.id)
-  const uniqueUrl = `https://github.com/a11yhood/does-not-exist-${Date.now()}`
+  const authToken = getDevToken(DEV_USERS.user.role)
+  const uniqueUrl = `https://notinthelist-${Date.now()}.invalid/product`
 
   beforeAll(async () => {
     // Ensure API calls carry our dev token and user exists
     APIService.setAuthTokenGetter(async () => authToken)
   })
 
-  it('shows manual form and pre-fills Source URL', async () => {
+  it('shows manual form prefill after URL check', async () => {
     render(
       <BrowserRouter>
         <ProductSubmission user={user} onSubmit={() => {}} />
@@ -40,12 +40,12 @@ describe('ProductSubmission (manual form on new GitHub URL)', () => {
     fireEvent.change(urlInput, { target: { value: uniqueUrl } })
     fireEvent.click(screen.getByText('Check'))
 
-    // Should show manual form with Source URL pre-filled
     await waitFor(() => {
-      expect(screen.getByLabelText(/Product Name/i)).toBeInTheDocument()
-    })
+      expect(screen.queryByLabelText(/Product Name/i)).toBeInTheDocument()
+    }, { timeout: 20000 })
 
-    const sourceUrlInput = screen.getByLabelText(/Source URL/i) as HTMLInputElement
-    expect(sourceUrlInput.value).toContain('https://github.com/a11yhood/does-not-exist')
-  })
+    const sourceUrlInput = screen.queryByLabelText(/Source URL/i) as HTMLInputElement | null
+    expect(sourceUrlInput).not.toBeNull()
+    expect(sourceUrlInput!.value).toContain('https://notinthelist-')
+  }, 25000)
 })

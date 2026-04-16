@@ -5,7 +5,8 @@
  * - ARIA live regions for dynamic content
  * - Screen reader announcements
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor } from '@testing-library/react'
 import { BrowserRouter, MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
@@ -14,7 +15,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { ProductFilters } from '@/components/ProductFilters'
 import { StarRating } from '@/components/StarRating'
 import { APIService } from '@/lib/api'
-import { DEV_USERS, getDevToken } from '@/lib/dev-users'
+// APIService import kept for potential future use
 
 describe('Landmark Regions Accessibility', () => {
   // Render at /products so filter panel landmarks are present
@@ -188,35 +189,7 @@ describe('Empty State Status Announcements', () => {
   })
 })
 
-// Requires a running backend — set TEST_BACKEND_URL=http://localhost:8000 to enable
-const describeWithBackend = import.meta.env.TEST_BACKEND_URL ? describe : describe.skip
 describeWithBackend('Loading State Accessibility', () => {
-  let testUserId: string
-  let productId: string
-
-  beforeAll(async () => {
-    testUserId = DEV_USERS.user.id
-    APIService.setAuthTokenGetter(async () => getDevToken(testUserId))
-    
-    // Create a test product
-    const product = await APIService.createProduct({
-      name: `Test Product ${Date.now()}`,
-      type: 'Software',
-      sourceUrl: `https://example.com/product-${Date.now()}`,
-      description: 'Test product for accessibility testing purposes',
-      tags: ['test'],
-    })
-    productId = product.id
-  })
-
-  afterAll(async () => {
-    try {
-      if (productId) {
-        await APIService.deleteProduct(productId)
-      }
-    } catch {}
-  })
-
   it('should announce loading state for async operations', async () => {
     const user = userEvent.setup()
     

@@ -38,7 +38,7 @@ export function getApiBaseUrl(
 }
 
 // Token getter function set by AuthContext on app load.
-// In dev mode: returns dev-token-<user_id>
+// In dev mode: returns dev-token-<role> (e.g., dev-token-admin)
 // In prod mode: returns Supabase session access token
 let getAuthToken: (() => Promise<string | null>) | null = null
 
@@ -701,7 +701,7 @@ export class APIService {
 
   static async productExistsByUrl(url: string): Promise<{ exists: boolean; product?: Product }> {
     // Use a manual fetch so we can treat 404 as {exists:false} without throwing
-    const endpoint = `/products/exists?url=${encodeURIComponent(url)}`
+    const endpoint = `/products/exists?source_url=${encodeURIComponent(url)}`
     const base = getApiBaseUrl()
     const fullUrl = `${base}/api${endpoint}`
     const token = getAuthToken ? await getAuthToken() : null
@@ -1382,9 +1382,13 @@ export class APIService {
       const response = await request<{ products: Product[] }>(`/users/${encodeURIComponent(username)}/owned-products`)
       return response.products || []
     } catch (error) {
-      // If endpoint doesn't exist, return empty array
-      console.warn('Owned products endpoint not available:', error)
-      return []
+      // Backward compatibility for older backends that lack this endpoint.
+      // Do not swallow auth/network/server errors.
+      if (error instanceof APIError && error.status === 404) {
+        console.warn('Owned products endpoint not available:', error)
+        return []
+      }
+      throw error
     }
   }
 

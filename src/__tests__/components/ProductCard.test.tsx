@@ -1,21 +1,33 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ProductCard } from '@/components/ProductCard'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 import type { Product, Rating } from '@/lib/types'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = (globalThis as any).__TEST_API_BASE__
 
 let productFromApi: Product
 let ratingsFromApi: Rating[]
 let authHeader: { Authorization: string }
+let testUserId: string
 
-describe('ProductCard - API-backed', () => {
+describeWithBackend('ProductCard - API-backed', () => {
   beforeAll(async () => {
     // Use existing seeded dev user
     const testUser = DEV_USERS.admin
-    const testUserId = testUser.id
-    authHeader = { Authorization: getDevToken(testUserId) }
+    authHeader = { Authorization: getDevToken(testUser.role) }
+
+    // Resolve the actual backend user ID for this token.
+    const meResponse = await fetch(`${API_BASE}/users/me`, {
+      headers: { ...authHeader },
+    })
+    if (meResponse.ok) {
+      const meJson = await meResponse.json()
+      testUserId = meJson.id
+    } else {
+      testUserId = DEV_USERS.admin.id
+    }
 
     // Create a product via the API
     const productName = `Test Product ${Date.now()}`
@@ -58,7 +70,6 @@ describe('ProductCard - API-backed', () => {
     // Add ratings via API
     const ratingPayloads = [
       { product_id: productFromApi.id, user_id: testUserId, rating: 5 },
-      { product_id: productFromApi.id, user_id: `${testUserId}-2`, rating: 4 },
     ]
 
     for (const payload of ratingPayloads) {
@@ -191,7 +202,6 @@ describe('ProductCard - API-backed', () => {
 
   it('should call onDelete when delete button is clicked', () => {
     const onDelete = vi.fn()
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
     
     render(
       <ProductCard
@@ -206,21 +216,18 @@ describe('ProductCard - API-backed', () => {
     const deleteButton = screen.getByLabelText(/delete/i)
     fireEvent.click(deleteButton)
 
-    expect(confirmSpy).toHaveBeenCalled()
     expect(onDelete).toHaveBeenCalledWith(productFromApi.id)
-    
-    confirmSpy.mockRestore()
   })
 
-  it('should not delete when confirmation is cancelled', () => {
+  it('should not trigger card onClick when delete is clicked', () => {
     const onDelete = vi.fn()
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const onClick = vi.fn()
     
     render(
       <ProductCard
         product={productFromApi}
         ratings={ratingsFromApi}
-        onClick={vi.fn()}
+        onClick={onClick}
         userAccount={{ id: 'admin-user', username: 'admin', role: 'admin' } as any}
         onDelete={onDelete}
       />
@@ -229,10 +236,8 @@ describe('ProductCard - API-backed', () => {
     const deleteButton = screen.getByLabelText(/delete/i)
     fireEvent.click(deleteButton)
 
-    expect(confirmSpy).toHaveBeenCalled()
-    expect(onDelete).not.toHaveBeenCalled()
-    
-    confirmSpy.mockRestore()
+    expect(onDelete).toHaveBeenCalledWith(productFromApi.id)
+    expect(onClick).not.toHaveBeenCalled()
   })
 
   it('should show zero rating when no ratings exist', () => {

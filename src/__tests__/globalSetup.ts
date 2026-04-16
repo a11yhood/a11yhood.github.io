@@ -1,13 +1,27 @@
-/** Milliseconds to wait for the backend health check before assuming it is unavailable. */
+import { DEV_USERS, getDevToken } from '../lib/dev-users'
+
+/** Milliseconds to wait for backend health check before considering it unavailable. */
 const HEALTH_CHECK_TIMEOUT_MS = 3000
 
+function shouldResetDevDbForRun(argv: string[]): boolean {
+  // Ignore the first entries (node + vitest binary path)
+  const args = argv.slice(2).map(arg => arg.replace(/\\/g, '/').replace(/\/$/, ''))
+
+  // Only enforce auto-reset for full integration-suite runs.
+  return args.some(
+    arg => arg === 'src/__tests__/integration' || arg === './src/__tests__/integration'
+  )
+}
+
 /**
- * Vitest global setup – runs once before any test files are collected.
+ * Vitest global setup — runs once in the main process before any workers start.
  *
- * Performs an HTTP health check against the configured backend and sets
- * `VITEST_BACKEND_AVAILABLE` so that `setup.ts` (and therefore
- * `describeWithBackend`) can correctly skip integration suites when the
- * backend is not reachable.
+ * Checks whether the local dev backend is reachable and stores the result in
+ * process.env.VITEST_BACKEND_AVAILABLE so that setupFiles can read it at
+ * module-load time (before test collection begins).
+ *
+ * Tests that require a live backend use `describeWithBackend` from
+ * helpers/with-backend.ts, which skips the suite when the flag is false.
  */
 export async function setup() {
   const backendBase = (
@@ -16,18 +30,52 @@ export async function setup() {
     'http://localhost:8002'
   ).replace(/\/$/, '')
 
-  const healthUrl = `${backendBase}/health`
+  // Local HTTPS backends often use self-signed certs in dev.
+  // Relax TLS verification only when targeting localhost.
+  if (/^https:\/\/localhost(?::\d+)?$/i.test(backendBase)) {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+  }
 
+  let backendAvailable = false
+  const healthUrl = `${backendBase}/health`
   try {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS)
-
-    const response = await fetch(healthUrl, { signal: controller.signal })
+    const res = await fetch(healthUrl, { signal: controller.signal })
     clearTimeout(timeout)
-
-    process.env.VITEST_BACKEND_AVAILABLE = response.ok ? '1' : '0'
+    backendAvailable = res.ok
   } catch {
-    // Network error or timeout – backend is not reachable
-    process.env.VITEST_BACKEND_AVAILABLE = '0'
+    // backend not reachable — backendAvailable stays false
+  }
+
+  process.env.VITEST_BACKEND_AVAILABLE = backendAvailable ? '1' : '0'
+
+  if (backendAvailable && shouldResetDevDbForRun(process.argv)) {
+    const adminToken = getDevToken(DEV_USERS.admin.role)
+    const resetRes = await fetch(`${backendBase}/api/dev/reset`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${adminToken}`,
+      },
+    })
+
+    if (!resetRes.ok) {
+      const details = await resetRes.text().catch(() => '')
+      throw new Error(
+        `Failed to reset dev database before integration-capable test run: ${resetRes.status} ${resetRes.statusText} ${details}`
+      )
+    }
+  }
+
+  if (!backendAvailable) {
+    console.warn(
+      '\n' +
+      '┌──────────────────────────────────────────────────────────────┐\n' +
+      `│  ⚠️  Backend not available at ${backendBase}\n` +
+      '│  Integration and security tests will be skipped.\n' +
+      '│  ▶ Start the backend and re-run to include all tests.\n' +
+      '│  ▶ Unit tests only:  CI=true npm run test:run\n' +
+      '└──────────────────────────────────────────────────────────────┘\n'
+    )
   }
 }

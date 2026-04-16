@@ -4,21 +4,18 @@
  * These tests verify that the backend properly enforces permissions and rejects
  * unauthorized operations with 401/403 responses.
  */
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
-import { runAllSeeds } from '../fixtures/test-seeds'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = (globalThis as any).__TEST_API_BASE__
 
-const testUserId = DEV_USERS.user.id
-const authToken = getDevToken(testUserId)
-const moderatorId = DEV_USERS.moderator.id
-const moderatorToken = getDevToken(moderatorId)
+const testRole = DEV_USERS.user.role
+const authToken = getDevToken(testRole)
+const moderatorRole = DEV_USERS.moderator.role
+const moderatorToken = getDevToken(moderatorRole)
 
-describe('Backend Authorization Enforcement', () => {
-  beforeAll(async () => {
-    await runAllSeeds()
-  })
+describeWithBackend('Backend Authorization Enforcement', () => {
   describe('Authentication Required', () => {
     it('should reject unauthenticated product creation', async () => {
       const response = await fetch(`${API_BASE}/products`, {
@@ -65,7 +62,7 @@ describe('Backend Authorization Enforcement', () => {
         body: JSON.stringify({
           name: 'Owner Test Product',
           description: 'For ownership testing',
-          source_url: 'https://example.com/owner-test',
+          source_url: 'https://github.com/test/owner-test',
           source: 'manual',
           type: 'Other',
         }),
@@ -118,7 +115,7 @@ describe('Backend Authorization Enforcement', () => {
         body: JSON.stringify({
           name: 'Test Product',
           description: 'For collection testing',
-          source_url: 'https://example.com/product',
+          source_url: 'https://github.com/test/collection-product',
           source: 'manual',
           type: 'Other',
         }),
@@ -165,20 +162,7 @@ describe('Backend Authorization Enforcement', () => {
       expect(createRes.status).toBe(201)
       const collection = await createRes.json()
 
-      // Create User 2
-      const user2Id = `test-user-2-${Date.now()}`
-      const user2Res = await fetch(`${API_BASE}/users/${user2Id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: `testuser2${Date.now()}`,
-          email: `test2${Date.now()}@example.com`,
-        }),
-      })
-
-      expect([200, 201]).toContain(user2Res.status)
-      const user2 = await user2Res.json()
-      const user2Token = `dev-token-${user2.id}`
+      const user2Token = moderatorToken
 
       // User 2 tries to access User 1's private collection
       const getRes = await fetch(`${API_BASE}/collections/${collection.id}`, {

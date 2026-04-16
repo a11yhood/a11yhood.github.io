@@ -1,13 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ProductUrls } from '../../components/ProductUrls'
 import { APIService } from '../../lib/api'
+import { DEV_USERS, getDevToken } from '../../lib/dev-users'
 import { getValidProductType } from '../testData'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = (globalThis as any).__TEST_API_BASE__
 
-describe('ProductUrls Integration Tests', () => {
+describeWithBackend('ProductUrls Integration Tests', () => {
   let testProductId: string
   let testUserId: string
   let authHeader: { Authorization: string }
@@ -20,46 +22,12 @@ describe('ProductUrls Integration Tests', () => {
   }
 
   beforeEach(async () => {
-    // Create test user with retry logic
-    const userId = `test-user-${Date.now()}`
-    let lastError: Error | null = null
-    let user: any = null
-    
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const userRes = await fetch(`${API_BASE}/users/${userId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username: `testuser${Date.now()}`,
-            email: `test${Date.now()}@example.com`,
-          }),
-        })
-
-        if (userRes.ok) {
-          user = await userRes.json()
-          break
-        }
-
-        lastError = new Error(`Failed to create test user: ${userRes.statusText}`)
-        if (attempt < 2) {
-          await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt)))
-        }
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err))
-        if (attempt < 2) {
-          await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt)))
-        }
-      }
-    }
-
-    if (!user) {
-      throw lastError || new Error('Failed to create test user after 3 attempts')
-    }
-
-    testUserId = user.id
-    authHeader = { Authorization: `dev-token-${testUserId}` }
-    APIService.setAuthTokenGetter(async () => authHeader.Authorization)
+    // Use the pre-seeded dev user instead of creating a dynamic one to avoid
+    // hitting the dev row limit (users table is pre-filled by seed data).
+    testUserId = DEV_USERS.user.id
+    const userToken = getDevToken(DEV_USERS.user.role)
+    authHeader = { Authorization: `Bearer ${userToken}` }
+    APIService.setAuthTokenGetter(async () => userToken)
 
     // Create test product using APIService (handles snake_case conversion)
     const product = await APIService.createProduct({
@@ -87,12 +55,28 @@ describe('ProductUrls Integration Tests', () => {
 
   afterEach(async () => {
     // Clean up product (URLs deleted automatically via cascade)
-    await fetch(`${API_BASE}/products/${testProductId}`, {
-      method: 'DELETE',
-      headers: authHeader,
-    }).catch(() => {
-      // Ignore cleanup errors
-    })
+    if (testProductId) {
+      try {
+        const response = await fetch(`${API_BASE}/products/${testProductId}`, {
+          method: 'DELETE',
+          headers: authHeader,
+        })
+
+        if (!response.ok) {
+          const details = await response.text().catch(() => '')
+          console.warn(
+            `[ProductUrls.test] Cleanup failed for product ${testProductId}: ${response.status} ${response.statusText} ${details}`
+          )
+        }
+      } catch (error) {
+        console.warn(
+          `[ProductUrls.test] Cleanup request threw for product ${testProductId}:`,
+          error
+        )
+      }
+    }
+
+    // Clean up test user — no-op since we use pre-seeded DEV_USERS.user
   })
 
   it('should load and display product URLs', async () => {

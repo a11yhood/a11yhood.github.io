@@ -22,6 +22,8 @@ import "./styles/main.css"
 console.debug('🚀 [main.tsx] Starting application...')
 const isDevMode = import.meta.env.VITE_DEV_MODE === 'true'
 console.debug(`✓ [main.tsx] Auth mode: ${isDevMode ? 'DEV (SQLite)' : 'PRODUCTION (Supabase)'}`)
+const apiUrl = import.meta.env.VITE_API_URL || '(relative — using Vite proxy)'
+console.debug(`🔌 [main.tsx] Backend: ${apiUrl}`)
 
 if (isDevMode) {
   const devUser = import.meta.env.VITE_DEV_USER || 'admin'

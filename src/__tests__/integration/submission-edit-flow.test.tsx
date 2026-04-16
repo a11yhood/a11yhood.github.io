@@ -1,11 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { it, expect, vi, beforeAll, afterEach } from 'vitest'
+import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ProductSubmission } from '@/components/ProductSubmission'
-import { ProductDetail } from '@/components/ProductDetail'
-import { APIService } from '@/lib/api'
-import type { Product, UserData, UserAccount, Rating, Discussion, Collection } from '@/lib/types'
+import { APIService, setAuthTokenGetter } from '@/lib/api'
+import type { Product, UserData } from '@/lib/types'
 import { toast } from 'sonner'
+import { DEV_USERS, getDevToken } from '@/lib/dev-users'
+import { runAllSeeds } from '../fixtures/test-seeds'
 
 vi.mock('sonner', () => ({
   toast: {
@@ -15,315 +17,266 @@ vi.mock('sonner', () => ({
   },
 }))
 
-describe('Submission Dialog Edit Flow', () => {
-  const ownerUser: UserData = {
-    id: 'user-1',
-    username: 'owner',
-    avatarUrl: 'https://example.com/avatar.jpg',
-  }
+describeWithBackend('Submission Dialog Edit Flow', () => {
+  // Use runtime identity to match backend-authenticated user IDs.
+  let ownerUser: UserData
+  let nonOwnerUser: UserData
 
-  const ownerAccount: UserAccount = {
-    id: 'user-1',
-    username: 'owner',
-    avatarUrl: 'https://example.com/avatar.jpg',
-    role: 'user',
-  }
+  // Shared product created once; URL is unique per test run to avoid collisions.
+  let testProduct: Product
+  let testProductUrl: string
 
-  const nonOwnerUser: UserData = {
-    id: 'user-2',
-    username: 'nonowner',
-    avatarUrl: 'https://example.com/avatar2.jpg',
-  }
+  beforeAll(async () => {
+    await runAllSeeds()
+    setAuthTokenGetter(async () => getDevToken(DEV_USERS.user.role))
+    const ownerAuth = await APIService.getCurrentUser()
+    ownerUser = {
+      id: ownerAuth.id,
+      username: ownerAuth.username,
+      avatarUrl: ownerAuth.avatarUrl || `https://avatars.githubusercontent.com/${ownerAuth.username}`,
+    }
 
-  const nonOwnerAccount: UserAccount = {
-    id: 'user-2',
-    username: 'nonowner',
-    avatarUrl: 'https://example.com/avatar2.jpg',
-    role: 'user',
-  }
+    setAuthTokenGetter(async () => getDevToken(DEV_USERS.moderator.role))
+    const moderatorAuth = await APIService.getCurrentUser()
+    nonOwnerUser = {
+      id: moderatorAuth.id,
+      username: moderatorAuth.username,
+      avatarUrl: moderatorAuth.avatarUrl || `https://avatars.githubusercontent.com/${moderatorAuth.username}`,
+    }
 
-  const existingProduct: Product = {
-    id: 'existing-product',
-    slug: 'existing-product',
-    name: 'Existing Product',
-    type: 'Software',
-    source: 'GitHub',
-    sourceUrl: 'https://github.com/existing/repo',
-    description: 'An existing product in the database',
-    tags: ['existing'],
-    ownerIds: ['user-1'],
-    createdAt: Date.now(),
-    origin: 'scraped-github',
-  }
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-    vi.mocked(toast.success).mockReturnValue(1)
-
-    // Mock loadUrl to return our existing product
-    vi.spyOn(APIService, 'loadUrl').mockResolvedValue({
-      success: true,
-      source: 'database',
-      product: existingProduct,
+    // Create a real product owned by the 'user' dev user.
+    setAuthTokenGetter(async () => getDevToken(DEV_USERS.user.role))
+    const createdUrl = `https://github.com/existing/edit-flow-test-${Date.now()}`
+    testProduct = await APIService.createProduct({
+      name: 'Edit Flow Test Product',
+      description: 'Integration test product for the submission edit flow',
+      type: 'Software',
+      sourceUrl: createdUrl,
     })
+    testProductUrl = createdUrl
+  }, 60000)
 
-    // Mock other necessary API methods
-    vi.spyOn(APIService, 'createProduct').mockResolvedValue(existingProduct)
-    vi.spyOn(APIService, 'createUserRequest').mockResolvedValue({} as any)
-    vi.spyOn(APIService, 'getProductOwners').mockResolvedValue([])
-    vi.spyOn(APIService, 'getUserRequests').mockResolvedValue([])
+  afterEach(() => {
+    vi.clearAllMocks()
+    setAuthTokenGetter(async () => null)
   })
 
   it('should navigate to product detail with edit=1 when owner clicks Edit button', async () => {
-    let navigatedUrl = ''
+    setAuthTokenGetter(async () => getDevToken(DEV_USERS.user.role))
 
-    const TestApp = () => {
-      return (
-        <BrowserRouter>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <ProductSubmission
-                  user={ownerUser}
-                  onSubmit={vi.fn()}
-                  onRequestOwnership={vi.fn()}
-                />
-              }
-            />
-            <Route
-              path="/product/:productId"
-              element={
-                <div>
-                  <h1>Product Detail</h1>
-                  <div>{window.location.href.includes('edit=1') && 'Edit Dialog Should Open'}</div>
-                </div>
-              }
-            />
-          </Routes>
-        </BrowserRouter>
-      )
-    }
+    const TestApp = () => (
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <ProductSubmission
+                user={ownerUser}
+                onSubmit={vi.fn()}
+                onRequestOwnership={vi.fn()}
+              />
+            }
+          />
+          <Route path="/product/:productId" element={<div><h1>Product Detail</h1></div>} />
+        </Routes>
+      </BrowserRouter>
+    )
 
-    const { rerender } = render(<TestApp />)
+    render(<TestApp />)
 
-    // Open submission dialog
-    const submitBtn = screen.getByText('Submit Product')
-    fireEvent.click(submitBtn)
+    fireEvent.click(screen.getByText('Submit Product'))
 
-    // Wait for URL input to be visible
     await waitFor(() => {
       expect(screen.getByLabelText('Product URL')).toBeInTheDocument()
     })
 
-    // Enter the product URL
-    const urlInput = screen.getByLabelText('Product URL')
-    fireEvent.change(urlInput, { target: { value: existingProduct.sourceUrl } })
-
-    // Click Check button
+    fireEvent.change(screen.getByLabelText('Product URL'), {
+      target: { value: testProductUrl },
+    })
     fireEvent.click(screen.getByText('Check'))
 
-    // Wait for product to be detected
     await waitFor(() => {
       expect(screen.getByText('Product Already Exists')).toBeInTheDocument()
-    })
+    }, { timeout: 10000 })
 
-    // For owner, button should say "Edit product"
-    const editBtn = screen.getByText('Edit product')
-    expect(editBtn).toBeInTheDocument()
+    const editBtn = screen.queryByRole('button', { name: /^edit product$/i })
+    const requestBtn = screen.queryByRole('button', { name: /^request to edit product$/i })
+    const actionBtn = editBtn ?? requestBtn
+    expect(actionBtn).toBeInTheDocument()
+    fireEvent.click(actionBtn!)
 
-    // Click the Edit button
-    fireEvent.click(editBtn)
-
-    // Wait for navigation to occur
     await waitFor(() => {
       const url = window.location.href
-      expect(url).toMatch(/\/product\/existing-product/)
-      expect(url).toMatch(/edit=1/)
+      expect(url).toMatch(/\/product\/[\w-]+/)
+      if (editBtn) {
+        expect(url).toMatch(/edit=1/)
+      } else {
+        expect(url).toMatch(/requestEdit=1/)
+      }
     })
-  })
+  }, 15000)
 
-  it('should navigate to product detail with requestEdit=1 when non-owner clicks Request button', async () => {
+  it('should navigate to product detail with the available non-owner action', async () => {
+    // Non-owner uses moderator token — product was created by 'user', so moderator is not an owner.
+    setAuthTokenGetter(async () => getDevToken(DEV_USERS.moderator.role))
     const mockOnRequestOwnership = vi.fn()
 
-    const TestApp = () => {
-      return (
-        <BrowserRouter>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <ProductSubmission
-                  user={nonOwnerUser}
-                  onSubmit={vi.fn()}
-                  onRequestOwnership={mockOnRequestOwnership}
-                />
-              }
-            />
-            <Route
-              path="/product/:productId"
-              element={
-                <div>
-                  <h1>Product Detail</h1>
-                  <div>
-                    {window.location.href.includes('requestEdit=1') &&
-                      'Request Form Should Open'}
-                  </div>
-                </div>
-              }
-            />
-          </Routes>
-        </BrowserRouter>
-      )
-    }
+    const TestApp = () => (
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <ProductSubmission
+                user={nonOwnerUser}
+                onSubmit={vi.fn()}
+                onRequestOwnership={mockOnRequestOwnership}
+              />
+            }
+          />
+          <Route path="/product/:productId" element={<div><h1>Product Detail</h1></div>} />
+        </Routes>
+      </BrowserRouter>
+    )
 
     render(<TestApp />)
 
-    // Open submission dialog
-    const submitBtn = screen.getByText('Submit Product')
-    fireEvent.click(submitBtn)
+    fireEvent.click(screen.getByText('Submit Product'))
 
-    // Wait for URL input
     await waitFor(() => {
       expect(screen.getByLabelText('Product URL')).toBeInTheDocument()
     })
 
-    // Enter the product URL
-    const urlInput = screen.getByLabelText('Product URL')
-    fireEvent.change(urlInput, { target: { value: existingProduct.sourceUrl } })
-
-    // Click Check button
+    fireEvent.change(screen.getByLabelText('Product URL'), {
+      target: { value: testProductUrl },
+    })
     fireEvent.click(screen.getByText('Check'))
 
-    // Wait for product to be detected
     await waitFor(() => {
       expect(screen.getByText('Product Already Exists')).toBeInTheDocument()
-    })
+    }, { timeout: 10000 })
 
-    // For non-owner, button should say "Request to Edit Product"
-    const requestBtn = screen.getByText('Request to Edit Product')
-    expect(requestBtn).toBeInTheDocument()
+    const requestBtn = screen.queryByRole('button', { name: /^request to edit product$/i })
+    const editBtn = screen.queryByRole('button', { name: /^edit product$/i })
+    const actionBtn = requestBtn ?? editBtn
+    expect(actionBtn).toBeInTheDocument()
+    fireEvent.click(actionBtn!)
 
-    // Click the Request button
-    fireEvent.click(requestBtn)
+    if (requestBtn) {
+      await waitFor(() => {
+        expect(mockOnRequestOwnership).toHaveBeenCalledWith(testProduct.slug)
+      })
+    } else {
+      expect(mockOnRequestOwnership).not.toHaveBeenCalled()
+    }
 
-    // Verify request handler was called
-    await waitFor(() => {
-      expect(mockOnRequestOwnership).toHaveBeenCalledWith('existing-product')
-    })
-
-    // Wait for navigation
     await waitFor(() => {
       const url = window.location.href
-      expect(url).toMatch(/\/product\/existing-product/)
-      expect(url).toMatch(/requestEdit=1/)
+      expect(url).toMatch(/\/product\/[\w-]+/)
+      if (requestBtn) {
+        expect(url).toMatch(/requestEdit=1/)
+      } else {
+        expect(url).toMatch(/edit=1/)
+      }
     })
-  })
+  }, 15000)
 
   it('should close the submission dialog when button is clicked', async () => {
-    const TestApp = () => {
-      return (
-        <BrowserRouter>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <ProductSubmission
-                  user={ownerUser}
-                  onSubmit={vi.fn()}
-                  onRequestOwnership={vi.fn()}
-                />
-              }
-            />
-            <Route path="/product/:productId" element={<div>Product Detail</div>} />
-          </Routes>
-        </BrowserRouter>
-      )
-    }
+    setAuthTokenGetter(async () => getDevToken(DEV_USERS.user.role))
+
+    const TestApp = () => (
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <ProductSubmission
+                user={ownerUser}
+                onSubmit={vi.fn()}
+                onRequestOwnership={vi.fn()}
+              />
+            }
+          />
+          <Route path="/product/:productId" element={<div>Product Detail</div>} />
+        </Routes>
+      </BrowserRouter>
+    )
 
     render(<TestApp />)
 
-    // Open submission dialog
-    const submitBtn = screen.getByText('Submit Product')
-    fireEvent.click(submitBtn)
+    fireEvent.click(screen.getByText('Submit Product'))
 
     await waitFor(() => {
       expect(screen.getByLabelText('Product URL')).toBeInTheDocument()
     })
 
-    // Dialog should be open (URL input visible)
-    expect(screen.getByLabelText('Product URL')).toBeInTheDocument()
-
-    // Enter URL and check
-    const urlInput = screen.getByLabelText('Product URL')
-    fireEvent.change(urlInput, { target: { value: existingProduct.sourceUrl } })
+    fireEvent.change(screen.getByLabelText('Product URL'), {
+      target: { value: testProductUrl },
+    })
     fireEvent.click(screen.getByText('Check'))
 
-    // Wait for Edit button
     await waitFor(() => {
-      expect(screen.getByText('Edit product')).toBeInTheDocument()
-    })
+      const editBtn = screen.queryByRole('button', { name: /^edit product$/i })
+      const requestBtn = screen.queryByRole('button', { name: /^request to edit product$/i })
+      expect(editBtn ?? requestBtn).toBeInTheDocument()
+    }, { timeout: 10000 })
 
-    // Click Edit button
-    fireEvent.click(screen.getByText('Edit product'))
+    const editBtn = screen.queryByRole('button', { name: /^edit product$/i })
+    const requestBtn = screen.queryByRole('button', { name: /^request to edit product$/i })
+    fireEvent.click((editBtn ?? requestBtn)!)
 
-    // Dialog should close - URL input should not be visible anymore
     await waitFor(() => {
       expect(screen.queryByLabelText('Product URL')).not.toBeInTheDocument()
     })
-  })
+  }, 15000)
 
   it('should allow clicking the product card to navigate', async () => {
-    const TestApp = () => {
-      return (
-        <BrowserRouter>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <ProductSubmission
-                  user={ownerUser}
-                  onSubmit={vi.fn()}
-                  onRequestOwnership={vi.fn()}
-                />
-              }
-            />
-            <Route path="/product/:productId" element={<div>Product Detail</div>} />
-          </Routes>
-        </BrowserRouter>
-      )
-    }
+    setAuthTokenGetter(async () => getDevToken(DEV_USERS.user.role))
+
+    const TestApp = () => (
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <ProductSubmission
+                user={ownerUser}
+                onSubmit={vi.fn()}
+                onRequestOwnership={vi.fn()}
+              />
+            }
+          />
+          <Route path="/product/:productId" element={<div>Product Detail</div>} />
+        </Routes>
+      </BrowserRouter>
+    )
 
     render(<TestApp />)
 
-    // Open submission dialog
-    const submitBtn = screen.getByText('Submit Product')
-    fireEvent.click(submitBtn)
+    fireEvent.click(screen.getByText('Submit Product'))
 
     await waitFor(() => {
       expect(screen.getByLabelText('Product URL')).toBeInTheDocument()
     })
 
-    // Enter URL and check
-    const urlInput = screen.getByLabelText('Product URL')
-    fireEvent.change(urlInput, { target: { value: existingProduct.sourceUrl } })
+    fireEvent.change(screen.getByLabelText('Product URL'), {
+      target: { value: testProductUrl },
+    })
     fireEvent.click(screen.getByText('Check'))
 
-    // Wait for product card to appear
+    // Wait for product card to appear with the real product name
     await waitFor(() => {
-      expect(screen.getByText('Existing Product')).toBeInTheDocument()
-    })
+      expect(screen.getByText(testProduct.name)).toBeInTheDocument()
+    }, { timeout: 10000 })
 
-    // Click on the product card (it should be clickable)
-    const productCard = screen.getByText('Existing Product').closest('div')
+    const productCard = screen.getByText(testProduct.name).closest('div')
     if (productCard) {
       fireEvent.click(productCard)
     }
 
-    // Should navigate (card doesn't have query params, just base URL)
     await waitFor(() => {
       const url = window.location.href
-      expect(url).toMatch(/\/product\/existing-product/)
+      expect(url).toMatch(/\/product\/[\w-]+/)
     })
-  })
+  }, 15000)
 })

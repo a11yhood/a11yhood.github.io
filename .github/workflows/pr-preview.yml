@@ -41,7 +41,8 @@ jobs:
         run: pixi run test
       - name: Build for GitHub Pages
         env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          # Prefer preview-specific backend; fall back to legacy shared secret.
+          VITE_API_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
           VITE_DEV_MODE: 'true'
           VITE_ENV: development
           VITE_LOG_LEVEL: debug

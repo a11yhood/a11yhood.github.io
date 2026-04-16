@@ -1,51 +1,91 @@
 /**
- * Integration tests for AdminRequestsPanel
- * Tests admin approval/rejection of user requests (moderator, admin, ownership)
- * Validates real API call paths and request/response formats
+ * Contract tests for request moderation API calls used by AdminRequestsPanel.
+ *
+ * These tests assert endpoint, HTTP method, and payload shape without relying
+ * on a live backend so failures are deterministic and not network-dependent.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { APIService } from '@/lib/api'
+import { APIError, APIService } from '@/lib/api'
 
-describe('AdminRequestsPanel API Integration', () => {
+describe('AdminRequestsPanel API Contract', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('should call PATCH /requests/{id} with status: approved', async () => {
-    const requestSpy = vi.spyOn(APIService, 'approveRequest')
-    
-    try {
-      // This will fail with network error since there's no server running in unit tests,
-      // but it validates the method signature and endpoint format
-      await APIService.approveRequest('test-request-id', 'admin-id', 'looks good')
-    } catch (error: any) {
-      // Expected to fail - we're just validating the endpoint path in the error
-      expect(error.message).toBeDefined()
-    }
-    
-    expect(requestSpy).toHaveBeenCalledWith('test-request-id', 'admin-id', 'looks good')
+  it('sends PATCH /api/requests/{id} with approved status', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'req-123',
+          status: 'approved',
+          created_at: '2026-01-01T00:00:00Z',
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    )
+
+    const result = await APIService.approveRequest('req-123', 'admin-id', 'looks good')
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    const [url, options] = fetchSpy.mock.calls[0]
+    expect(String(url)).toContain('/api/requests/req-123')
+    expect(options?.method).toBe('PATCH')
+    expect(options?.headers).toMatchObject({
+      'Content-Type': 'application/json',
+    })
+    expect(options?.body).toBe(JSON.stringify({ status: 'approved' }))
+
+    expect(result).toBeTruthy()
+    expect(result?.status).toBe('approved')
+    expect((result as any)?.created_at).toBeUndefined()
   })
 
-  it('should call PATCH /requests/{id} with status: rejected', async () => {
-    const requestSpy = vi.spyOn(APIService, 'rejectRequest')
-    
-    try {
-      await APIService.rejectRequest('test-request-id', 'admin-id', 'does not meet criteria')
-    } catch (error: any) {
-      // Expected to fail - we're just validating the endpoint path in the error
-      expect(error.message).toBeDefined()
-    }
-    
-    expect(requestSpy).toHaveBeenCalledWith('test-request-id', 'admin-id', 'does not meet criteria')
+  it('sends PATCH /api/requests/{id} with rejected status', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'req-456',
+          status: 'rejected',
+          created_at: '2026-01-01T00:00:00Z',
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    )
+
+    const result = await APIService.rejectRequest('req-456', 'admin-id', 'does not meet criteria')
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    const [url, options] = fetchSpy.mock.calls[0]
+    expect(String(url)).toContain('/api/requests/req-456')
+    expect(options?.method).toBe('PATCH')
+    expect(options?.body).toBe(JSON.stringify({ status: 'rejected' }))
+
+    expect(result).toBeTruthy()
+    expect(result?.status).toBe('rejected')
   })
 
-  it('should have matching endpoint paths between frontend and backend', () => {
-    // This test documents the expected API contracts
-    // Backend: PATCH /api/requests/{id} with { status: 'approved' | 'rejected' }
-    // Frontend should use APIService.approveRequest() and APIService.rejectRequest()
-    
-    // The actual validation happens when integration tests run against real backend
-    const contractMet = true
-    expect(contractMet).toBe(true)
+  it('throws APIError when moderation request fails', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ detail: 'Not authorized to moderate this request' }),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    )
+
+    await expect(APIService.approveRequest('req-789', 'moderator-id')).rejects.toEqual(
+      expect.objectContaining<Partial<APIError>>({
+        name: 'APIError',
+        status: 403,
+      })
+    )
   })
 })

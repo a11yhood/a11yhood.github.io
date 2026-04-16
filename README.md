@@ -93,14 +93,21 @@ pixi --version
    ```
 
 3. **Set up environment variables**
-   
-   Create a `.env.local` file (and/or `.env.production.local` for production):
+
+   Minimal `.env.local` for local development:
+   ```env
+   VITE_DEV_MODE=true
+   VITE_DEV_USER=admin
+   VITE_API_URL=http://localhost:8002 # or another backend
+   ```
+
+   Production auth flows require Supabase values:
    ```env
    VITE_SUPABASE_URL=your_supabase_url
    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
-   
-   See `env.example` for all available configuration options.
+
+   See `env.example` and `env.example.test` for full configuration options.
 
 4. **Start the development server**
    ```bash
@@ -125,7 +132,14 @@ npm run test:coverage
 
 # Run tests with UI
 npm run test:ui
+
+# Run integration tests against local or other backend
+TEST_BACKEND_URL=https://backend-url npm run test:integration
 ```
+
+Notes:
+- Unit tests can run without Supabase variables.
+- Integration tests require a running backend and valid dev auth mode (`VITE_DEV_MODE=true`).
 
 ### Building for Production
 

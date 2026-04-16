@@ -32,9 +32,8 @@ if (/^https:\/\/localhost(?::\d+)?$/i.test(resolvedBackendBase)) {
 }
 
 // Set by globalSetup.ts after health-checking the backend.
-// Defaults to false so backend-dependent suites are properly skipped
-// when the backend is not reachable (e.g. CI without a running backend).
-;(globalThis as any).__BACKEND_AVAILABLE__ = process.env.VITEST_BACKEND_AVAILABLE === '1'
+// Defaults to true so tests still run when globalSetup is bypassed.
+;(globalThis as any).__BACKEND_AVAILABLE__ = process.env.VITEST_BACKEND_AVAILABLE !== '0'
 
 beforeAll(() => {
   const originalFetch = global.fetch

@@ -944,8 +944,8 @@ function CollectionsPage({
       try {
         const result = await APIService.getPublicCollections('updated_at')
         setPublicCollections(result)
-      } catch {
-        // ignore errors for now
+      } catch (error) {
+        console.warn('[CollectionsPage] Failed to load public collections:', error)
       } finally {
         setPublicCollectionsFirstLoadComplete(true)
       }
@@ -1205,7 +1205,8 @@ function CollectionDetailPage({
         try {
           const fetched = await APIService.getCollection(collectionSlug)
           setExternalCollection(fetched)
-        } catch {
+        } catch (error) {
+          console.warn('[CollectionDetailPage] Failed to load collection:', collectionSlug, error)
           setExternalCollection(null)
         }
       }

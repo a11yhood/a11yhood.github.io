@@ -13,6 +13,7 @@
         "test": "vitest",
         "test:ui": "vitest --ui",
         "test:run": "vitest run",
+        "test:integration": "vitest run src/__tests__/integration --reporter=verbose",
         "test:a11y": "vitest run src/__tests__/accessibility",
         "test:a11y:integration": "vitest run src/__tests__/a11y-integration",
         "test:coverage": "vitest run --coverage",

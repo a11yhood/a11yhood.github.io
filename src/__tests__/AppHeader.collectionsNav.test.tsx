@@ -30,7 +30,8 @@ describe('AppHeader collections navigation', () => {
       </MemoryRouter>
     )
 
-    const btn = screen.getByRole('button', { name: /collections/i })
+    // Collections renders as a <Link> (anchor element), not a button
+    const btn = screen.getByRole('link', { name: /collections/i })
     await userEvent.click(btn)
 
     await waitFor(() => {

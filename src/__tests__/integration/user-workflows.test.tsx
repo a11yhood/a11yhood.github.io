@@ -7,7 +7,6 @@ import { ProductEditors } from '@/components/ProductEditors'
 import { ProductCard } from '@/components/ProductCard'
 import * as types from '@/lib/types'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
-import { runAllSeeds } from '../fixtures/test-seeds'
 
 /**
  * Frontend Integration Tests for User Workflows
@@ -32,8 +31,6 @@ let testUsername = DEV_USERS.user.username
 
 beforeAll(async () => {
   if (!(globalThis as any).__BACKEND_AVAILABLE__) return
-  await runAllSeeds()
-
   testUserId = DEV_USERS.user.id
   authToken = getDevToken(DEV_USERS.user.role)
   setAuthTokenGetter(async () => authToken)
@@ -314,25 +311,15 @@ describeWithBackend('Product Editor Management Workflow', () => {
 
 describeWithBackend('Error Handling in Workflows', () => {
   it('should handle product submission errors', async () => {
-    const productData = {
-      name: `Duplicate Product ${Date.now()}`,
+    const invalidProductData = {
+      name: `Invalid Product ${Date.now()}`,
       source: 'user-submitted' as const,
       category: 'Software',
-      sourceUrl: `https://github.com/test/duplicate-${Date.now()}`,
-      url: `https://example.com/duplicate-${Date.now()}`,
+      sourceUrl: 'not-a-valid-url',
     }
 
-    // Create the product once
-    await APIService.createProduct(productData as any)
-
-    // Try to create the same product again (should fail)
-    try {
-      await APIService.createProduct(productData as any)
-      expect.fail('Should have thrown error')
-    } catch (error: any) {
-      expect(error).toBeDefined()
-      // Error message might vary depending on backend validation
-    }
+    // Invalid source URL should be rejected by backend validation.
+    await expect(APIService.createProduct(invalidProductData as any)).rejects.toBeDefined()
   })
 
   it('should handle rating errors', async () => {
@@ -340,12 +327,7 @@ describeWithBackend('Error Handling in Workflows', () => {
     await APIService.updateRating(testProductId, testUserId, 5)
 
     // Try to rate with invalid value (should fail)
-    try {
-      await APIService.updateRating(testProductId, testUserId, 10)
-      expect.fail('Should have thrown error for invalid rating')
-    } catch (error: any) {
-      expect(error).toBeDefined()
-    }
+    await expect(APIService.updateRating(testProductId, testUserId, 10)).rejects.toBeDefined()
   })
 
   it('should handle activity logging errors gracefully', async () => {
