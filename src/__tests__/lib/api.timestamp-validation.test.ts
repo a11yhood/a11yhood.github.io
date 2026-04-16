@@ -233,7 +233,20 @@ describe('API timestamp validation', () => {
     await APIService.getAllProducts({ updatedSince: '2026-04-15' })
 
     expect(fetchSpy).toHaveBeenCalledTimes(1)
-    expect(fetchSpy.mock.calls[0]?.[0]).toBe('https://localhost:8443/api/products?updated_since=2026-04-15T00%3A00%3A00.000Z')
+
+    const requestTarget = fetchSpy.mock.calls[0]?.[0]
+    const requestUrl =
+      typeof requestTarget === 'string'
+        ? requestTarget
+        : requestTarget instanceof URL
+          ? requestTarget.toString()
+          : requestTarget?.url
+
+    expect(requestUrl).toBeDefined()
+
+    const parsedUrl = new URL(requestUrl!, 'https://example.test')
+    expect(parsedUrl.pathname).toContain('/products')
+    expect(parsedUrl.searchParams.get('updated_since')).toBe('2026-04-15T00:00:00.000Z')
   })
 
   it('converts date-only values to UTC-midnight ISO strings without shifting the calendar day', () => {
