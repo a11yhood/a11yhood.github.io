@@ -128,12 +128,19 @@ jobs:
             git push
           fi
 
+      - name: Stage assembled site for Pages upload
+        run: |
+          STAGING_DIR="${RUNNER_TEMP}/pages-artifact"
+          rm -rf "${STAGING_DIR}"
+          mkdir -p "${STAGING_DIR}"
+          rsync -a --delete --exclude='.git' gh-pages-branch/ "${STAGING_DIR}/"
+
       # Publish directly from this workflow because gh-pages pushes performed
       # with GITHUB_TOKEN do not trigger follow-up workflows reliably.
       - name: Upload assembled site as Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: gh-pages-branch
+          path: ${{ runner.temp }}/pages-artifact
 
       - name: Deploy to GitHub Pages
         id: deployment
