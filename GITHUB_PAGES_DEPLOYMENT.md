@@ -27,6 +27,14 @@ hold active PR previews. Both are served from the same Pages deployment.
 Production deploys are gated behind a version tag. Merging to `main`
 alone does **not** deploy.
 
+### Versioning
+We use semantic versioning with a v prefix for tags:
+
+vMAJOR.MINOR.PATCH
+- Patch: bug fixes and small internal improvements
+- Minor: backward-compatible features or substantial enhancements
+- Major: breaking changes or compatibility resets
+
 ```bash
 # 1. Make sure main is green (CI passes) and you are on main.
 git checkout main
