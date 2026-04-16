@@ -1,4 +1,4 @@
-# Deployment Guide
+# GitHub Pages Deployment Guide
 
 ## Overview
 
@@ -6,15 +6,16 @@ The site is hosted on GitHub Pages and uses three workflows working together:
 
 | Workflow | Trigger | Role |
 |----------|---------|------|
-| [Deploy to GitHub Pages](.github/workflows/deploy.yml) | Push a `v*` tag | Build production, commit to `gh-pages` branch |
+| [Production Release](.github/workflows/production-release.yml) | Push a `v*` tag | Build production, update `gh-pages`, and publish Pages directly |
 | [PR Preview](.github/workflows/pr-preview.yml) | PR push / close | Build preview, commit to `gh-pages` branch |
-| [Publish GitHub Pages](.github/workflows/pages-deploy.yml) | Push to `gh-pages` branch | Upload & deploy Pages artifact |
+| [Publish Pages](.github/workflows/publish-pages.yml) | Push to `gh-pages` branch | Upload & deploy Pages artifact |
 
-**Why three workflows?** GitHub Pages environment protection rules only allow
-deployments from the `gh-pages` branch, not from PR merge refs
-(`refs/pull/*/merge`). The build workflows commit their output to `gh-pages`,
-then `pages-deploy.yml` runs from that branch context and does the actual
-`actions/deploy-pages` call.
+**Why three workflows?** PR preview jobs need a shared `gh-pages` branch that
+contains the full assembled site, including `pr-preview/<PR#>/` subdirectories.
+Production releases now publish directly from `production-release.yml` to avoid relying on
+a second workflow trigger from a bot-authenticated `gh-pages` push, while PR
+preview updates still publish via `publish-pages.yml` from `gh-pages` branch
+context.
 
 The `gh-pages` branch root is the production build; `pr-preview/<PR#>/` subdirectories
 hold active PR previews. Both are served from the same Pages deployment.
@@ -38,14 +39,16 @@ git tag v1.2.3
 git push origin v1.2.3
 ```
 
-The [Deploy to GitHub Pages](.github/workflows/deploy.yml) workflow then:
+The [Production Release](.github/workflows/production-release.yml) workflow then:
 1. Runs `npm run test:run` against the tagged commit.
 2. Builds the site with `npm run build:ghpages` (sets `VITE_BASE_URL=/`).
 3. Checks out the `gh-pages` branch, `rsync`s the new build into the root
    **while preserving preview subdirectories** (active PR previews).
-4. Commits the update back to `gh-pages`.
-5. Pushes to `gh-pages`, which triggers [Publish GitHub Pages](.github/workflows/pages-deploy.yml)
-   to upload the full branch as the Pages artifact and deploy it.
+4. Commits the updated assembled site back to `gh-pages` so future preview jobs
+   build on the latest production root.
+5. Uploads that assembled `gh-pages` checkout as the Pages artifact.
+6. Calls `actions/deploy-pages` directly in the same workflow to publish the
+   new production site immediately.
 
 After a successful deploy, the [Accessibility Scanner](.github/workflows/a11y-scan.yml)
 runs automatically against the live site.
@@ -54,10 +57,12 @@ runs automatically against the live site.
 
 - If **tests** fail: fix the code, push to `main`, then re-tag (delete the old tag
   first with `git push --delete origin v1.2.3`, then create a new one).
-- If **deploy.yml** fails before pushing to `gh-pages`: fix and re-run `deploy.yml`
+- If **production-release.yml** fails before pushing to `gh-pages`: fix and re-run `production-release.yml`
    (or push a new tag).
-- If **pages-deploy.yml** fails: re-run `pages-deploy.yml` from the Actions tab
-   (`workflow_dispatch` is enabled there).
+- If **production-release.yml** fails during the final Pages publish step: re-run `production-release.yml`
+   from the Actions tab.
+- If a **PR preview** publish fails: re-run `publish-pages.yml` from the Actions
+   tab (`workflow_dispatch` is enabled there).
 
 ---
 
@@ -71,22 +76,21 @@ The [PR Preview](.github/workflows/pr-preview.yml) workflow:
 2. Builds the site with `VITE_BASE_URL=/pr-preview/<PR#>/` so all asset and router
    paths are scoped to the preview URL.
 3. Checks out `gh-pages`, places the build under `pr-preview/<PR#>/`, and commits.
-4. Pushes to `gh-pages`, which triggers [Publish GitHub Pages](.github/workflows/pages-deploy.yml)
+4. Pushes to `gh-pages`, which triggers [Publish Pages](.github/workflows/publish-pages.yml)
    to deploy the merged site.
 5. Posts a comment on the PR with the preview URL.
 
 When a PR is **closed** (merged or abandoned), the `cleanup` job automatically
-removes `pr-preview/<PR#>/` from `gh-pages`; that push triggers `pages-deploy.yml`
+removes `pr-preview/<PR#>/` from `gh-pages`; that push triggers `publish-pages.yml`
 which redeploys the site without the preview.
 
 ---
 
 ## Publish workflow details
 
-[Publish GitHub Pages](.github/workflows/pages-deploy.yml) is the only workflow
-that calls `actions/deploy-pages` and targets the `github-pages` environment.
-It runs from `gh-pages` branch context, which satisfies environment protection
-rules and avoids PR ref deployment rejections. 
+[Publish Pages](.github/workflows/publish-pages.yml) is used by PR preview
+deploy/cleanup flows. It runs from `gh-pages` branch context, which satisfies
+environment protection rules and avoids PR ref deployment rejections.
 
 ### Forked PRs
 
@@ -113,14 +117,15 @@ to open PRs or contribute code.
 |---------|-------|
 | **Pages → Source** | GitHub Actions |
 | **Environment → `github-pages`** | Must exist; `id-token: write` depends on it |
+| **Actions → General → Workflow permissions** | Read and write permissions |
 | **Secrets** | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_URL`, `VITE_DEV_MODE`, `VITE_LOG_LEVEL`, `GH_TOKEN`, `GH_PAGES_PUSH_PAT` |
 
 The `GH_TOKEN` secret is used for accessibility testing. It must be a personal access token with repo scope — the
 default `GITHUB_TOKEN` is not supported by the `github/accessibility-scanner`
 action.
 
-The `GH_PAGES_PUSH_PAT` secret is used for PR-PREVIEW deployments. It  must be a personal access token that can push to
-this repository (used by PR preview deploy/cleanup jobs when committing to
-`gh-pages`). Using a PAT here ensures the `gh-pages` push reliably triggers
-`pages-deploy.yml`.
+The `GH_PAGES_PUSH_PAT` secret is used for PR preview deployments. It must be a
+personal access token that can push to this repository (used by PR preview
+deploy/cleanup jobs when committing to `gh-pages`). Using a PAT here ensures
+the `gh-pages` push reliably triggers `publish-pages.yml`.
 

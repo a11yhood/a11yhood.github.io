@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Production Release
 
 on:
   # Only deploy production when a version tag is pushed (e.g. v1.2.3).
@@ -12,6 +12,8 @@ on:
 
 permissions:
   contents: write   # Needed to commit updated production build to gh-pages branch
+  pages: write      # Needed to publish the assembled site to GitHub Pages
+  id-token: write   # Required by actions/deploy-pages
 
 concurrency:
   group: "pages"
@@ -58,6 +60,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout trusted merge script source
         uses: actions/checkout@v5
@@ -108,9 +113,8 @@ jobs:
 
           rm -rf "${ARTIFACT_ROOT}"
 
-      # Committing to gh-pages triggers pages-deploy.yml which runs from the
-      # gh-pages branch context (allowed by github-pages environment rules)
-      # and does the actual actions/deploy-pages call.
+      # Keep gh-pages as the canonical assembled site so PR previews continue
+      # to merge against the latest production root.
       - name: Commit updated production to gh-pages
         run: |
           cd gh-pages-branch
@@ -123,3 +127,21 @@ jobs:
             git commit -m "Deploy production ${{ github.ref_name }}"
             git push
           fi
+
+      - name: Stage assembled site for Pages upload
+        run: |
+          STAGING_DIR="${RUNNER_TEMP}/pages-artifact"
+          rm -rf "${STAGING_DIR}"
+          mkdir -p "${STAGING_DIR}"
+          rsync -a --delete --exclude='.git' gh-pages-branch/ "${STAGING_DIR}/"
+
+      # Publish directly from this workflow because gh-pages pushes performed
+      # with GITHUB_TOKEN do not trigger follow-up workflows reliably.
+      - name: Upload assembled site as Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/pages-artifact
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
