@@ -247,8 +247,8 @@ describe('API timestamp validation', () => {
 
     const posts = await APIService.getAllBlogPosts(true)
     expect(posts).toHaveLength(1)
-    expect(posts[0].publishDate).toBeNull()
-    expect(posts[0].publishedAt).toBeNull()
+    expect(posts[0].publishDate).toBeUndefined()
+    expect(posts[0].publishedAt).toBeUndefined()
   })
 
   it('normalizes date-only updatedSince query parameters before sending product requests', async () => {

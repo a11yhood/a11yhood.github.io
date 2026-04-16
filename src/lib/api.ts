@@ -509,8 +509,8 @@ export class APIService {
       ...post,
       createdAt: assertIsoTimestamp(post.createdAt, 'createdAt', context),
       updatedAt: assertIsoTimestamp(post.updatedAt, 'updatedAt', context),
-      publishDate: post.publishDate == null ? post.publishDate : assertIsoTimestamp(post.publishDate, 'publishDate', context),
-      publishedAt: post.publishedAt == null ? post.publishedAt : assertIsoTimestamp(post.publishedAt, 'publishedAt', context),
+      publishDate: post.publishDate == null ? undefined : assertIsoTimestamp(post.publishDate, 'publishDate', context),
+      publishedAt: post.publishedAt == null ? undefined : assertIsoTimestamp(post.publishedAt, 'publishedAt', context),
     }
   }
 
