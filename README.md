@@ -217,7 +217,7 @@ tag — merging to `main` alone does **not** deploy:
 Every pull request gets a live preview at `https://a11yhood.org/pr-preview/<PR#>/`,
 automatically deployed and cleaned up by CI.
 
-See [DEPLOY.md](DEPLOY.md) for the full release process, PR preview details, and
+See [GITHUB_PAGES_DEPLOYMENT.md](GITHUB_PAGES_DEPLOYMENT.md) for the full release process, PR preview details, and
 required repository settings.
 
 ## Contributing

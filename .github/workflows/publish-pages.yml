@@ -1,9 +1,8 @@
-name: Publish GitHub Pages
+name: Publish Pages
 
-# Triggered whenever gh-pages branch is updated — either by a production
-# release (deploy.yml) or a PR preview commit/cleanup (pr-preview.yml).
-# Running from the gh-pages branch satisfies the github-pages environment
-# protection rules that block deployments from PR merge refs.
+# Triggered on any push to the gh-pages branch and by manual dispatch.
+# Preview deploy/cleanup jobs are the primary source of those gh-pages pushes,
+# while production releases publish directly from production-release.yml.
 on:
   push:
     branches:

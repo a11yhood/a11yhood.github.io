@@ -59,6 +59,13 @@ function withApiProxy(target: string) {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, projectRoot, '')
+  const packageJsonPath = resolve(projectRoot, 'package.json')
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8')) as { version?: string }
+  const appVersion =
+    process.env.VITE_APP_VERSION ||
+    process.env.npm_package_version ||
+    packageJson.version ||
+    'dev'
   const apiProxyTarget =
     process.env.VITE_API_URL ||
     env.VITE_API_URL ||
@@ -69,6 +76,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: process.env.VITE_BASE_URL || env.VITE_BASE_URL || '/',
+    define: {
+      __APP_VERSION__: JSON.stringify(appVersion),
+    },
     plugins: [
       react(),
       tailwindcss(),
