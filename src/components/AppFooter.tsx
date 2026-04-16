@@ -17,6 +17,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGithub } from '@fortawesome/free-brands-svg-icons'
 
 export function AppFooter() {
+  const appVersion = __APP_VERSION__
+
   return (
     <footer aria-label="Site footer" className="border-t border-border bg-muted/30 mt-12">
       <div className="max-w-7xl mx-auto px-4 py-6">
@@ -91,6 +93,12 @@ export function AppFooter() {
                 GOAT
               </a>
             </div>
+            <p
+              className="mt-3 text-xs text-muted-foreground"
+              aria-label={`Application version ${appVersion}`}
+            >
+              Version {appVersion}
+            </p>
           </nav>
         </div>
       </div>
