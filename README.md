@@ -69,6 +69,7 @@ brew install pixi
 
 ```bash
 # Official installer
+# Works for Linux/Mac only 
 curl -fsSL https://pixi.sh/install.sh | bash
 ```
 
@@ -77,8 +78,17 @@ Verify installation:
 ```bash
 pixi --version
 ```
+### Using Pixi
+
+Use Pixi to provide the project runtime, then run npm commands inside that environment.
 
 ### Installation
+
+We assume throughout that you are already running pixi. 
+
+```bash
+ pixi shell
+```
 
 1. **Clone the repository**
    ```bash
@@ -86,7 +96,7 @@ pixi --version
    cd a11yhood.github.io
    ```
 
-2. **Install dependencies**
+2. **Install Node + npm dependencies via Pixi**
    ```bash
    pixi shell
    npm install
@@ -98,7 +108,6 @@ pixi --version
    ```env
    VITE_DEV_MODE=true
    VITE_DEV_USER=admin
-   VITE_API_URL=http://localhost:8002 # or another backend
    ```
 
    Production auth flows require Supabase values:
@@ -112,8 +121,6 @@ pixi --version
 4. **Start the development server**
    ```bash
    npm run dev
-   # or use the script
-   ./scripts/start-dev.sh
    ```
 
    The application will be available at `http://localhost:5173`
@@ -121,6 +128,8 @@ pixi --version
 ### Running Tests
 
 ```bash
+pixi shell
+
 # Run tests in watch mode
 npm test
 
@@ -133,8 +142,13 @@ npm run test:coverage
 # Run tests with UI
 npm run test:ui
 
-# Run integration tests against local or other backend
-TEST_BACKEND_URL=https://backend-url npm run test:integration
+# Lint
+npm run lint
+
+# Accessibility
+npm run test:a11y
+npm run test:a11y-integration
+
 ```
 
 Notes:
@@ -149,56 +163,26 @@ npm run build
 
 # Preview the production build
 npm run preview
-
-# Or use the production script
-./scripts/start-prod.sh
 ```
 
-### Using Pixi
-
-Use Pixi to provide the project runtime, then run npm commands inside that environment.
+### Bundle-only Vite build via Pixi task
+Note: this skips tests and TypeScript type checking
 
 ```bash
-# Enter the Pixi environment
-pixi shell
-
-# Development (hot reload)
-npm run dev
-# or
-./scripts/start-dev.sh
-
-# Full production build (recommended: includes tests and type checking)
-npm run build
-
-# Bundle-only Vite build via Pixi task
-# Note: this skips tests and TypeScript type checking
 pixi run build-vite
+
 # Production preview
 npm run preview
-# or
-./scripts/start-prod.sh
 ```
 
-## Development
-
-### Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production (includes tests and type checking)
-- `npm run preview` - Preview production build locally
-- `npm test` - Run tests in watch mode
-- `npm run test:run` - Run tests once
-- `npm run test:coverage` - Generate test coverage report
-- `npm run lint` - Run ESLint
-
-### Code Quality
+# Code Quality
 
 The project includes:
-- **ESLint** for code linting
+- **ESLint** for code linting 
 - **TypeScript** for type safety
 - **Vitest** for unit and integration testing
 - **React Testing Library** for component testing
-- Accessibility tests for critical UI components
+- Accessibility tests for critical UI components 
 
 ## Key Features Explained
 
@@ -230,14 +214,10 @@ Products are automatically scraped from:
 The site is hosted on GitHub Pages. Production deploys are gated behind a version
 tag — merging to `main` alone does **not** deploy:
 
-```bash
-git tag v1.2.3 && git push origin v1.2.3
-```
-
-Every pull request also gets a live preview at `https://a11yhood.org/pr-preview/<PR#>/`,
+Every pull request gets a live preview at `https://a11yhood.org/pr-preview/<PR#>/`,
 automatically deployed and cleaned up by CI.
 
-See [DEPLOY.md](DEPLOY.md) for the full release process, PR preview details, and
+See [GITHUB_PAGES_DEPLOYMENT.md](GITHUB_PAGES_DEPLOYMENT.md) for the full release process, PR preview details, and
 required repository settings.
 
 ## Contributing
@@ -247,6 +227,9 @@ We welcome contributions! Please:
 2. Create a feature branch
 3. Make your changes with tests
 4. Submit a pull request
+
+For contribution norms, review expectations, and release conventions across A11yhood,
+see the community guide: [Community CONTRIBUTING.md](https://github.com/a11yhood/community/blob/main/CONTRIBUTING.md).
 
 ## Partners and Funders
 
