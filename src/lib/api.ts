@@ -156,25 +156,29 @@ function normalizeIsoTimestamp(
   context: string,
   options?: { allowDateOnly?: boolean }
 ): string {
-  if (typeof value === 'string' && options?.allowDateOnly && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
-    const normalizedValue = toIsoTimestamp(value)
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
 
-    if (!normalizedValue) {
-      throw new APIError(`${context} requires ${fieldName} to be an ISO 8601 string.`, 400, {
-        field: fieldName,
-        value,
-        type: 'InvalidTimestampError',
+    if (options?.allowDateOnly && /^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      const normalizedValue = toIsoTimestamp(trimmed)
+
+      if (!normalizedValue) {
+        throw new APIError(`${context} requires ${fieldName} to be an ISO 8601 string.`, 400, {
+          field: fieldName,
+          value,
+          type: 'InvalidTimestampError',
+        })
+      }
+
+      logger.warn(`[API] Normalized legacy date-only ${fieldName} to ISO 8601`, {
+        context,
+        fieldName,
+        originalValue: value,
+        normalizedValue,
       })
+
+      return normalizedValue
     }
-
-    logger.warn(`[API] Normalized legacy date-only ${fieldName} to ISO 8601`, {
-      context,
-      fieldName,
-      originalValue: value,
-      normalizedValue,
-    })
-
-    return normalizedValue
   }
 
   return assertIsoTimestamp(value, fieldName, context)
