@@ -63,18 +63,6 @@ jobs:
     env:
       PREVIEW_URL: https://a11yhood.org/pr-preview/${{ github.event.number }}/
     steps:
-      - name: Checkout trusted workflow source
-        uses: actions/checkout@v5
-        with:
-          repository: ${{ github.repository }}
-          ref: refs/heads/${{ github.event.repository.default_branch }}
-          path: trusted-workflow-source
-          sparse-checkout: |
-            .github/workflows/pages-deploy.yml
-            .github/workflows/publish-pages.yml
-          sparse-checkout-cone-mode: false
-          persist-credentials: false
-
       - name: Checkout gh-pages branch
         uses: actions/checkout@v5
         with:
@@ -99,16 +87,6 @@ jobs:
             cp -r /tmp/pr-build/dist/. gh-pages-branch/pr-preview/${{ github.event.number }}/
           else
             cp -r /tmp/pr-build/. gh-pages-branch/pr-preview/${{ github.event.number }}/
-          fi
-
-      - name: Seed pages publish workflow on gh-pages if missing
-        run: |
-          if [ -f gh-pages-branch/.github/workflows/publish-pages.yml ] || [ -f gh-pages-branch/.github/workflows/pages-deploy.yml ]; then
-            echo "Publish workflow already exists on gh-pages; leaving it unchanged"
-          else
-            echo "gh-pages is missing a publish workflow file"
-            echo "Seed it once manually or use a PAT with workflow scope for migration"
-            exit 1
           fi
 
       - name: Commit preview to gh-pages
@@ -179,18 +157,6 @@ jobs:
     if: github.event.action == 'closed' && github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout trusted workflow source
-        uses: actions/checkout@v5
-        with:
-          repository: ${{ github.repository }}
-          ref: refs/heads/${{ github.event.repository.default_branch }}
-          path: trusted-workflow-source
-          sparse-checkout: |
-            .github/workflows/pages-deploy.yml
-            .github/workflows/publish-pages.yml
-          sparse-checkout-cone-mode: false
-          persist-credentials: false
-
       - name: Checkout gh-pages branch
         uses: actions/checkout@v5
         with:
@@ -198,16 +164,6 @@ jobs:
           path: gh-pages-branch
           fetch-depth: 1
           persist-credentials: false
-
-      - name: Seed pages publish workflow on gh-pages if missing
-        run: |
-          if [ -f gh-pages-branch/.github/workflows/publish-pages.yml ] || [ -f gh-pages-branch/.github/workflows/pages-deploy.yml ]; then
-            echo "Publish workflow already exists on gh-pages; leaving it unchanged"
-          else
-            echo "gh-pages is missing a publish workflow file"
-            echo "Seed it once manually or use a PAT with workflow scope for migration"
-            exit 1
-          fi
 
       - name: Remove PR preview directory
         env:
@@ -251,5 +207,3 @@ jobs:
           repository: a11yhood/a11yhood.github.io
           token: ${{ secrets.GH_TOKEN }}
           cache_key: a11yhood.org-pr-${{ github.event.number }}
-
-
