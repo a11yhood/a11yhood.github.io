@@ -121,12 +121,12 @@ export function toIsoTimestamp(timestamp?: number | string | Date | null): strin
       const monthIndex = Number(dateOnlyMatch[2]) - 1
       const day = Number(dateOnlyMatch[3])
 
-      date = new Date(year, monthIndex, day)
+      date = new Date(Date.UTC(year, monthIndex, day))
 
       if (
-        date.getFullYear() !== year ||
-        date.getMonth() !== monthIndex ||
-        date.getDate() !== day
+        date.getUTCFullYear() !== year ||
+        date.getUTCMonth() !== monthIndex ||
+        date.getUTCDate() !== day
       ) {
         return undefined
       }
