@@ -10,6 +10,7 @@
 import { UserAccount, UserActivity, Product, ProductUpdate, Rating, Discussion, ScrapingLog, BlogPost, Collection, CollectionCreateInput, UserRequest, SupportedSource, ScraperJob } from './types'
 import { logger } from './logger'
 import { ProductUrl, ProductUrlCreate, ProductUrlUpdate } from '../types/product-url'
+import { toIsoTimestamp } from './utils'
 
 // Use relative path for dev/preview (Vite proxy will handle it), or explicit URL if configured
 export function getApiBaseUrl(
@@ -147,6 +148,49 @@ function assertIsoTimestamp(value: unknown, fieldName: string, context: string):
   }
 
   return trimmed
+}
+
+function normalizeIsoTimestamp(
+  value: unknown,
+  fieldName: string,
+  context: string,
+  options?: { allowDateOnly?: boolean }
+): string {
+  if (typeof value === 'string' && options?.allowDateOnly && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    const normalizedValue = toIsoTimestamp(value)
+
+    if (!normalizedValue) {
+      throw new APIError(`${context} requires ${fieldName} to be an ISO 8601 string.`, 400, {
+        field: fieldName,
+        value,
+        type: 'InvalidTimestampError',
+      })
+    }
+
+    logger.warn(`[API] Normalized legacy date-only ${fieldName} to ISO 8601`, {
+      context,
+      fieldName,
+      originalValue: value,
+      normalizedValue,
+    })
+
+    return normalizedValue
+  }
+
+  return assertIsoTimestamp(value, fieldName, context)
+}
+
+function setOptionalIsoTimestampParam(
+  params: URLSearchParams,
+  key: string,
+  value: string | undefined,
+  context: string
+) {
+  if (value === undefined) {
+    return
+  }
+
+  params.set(key, normalizeIsoTimestamp(value, key, context, { allowDateOnly: true }))
 }
 
 /**
@@ -534,9 +578,7 @@ export class APIService {
     if (options?.minRating !== undefined) {
       params.set('min_rating', String(options.minRating))
     }
-    if (options?.updatedSince !== undefined) {
-      params.set('updated_since', options.updatedSince)
-    }
+    setOptionalIsoTimestampParam(params, 'updated_since', options?.updatedSince, 'Product query parameter')
     if (options?.sortBy !== undefined) {
       params.set('sort_by', options.sortBy)
     }
@@ -584,9 +626,7 @@ export class APIService {
     if (options?.minRating !== undefined) {
       params.set('min_rating', String(options.minRating))
     }
-    if (options?.updatedSince !== undefined) {
-      params.set('updated_since', options.updatedSince)
-    }
+    setOptionalIsoTimestampParam(params, 'updated_since', options?.updatedSince, 'Product count query parameter')
     const suffix = params.toString() ? `?${params.toString()}` : ''
     const data = await request<{ count: number }>(`/products/count${suffix}`, { signal: options?.signal })
     return data.count || 0
@@ -914,7 +954,9 @@ export class APIService {
     if (filters.type) params.set('type', filters.type)
     if (filters.tagsMode) params.set('tags_mode', filters.tagsMode)
     if (filters.minRating !== undefined) params.set('min_rating', String(filters.minRating))
-    if (filters.updatedSince) params.set('updated_since', filters.updatedSince)
+    if (filters.updatedSince) {
+      setOptionalIsoTimestampParam(params, 'updated_since', filters.updatedSince, 'Bulk delete query parameter')
+    }
     if (filters.maxAge !== undefined) params.set('max_age', String(filters.maxAge))
     if (filters.search) params.set('search', filters.search)
     if (filters.createdBy) params.set('created_by', filters.createdBy)

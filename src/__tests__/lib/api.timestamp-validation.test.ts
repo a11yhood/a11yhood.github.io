@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { APIError, APIService } from '@/lib/api'
+import { toIsoTimestamp } from '@/lib/utils'
 
 describe('API timestamp validation', () => {
   beforeEach(() => {
@@ -190,5 +191,52 @@ describe('API timestamp validation', () => {
       name: 'APIError',
       data: { type: 'InvalidTimestampError' },
     })
+  })
+
+  it('rejects date-only publishDate values returned from blog posts', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify([
+        {
+          id: 'post-1',
+          title: 'Test post',
+          slug: 'test-post',
+          content: 'content',
+          excerpt: 'excerpt',
+          author_id: 'author-1',
+          author_name: 'Author',
+          created_at: '2026-04-15T12:30:00.000Z',
+          updated_at: '2026-04-15T12:45:00.000Z',
+          publish_date: '2026-04-15',
+          published: true,
+          published_at: '2026-04-15T13:00:00.000Z',
+        },
+      ]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    )
+
+    await expect(APIService.getAllBlogPosts(false)).rejects.toMatchObject({
+      name: 'APIError',
+      data: { type: 'InvalidTimestampError' },
+    })
+  })
+
+  it('normalizes date-only updatedSince query parameters before sending product requests', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    )
+
+    await APIService.getAllProducts({ updatedSince: '2026-04-15' })
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('https://localhost:8443/api/products?updated_since=2026-04-15T00%3A00%3A00.000Z')
+  })
+
+  it('converts date-only values to UTC-midnight ISO strings without shifting the calendar day', () => {
+    expect(toIsoTimestamp('2026-04-15')).toBe('2026-04-15T00:00:00.000Z')
   })
 })
