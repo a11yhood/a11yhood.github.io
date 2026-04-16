@@ -70,6 +70,7 @@ jobs:
           ref: refs/heads/${{ github.event.repository.default_branch }}
           path: trusted-workflow-source
           sparse-checkout: |
+            .github/workflows/pages-deploy.yml
             .github/workflows/publish-pages.yml
           sparse-checkout-cone-mode: false
           persist-credentials: false
@@ -102,9 +103,21 @@ jobs:
 
       - name: Seed pages publish workflow on gh-pages if missing
         run: |
+          mkdir -p gh-pages-branch/.github/workflows
+
           if [ ! -f gh-pages-branch/.github/workflows/publish-pages.yml ]; then
-            mkdir -p gh-pages-branch/.github/workflows
-            cp trusted-workflow-source/.github/workflows/publish-pages.yml gh-pages-branch/.github/workflows/publish-pages.yml
+            if [ -f trusted-workflow-source/.github/workflows/publish-pages.yml ]; then
+              cp trusted-workflow-source/.github/workflows/publish-pages.yml gh-pages-branch/.github/workflows/publish-pages.yml
+            elif [ -f trusted-workflow-source/.github/workflows/pages-deploy.yml ]; then
+              cp trusted-workflow-source/.github/workflows/pages-deploy.yml gh-pages-branch/.github/workflows/publish-pages.yml
+            else
+              echo "Could not find publish workflow in trusted-workflow-source"
+              exit 1
+            fi
+          fi
+
+          if [ -f gh-pages-branch/.github/workflows/pages-deploy.yml ]; then
+            rm -f gh-pages-branch/.github/workflows/pages-deploy.yml
           fi
 
       - name: Commit preview to gh-pages
@@ -120,8 +133,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${GH_PAGES_PUSH_PAT}@github.com/${{ github.repository }}.git"
           git add -A pr-preview/${{ github.event.number }}/
-          if ! git diff --quiet -- .github/workflows/publish-pages.yml || [ -n "$(git ls-files --others --exclude-standard -- .github/workflows/publish-pages.yml)" ]; then
-            git add .github/workflows/publish-pages.yml
+          if ! git diff --quiet -- .github/workflows/publish-pages.yml .github/workflows/pages-deploy.yml || [ -n "$(git ls-files --others --exclude-standard -- .github/workflows/publish-pages.yml .github/workflows/pages-deploy.yml)" ]; then
+            git add -A .github/workflows/publish-pages.yml .github/workflows/pages-deploy.yml
           fi
           if git diff --cached --quiet; then
             echo "Nothing to commit, preview is already up to date"
@@ -185,6 +198,7 @@ jobs:
           ref: refs/heads/${{ github.event.repository.default_branch }}
           path: trusted-workflow-source
           sparse-checkout: |
+            .github/workflows/pages-deploy.yml
             .github/workflows/publish-pages.yml
           sparse-checkout-cone-mode: false
           persist-credentials: false
@@ -199,9 +213,21 @@ jobs:
 
       - name: Seed pages publish workflow on gh-pages if missing
         run: |
+          mkdir -p gh-pages-branch/.github/workflows
+
           if [ ! -f gh-pages-branch/.github/workflows/publish-pages.yml ]; then
-            mkdir -p gh-pages-branch/.github/workflows
-            cp trusted-workflow-source/.github/workflows/publish-pages.yml gh-pages-branch/.github/workflows/publish-pages.yml
+            if [ -f trusted-workflow-source/.github/workflows/publish-pages.yml ]; then
+              cp trusted-workflow-source/.github/workflows/publish-pages.yml gh-pages-branch/.github/workflows/publish-pages.yml
+            elif [ -f trusted-workflow-source/.github/workflows/pages-deploy.yml ]; then
+              cp trusted-workflow-source/.github/workflows/pages-deploy.yml gh-pages-branch/.github/workflows/publish-pages.yml
+            else
+              echo "Could not find publish workflow in trusted-workflow-source"
+              exit 1
+            fi
+          fi
+
+          if [ -f gh-pages-branch/.github/workflows/pages-deploy.yml ]; then
+            rm -f gh-pages-branch/.github/workflows/pages-deploy.yml
           fi
 
       - name: Remove PR preview directory
@@ -222,8 +248,8 @@ jobs:
             git rm -rf "pr-preview/${{ github.event.number }}/"
             REMOVED_PREVIEW=1
           fi
-          if ! git diff --quiet -- .github/workflows/publish-pages.yml || [ -n "$(git ls-files --others --exclude-standard -- .github/workflows/publish-pages.yml)" ]; then
-            git add .github/workflows/publish-pages.yml
+          if ! git diff --quiet -- .github/workflows/publish-pages.yml .github/workflows/pages-deploy.yml || [ -n "$(git ls-files --others --exclude-standard -- .github/workflows/publish-pages.yml .github/workflows/pages-deploy.yml)" ]; then
+            git add -A .github/workflows/publish-pages.yml .github/workflows/pages-deploy.yml
             WORKFLOW_CHANGED=1
           fi
           if git diff --cached --quiet; then
