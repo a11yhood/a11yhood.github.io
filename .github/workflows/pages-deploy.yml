@@ -1,8 +1,8 @@
 name: Publish GitHub Pages
 
-# Triggered whenever gh-pages branch is updated by preview deploy/cleanup jobs.
-# Production releases publish directly from deploy.yml, but preview workflows
-# still use gh-pages as the assembled-site source of truth.
+# Triggered on any push to the gh-pages branch and by manual dispatch.
+# Preview deploy/cleanup jobs are the primary source of those gh-pages pushes,
+# while production releases publish directly from deploy.yml.
 on:
   push:
     branches:
