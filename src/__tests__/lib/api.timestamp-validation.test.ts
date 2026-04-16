@@ -222,6 +222,35 @@ describe('API timestamp validation', () => {
     })
   })
 
+  it('accepts null publishDate and publishedAt for unpublished blog posts', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify([
+        {
+          id: 'post-1',
+          title: 'Draft post',
+          slug: 'draft-post',
+          content: 'content',
+          excerpt: 'excerpt',
+          author_id: 'author-1',
+          author_name: 'Author',
+          created_at: '2026-04-15T12:30:00.000Z',
+          updated_at: '2026-04-15T12:45:00.000Z',
+          publish_date: null,
+          published: false,
+          published_at: null,
+        },
+      ]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    )
+
+    const posts = await APIService.getAllBlogPosts(true)
+    expect(posts).toHaveLength(1)
+    expect(posts[0].publishDate).toBeUndefined()
+    expect(posts[0].publishedAt).toBeUndefined()
+  })
+
   it('normalizes date-only updatedSince query parameters before sending product requests', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify([]), {
