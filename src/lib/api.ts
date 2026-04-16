@@ -1382,9 +1382,13 @@ export class APIService {
       const response = await request<{ products: Product[] }>(`/users/${encodeURIComponent(username)}/owned-products`)
       return response.products || []
     } catch (error) {
-      // If endpoint doesn't exist, return empty array
-      console.warn('Owned products endpoint not available:', error)
-      return []
+      // Backward compatibility for older backends that lack this endpoint.
+      // Do not swallow auth/network/server errors.
+      if (error instanceof APIError && error.status === 404) {
+        console.warn('Owned products endpoint not available:', error)
+        return []
+      }
+      throw error
     }
   }
 

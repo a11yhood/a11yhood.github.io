@@ -6,6 +6,7 @@ import { MemoryRouter, Routes, Route, useNavigate, useParams } from 'react-route
 import { UserProfile } from '@/components/UserProfile'
 import { ProductDetail } from '@/components/ProductDetail'
 import { APIService } from '@/lib/api'
+import { getDevToken } from '@/lib/dev-users'
 import { getValidProductType } from '../testData'
 import type { Product, UserAccount, UserData } from '@/lib/types'
 
@@ -18,8 +19,7 @@ let authHeader: { Authorization: string }
 
 async function createTestUser(): Promise<void> {
   const userId = `profile-user-${Date.now()}`
-  
-  // Retry logic for user creation (handles transient DB issues)
+
   let lastError: Error | null = null
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -41,24 +41,22 @@ async function createTestUser(): Promise<void> {
           role: user.role ?? 'user',
           createdAt: user.created_at ?? user.createdAt ?? new Date().toISOString(),
           joinedAt: user.joined_at ?? user.joinedAt ?? new Date().toISOString(),
-    lastActive: user.last_active ?? user.lastActive ?? new Date().toISOString(),
-    avatarUrl: user.avatar_url ?? user.avatarUrl ?? undefined,
-  }
+          lastActive: user.last_active ?? user.lastActive ?? new Date().toISOString(),
+          avatarUrl: user.avatar_url ?? user.avatarUrl ?? undefined,
+        }
 
-  userData = {
-    id: userAccount.id,
-    username: userAccount.username,
-    avatarUrl: userAccount.avatarUrl,
-  }
+        userData = {
+          id: userAccount.id,
+          username: userAccount.username,
+          avatarUrl: userAccount.avatarUrl,
+        }
 
-  authHeader = { Authorization: getDevToken(userAccount.role) }
-  APIService.setAuthTokenGetter(async () => authHeader.Authorization)
-        return // Success
+        authHeader = { Authorization: `Bearer ${getDevToken(userAccount.id)}` }
+        APIService.setAuthTokenGetter(async () => getDevToken(userAccount.id))
+        return
       }
 
       lastError = new Error(`Failed to create test user: ${res.status} ${res.statusText}`)
-      
-      // Wait before retry (exponential backoff)
       if (attempt < 2) {
         await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt)))
       }
@@ -91,18 +89,32 @@ async function createOwnedProduct(): Promise<void> {
     description: product.description ?? '',
     tags: product.tags ?? [],
     createdAt: product.createdAt ? new Date(product.createdAt).getTime() : Date.now(),
-    updatedAt: product.updated_at ? new Date(product.updated_at).getTime() : Date.now(),
-    sourceUrl: product.source_url ?? product.sourceUrl,
-    editorIds: product.editor_ids ?? product.editorIds ?? [],
+    updatedAt: product.updatedAt ? new Date(product.updatedAt).getTime() : Date.now(),
+    sourceUrl: product.sourceUrl,
+    editorIds: product.editorIds ?? [],
   }
 }
 
 async function deleteOwnedProduct(): Promise<void> {
   if (!ownedProduct) return
-  await fetch(`${API_BASE}/products/${ownedProduct.id}`, {
-    method: 'DELETE',
-    headers: authHeader,
-  }).catch(() => undefined)
+  try {
+    const response = await fetch(`${API_BASE}/products/${ownedProduct.id}`, {
+      method: 'DELETE',
+      headers: authHeader,
+    })
+
+    if (!response.ok) {
+      const details = await response.text().catch(() => '')
+      console.warn(
+        `[UserProfile.integration.test] Cleanup failed for product ${ownedProduct.id}: ${response.status} ${response.statusText} ${details}`
+      )
+    }
+  } catch (error) {
+    console.warn(
+      `[UserProfile.integration.test] Cleanup request threw for product ${ownedProduct.id}:`,
+      error
+    )
+  }
 }
 
 describeWithBackend('UserProfile owned products navigation', () => {
@@ -164,9 +176,7 @@ describeWithBackend('UserProfile owned products navigation', () => {
       expect(screen.getByText(/Products you can edit/i)).toBeInTheDocument()
     })
 
-    await waitFor(() => {
-      expect(screen.getByText(ownedProduct.name)).toBeInTheDocument()
-    })
+    await screen.findByText(ownedProduct.name, {}, { timeout: 5000 })
 
     await user.click(screen.getByText(ownedProduct.name))
 

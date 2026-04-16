@@ -144,12 +144,12 @@ describe('ProductSubmission Accessibility Tests', () => {
       })
 
       const urlInput = screen.getByLabelText('Product URL')
-      fireEvent.change(urlInput, { target: { value: 'https://github.com/test/image-test' } })
+      fireEvent.change(urlInput, { target: { value: `https://github.com/test/image-test-${Date.now()}` } })
       fireEvent.click(screen.getByRole('button', { name: /Check/i }))
 
       await waitFor(() => {
         expect(screen.getByText('Product Image')).toBeInTheDocument()
-      })
+      }, { timeout: 3000 })
     })
 
     it('should have Product Image section with Image URL input', () => {

@@ -111,12 +111,24 @@ describeWithBackend('DiscussionSection Integration Tests (live API)', () => {
     // Safely cleanup only if owner exists
     if (owner?.token && productId) {
       activeToken = owner.token
-      await fetch(`${API_BASE}/products/${productId}`, {
-        method: 'DELETE',
-        headers: { Authorization: owner.token },
-      }).catch(() => {
-        // ignore cleanup failures
-      })
+      try {
+        const response = await fetch(`${API_BASE}/products/${productId}`, {
+          method: 'DELETE',
+          headers: { Authorization: owner.token },
+        })
+
+        if (!response.ok) {
+          const details = await response.text().catch(() => '')
+          console.warn(
+            `[DiscussionSection.test] Cleanup failed for product ${productId}: ${response.status} ${response.statusText} ${details}`
+          )
+        }
+      } catch (error) {
+        console.warn(
+          `[DiscussionSection.test] Cleanup request threw for product ${productId}:`,
+          error
+        )
+      }
     }
   })
 
@@ -157,8 +169,13 @@ describeWithBackend('DiscussionSection Integration Tests (live API)', () => {
       expect(screen.getByRole('button', { name: /posting/i })).toBeInTheDocument()
     })
 
+    // Ensure submission settles before teardown so we don't race product cleanup.
     await waitFor(() => {
       expect(screen.getByText('Posting state check')).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^post$/i })).toBeInTheDocument()
     })
   })
 

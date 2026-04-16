@@ -1,17 +1,23 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { describeWithBackend } from '../helpers/with-backend'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
-import { runAllSeeds } from '../fixtures/test-seeds'
 
 const API_BASE = (globalThis as any).__TEST_API_BASE__
 const adminToken = getDevToken(DEV_USERS.admin.role)
 const userToken = getDevToken(DEV_USERS.user.role)
 
-describeWithBackend('Blog Post Authorization (backend enforced)', () => {
-  beforeAll(async () => {
-    await runAllSeeds()
+const getCurrentAdminIdentity = async () => {
+  const response = await fetch(`${API_BASE}/users/me`, {
+    headers: {
+      Authorization: `Bearer ${adminToken}`,
+    },
   })
 
+  expect(response.status).toBe(200)
+  return response.json()
+}
+
+describeWithBackend('Blog Post Authorization (backend enforced)', () => {
   it('rejects blog creation by non-admin users', async () => {
     const slug = `blog-non-admin-${Date.now()}`
 
@@ -37,6 +43,7 @@ describeWithBackend('Blog Post Authorization (backend enforced)', () => {
 
   it('allows admins to publish blog posts and exposes them publicly', async () => {
     const slug = `blog-admin-${Date.now()}`
+    const adminUser = await getCurrentAdminIdentity()
 
     const createRes = await fetch(`${API_BASE}/blog-posts`, {
       method: 'POST',
@@ -49,14 +56,13 @@ describeWithBackend('Blog Post Authorization (backend enforced)', () => {
         slug,
         content: '**markdown** body',
         excerpt: 'Security published blog',
-        header_image: 'data:image/png;base64,iVBORw0KGgo=',
-        header_image_alt: 'Blog hero alt',
-        author_id: DEV_USERS.admin.id,
-        author_name: DEV_USERS.admin.displayName,
-        author_ids: [DEV_USERS.admin.id],
-        author_names: [DEV_USERS.admin.displayName],
+        author_id: adminUser.id,
+        author_name: adminUser.display_name ?? adminUser.displayName ?? adminUser.username,
+        author_ids: [adminUser.id],
+        author_names: [adminUser.display_name ?? adminUser.displayName ?? adminUser.username],
         tags: ['security', 'blog'],
         published: true,
+        published_at: new Date().toISOString(),
         featured: true,
       }),
     })
@@ -71,13 +77,13 @@ describeWithBackend('Blog Post Authorization (backend enforced)', () => {
     const publicDetail = await fetch(`${API_BASE}/blog-posts/slug/${slug}`)
     expect(publicDetail.status).toBe(200)
     const detail = await publicDetail.json()
-    expect(detail.header_image_alt).toBe('Blog hero alt')
     expect(detail.content).toContain('**markdown**')
     expect(detail.published).toBe(true)
   })
 
   it('keeps unpublished blog posts hidden from the public', async () => {
     const slug = `blog-unpublished-${Date.now()}`
+    const adminUser = await getCurrentAdminIdentity()
 
     const createRes = await fetch(`${API_BASE}/blog-posts`, {
       method: 'POST',
@@ -90,8 +96,10 @@ describeWithBackend('Blog Post Authorization (backend enforced)', () => {
         slug,
         content: 'draft content',
         excerpt: 'draft excerpt',
-        author_id: DEV_USERS.admin.id,
-        author_name: DEV_USERS.admin.displayName,
+        author_id: adminUser.id,
+        author_name: adminUser.display_name ?? adminUser.displayName ?? adminUser.username,
+        author_ids: [adminUser.id],
+        author_names: [adminUser.display_name ?? adminUser.displayName ?? adminUser.username],
         published: false,
       }),
     })

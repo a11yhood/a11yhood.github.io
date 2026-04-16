@@ -175,8 +175,12 @@ export function CollectionDetail({
         if (cancelled) return
         setResolvedCreatorUsername(user?.username || '')
       })
-      .catch(() => {
+      .catch((error) => {
         if (cancelled) return
+        console.warn('[CollectionDetail] Failed to resolve creator username', {
+          userId: collection.userId,
+          error,
+        })
         setResolvedCreatorUsername('')
       })
 

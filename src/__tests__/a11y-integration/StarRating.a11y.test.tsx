@@ -6,10 +6,10 @@ import { APIError, APIService } from '@/lib/api'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 import type { Rating } from '@/lib/types'
 
-const testUserId = DEV_USERS.user.id
 const testRole = DEV_USERS.user.role
 const productUrl = `https://github.com/test/a11y-star-${Date.now()}`
 const defaultSeedRating = 4
+let testUserId = DEV_USERS.user.id  // will be overwritten with actual backend ID in beforeAll
 let productId: string
 let seededRating: Rating | null = null
 
@@ -45,6 +45,10 @@ const ensureRating = async (value = defaultSeedRating) => {
 
 beforeAll(async () => {
   APIService.setAuthTokenGetter(async () => getDevToken(testRole))
+
+  // Get actual backend user ID (DEV_USERS.user.id is a static constant that may differ)
+  const me = await APIService.getCurrentUser()
+  if (me?.id) testUserId = me.id
 
   const product = await APIService.createProduct({
     name: 'Star Rating Target',

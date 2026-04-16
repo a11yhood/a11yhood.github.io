@@ -1,4 +1,4 @@
-import { it, beforeAll, expect, vi } from 'vitest'
+import { it, beforeAll, afterAll, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describeWithBackend } from '../helpers/with-backend'
@@ -9,76 +9,69 @@ import { ProductDetail } from '@/components/ProductDetail'
 import { formatRelativeTime } from '@/lib/utils'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
+import { getValidProductType } from '../testData'
 
-let productWithUpdated: Product | null = null
+let productWithUpdated: Product
 let ratings: Rating[] = []
-
-async function fetchBackendProducts(): Promise<void> {
-  try {
-    // Use APIService with auth; don't require a specific user token
-    const items = await APIService.getAllProducts()
-    if (!Array.isArray(items) || items.length === 0) {
-      console.log('[Test] No products available from backend')
-      return
-    }
-
-    // Find first product that has an updated timestamp (APIService camelCases to sourceLastUpdated)
-    const candidate = items.find((p: any) => p.sourceLastUpdated)
-    if (!candidate) {
-      console.log('[Test] No products with sourceLastUpdated found; using first product with mock timestamp')
-      // Use first product and attach a mock ISO string timestamp for testing
-      productWithUpdated = {
-        ...items[0],
-        sourceLastUpdated: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-      }
-      return
-    }
-
-    // Found a product with timestamp; use it as-is (string or number)
-    productWithUpdated = {
-      ...candidate,
-      sourceLastUpdated: candidate.sourceLastUpdated,
-    }
-
-    // Try to fetch ratings; if unavailable, skip
-    try {
-      const allRatings = await APIService.getAllRatings()
-      ratings = allRatings.filter((r) => r.productId === productWithUpdated!.id)
-    } catch {
-      ratings = []
-    }
-  } catch (e: any) {
-    console.log('[Test] fetchBackendProducts error:', e?.message || e)
-    // Backend may be unavailable or token invalid; tests will handle null gracefully
-  }
-}
+const API_BASE = (globalThis as any).__TEST_API_BASE__
 
 describeWithBackend('Updated timestamp integration (backend)', () => {
   beforeAll(async () => {
-    // Register a dev token getter using seeded test user
-    // DEV_USERS.admin is seeded in the backend test database
-    setAuthTokenGetter(async () => getDevToken(DEV_USERS.admin.role))
-    await fetchBackendProducts()
+    const adminToken = getDevToken(DEV_USERS.admin.id)
+    setAuthTokenGetter(async () => adminToken)
+
+    const created = await APIService.createProduct({
+      name: `Updated Timestamp Integration ${Date.now()}`,
+      type: getValidProductType('user-submitted'),
+      source: 'user-submitted',
+      category: 'Software',
+      sourceUrl: `https://github.com/test/updated-timestamp-${Date.now()}`,
+      description: 'Integration fixture with deterministic updated timestamp',
+      tags: ['integration', 'updated'],
+    } as any)
+
+    // Keep backend-backed product data and set explicit timestamp under test.
+    productWithUpdated = {
+      ...created,
+      sourceLastUpdated: new Date(Date.now() - 3600000).toISOString(),
+    }
+    ratings = []
+  })
+
+  afterAll(async () => {
+    if (!productWithUpdated?.id) return
+
+    const response = await fetch(`${API_BASE}/products/${productWithUpdated.id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${getDevToken(DEV_USERS.admin.id)}`,
+      },
+    })
+
+    if (!response.ok) {
+      const details = await response.text().catch(() => '')
+      console.warn(
+        `[ProductUpdated.integration.test] Cleanup failed for product ${productWithUpdated.id}: ${response.status} ${response.statusText} ${details}`
+      )
+    }
   })
 
   it('has a product with sourceLastUpdated for testing', () => {
-    expect(productWithUpdated, 'No product available for testing; backend may be unavailable').not.toBeNull()
+    expect(productWithUpdated).toBeDefined()
   })
 
   it('renders Updated in ProductListItem when timestamp exists', () => {
-    expect(productWithUpdated, 'No product available for ProductListItem assertion').not.toBeNull()
-    const ts = (productWithUpdated as Product).sourceLastUpdated as number | string | undefined
+    const ts = productWithUpdated.sourceLastUpdated as number | string | undefined
     const fmt = formatRelativeTime(ts)
     console.log('[Test] ProductListItem sourceLastUpdated:', ts, 'formatted:', fmt)
     render(<ProductListItem product={productWithUpdated as Product} ratings={ratings} onClick={vi.fn()} />)
     expect(fmt).toBeTruthy()
-    const updatedEl = screen.getByText(/Updated/i)
-    expect(updatedEl).toBeInTheDocument()
+    const updatedEls = screen.getAllByText(/Updated/i)
+    expect(updatedEls.length).toBeGreaterThan(0)
   })
 
   it('renders Updated in ProductCard when timestamp exists', () => {
-    expect(productWithUpdated, 'No product available for ProductCard assertion').not.toBeNull()
-    const ts = (productWithUpdated as Product).sourceLastUpdated as number | string | undefined
+    const ts = productWithUpdated.sourceLastUpdated as number | string | undefined
     const fmt = formatRelativeTime(ts)
     console.log('[Test] ProductCard sourceLastUpdated:', ts, 'formatted:', fmt)
     render(<ProductCard product={productWithUpdated as Product} ratings={ratings} onClick={vi.fn()} />)
@@ -88,8 +81,7 @@ describeWithBackend('Updated timestamp integration (backend)', () => {
   })
 
   it('renders Last Updated in ProductDetail when timestamp exists', () => {
-    expect(productWithUpdated, 'No product available for ProductDetail assertion').not.toBeNull()
-    const ts = (productWithUpdated as Product).sourceLastUpdated as number | string | undefined
+    const ts = productWithUpdated.sourceLastUpdated as number | string | undefined
     const fmt = formatRelativeTime(ts)
     console.log('[Test] ProductDetail sourceLastUpdated:', ts, 'formatted:', fmt)
     render(

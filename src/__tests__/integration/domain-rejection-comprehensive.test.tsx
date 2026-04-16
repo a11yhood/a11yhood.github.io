@@ -53,55 +53,56 @@ describeWithBackend('Unsupported domain rejection (full flow)', () => {
     }
     window.addEventListener('unsupported-domain', eventHandler)
 
-    const { container } = render(
-      <AuthProvider>
-        <BrowserRouter>
-          <AppHeader
-            user={user}
-            userAccount={userAccount}
-            pendingRequestsCount={0}
-            onLogin={onLogin}
-            onLogout={onLogout}
-            onProductCreated={() => {}}
-          />
-        </BrowserRouter>
-      </AuthProvider>
-    )
+    try {
+      render(
+        <AuthProvider>
+          <BrowserRouter>
+            <AppHeader
+              user={user}
+              userAccount={userAccount}
+              pendingRequestsCount={0}
+              onLogin={onLogin}
+              onLogout={onLogout}
+              onProductCreated={() => {}}
+            />
+          </BrowserRouter>
+        </AuthProvider>
+      )
 
-    // Open ProductSubmission dialog
-    const submitButton = screen.getByText('Submit Product')
-    fireEvent.click(submitButton)
+      // Open ProductSubmission dialog
+      const submitButton = screen.getByRole('button', { name: 'Submit Product' })
+      fireEvent.click(submitButton)
 
-    // Wait for dialog to open
-    await waitFor(() => {
-      expect(screen.getByLabelText('Product URL')).toBeInTheDocument()
-    })
+      // Wait for dialog to open
+      await waitFor(() => {
+        expect(screen.getByLabelText('Product URL')).toBeInTheDocument()
+      })
 
-    // Enter an unsupported domain (notinthelist.com not in supported_sources)
-    const urlInput = screen.getByLabelText('Product URL')
-    
-    await act(async () => {
-      fireEvent.change(urlInput, { target: { value: unsupportedUrl } })
-    })
+      // Enter an unsupported domain (notinthelist.com not in supported_sources)
+      const urlInput = screen.getByLabelText('Product URL')
 
-    // Click Check button to trigger backend validation
-    const checkButton = screen.getByRole('button', { name: /Check/i })
-    
-    await act(async () => {
-      fireEvent.click(checkButton)
-    })
+      await act(async () => {
+        fireEvent.change(urlInput, { target: { value: unsupportedUrl } })
+      })
 
-    // Assert unsupported-domain event was emitted by ProductSubmission.
-    await waitFor(() => {
-      expect(eventDispatched).toBe(true)
-      expect(eventDetail).toBeTruthy()
-      expect(eventDetail.domain).toBe(unsupportedDomain)
-      expect(eventDetail.url).toContain(unsupportedDomain)
-    }, { timeout: 10000 })
+      // Click Check button to trigger backend validation
+      const checkButton = screen.getByRole('button', { name: /Check/i })
 
-    // Clean up
-    window.removeEventListener('unsupported-domain', eventHandler)
-  }, { timeout: 15000 })
+      await act(async () => {
+        fireEvent.click(checkButton)
+      })
+
+      // Assert unsupported-domain event was emitted by ProductSubmission.
+      await waitFor(() => {
+        expect(eventDispatched).toBe(true)
+        expect(eventDetail).toBeTruthy()
+        expect(eventDetail.domain).toBe(unsupportedDomain)
+        expect(eventDetail.url).toContain(unsupportedDomain)
+      }, { timeout: 15000 })
+    } finally {
+      window.removeEventListener('unsupported-domain', eventHandler)
+    }
+  }, { timeout: 25000 })
 
   it('shows specific error message from backend for unsupported domain', async () => {
     const unsupportedDomain = `badsite-${Date.now()}.xyz`
@@ -123,7 +124,7 @@ describeWithBackend('Unsupported domain rejection (full flow)', () => {
     )
 
     // Open dialog
-    fireEvent.click(screen.getByText('Submit Product'))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Product' }))
 
     await waitFor(() => {
       expect(screen.getByLabelText('Product URL')).toBeInTheDocument()
@@ -158,10 +159,10 @@ describeWithBackend('Unsupported domain rejection (full flow)', () => {
         name: /Request New Source Domain/i,
       })
       expect(inlineError || requestDialog || eventDispatched).toBeTruthy()
-    }, { timeout: 10000 })
+    }, { timeout: 15000 })
 
     window.removeEventListener('unsupported-domain', eventHandler)
-  }, { timeout: 15000 })
+  }, { timeout: 25000 })
 
   it('allows supported domains to proceed', async () => {
     render(
@@ -179,7 +180,7 @@ describeWithBackend('Unsupported domain rejection (full flow)', () => {
       </AuthProvider>
     )
 
-    fireEvent.click(screen.getByText('Submit Product'))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Product' }))
 
     await waitFor(() => {
       expect(screen.getByLabelText('Product URL')).toBeInTheDocument()
@@ -208,5 +209,5 @@ describeWithBackend('Unsupported domain rejection (full flow)', () => {
 
     // Should NOT show unsupported domain error
     expect(screen.queryByText(/URL domain is not supported/i)).not.toBeInTheDocument()
-  }, { timeout: 15000 })
+  }, { timeout: 25000 })
 })

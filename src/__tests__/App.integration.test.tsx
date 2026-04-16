@@ -23,8 +23,9 @@ describe('App Integration Tests', () => {
   it('should render the app header with logo', async () => {
     renderApp()
 
+    // Logo image is decorative (alt=""); the accessible name is on the wrapping link.
     await waitFor(() => {
-      expect(screen.getByAltText('a11yhood')).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /a11yhood home/i })).toBeInTheDocument()
     }, { timeout: 3000 })
   })
 
@@ -32,8 +33,8 @@ describe('App Integration Tests', () => {
     renderApp()
 
     await waitFor(() => {
-      // Header should be present
-      const logo = screen.getByAltText('a11yhood')
+      // Header should be present — accessible name is on the wrapping link, not the img alt.
+      const logo = screen.getByRole('link', { name: /a11yhood home/i })
       expect(logo).toBeInTheDocument()
     }, { timeout: 3000 })
   })

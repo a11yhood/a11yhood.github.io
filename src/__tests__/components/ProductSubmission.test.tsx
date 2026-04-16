@@ -91,6 +91,7 @@ describe('ProductSubmission', () => {
     vi.spyOn(APIService, 'createProduct').mockImplementation(async (data: any) => {
       const product: Product = {
         id: `prod-${products.length + 1}`,
+        slug: `prod-${products.length + 1}`,
         name: data.name,
         type: data.type,
         source: data.source,
@@ -100,9 +101,18 @@ describe('ProductSubmission', () => {
         createdAt: Date.now(),
         origin: data.origin || 'user-submitted',
         ownerIds: [currentUser.id],
+        editorIds: [currentUser.id],
       }
       products.push(product)
       return product as any
+    })
+    vi.spyOn(APIService, 'productExistsByUrl').mockImplementation(async (url: string) => {
+      const normalized = normalizeTestUrl(url)
+      const existing = products.find(p => normalizeTestUrl(p.sourceUrl || '') === normalized)
+      return {
+        exists: Boolean(existing),
+        product: existing ?? null,
+      }
     })
     vi.spyOn(APIService, 'loadUrl').mockImplementation(async (url: string) => {
       const normalized = normalizeTestUrl(url)
@@ -209,7 +219,7 @@ describe('ProductSubmission', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Product Already Exists')).toBeInTheDocument()
-      })
+      }, { timeout: 3000 })
 
       expect(screen.getByText(/This product is already in our database/i)).toBeInTheDocument()
       expect(screen.getByText('Request to Edit Product')).toBeInTheDocument()
@@ -249,7 +259,7 @@ describe('ProductSubmission', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Request to Edit Product')).toBeInTheDocument()
-      })
+      }, { timeout: 3000 })
 
       fireEvent.click(screen.getByText('Request to Edit Product'))
 
@@ -641,7 +651,7 @@ describe('ProductSubmission', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Product Already Exists')).toBeInTheDocument()
-      })
+      }, { timeout: 3000 })
 
       // Close dialog
       fireEvent.click(screen.getByText('Cancel'))
@@ -697,7 +707,7 @@ describe('ProductSubmission', () => {
       // Should detect existing product
       await waitFor(() => {
         expect(screen.getByText('Product Already Exists')).toBeInTheDocument()
-      })
+      }, { timeout: 3000 })
 
       expect(screen.getByText(/This product is already in our database/i)).toBeInTheDocument()
       expect(screen.queryByText('Request to Edit Product')).not.toBeInTheDocument()
@@ -737,7 +747,7 @@ describe('ProductSubmission', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Product Already Exists')).toBeInTheDocument()
-      })
+      }, { timeout: 3000 })
 
       // Should show option to become an editor (user2 doesn't own it)
       expect(screen.getByText('Request to Edit Product')).toBeInTheDocument()

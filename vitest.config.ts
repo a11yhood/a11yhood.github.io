@@ -41,6 +41,10 @@ export default defineConfig({
       '**/.{idea,git,cache,output,temp}/**',
       '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
     ],
+    // Backend has a 40-row-per-table dev limit; a11y-integration tests each
+    // create rows in beforeAll, so they must not run concurrently.
+    // Run test files sequentially (one at a time) so they don't race for row slots.
+    fileParallelism: false,
   },
   define: {
     BASE_KV_SERVICE_URL: JSON.stringify('http://localhost:3000'),
