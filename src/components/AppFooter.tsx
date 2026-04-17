@@ -27,7 +27,7 @@ export function AppFooter() {
           <nav aria-label="Footer links">
             <div className="flex items-center justify-center gap-6 text-sm">
               <a
-                href="https://github.com/a11yhood/a11yhood.github.io"
+                href="https://github.com/a11yhood"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
@@ -37,7 +37,7 @@ export function AppFooter() {
               </a>
               <span className="text-muted-foreground/50" aria-hidden="true">•</span>
               <a
-                href="https://groups.google.com/g/caos-announcements/?pli=1"
+                href="https://groups.google.com/g/a11yhood/"
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <EnvelopeSimple size={18} weight="fill" aria-hidden="true" />
