@@ -103,14 +103,14 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
       return
     }
     activate?.()
-    // window.scrollTo(0, 0)
+    window.scrollTo(0, 0)
   }
 
   const handleNameClick = (e: React.MouseEvent) => {
     if (href && (e.metaKey || e.ctrlKey || e.button === 1)) return
     e.preventDefault()
     activate?.()
-    // window.scrollTo(0, 0)
+    window.scrollTo(0, 0)
   }
 
   const shouldShowImage = !!product.imageUrl && !imageError
