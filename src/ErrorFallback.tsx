@@ -4,13 +4,18 @@ import { Button } from "./components/ui/button";
 import { AlertTriangleIcon, RefreshCwIcon } from "lucide-react";
 
 export const ErrorFallback = ({ error, resetErrorBoundary }) => {
-  // When encountering an error in the development mode, rethrow it and don't display the boundary.
-  // The parent UI will take care of showing a more helpful dialog.
-  if (import.meta.env.DEV) throw error;
+  // Re-throw in Vite's development server so the built-in error overlay is shown instead.
+  // Use MODE === 'development' rather than DEV so tests (MODE === 'test') can render this UI.
+  if (import.meta.env.MODE === 'development') throw error;
 
   return (
-    <div className="min-h-screen bg-(--color-bg) flex items-center justify-center p-4">
+    // Wrap in <main> so all page content is contained by a landmark (axe "region" rule).
+    <main
+      aria-label="Application error"
+      className="min-h-screen bg-(--color-bg) flex items-center justify-center p-4"
+    >
       <div className="w-full max-w-md">
+        <h1 className="sr-only">Application Error</h1>
         <Alert variant="destructive" className="mb-6">
           <AlertTriangleIcon />
           <AlertTitle>We have encountered a runtime error</AlertTitle>
@@ -20,7 +25,7 @@ export const ErrorFallback = ({ error, resetErrorBoundary }) => {
         </Alert>
         
         <div className="bg-card border rounded-lg p-4 mb-6">
-          <h3 className="font-semibold text-sm text-muted-foreground mb-2">Error Details:</h3>
+          <h2 className="font-semibold text-sm text-muted-foreground mb-2">Error Details:</h2>
           <pre className="text-xs text-destructive bg-muted/50 p-3 rounded border overflow-auto max-h-32">
             {error.message}
           </pre>
@@ -35,6 +40,6 @@ export const ErrorFallback = ({ error, resetErrorBoundary }) => {
           Try Again
         </Button>
       </div>
-    </div>
+    </main>
   );
 }
