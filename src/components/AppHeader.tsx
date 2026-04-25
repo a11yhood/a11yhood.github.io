@@ -180,7 +180,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                       if (url) {
                         try {
                           const domain = new URL(url).hostname
-                          setRequestSourceDomain(domain)
+                          setRequestSource({ domain, url })
                           toast.info(
                             `The domain "${domain}" is not yet in our allowed sources. Would you like to request it?`
                           )

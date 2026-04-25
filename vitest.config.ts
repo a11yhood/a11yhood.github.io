@@ -1,8 +1,23 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react-swc'
 import { resolve } from 'path'
+import { loadEnv } from 'vite'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  // Ensure test setup files (which read process.env directly) see the same backend URL
+  // configured in .env/.env.local/.env.test and shell environment.
+  const resolvedTestBackendUrl = process.env.TEST_BACKEND_URL || env.TEST_BACKEND_URL || env.VITE_API_URL || ''
+  const resolvedApiUrl = process.env.VITE_API_URL || env.VITE_API_URL || ''
+
+  if (!process.env.TEST_BACKEND_URL && resolvedTestBackendUrl) {
+    process.env.TEST_BACKEND_URL = resolvedTestBackendUrl
+  }
+  if (!process.env.VITE_API_URL && resolvedApiUrl) {
+    process.env.VITE_API_URL = resolvedApiUrl
+  }
+
+  return {
   plugins: [react()],
   test: {
     globals: false,
@@ -50,11 +65,12 @@ export default defineConfig({
     BASE_KV_SERVICE_URL: JSON.stringify('http://localhost:3000'),
     'import.meta.env.VITE_DEV_MODE': JSON.stringify('true'),
     // Expose TEST_BACKEND_URL so tests can gate on backend availability
-    'import.meta.env.TEST_BACKEND_URL': JSON.stringify(process.env.TEST_BACKEND_URL ?? ''),
+    'import.meta.env.TEST_BACKEND_URL': JSON.stringify(resolvedTestBackendUrl),
   },
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
     },
   },
+  }
 })

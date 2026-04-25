@@ -22,8 +22,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
       - name: Install dependencies
         run: npm ci
       - name: Run lint
@@ -43,7 +43,7 @@ jobs:
         env:
           # Prefer preview-specific backend; fall back to legacy shared secret.
           VITE_API_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
-          VITE_DEV_MODE: 'true'
+          VITE_DEV_MODE: "true"
           VITE_ENV: development
           VITE_LOG_LEVEL: debug
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}

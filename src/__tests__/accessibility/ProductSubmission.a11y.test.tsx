@@ -24,6 +24,8 @@ describe('ProductSubmission Accessibility Tests', () => {
   beforeEach(async () => {
     // Set auth token getter for dev mode
     APIService.setAuthTokenGetter(async () => getDevToken(DEV_USERS.user.role))
+    vi.spyOn(APIService, 'productExistsByUrl').mockResolvedValue({ exists: false, product: null })
+    vi.spyOn(APIService, 'loadUrl').mockResolvedValue({ success: false, source: 'scraper', product: null })
     vi.clearAllMocks()
   })
 
@@ -77,7 +79,7 @@ describe('ProductSubmission Accessibility Tests', () => {
       })
 
       const urlInput = screen.getByLabelText('Product URL')
-      fireEvent.change(urlInput, { target: { value: 'https://github.com/test/a11y-test-unique' } })
+      fireEvent.change(urlInput, { target: { value: `https://github.com/test/a11y-test-${Date.now()}` } })
       
       // Click check button and wait for form to appear
       fireEvent.click(screen.getByRole('button', { name: /Check/i }))
