@@ -192,17 +192,6 @@ export function ProductDetail({
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center gap-3 justify-between mb-4 sm:mb-6 sm:flex-nowrap">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          className="-ml-2 flex items-center gap-1 sm:gap-2 px-2 sm:px-3"
-          aria-label="Back to products"
-        >
-          <ArrowLeft size={20} />
-          <FontAwesomeIcon icon={faUniversalAccess} className="w-4 h-4" />
-          <span className="hidden sm:inline">Back to Products</span>
-        </Button>
-
         <div className="flex items-center gap-2 sm:gap-3">
           {user && (canModerate || isEditor) && (
             <>
