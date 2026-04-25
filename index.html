@@ -30,7 +30,7 @@
           var basePath = l.pathname.replace(/\/$/, '');
 
           // A query string starting with '/' indicates malformed redirect data
-          // (e.g. '?/&/~and~/...'); drop it to prevent URL growth loops.
+          // (e.g. '?/some-route&%2F...'); drop it to prevent URL growth loops.
           if (query.charAt(0) === '/') {
             query = '';
           }
