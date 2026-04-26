@@ -7,7 +7,7 @@ import { ProductSubmission } from '@/components/ProductSubmission'
 import { ScraperService } from '@/lib/scrapers'
 import { toast } from 'sonner'
 import { APIService } from '@/lib/api'
-import { getDevToken, DEV_USERS } from '@/lib/dev-users'
+import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 import type { Product, UserData } from '@/lib/types'
 
 // Mock sonner toast notifications
@@ -89,9 +89,13 @@ describe('ProductSubmission', () => {
     // Mock APIService methods to use in-memory data
     vi.spyOn(APIService, 'createOrUpdateUserAccount').mockResolvedValue(undefined as any)
     vi.spyOn(APIService, 'createProduct').mockImplementation(async (data: any) => {
+      const slugBase = String(data.name || `product-${products.length + 1}`)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
       const product: Product = {
         id: `prod-${products.length + 1}`,
-        slug: `prod-${products.length + 1}`,
+        slug: `${slugBase}-${products.length + 1}`,
         name: data.name,
         type: data.type,
         source: data.source,
@@ -108,11 +112,8 @@ describe('ProductSubmission', () => {
     })
     vi.spyOn(APIService, 'productExistsByUrl').mockImplementation(async (url: string) => {
       const normalized = normalizeTestUrl(url)
-      const existing = products.find(p => normalizeTestUrl(p.sourceUrl || '') === normalized)
-      return {
-        exists: Boolean(existing),
-        product: existing ?? null,
-      }
+      const product = products.find(p => normalizeTestUrl(p.sourceUrl || '') === normalized) || null
+      return { exists: !!product, product }
     })
     vi.spyOn(APIService, 'loadUrl').mockImplementation(async (url: string) => {
       const normalized = normalizeTestUrl(url)
