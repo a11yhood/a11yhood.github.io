@@ -153,8 +153,8 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
 
             <h4 className="sr-only">Tags</h4>
             <div className="flex flex-wrap gap-1.5 text-sm text-muted-foreground">
-  	    <ul className="flex flex-wrap gap-1.5">
-                {product.tags.slice(0, 20).map((tag) => (
+	    <ul className="flex flex-wrap gap-1.5">
+                {Array.from(new Set(product.tags)).slice(0, 20).map((tag) => (
                   <li key={tag}>
                     <ProductFilterTag
                       tag={tag}
@@ -250,8 +250,8 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
               Collections:
             </span>
             <ul className="flex flex-wrap gap-1">
-              {productCollections.map((c) => (
-                <li key={c.id}>
+              {productCollections.map((c, index) => (
+                <li key={c.slug ?? (c.id != null ? String(c.id) : `collection-${index}`)}>
                   <Link
                     to={`/collections/${c.slug || c.id}`}
                     onClick={(e) => e.stopPropagation()}
