@@ -82,10 +82,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
         }
         {...props}
       />
-      <div className="sr-only" aria-live="polite" aria-atomic="true" key={politeAnnouncement.id}>
+      <div className="sr-only" aria-live="polite" aria-atomic="true" key={`polite-${politeAnnouncement.id}`}>
         {politeAnnouncement.text}
       </div>
-      <div className="sr-only" aria-live="assertive" aria-atomic="true" key={assertiveAnnouncement.id}>
+      <div className="sr-only" aria-live="assertive" aria-atomic="true" key={`assertive-${assertiveAnnouncement.id}`}>
         {assertiveAnnouncement.text}
       </div>
     </>
