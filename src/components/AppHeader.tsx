@@ -148,10 +148,10 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                   ? 'bg-primary text-primary-foreground' 
                   : 'hover:bg-accent hover:text-accent-foreground'
               }`}
-              aria-label="Search products"
+              aria-label="Products"
             >
               <MagnifyingGlass size={18} />
-              <span className="hidden sm:inline">Search</span>
+              <span className="hidden sm:inline">Products</span>
             </Link>
             {user ? (
               <div className="flex items-center gap-3">
@@ -180,7 +180,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                       if (url) {
                         try {
                           const domain = new URL(url).hostname
-                          setRequestSourceDomain(domain)
+                          setRequestSource({ domain, url })
                           toast.info(
                             `The domain "${domain}" is not yet in our allowed sources. Would you like to request it?`
                           )

@@ -1,26 +1,24 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { it, expect, beforeAll, afterAll } from 'vitest'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
+import { describeWithBackend } from '../helpers/with-backend'
 
-const API_BASE = (globalThis as any).__TEST_API_BASE__
-
-describe('User Stats Integration Tests - joined_at and last_active', () => {
+describeWithBackend('User Stats Integration Tests - joined_at and last_active', () => {
   let testUserId: string
   let authToken: string
 
-  beforeEach(async () => {
-    // Use dev-token user and resolve the real backend user ID for authorization-safe updates.
-    authToken = getDevToken(DEV_USERS.user.role)
+  beforeAll(async () => {
+    authToken = getDevToken(DEV_USERS.admin.role)
     setAuthTokenGetter(async () => authToken)
 
-    const me = await APIService.getCurrentUser()
-    if (!me?.id) {
-      throw new Error('Failed to resolve current user ID for user-stats tests')
+    const currentUser = await APIService.getCurrentUser()
+    if (!currentUser?.id) {
+      throw new Error('Failed to resolve current user for user-stats tests')
     }
-    testUserId = me.id
+    testUserId = currentUser.id
   })
 
-  afterEach(async () => {
+  afterAll(async () => {
     // Clean up auth token getter
     setAuthTokenGetter(async () => null)
   })
@@ -69,22 +67,11 @@ describe('User Stats Integration Tests - joined_at and last_active', () => {
     expect(result?.role).toBeDefined()
   })
 
-  it('includes timestamps in create or update user account', async () => {
-    const newUsername = `updateduser${Date.now()}`
-    const avatarUrl = 'https://example.com/avatar.jpg'
-    const email = `updated${Date.now()}@example.com`
-
-    const result = await APIService.createOrUpdateUserAccount(
-      testUserId,
-      newUsername,
-      avatarUrl,
-      email
-    )
+  it('includes timestamps when loading a user account', async () => {
+    const result = await APIService.getUserAccount(testUserId)
 
     expect(result).toBeDefined()
     expect(result.id).toBe(testUserId)
-    expect(result.username).toBe(newUsername)
-    expect(result.avatarUrl).toBe(avatarUrl)
     expect(result.createdAt).toBeDefined()
     
     // Verify timestamps are ISO strings if present

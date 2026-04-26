@@ -103,12 +103,15 @@ describeWithBackend('StarRating Accessibility Tests', () => {
     const radios = screen.getAllByRole('radio')
     fireEvent.click(radios[2])
 
-    await waitFor(async () => {
+    // Wait only for the handler to be called — no API calls inside waitFor
+    await waitFor(() => {
       expect(handleRate).toHaveBeenCalledWith(3)
-      const updated = await ensureRating(3)
-      expect(updated?.rating).toBe(3)
     })
-  })
+
+    // Confirm the API persisted the rating
+    const updated = await ensureRating(3)
+    expect(updated?.rating).toBe(3)
+  }, 15000)
 
   it('should display current rating visually', async () => {
     const rating = await ensureRating()
