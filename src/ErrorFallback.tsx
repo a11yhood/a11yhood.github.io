@@ -4,9 +4,9 @@ import { Button } from "./components/ui/button";
 import { AlertTriangleIcon, RefreshCwIcon } from "lucide-react";
 
 export const ErrorFallback = ({ error, resetErrorBoundary }) => {
-  // Re-throw in Vite's development server so the built-in error overlay is shown instead.
-  // Use MODE === 'development' rather than DEV so tests (MODE === 'test') can render this UI.
-  if (import.meta.env.MODE === 'development') throw error;
+  // Re-throw in Vite's dev environment so the built-in error overlay is shown instead.
+  // Exclude tests so test runners can render this fallback UI.
+  if (import.meta.env.DEV && import.meta.env.MODE !== "test") throw error;
 
   return (
     // Wrap in <main> so all page content is contained by a landmark (axe "region" rule).
