@@ -18,13 +18,23 @@
     var pathSegmentsToKeep = (parts[1] === 'pr-preview' && parts[2]) ? 2 : 0;
     
     var l = window.location;
-    l.replace(
-      l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
-      l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
-      l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
-      (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
-      l.hash
-    );
+    var basePath = l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
+    var routePayload = l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/');
+    var searchPayload = l.search ? l.search.slice(1) : '';
+    var encodedRoute = encodeURIComponent(routePayload);
+    var encodedSearch = encodeURIComponent(searchPayload);
+    var redirectPath = basePath + '?/' + encodedRoute + (searchPayload ? '&' + encodedSearch : '');
+    var target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + redirectPath + l.hash;
+
+    // Guard against self-redirect loops (e.g. /pr-preview/331/?/%2F%26...).
+    // If the computed target is identical, fall back to the canonical base path.
+    if (target === l.href) {
+      target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
+    }
+
+    if (target !== l.href) {
+      l.replace(target);
+    }
   </script>
 </head>
 <body>
