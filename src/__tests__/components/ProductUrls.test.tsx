@@ -5,7 +5,7 @@ import { ProductUrls } from '../../components/ProductUrls'
 import { APIService } from '../../lib/api'
 import type { ProductUrl } from '../../types/product-url'
 
-describe('ProductUrls Integration Tests', () => {
+describe('ProductUrls mocked component tests', () => {
   let testProductId: string
   let mockUrls: ProductUrl[]
 

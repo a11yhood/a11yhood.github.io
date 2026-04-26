@@ -67,7 +67,7 @@ describeWithBackend('User Stats Integration Tests - joined_at and last_active', 
     expect(result?.role).toBeDefined()
   })
 
-  it('includes timestamps in create or update user account', async () => {
+  it('includes timestamps when loading a user account', async () => {
     const result = await APIService.getUserAccount(testUserId)
 
     expect(result).toBeDefined()

@@ -77,11 +77,15 @@ function asProductArray(value: unknown): Product[] {
 }
 
 function getProductRenderKey(product: Product, index: number): string {
-  const slugPart = product.slug ? `slug:${product.slug}` : 'slug:none'
-  const idPart = product.id !== undefined && product.id !== null ? `id:${String(product.id)}` : 'id:none'
-  const urlPart = product.sourceUrl ? `url:${product.sourceUrl}` : 'url:none'
-  const namePart = product.name ? `name:${product.name}` : 'name:none'
-  return `${slugPart}|${idPart}|${urlPart}|${namePart}|idx:${index}`
+  if (product.slug) {
+    return `slug:${product.slug}`
+  }
+
+  if (product.id !== undefined && product.id !== null) {
+    return `id:${String(product.id)}`
+  }
+
+  return `idx:${index}`
 }
 
 export function ProductListPage({ 

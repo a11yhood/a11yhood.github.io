@@ -52,7 +52,7 @@ const DiscussionHarness = ({ productId, user }: { productId: string; user: TestU
   return <DiscussionSection discussions={discussions} user={user} onDiscuss={handleDiscuss} />
 }
 
-describe('DiscussionSection Integration Tests (live API)', () => {
+describe('DiscussionSection Component Tests (APIService mocked)', () => {
   let productId: string
   let store: Discussion[]
 
