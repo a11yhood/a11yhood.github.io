@@ -33,5 +33,6 @@ jobs:
 
       - name: Run full test suite (including backend tests)
         env:
+          CI: 'false'
           TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
         run: npm run test:run

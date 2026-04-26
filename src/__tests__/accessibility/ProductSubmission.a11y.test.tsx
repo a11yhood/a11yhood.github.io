@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
@@ -68,7 +67,7 @@ describe('ProductSubmission Accessibility Tests', () => {
     })
   })
 
-  describeWithBackend('Form Labels and Accessibility (Story 3.1)', () => {
+  describe('Form Labels and Accessibility (Story 3.1)', () => {
     beforeEach(async () => {
       renderWithRouter(<ProductSubmission user={testUser} onSubmit={vi.fn()} />)
       const triggerButton = screen.getByRole('button', { name: /submit product/i })
@@ -134,7 +133,7 @@ describe('ProductSubmission Accessibility Tests', () => {
     })
   })
 
-  describeWithBackend('Image Alt Text Accessibility (Story 3.1)', () => {
+  describe('Image Alt Text Accessibility (Story 3.1)', () => {
     beforeEach(async () => {
       renderWithRouter(<ProductSubmission user={testUser} onSubmit={vi.fn()} />)
       const triggerButton = screen.getByRole('button', { name: /submit product/i })

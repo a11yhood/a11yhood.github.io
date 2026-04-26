@@ -47,6 +47,7 @@ export default defineConfig(({ mode }) => {
           '**/__tests__/accessibility/landmarks-and-live-regions.test.tsx',
           '**/__tests__/accessibility/SelectTrigger.a11y.test.tsx',
           '**/__tests__/accessibility/html-lang-attribute.test.ts',
+          '**/__tests__/accessibility/ProductSubmission.a11y.test.tsx',
         ]
       : ['**/__tests__/**/*.test.{ts,tsx}'],
     exclude: [

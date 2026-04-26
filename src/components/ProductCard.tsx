@@ -229,7 +229,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
               </h4>
               <ul className="flex flex-wrap gap-2 -mt-1">
                 {productCollections.map((c, index) => (
-                  <li key={`${c.id ?? 'no-id'}-${c.slug ?? 'no-slug'}-${index}`}>
+                  <li key={c.slug ?? (c.id != null ? String(c.id) : `collection-${index}`)}>
                     <Link
                       to={`/collections/${c.slug || c.id}`}
                       onClick={(e) => e.stopPropagation()}

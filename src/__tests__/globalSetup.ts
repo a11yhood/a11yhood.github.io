@@ -80,7 +80,7 @@ export async function setup() {
 
     if (!resetRes.ok) {
       const details = await resetRes.text().catch(() => '')
-      console.warn(
+      throw new Error(
         `Failed to reset dev database before integration-capable test run: ${resetRes.status} ${resetRes.statusText} ${details}`
       )
     }
