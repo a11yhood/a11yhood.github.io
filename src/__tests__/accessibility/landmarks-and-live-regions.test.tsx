@@ -242,6 +242,8 @@ describe('Focus Management and Skip Links', () => {
 
     // Focus should move to main
     const main = screen.getByRole('main')
-    expect(main).toHaveFocus()
+    await waitFor(() => {
+      expect(main).toHaveFocus()
+    })
   })
 })
