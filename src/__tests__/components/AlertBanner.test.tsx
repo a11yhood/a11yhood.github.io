@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { AlertBanner } from '@/components/AlertBanner'
@@ -25,8 +25,13 @@ function NotificationHarness() {
 }
 
 describe('AlertBanner', () => {
-  it('keeps notifications visible until dismissed', async () => {
-    const user = userEvent.setup()
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('keeps success notifications visible before the 10-second timeout', async () => {
+    vi.useFakeTimers()
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
 
     render(
       <NotificationProvider>
@@ -37,8 +42,57 @@ describe('AlertBanner', () => {
     await user.click(screen.getByRole('button', { name: 'Add First' }))
     expect(screen.getByText('First notification')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Add Second' }))
+    act(() => {
+      vi.advanceTimersByTime(9999)
+    })
+
     expect(screen.getByText('First notification')).toBeInTheDocument()
+  })
+
+  it('auto-dismisses success and info notifications at 10 seconds', async () => {
+    vi.useFakeTimers()
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+
+    render(
+      <NotificationProvider>
+        <NotificationHarness />
+      </NotificationProvider>,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Add First' }))
+    await user.click(screen.getByRole('button', { name: 'Add Second' }))
+
+    expect(screen.getByText('First notification')).toBeInTheDocument()
+    expect(screen.getByText('Second notification')).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(10_000)
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByText('First notification')).not.toBeInTheDocument()
+      expect(screen.queryByText('Second notification')).not.toBeInTheDocument()
+    })
+  })
+
+  it('does not auto-dismiss error notifications', async () => {
+    vi.useFakeTimers()
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+
+    render(
+      <NotificationProvider>
+        <NotificationHarness />
+      </NotificationProvider>,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Add Third' }))
+    expect(screen.getByText('Third notification')).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(20_000)
+    })
+
+    expect(screen.getByText('Third notification')).toBeInTheDocument()
   })
 
   it('renders notifications in a labeled region', async () => {

@@ -7,7 +7,7 @@
  */
 console.log('📦 [App.tsx] Loading imports...')
 
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef, type MouseEvent } from 'react'
 import { Routes, Route, Navigate, Link, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -3055,6 +3055,17 @@ function App() {
     notify.success('Welcome to a11yhood!')
   }
 
+  const handleSkipToMainClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault()
+    const main = document.getElementById('main-content') as HTMLElement | null
+    if (main) {
+      if (!main.hasAttribute('tabIndex')) {
+        main.setAttribute('tabIndex', '-1')
+      }
+      main.focus()
+    }
+  }
+
   return (
     <div className="min-h-screen bg-(--color-bg)">
       {showSignup && user ? (
@@ -3072,16 +3083,7 @@ function App() {
           <a
             href="#main-content"
             className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            onClick={() => {
-              const main = document.getElementById('main-content') as HTMLElement | null
-              if (main) {
-                // Ensure main is programmatically focusable, then move focus
-                if (!main.hasAttribute('tabIndex')) {
-                  main.setAttribute('tabIndex', '-1')
-                }
-                main.focus()
-              }
-            }}
+            onClick={handleSkipToMainClick}
           >
             Skip to main content
           </a>
