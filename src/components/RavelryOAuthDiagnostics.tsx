@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, XCircle, Warning, Info, ArrowRight, Copy } from '@phosphor-icons/react'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
 export function RavelryOAuthDiagnostics() {
   const { notify } = useNotifications()
@@ -13,6 +14,7 @@ export function RavelryOAuthDiagnostics() {
   const [allLogs, setAllLogs] = useState<Array<{ key: string; value: unknown }>>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRetrying, setIsRetrying] = useState(false)
+  const [resetOAuthDialogOpen, setResetOAuthDialogOpen] = useState(false)
 
   const loadDiagnostics = async () => {
     setIsLoading(true)
@@ -62,11 +64,11 @@ export function RavelryOAuthDiagnostics() {
     }
   }
 
-  const handleResetOAuth = async () => {
-    if (!confirm('This will clear ALL Ravelry OAuth data including your access token. Are you sure?')) {
-      return
-    }
-    
+  const handleResetOAuth = () => {
+    setResetOAuthDialogOpen(true)
+  }
+
+  const handleConfirmResetOAuth = async () => {
     try {
       await RavelryOAuthManager.clearConfig()
       localStorage.removeItem('ravelry-oauth-flow-log')
@@ -75,6 +77,8 @@ export function RavelryOAuthDiagnostics() {
     } catch (error) {
       console.error('Failed to reset OAuth:', error)
       notify.error('Failed to reset OAuth')
+    } finally {
+      setResetOAuthDialogOpen(false)
     }
   }
 
@@ -179,9 +183,10 @@ export function RavelryOAuthDiagnostics() {
   ]
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
+    <>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>OAuth Flow Diagnostics</CardTitle>
@@ -620,5 +625,23 @@ export function RavelryOAuthDiagnostics() {
         </Card>
       )}
     </div>
+
+      <AlertDialog open={resetOAuthDialogOpen} onOpenChange={setResetOAuthDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset OAuth Configuration?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear ALL Ravelry OAuth data including your access token. Are you sure?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmResetOAuth} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

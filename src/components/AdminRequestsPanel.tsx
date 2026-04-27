@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { UserRequest, Product, UserAccount } from '@/lib/types'
 import { APIService } from '@/lib/api'
@@ -31,6 +32,8 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [userLookup, setUserLookup] = useState<Record<string, UserAccount>>({})
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [requestToDelete, setRequestToDelete] = useState<UserRequest | null>(null)
 
   useEffect(() => {
     loadRequests()
@@ -210,13 +213,15 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
 
 
 
-  const handleDeleteRequest = async (request: UserRequest) => {
-    if (!confirm(`Are you sure you want to delete this request from ${request.userName}? This action cannot be undone.`)) {
-      return
-    }
+  const handleDeleteRequest = (request: UserRequest) => {
+    setRequestToDelete(request)
+    setDeleteDialogOpen(true)
+  }
 
+  const handleConfirmDelete = async () => {
+    if (!requestToDelete) return
     try {
-      const result = await APIService.deleteRequest(request.id)
+      const result = await APIService.deleteRequest(requestToDelete.id)
       if (result.success) {
         notify.success('Request deleted successfully')
         await loadRequests()
@@ -230,6 +235,9 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
       } else {
         notify.error('Failed to delete request')
       }
+    } finally {
+      setDeleteDialogOpen(false)
+      setRequestToDelete(null)
     }
   }
 
@@ -458,6 +466,23 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this request from {requestToDelete?.userName}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
