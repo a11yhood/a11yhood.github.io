@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { CheckCircle, X, FloppyDisk, Eye, Image as ImageIcon, Trash, UserPlus } from '@phosphor-icons/react'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { renderMarkdown } from '@/lib/markdown'
@@ -51,6 +52,9 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
   })
   const headerImageInputRef = useRef<HTMLInputElement>(null)
   const errorSummaryRef = useRef<HTMLDivElement>(null)
+  const [imageUrlDialogOpen, setImageUrlDialogOpen] = useState(false)
+  const [imageUrlInput, setImageUrlInput] = useState('')
+  const [imageAltInput, setImageAltInput] = useState('')
 
   // Backend now normalizes images; `headerImage` should be an http(s) URL or data URL already
 
@@ -111,8 +115,17 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
 
   // Insert image by URL into markdown content
   const insertImageUrlIntoContent = () => {
-    const url = prompt('Enter the image URL (https://...)')?.trim()
-    if (!url) return
+    setImageUrlInput('')
+    setImageAltInput('')
+    setImageUrlDialogOpen(true)
+  }
+
+  const handleConfirmImageUrl = () => {
+    const url = imageUrlInput.trim()
+    if (!url) {
+      notify.error('Please enter an image URL')
+      return
+    }
 
     // Only allow http/https URLs (avoid embedding data URLs)
     try {
@@ -126,11 +139,11 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
       return
     }
 
-    const altText = prompt('Enter alt text for the image (for accessibility)')?.trim()
     // Use angle brackets around URL to safely handle spaces/parentheses per CommonMark
-    const markdown = `![${altText || 'image'}](<${url}>)\n`
+    const markdown = `![${imageAltInput.trim() || 'image'}](<${url}>)\n`
     setContent((prev) => prev + markdown)
     notify.success('Image URL inserted')
+    setImageUrlDialogOpen(false)
   }
 
   const handleSave = async () => {
@@ -706,6 +719,46 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
           </Tabs>
         </CardContent>
       </Card>
+
+      <Dialog open={imageUrlDialogOpen} onOpenChange={setImageUrlDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Insert Image by URL</DialogTitle>
+            <DialogDescription>
+              Enter the image URL and optional alt text for accessibility. Only http/https URLs are supported.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="image-url-input">Image URL</Label>
+              <Input
+                id="image-url-input"
+                type="url"
+                placeholder="https://example.com/image.png"
+                value={imageUrlInput}
+                onChange={(e) => setImageUrlInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmImageUrl() }}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="image-alt-input">Alt text (for accessibility)</Label>
+              <Input
+                id="image-alt-input"
+                placeholder="Describe the image..."
+                value={imageAltInput}
+                onChange={(e) => setImageAltInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmImageUrl() }}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImageUrlDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleConfirmImageUrl}>Insert Image</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
