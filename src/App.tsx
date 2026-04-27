@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { MagnifyingGlass, Rows, SquaresFour } from '@phosphor-icons/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faLayerGroup } from '@fortawesome/free-solid-svg-icons'
-import { Toaster } from '@/components/ui/sonner'
+import { AlertBanner } from '@/components/AlertBanner'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductListItem } from '@/components/ProductListItem'
 import { ProductDetail } from '@/components/ProductDetail'
@@ -41,8 +41,8 @@ import { logger, setRuntimeLogLevel } from '@/lib/logger'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 // API adapter disabled - using real backend API now
 // import '@/lib/api-adapter'
-import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { AppHeader } from '@/components/AppHeader'
 import { AppFooter } from '@/components/AppFooter'
 import { DevRoleSwitcher } from '@/components/DevRoleSwitcher'
@@ -744,7 +744,7 @@ function ProductDetailPageWrapper({
     const updated = await APIService.addProductToCollection(collectionSlug, slug)
     if (updated) {
       onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
-      toast.success('Added to collection')
+      notify.success('Added to collection')
     }
   }
 
@@ -753,7 +753,7 @@ function ProductDetailPageWrapper({
     const updated = await APIService.removeProductFromCollection(collectionSlug, slug)
     if (updated) {
       onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
-      toast.success('Removed from collection')
+      notify.success('Removed from collection')
     }
   }
 
@@ -848,13 +848,13 @@ function BlogPostPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userA
   const handleSave = async (updatedPost: BlogPost) => {
     try {
       await APIService.updateBlogPost(post.id, updatedPost)
-      toast.success('Blog post updated successfully')
+      notify.success('Blog post updated successfully')
       // Remove edit mode from URL
       setSearchParams({})
       // Reload blog posts
       window.location.reload()
     } catch (error) {
-      toast.error('Failed to update blog post')
+      notify.error('Failed to update blog post')
       console.error('Update error:', error)
     }
   }
@@ -1234,10 +1234,10 @@ function CollectionDetailPage({
             }
             // Update fallback state for direct-link views
             setExternalCollection(updated)
-            toast.success(`Collection is now ${nextPublic ? 'public' : 'private'}`)
+            notify.success(`Collection is now ${nextPublic ? 'public' : 'private'}`)
           }
         } catch {
-          toast.error('Failed to update collection visibility')
+          notify.error('Failed to update collection visibility')
         }
       }}
     />
@@ -1906,6 +1906,7 @@ function App() {
 
   // Use AuthContext (supports both dev mode and production)
   const { user: authUser, loading: authLoading, getAccessToken, signIn, signOut } = useAuth()
+  const { notify } = useNotifications()
 
   // Set up the auth token getter for API calls
   useEffect(() => {
@@ -2374,7 +2375,7 @@ function App() {
 
           if (success) {
             console.log('[App OAuth] ✓ OAuth flow completed successfully!')
-            toast.success('Successfully authorized with Ravelry!')
+            notify.success('Successfully authorized with Ravelry!')
             setRavelryAuthTimestamp(Date.now())
           } else {
             console.error('[App OAuth] ✗ Token exchange failed')
@@ -2527,7 +2528,7 @@ function App() {
         console.warn('[handleRate] Failed to refetch ratings (non-critical):', refetchError)
       }
       
-      toast.success('Rating saved')
+      notify.success('Rating saved')
     } catch (error) {
       console.error('Failed to save rating:', error)
       showPageError('Failed to save rating')
@@ -2564,7 +2565,7 @@ function App() {
         }).catch(err => console.warn('Failed to log discussion activity:', err))
       }
       
-      toast.success(parentId ? 'Reply posted' : 'Discussion started')
+      notify.success(parentId ? 'Reply posted' : 'Discussion started')
     } catch (error) {
       console.error('Failed to post discussion:', error)
       showPageError('Failed to post discussion')
@@ -2584,7 +2585,7 @@ function App() {
       const updated = await APIService.updateDiscussion(discussionId, { content })
       if (updated) {
         setDiscussions((current) => (current || []).map((d) => (d.id === discussionId ? { ...d, ...updated } : d)))
-        toast.success('Post updated')
+        notify.success('Post updated')
       }
     } catch (error: unknown) {
       // rollback optimistic update
@@ -2605,7 +2606,7 @@ function App() {
       if (deleted) {
         // Keep the node for threading, mark content as deleted
         setDiscussions((current) => (current || []).map((d) => (d.id === discussionId ? { ...d, content: deleted.content } : d)))
-        toast.success('Post deleted')
+        notify.success('Post deleted')
       }
     } catch (error) {
       console.error('Failed to delete discussion:', error)
@@ -2620,7 +2621,7 @@ function App() {
         : await APIService.unblockDiscussion(discussionId)
 
       setDiscussions((current) => (current || []).map((d) => (d.id === discussionId ? { ...d, ...updated } as Discussion : d)))
-      toast.success(block ? 'Post blocked' : 'Post unblocked')
+      notify.success(block ? 'Post blocked' : 'Post unblocked')
     } catch (error: unknown) {
       console.error('Failed to toggle block on discussion:', error)
       const message = (error as ApiErrorLike)?.message || (block ? 'Failed to block post' : 'Failed to unblock post')
@@ -2656,7 +2657,7 @@ function App() {
       const latestTags = pendingProductTagsRef.current.get(product.id) ?? product.tags
 
       if (latestTags.some((t) => t.toLowerCase() === normalizedTag)) {
-        toast.info('Tag already exists')
+        notify.info('Tag already exists')
         return
       }
 
@@ -2692,7 +2693,7 @@ function App() {
             }).catch(err => console.warn('Failed to log tag activity:', err))
           }
           
-          toast.success('Tag added successfully')
+          notify.success('Tag added successfully')
         } else {
           // API did not throw but also did not return an updated product; treat as failure.
           // Roll back optimistic tags so subsequent calls don't build on unpersisted state.
@@ -2718,7 +2719,7 @@ function App() {
     console.log('[App] → signIn function:', typeof signIn)
     
     if (isTestEnv) {
-      toast.info('Login is disabled in tests')
+      notify.info('Login is disabled in tests')
       return
     }
     
@@ -2739,7 +2740,7 @@ function App() {
       setHasAutoEnabledBanned(false)
       setIncludeBanned(false)
       setProducts((current) => current.filter((p) => !p.banned))
-      toast.success('Signed out successfully')
+      notify.success('Signed out successfully')
     } catch (error) {
       console.error('Logout error:', error)
       showPageError('Failed to sign out. Please try again.')
@@ -2824,7 +2825,7 @@ function App() {
         })
       )
       
-      toast.success('Product deleted successfully')
+      notify.success('Product deleted successfully')
     } catch (error) {
       console.error('[App] Failed to delete product:', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -2879,7 +2880,7 @@ function App() {
         }
       }
       
-      toast.success('Product updated successfully')
+      notify.success('Product updated successfully')
     } catch (error) {
       console.error('Failed to update product:', error)
       showPageError('Failed to update product')
@@ -2920,14 +2921,14 @@ function App() {
         const updated = await APIService.unbanProduct(productKey)
         if (updated) {
           setProducts((existing) => existing.map((p) => (p.slug === productKey || p.id === productKey ? updated : p)))
-          toast.success('Product unbanned')
+          notify.success('Product unbanned')
         }
       } else {
         const banReason = reason && reason.trim() ? reason.trim() : `Banned by ${userAccount.role}`
         const updated = await APIService.banProduct(productKey, banReason, userAccount.username)
         if (updated) {
           setProducts((existing) => existing.map((p) => (p.slug === productKey || p.id === productKey ? updated : p)))
-          toast.success('Product banned')
+          notify.success('Product banned')
         }
       }
     } catch (error) {
@@ -2957,7 +2958,7 @@ function App() {
         if (lastUpdated) finalCollection = lastUpdated
       }
       setCollections((current) => [finalCollection, ...current])
-      toast.success('Collection created successfully')
+      notify.success('Collection created successfully')
     } catch (error) {
       console.error('Failed to create collection:', error)
       showPageError('Failed to create collection')
@@ -2984,7 +2985,7 @@ function App() {
       const newCollection = await APIService.createCollectionFromSearch(payload)
       setCollections((current) => [newCollection, ...current])
       setShowCreateCollectionFromSearchDialog(false)
-      toast.success('Collection created from search results!')
+      notify.success('Collection created from search results!')
     } catch (error: unknown) {
       const apiError = error as ApiErrorLike
       console.error('[CreateCollectionFromSearch] Error response:', {
@@ -3010,7 +3011,7 @@ function App() {
         setCollections((current) =>
           current.map((c) => (c.slug === collectionSlug ? updated : c))
         )
-        toast.success('Collection updated successfully')
+        notify.success('Collection updated successfully')
       }
     } catch (error) {
       console.error('Failed to update collection:', error)
@@ -3022,7 +3023,7 @@ function App() {
     try {
       await APIService.deleteCollection(collectionSlug)
       setCollections((current) => current.filter((c) => c.slug !== collectionSlug && c.id !== collectionSlug))
-      toast.success('Collection deleted successfully')
+      notify.success('Collection deleted successfully')
     } catch (error) {
       console.error('Failed to delete collection:', error)
       showPageError('Failed to delete collection')
@@ -3036,7 +3037,7 @@ function App() {
         setCollections((current) =>
           current.map((c) => (c.slug === collectionSlug ? updated : c))
         )
-        toast.success('Product removed from collection')
+        notify.success('Product removed from collection')
       }
     } catch (error) {
       console.error('Failed to remove product:', error)
@@ -3046,12 +3047,12 @@ function App() {
 
   const handleCompleteSignup = () => {
     setShowSignup(false)
-    toast.success('Welcome to a11yhood!')
+    notify.success('Welcome to a11yhood!')
   }
 
   const handleSkipSignup = () => {
     setShowSignup(false)
-    toast.success('Welcome to a11yhood!')
+    notify.success('Welcome to a11yhood!')
   }
 
   return (
@@ -3093,6 +3094,8 @@ function App() {
             onLogout={handleLogout}
             onProductCreated={handleProductCreated}
           />
+
+          <AlertBanner />
 
           {pageError && (
             <div className="max-w-7xl mx-auto px-6 pt-4">
@@ -3341,7 +3344,6 @@ function App() {
             </>
           )}
 
-          <Toaster />
           <AppFooter />
         </>
       )}
