@@ -41,7 +41,7 @@ interface NotificationContextValue {
 
 const NotificationContext = createContext<NotificationContextValue | undefined>(undefined)
 
-/** Notifications remain visible until the user explicitly dismisses them. */
+/** Auto-dismiss delay per type (ms). Errors require explicit dismissal. */
 const AUTO_DISMISS_MS: Record<NotificationType, number | null> = {
   success: 10000,
   info: 10000,
