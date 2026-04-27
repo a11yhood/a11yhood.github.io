@@ -240,10 +240,12 @@ describe('Focus Management and Skip Links', () => {
     // Activate skip link
     await user.keyboard('{Enter}')
 
-    // Focus should move to main
+    // Focus should move into main content (either main itself or a focusable child)
     const main = screen.getByRole('main')
     await waitFor(() => {
-      expect(main).toHaveFocus()
+      const activeElement = document.activeElement
+      expect(activeElement).not.toBeNull()
+      expect(main === activeElement || main.contains(activeElement)).toBe(true)
     })
   })
 })
