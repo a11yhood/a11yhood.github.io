@@ -76,6 +76,18 @@ function asProductArray(value: unknown): Product[] {
   return []
 }
 
+function getProductRenderKey(product: Product, index: number): string {
+  if (product.slug) {
+    return `slug:${product.slug}`
+  }
+
+  if (product.id !== undefined && product.id !== null) {
+    return `id:${String(product.id)}`
+  }
+
+  return `idx:${index}`
+}
+
 export function ProductListPage({ 
   products, 
   ratings, 
@@ -336,41 +348,6 @@ export function ProductListPage({
                 {!isSearching && products.length > 0 && `Showing ${products.length} products`}
                 {!isSearching && products.length === 0 && 'No products found'}
               </div>
-              {totalPages > 1 && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const newPage = Math.max(1, page - 1)
-                      setPage(newPage)
-                      onPageChange(newPage)
-                    }}
-                    disabled={page <= 1}
-                    className="h-8 px-2"
-                    aria-label="Previous page"
-                  >
-                    Prev
-                  </Button>
-                  <span className="text-sm text-muted-foreground min-w-[6ch] text-center">
-                    Page {page} / {totalPages}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const newPage = Math.min(totalPages, page + 1)
-                      setPage(newPage)
-                      onPageChange(newPage)
-                    }}
-                    disabled={page >= totalPages}
-                    className="h-8 px-2"
-                    aria-label="Next page"
-                  >
-                    Next
-                  </Button>
-                </div>
-              )}
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
@@ -460,9 +437,9 @@ export function ProductListPage({
             </div>
           ) : columnCount === 1 ? (
             <div className="border border-border rounded-md overflow-hidden bg-card opacity-90" aria-busy={isSearching}>
-              {paginatedProducts.map((product) => (
+              {paginatedProducts.map((product, index) => (
                 <ProductListItem
-                  key={product.id}
+                  key={getProductRenderKey(product, index)}
                   product={product}
                   ratings={ratings}
                   collections={collections}
@@ -481,9 +458,9 @@ export function ProductListPage({
             </div>
           ) : (
             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 opacity-90" aria-busy={isSearching}>
-              {paginatedProducts.map((product) => (
+              {paginatedProducts.map((product, index) => (
                 <ProductCard
-                  key={product.id}
+                  key={getProductRenderKey(product, index)}
                   product={product}
                   ratings={ratings}
                   collections={collections}

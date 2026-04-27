@@ -1,0 +1,38 @@
+name: Full Test Suite (with backend)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag, or SHA to test'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  test-with-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install --no-save @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu
+
+      - name: Run full test suite (including backend tests)
+        env:
+          CI: 'false'
+          TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
+        run: npm run test:run

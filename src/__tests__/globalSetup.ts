@@ -4,13 +4,32 @@ import { DEV_USERS, getDevToken } from '../lib/dev-users'
 const HEALTH_CHECK_TIMEOUT_MS = 3000
 
 function shouldResetDevDbForRun(argv: string[]): boolean {
+  if (process.env.VITEST_SKIP_DEV_DB_RESET === '1') {
+    return false
+  }
+
   // Ignore the first entries (node + vitest binary path)
   const args = argv.slice(2).map(arg => arg.replace(/\\/g, '/').replace(/\/$/, ''))
 
-  // Only enforce auto-reset for full integration-suite runs.
-  return args.some(
-    arg => arg === 'src/__tests__/integration' || arg === './src/__tests__/integration'
+  // If no test-file/directory arguments are passed, this is a full suite run — always reset.
+  const testPathArgs = args.filter(
+    arg => !arg.startsWith('--') && !arg.startsWith('-') && arg !== 'run'
   )
+  if (testPathArgs.length === 0) {
+    return true
+  }
+
+  // Auto-reset for any integration workflow invocation, whether a single file,
+  // multiple files, or the whole integration directory is targeted.
+  return testPathArgs.some(arg => {
+    const normalized = arg.replace(/^\.\//, '')
+    return (
+      normalized === 'src/__tests__/integration' ||
+      normalized.startsWith('src/__tests__/integration/') ||
+      normalized === 'src/__tests__/a11y-integration' ||
+      normalized.startsWith('src/__tests__/a11y-integration/')
+    )
+  })
 }
 
 /**
@@ -72,7 +91,7 @@ export async function setup() {
       '\n' +
       '┌──────────────────────────────────────────────────────────────┐\n' +
       `│  ⚠️  Backend not available at ${backendBase}\n` +
-      '│  Integration and security tests will be skipped.\n' +
+      '│  Backend-dependent tests will be marked skipped, not failed.\n' +
       '│  ▶ Start the backend and re-run to include all tests.\n' +
       '│  ▶ Unit tests only:  CI=true npm run test:run\n' +
       '└──────────────────────────────────────────────────────────────┘\n'
