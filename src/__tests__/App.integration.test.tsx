@@ -33,7 +33,7 @@ describe('App Integration Tests', () => {
     renderApp()
 
     await waitFor(() => {
-      // Header should be present — accessible name is on the wrapping link, not the img alt.
+      // Header should be present
       const logo = screen.getByRole('link', { name: /a11yhood home/i })
       expect(logo).toBeInTheDocument()
     }, { timeout: 3000 })

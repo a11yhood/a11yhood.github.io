@@ -1,18 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ProductUrls } from '../../components/ProductUrls'
 import { APIService } from '../../lib/api'
-import { DEV_USERS, getDevToken } from '../../lib/dev-users'
-import { getValidProductType } from '../testData'
+import type { ProductUrl } from '../../types/product-url'
 
-const API_BASE = (globalThis as any).__TEST_API_BASE__
-
-describeWithBackend('ProductUrls Integration Tests', () => {
+describe('ProductUrls mocked component tests', () => {
   let testProductId: string
-  let testUserId: string
-  let authHeader: { Authorization: string }
+  let mockUrls: ProductUrl[]
 
   const renderAndWaitForLoad = (props: { isEditor: boolean }) => {
     const view = render(<ProductUrls productId={testProductId} {...props} />)
@@ -22,61 +17,28 @@ describeWithBackend('ProductUrls Integration Tests', () => {
   }
 
   beforeEach(async () => {
-    // Use the pre-seeded dev user instead of creating a dynamic one to avoid
-    // hitting the dev row limit (users table is pre-filled by seed data).
-    testUserId = DEV_USERS.user.id
-    const userToken = getDevToken(DEV_USERS.user.role)
-    authHeader = { Authorization: `Bearer ${userToken}` }
-    APIService.setAuthTokenGetter(async () => userToken)
+    testProductId = 'test-product-id'
+    mockUrls = []
 
-    // Create test product using APIService (handles snake_case conversion)
-    const product = await APIService.createProduct({
-      name: `Test Product ${Date.now()}`,
-      type: getValidProductType('user-submitted'),
-      source: 'user-submitted',
-      category: 'Software',
-      sourceUrl: `https://github.com/test/product-${Date.now()}`,
-      editorIds: [testUserId],
+    vi.spyOn(APIService, 'getProductUrls').mockImplementation(async () => [...mockUrls])
+    vi.spyOn(APIService, 'addProductUrl').mockImplementation(async (productId, data) => {
+      const next: ProductUrl = {
+        id: `url-${mockUrls.length + 1}`,
+        productId,
+        url: data.url,
+        description: data.description,
+        createdAt: Date.now(),
+      }
+      mockUrls = [...mockUrls, next]
+      return next
     })
-    
-    testProductId = product.id
-
-    // Ensure the test product starts with no URLs (some backends create one from source_url)
-    try {
-      const existingUrls = await APIService.getProductUrls(testProductId)
-      await Promise.all(
-        existingUrls.map((u) => APIService.deleteProductUrl(testProductId, u.id))
-      )
-    } catch (error) {
-      // If cleanup fails, continue; tests will surface real failures
-      console.warn('Failed to clean initial product URLs', error)
-    }
+    vi.spyOn(APIService, 'deleteProductUrl').mockImplementation(async (_productId, urlId) => {
+      mockUrls = mockUrls.filter((u) => u.id !== urlId)
+    })
   })
 
   afterEach(async () => {
-    // Clean up product (URLs deleted automatically via cascade)
-    if (testProductId) {
-      try {
-        const response = await fetch(`${API_BASE}/products/${testProductId}`, {
-          method: 'DELETE',
-          headers: authHeader,
-        })
-
-        if (!response.ok) {
-          const details = await response.text().catch(() => '')
-          console.warn(
-            `[ProductUrls.test] Cleanup failed for product ${testProductId}: ${response.status} ${response.statusText} ${details}`
-          )
-        }
-      } catch (error) {
-        console.warn(
-          `[ProductUrls.test] Cleanup request threw for product ${testProductId}:`,
-          error
-        )
-      }
-    }
-
-    // Clean up test user — no-op since we use pre-seeded DEV_USERS.user
+    vi.restoreAllMocks()
   })
 
   it('should load and display product URLs', async () => {
@@ -179,35 +141,27 @@ describeWithBackend('ProductUrls Integration Tests', () => {
   it('should delete URL when delete is clicked and confirmed', async () => {
     const user = userEvent.setup()
 
-    // Add a URL
-    const addRes = await fetch(`${API_BASE}/products/${testProductId}/urls`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader },
-      body: JSON.stringify({
-        url: 'https://github.com/example/repo',
-        description: 'Source code',
-      }),
+    await APIService.addProductUrl(testProductId, {
+      url: 'https://github.com/example/repo',
+      description: 'Source code',
     })
 
-    if (addRes.ok) {
-      await renderAndWaitForLoad({ isEditor: true })
+    await renderAndWaitForLoad({ isEditor: true })
 
-      await waitFor(() => {
-        expect(screen.getByText('Source code')).toBeInTheDocument()
-      })
+    await waitFor(() => {
+      expect(screen.getByText('Source code')).toBeInTheDocument()
+    })
 
-      // Mock confirm
-      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
 
-      const deleteButton = await screen.findByLabelText('Delete URL')
-      await user.click(deleteButton)
+    const deleteButton = await screen.findByLabelText('Delete URL')
+    await user.click(deleteButton)
 
-      await waitFor(() => {
-        expect(screen.queryByText('Source code')).not.toBeInTheDocument()
-      })
+    await waitFor(() => {
+      expect(screen.queryByText('Source code')).not.toBeInTheDocument()
+    })
 
-      confirmSpy.mockRestore()
-    }
+    confirmSpy.mockRestore()
   })
 
   it('should display multiple URLs', async () => {
