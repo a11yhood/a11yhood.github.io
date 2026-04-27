@@ -42,64 +42,66 @@ export function AlertBanner() {
   const others = notifications.filter((n) => n.type !== 'error')
 
   return (
-    <div className="max-w-7xl mx-auto px-6 pt-3 space-y-2">
-      {/* Assertive region – errors interrupt the user */}
-      {errors.length > 0 && (
-        <div aria-live="assertive" aria-atomic="false">
-          {errors.map((n) => (
-            <div
-              key={n.id}
-              role="alert"
-              className={cn(
-                'flex items-center gap-2 justify-between rounded-md border px-4 py-2.5 text-sm mb-2',
-                styles[n.type],
-              )}
-            >
-              <span className="flex items-center gap-2">
-                {icons[n.type]}
-                {n.message}
-              </span>
-              <button
-                type="button"
-                onClick={() => dismiss(n.id)}
-                aria-label="Dismiss notification"
-                className="ml-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current flex-shrink-0"
+    <div className="sticky top-[60px] z-40 bg-(--color-bg) border-b border-border/50 shadow-sm">
+      <div className="max-w-7xl mx-auto px-6 py-2 space-y-2">
+        {/* Assertive region – errors interrupt the user */}
+        {errors.length > 0 && (
+          <div aria-live="assertive" aria-atomic="false">
+            {errors.map((n) => (
+              <div
+                key={n.id}
+                role="alert"
+                className={cn(
+                  'flex items-center gap-2 justify-between rounded-md border px-4 py-2.5 text-sm mb-2',
+                  styles[n.type],
+                )}
               >
-                <X size={16} aria-hidden="true" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+                <span className="flex items-center gap-2">
+                  {icons[n.type]}
+                  {n.message}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => dismiss(n.id)}
+                  aria-label="Dismiss notification"
+                  className="ml-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current flex-shrink-0"
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
-      {/* Polite region – success/info don't interrupt */}
-      {others.length > 0 && (
-        <div aria-live="polite" aria-atomic="false">
-          {others.map((n) => (
-            <div
-              key={n.id}
-              role="status"
-              className={cn(
-                'flex items-center gap-2 justify-between rounded-md border px-4 py-2.5 text-sm mb-2',
-                styles[n.type],
-              )}
-            >
-              <span className="flex items-center gap-2">
-                {icons[n.type]}
-                {n.message}
-              </span>
-              <button
-                type="button"
-                onClick={() => dismiss(n.id)}
-                aria-label="Dismiss notification"
-                className="ml-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current flex-shrink-0"
+        {/* Polite region – success/info don't interrupt */}
+        {others.length > 0 && (
+          <div aria-live="polite" aria-atomic="false">
+            {others.map((n) => (
+              <div
+                key={n.id}
+                role="status"
+                className={cn(
+                  'flex items-center gap-2 justify-between rounded-md border px-4 py-2.5 text-sm mb-2',
+                  styles[n.type],
+                )}
               >
-                <X size={16} aria-hidden="true" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+                <span className="flex items-center gap-2">
+                  {icons[n.type]}
+                  {n.message}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => dismiss(n.id)}
+                  aria-label="Dismiss notification"
+                  className="ml-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current flex-shrink-0"
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
