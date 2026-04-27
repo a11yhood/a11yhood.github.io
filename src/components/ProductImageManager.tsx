@@ -2,7 +2,7 @@ import { useState, useEffect, useImperativeHandle, forwardRef, useCallback } fro
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Link as LinkIcon, Trash } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { logger } from '@/lib/logger'
 
 type ProductImageManagerProps = {
@@ -53,6 +53,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
   const [urlInput, setUrlInput] = useState(imageUrl || '')
   const [altText, setAltText] = useState(imageAlt || '')
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(imageUrl)
+  const { notify } = useNotifications()
 
   // Sync internal state when props change (e.g., when dialog opens with existing product data)
   useEffect(() => {
@@ -65,7 +66,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
   const handleUrlSubmit = useCallback(() => {
     const trimmedUrl = urlInput.trim()
     if (!trimmedUrl) {
-      toast.error('Please enter an image URL')
+      notify.error('Please enter an image URL')
       return
     }
 
@@ -73,15 +74,15 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
       new URL(trimmedUrl)
       const normalizedUrl = normalizeImageUrl(trimmedUrl)
       if (normalizedUrl !== trimmedUrl) {
-        toast.info('GitHub image URL converted to a direct image link')
+        notify.info('GitHub image URL converted to a direct image link')
       }
       setUrlInput(normalizedUrl)
       setPreviewUrl(normalizedUrl)
       logger.debug('[ProductImageManager.handleUrlSubmit] Calling onImageChange:', { normalizedUrl, altText })
       onImageChange(normalizedUrl, altText)
-      toast.success('Image URL added successfully')
+      notify.success('Image URL added successfully')
     } catch {
-      toast.error('Please enter a valid URL')
+      notify.error('Please enter a valid URL')
     }
   }, [urlInput, altText, onImageChange])
 
@@ -128,7 +129,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
     logger.debug('[ProductImageManager.handleRemoveImage] Calling onImageChange with null to clear fields')
     // Send null (not undefined) to explicitly clear the image fields
     onImageChange(null, null)
-    toast.success('Image removed')
+    notify.success('Image removed')
   }
 
   const handleEditImage = () => {

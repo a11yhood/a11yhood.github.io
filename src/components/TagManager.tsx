@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Tag as TagIcon } from '@phosphor-icons/react'
 import { UserData } from '@/lib/types'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
 
 type TagManagerProps = {
@@ -22,6 +22,7 @@ export function TagManager({
   onAddTag,
   user,
 }: TagManagerProps) {
+  const { notify } = useNotifications()
   const [isAdding, setIsAdding] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [tagInput, setTagInput] = useState('')
@@ -48,7 +49,7 @@ export function TagManager({
     if (!normalizedTag) return
 
     if (currentTags.some((t) => t.toLowerCase() === normalizedTag)) {
-      toast.error('This tag already exists on the product')
+      notify.error('This tag already exists on the product')
       return
     }
 
@@ -66,7 +67,7 @@ export function TagManager({
       .map((t) => t.trim().toLowerCase())
       .filter((t, i, arr) => t && arr.indexOf(t) === i && !currentTags.some((c) => c.toLowerCase() === t))
     if (newTags.length === 0) {
-      toast.error('No new tags to add')
+      notify.error('No new tags to add')
       return
     }
     setIsSubmitting(true)

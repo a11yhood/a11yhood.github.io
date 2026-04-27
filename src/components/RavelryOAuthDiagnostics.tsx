@@ -3,10 +3,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, XCircle, Warning, Info, ArrowRight, Copy } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 
 export function RavelryOAuthDiagnostics() {
+  const { notify } = useNotifications()
   const [flowLog, setFlowLog] = useState<any>(null)
   const [config, setConfig] = useState<any>(null)
   const [allLogs, setAllLogs] = useState<Array<{ key: string; value: unknown }>>([])
@@ -35,7 +36,7 @@ export function RavelryOAuthDiagnostics() {
       setAllLogs(logs)
     } catch (error) {
       console.error('Failed to load diagnostics:', error)
-      toast.error('Failed to load diagnostics')
+      notify.error('Failed to load diagnostics')
     } finally {
       setIsLoading(false)
     }
@@ -47,17 +48,17 @@ export function RavelryOAuthDiagnostics() {
 
   const handleCopyToClipboard = (content: string) => {
     navigator.clipboard.writeText(content)
-    toast.success('Copied to clipboard!')
+    notify.success('Copied to clipboard!')
   }
 
   const handleClearAllLogs = async () => {
     try {
       localStorage.removeItem('ravelry-oauth-flow-log')
-      toast.success('Flow log cleared')
+      notify.success('Flow log cleared')
       loadDiagnostics()
     } catch (error) {
       console.error('Failed to clear logs:', error)
-      toast.error('Failed to clear logs')
+      notify.error('Failed to clear logs')
     }
   }
 
@@ -69,17 +70,17 @@ export function RavelryOAuthDiagnostics() {
     try {
       await RavelryOAuthManager.clearConfig()
       localStorage.removeItem('ravelry-oauth-flow-log')
-      toast.success('OAuth configuration reset')
+      notify.success('OAuth configuration reset')
       loadDiagnostics()
     } catch (error) {
       console.error('Failed to reset OAuth:', error)
-      toast.error('Failed to reset OAuth')
+      notify.error('Failed to reset OAuth')
     }
   }
 
   const handleTestCallback = async () => {
     try {
-      toast.info('Testing OAuth callback detection...')
+      notify.info('Testing OAuth callback detection...')
       
       const testCode = 'test-authorization-code-' + Date.now()
       const testUrl = `${window.location.origin}/admin?code=${testCode}`
@@ -98,30 +99,30 @@ export function RavelryOAuthDiagnostics() {
       window.location.href = testUrl
     } catch (error) {
       console.error('Test callback failed:', error)
-      toast.error('Failed to initiate test callback')
+      notify.error('Failed to initiate test callback')
     }
   }
 
   const handleRetryTokenExchange = async () => {
     if (!flowLog?.requestDetails) {
-      toast.error('No request details available to retry')
+      notify.error('No request details available to retry')
       return
     }
 
     if (!config?.clientId || !config?.clientSecret) {
-      toast.error('Client credentials not found')
+      notify.error('Client credentials not found')
       return
     }
 
     const lastCode = localStorage.getItem('ravelry-last-auth-code')
     if (!lastCode) {
-      toast.error('No authorization code found. Please restart the OAuth flow.')
+      notify.error('No authorization code found. Please restart the OAuth flow.')
       return
     }
 
     setIsRetrying(true)
     try {
-      toast.info('Retrying token exchange...')
+      notify.info('Retrying token exchange...')
       
       const success = await RavelryOAuthManager.exchangeCodeForToken(
         lastCode,
@@ -131,15 +132,15 @@ export function RavelryOAuthDiagnostics() {
       )
 
       if (success) {
-        toast.success('Token exchange successful!')
+        notify.success('Token exchange successful!')
         loadDiagnostics()
       } else {
-        toast.error('Token exchange failed. Check the error details below.')
+        notify.error('Token exchange failed. Check the error details below.')
         loadDiagnostics()
       }
     } catch (error) {
       console.error('Retry failed:', error)
-      toast.error('Retry failed with an exception')
+      notify.error('Retry failed with an exception')
       loadDiagnostics()
     } finally {
       setIsRetrying(false)

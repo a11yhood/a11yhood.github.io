@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckCircle, X, FloppyDisk, Eye, Image as ImageIcon, Trash, UserPlus } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { renderMarkdown } from '@/lib/markdown'
 import { toIsoTimestamp } from '@/lib/utils'
 
@@ -26,6 +26,7 @@ type BlogPostEditorProps = {
  * Provides split-view editing with live markdown preview, image uploads, and publish controls
  */
 export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }: BlogPostEditorProps) {
+  const { notify } = useNotifications()
   const [title, setTitle] = useState(post?.title || '')
   const [content, setContent] = useState(post?.content || '')
   const [excerpt, setExcerpt] = useState(post?.excerpt || '')
@@ -89,22 +90,22 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file')
+      notify.error('Please select an image file')
       return
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be less than 5MB')
+      notify.error('Image must be less than 5MB')
       return
     }
 
     try {
       const base64 = await handleImageUpload(file)
       setHeaderImage(base64)
-      toast.success('Header image uploaded')
+      notify.success('Header image uploaded')
     } catch {
-      toast.error('Failed to upload image')
+      notify.error('Failed to upload image')
     }
   }
 
@@ -117,11 +118,11 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
     try {
       const parsed = new URL(url)
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        toast.error('Please provide an http/https image URL')
+        notify.error('Please provide an http/https image URL')
         return
       }
     } catch {
-      toast.error('Please provide a valid image URL')
+      notify.error('Please provide a valid image URL')
       return
     }
 
@@ -129,7 +130,7 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
     // Use angle brackets around URL to safely handle spaces/parentheses per CommonMark
     const markdown = `![${altText || 'image'}](<${url}>)\n`
     setContent((prev) => prev + markdown)
-    toast.success('Image URL inserted')
+    notify.success('Image URL inserted')
   }
 
   const handleSave = async () => {
@@ -185,7 +186,7 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
         })
 
         if (!updated) {
-          toast.error('Failed to update post')
+          notify.error('Failed to update post')
           return
         }
         savedPost = updated
@@ -209,11 +210,11 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
         })
       }
 
-      toast.success(post ? 'Post updated successfully' : 'Post created successfully')
+      notify.success(post ? 'Post updated successfully' : 'Post created successfully')
       onSave(savedPost)
     } catch (error) {
       console.error('Failed to save post:', error)
-      toast.error('Failed to save post')
+      notify.error('Failed to save post')
     } finally {
       setSaving(false)
     }
@@ -222,12 +223,12 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
   const handleAddAuthor = () => {
     const trimmedAuthor = newAuthor.trim()
     if (!trimmedAuthor) {
-      toast.error('Please enter an author name')
+      notify.error('Please enter an author name')
       return
     }
     
     if (authorNames.some(name => name.toLowerCase() === trimmedAuthor.toLowerCase())) {
-      toast.error('Author already added')
+      notify.error('Author already added')
       return
     }
     
@@ -235,17 +236,17 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
     setNewAuthor('')
     setErrors((prev) => prev.filter((err) => err.id !== 'new-author'))
     setInvalidFields((prev) => ({ ...prev, authors: false }))
-    toast.success('Author added')
+    notify.success('Author added')
   }
 
   const handleRemoveAuthor = (index: number) => {
     if (authorNames.length === 1) {
-      toast.error('At least one author is required')
+      notify.error('At least one author is required')
       return
     }
     const removedAuthor = authorNames[index]
     setAuthorNames(authorNames.filter((_, i) => i !== index))
-    toast.success(`Removed ${removedAuthor}`)
+    notify.success(`Removed ${removedAuthor}`)
   }
 
   return (

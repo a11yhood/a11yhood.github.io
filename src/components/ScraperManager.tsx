@@ -25,7 +25,7 @@ import { APIService } from '@/lib/api'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 import { ThingiverseOAuthManager } from '@/lib/scrapers/thingiverse'
 import { Download, CircleNotch, Pencil, Trash, Play, Clock, Check, Bug, CheckCircle, XCircle, HourglassHigh, DownloadSimple, Gear, Plus } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { formatSourceLabel } from '@/lib/utils'
 import MarkdownText from '@/components/ui/MarkdownText'
 
@@ -48,6 +48,7 @@ type ScraperDebugInfo = {
 }
 
 export function ScraperManager({ products, onProductsUpdate, role = 'user', currentUserId }: ScraperManagerProps) {
+  const { notify } = useNotifications()
   const [scraping, setScraping] = useState(false)
   const [lastScrape, setLastScrape] = useState<number | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -179,7 +180,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
     }
     
     try {
-      toast.info(
+      notify.info(
         testMode 
           ? `Starting test scrape (5 products)${specificSource ? ` from ${specificSource}` : ''}...` 
           : specificSource ? `Starting ${specificSource} scraper...` : 'Starting all scrapers...'
@@ -270,16 +271,16 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
       
       const allProducts = results.flatMap(r => r.products)
       
-      toast.info(`Found ${allProducts.length} products from external sources${testMode ? ' (test mode)' : ''}`)
+      notify.info(`Found ${allProducts.length} products from external sources${testMode ? ' (test mode)' : ''}`)
       
       // Refresh product list to show scraped results
       const refreshedProducts = await APIService.getAllProducts()
       onProductsUpdate(refreshedProducts)
       
-      toast.success(`Scraping complete${testMode ? ' (test mode)' : ''}!`)
+      notify.success(`Scraping complete${testMode ? ' (test mode)' : ''}!`)
     } catch (error) {
       console.error('Scraper error:', error)
-      toast.error('Failed to run scraper')
+      notify.error('Failed to run scraper')
     } finally {
       setScraping(false)
     }
@@ -289,7 +290,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
 
   const handleExportDebugLogs = () => {
     if (debugInfo.length === 0) {
-      toast.error('No debug information to export')
+      notify.error('No debug information to export')
       return
     }
 
@@ -324,7 +325,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
     
-    toast.success('Debug logs exported successfully')
+    notify.success('Debug logs exported successfully')
   }
 
   const handleEditProduct = (product: Product) => {
@@ -361,7 +362,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
     onProductsUpdate(updatedProducts)
     setEditingProduct(null)
     setEditForm({})
-    toast.success('Product updated successfully')
+    notify.success('Product updated successfully')
   }
 
   const handleDeleteProduct = async (productId: string) => {
@@ -373,17 +374,17 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
       
       const updatedProducts = products.filter(p => p.id !== productId)
       onProductsUpdate(updatedProducts)
-      toast.success('Product deleted')
+      notify.success('Product deleted')
     } catch (error) {
       console.error('[ScraperManager.handleDeleteProduct] Failed to delete product:', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      toast.error(`Failed to delete product: ${errorMessage}`)
+      notify.error(`Failed to delete product: ${errorMessage}`)
     }
   }
 
   const handleToggleBan = async (product: Product) => {
     if (!canBan) {
-      toast.error('Only moderators or admins can ban products')
+      notify.error('Only moderators or admins can ban products')
       return
     }
 
@@ -392,19 +393,19 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
         const updated = await APIService.unbanProduct(product.id)
         if (updated) {
           onProductsUpdate(products.map(p => (p.id === product.id ? updated : p)))
-          toast.success(`Unbanned product: ${product.name}`)
+          notify.success(`Unbanned product: ${product.name}`)
         }
       } else {
         const reason = `Banned by ${role}`
         const updated = await APIService.banProduct(product.id, reason, currentUserId)
         if (updated) {
           onProductsUpdate(products.map(p => (p.id === product.id ? updated : p)))
-          toast.success(`Banned product: ${product.name}`)
+          notify.success(`Banned product: ${product.name}`)
         }
       }
     } catch (error) {
       console.error('Failed to toggle ban:', error)
-      toast.error('Failed to update ban status')
+      notify.error('Failed to update ban status')
     }
   }
 
@@ -429,7 +430,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
       if (platform === 'ravelry') setRavelrySearchTerms(list)
     } catch (error) {
       console.error('Failed to load search terms:', error)
-      toast.error('Failed to load search terms')
+      notify.error('Failed to load search terms')
     } finally {
       setLoadingSearchTerms(false)
     }
@@ -438,16 +439,16 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
   const handleAddSearchTerm = async () => {
     const trimmed = newSearchTerm.trim()
     if (!trimmed) {
-      toast.error('Search term cannot be empty')
+      notify.error('Search term cannot be empty')
       return
     }
     const currentList = activePlatform === 'github' ? githubSearchTerms : activePlatform === 'thingiverse' ? thingiverseSearchTerms : ravelrySearchTerms
     if (currentList.includes(trimmed)) {
-      toast.error('This search term already exists')
+      notify.error('This search term already exists')
       return
     }
     if (trimmed.length > 100) {
-      toast.error('Search term must be 100 characters or less')
+      notify.error('Search term must be 100 characters or less')
       return
     }
     
@@ -457,13 +458,13 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
       // Reload from backend to reflect updated list
       await loadSearchTerms(activePlatform)
       setNewSearchTerm('')
-      toast.success('Search term added')
+      notify.success('Search term added')
     } catch (error) {
       const status = (error as any)?.status
       const detail = (error as any)?.data || (error as any)?.message || error
       const message = typeof detail === 'string' ? detail : JSON.stringify(detail)
       console.error('Failed to add search term:', { platform: activePlatform, error })
-      toast.error(`Failed to add search term${status ? ` (HTTP ${status})` : ''}: ${message}`)
+      notify.error(`Failed to add search term${status ? ` (HTTP ${status})` : ''}: ${message}`)
     }
   }
 
@@ -471,7 +472,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
     const currentList = activePlatform === 'github' ? githubSearchTerms : activePlatform === 'thingiverse' ? thingiverseSearchTerms : ravelrySearchTerms
     const updatedTerms = currentList.filter(t => t !== term)
     if (updatedTerms.length === 0) {
-      toast.error('Cannot remove all search terms')
+      notify.error('Cannot remove all search terms')
       return
     }
     
@@ -482,10 +483,10 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
       if (activePlatform === 'github') setGithubSearchTerms(list)
       if (activePlatform === 'thingiverse') setThingiverseSearchTerms(list)
       if (activePlatform === 'ravelry') setRavelrySearchTerms(list)
-      toast.success('Search term removed')
+      notify.success('Search term removed')
     } catch (error) {
       console.error('Failed to remove search term:', error)
-      toast.error('Failed to remove search term')
+      notify.error('Failed to remove search term')
     }
   }
 
@@ -1087,7 +1088,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
               onClick={async () => {
                 if (!sourceToDelete) {
                   console.error('No source specified for deletion')
-                  toast.error('No source specified')
+                  notify.error('No source specified')
                   return
                 }
                 
@@ -1101,7 +1102,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                     
                     const updatedProducts = products.filter(p => p.submittedBy === 'system')
                     onProductsUpdate(updatedProducts)
-                    toast.success('Deleted products from selected source')
+                    notify.success('Deleted products from selected source')
                   } else {
                     const normalizeSource = (value: string) => value.replace(/^scraped-/, '').trim().toLowerCase()
                     const normalizedSourceToDelete = normalizeSource(sourceToDelete || '')
@@ -1121,7 +1122,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                       try {
                         const allProducts = await APIService.getAllProducts({ includeBanned: true })
                         onProductsUpdate(allProducts)
-                        toast.success('Deleted products from selected source')
+                        notify.success('Deleted products from selected source')
                       } catch (reloadError) {
                         console.warn('[ScraperManager] Failed to reload products, using local filter:', reloadError)
                         // Fallback: filter locally if reload fails
@@ -1129,7 +1130,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                           p => !(typeof p.source === 'string' && normalizeSource(p.source) === normalizedSourceToDelete),
                         )
                         onProductsUpdate(updatedProducts)
-                        toast.success('Deleted products from selected source')
+                        notify.success('Deleted products from selected source')
                       }
                     } catch (apiError) {
                       console.error('[ScraperManager] API deleteProductsBySource FAILED, falling back to filter-based bulk delete')
@@ -1159,7 +1160,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                           )
                           onProductsUpdate(updatedProducts)
                         }
-                        toast.success('Deleted products from selected source')
+                        notify.success('Deleted products from selected source')
                       } catch (filterError) {
                         console.error('[ScraperManager] ❌ Fallback filter-based delete also failed:', filterError)
                         throw filterError
@@ -1170,7 +1171,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                   setSourceToDelete(null)
                 } catch (error) {
                   console.error('Error deleting products:', error)
-                  toast.error('Failed to delete products. Please try again.')
+                  notify.error('Failed to delete products. Please try again.')
                 }
               }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { UserAccount } from '@/lib/types'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 
 type DevRoleSwitcherProps = {
   userAccount: UserAccount | null
@@ -20,6 +20,7 @@ type DevRoleSwitcherProps = {
 }
 
 export function DevRoleSwitcher({ userAccount, onRoleChange }: DevRoleSwitcherProps) {
+  const { notify } = useNotifications()
   void onRoleChange
   const [selectedUser, setSelectedUser] = useState<'user' | 'moderator' | 'admin'>('user')
   const [isSwitching, setIsSwitching] = useState(false)
@@ -47,13 +48,13 @@ export function DevRoleSwitcher({ userAccount, onRoleChange }: DevRoleSwitcherPr
     try {
       localStorage.setItem('dev-user', validUser)
       setSelectedUser(validUser)
-      toast.success(`Switched to ${validUser} account`)
+      notify.success(`Switched to ${validUser} account`)
       // Reload so DevAuthContext picks up the new user identity
       await new Promise((resolve) => setTimeout(resolve, 150))
       window.location.reload()
     } catch (error) {
       console.error('Failed to switch user:', error)
-      toast.error('Failed to switch user')
+      notify.error('Failed to switch user')
       setSelectedUser(userAccount?.role as 'user' | 'moderator' | 'admin' || 'user')
     } finally {
       setIsSwitching(false)
