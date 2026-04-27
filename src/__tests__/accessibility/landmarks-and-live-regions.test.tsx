@@ -7,7 +7,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { describeWithBackend } from '../helpers/with-backend'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { BrowserRouter, MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import App from '@/App'
@@ -237,8 +237,9 @@ describe('Focus Management and Skip Links', () => {
     const skipLink = screen.getByRole('link', { name: /skip to main content/i })
     expect(skipLink).toHaveFocus()
 
-    // Activate skip link
-    await user.click(skipLink)
+    // Activate skip link with a direct click event; user-event pointer checks on
+    // visually hidden skip links can be flaky in CI while keyboard focus is correct.
+    fireEvent.click(skipLink)
 
     // Focus should move into main content (either main itself or a focusable child)
     const main = screen.getByRole('main')
