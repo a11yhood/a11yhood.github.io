@@ -1,8 +1,9 @@
 /**
  * Accessibility tests for the ErrorFallback component.
  * Ensures WCAG 2.1 compliance:
- * - Page must have exactly one main landmark (landmark-one-main).
+ * - All page content must be contained by landmarks (axe "region" rule).
  * - Page must contain a level-one heading (page-has-heading-one).
+ * See: https://dequeuniversity.com/rules/axe/4.11/region
  *
  * ErrorFallback replaces the entire page when the React error boundary fires,
  * so it must independently satisfy landmark and heading requirements.
@@ -12,7 +13,7 @@ import { render, screen } from '@testing-library/react'
 import { ErrorFallback } from '@/ErrorFallback'
 import { runA11yScan } from '../helpers/a11y'
 
-const mockError = new Error('Test error message')
+const mockError = new Error('URI Too Long')
 const noop = () => {}
 
 describe('ErrorFallback – landmark-one-main', () => {

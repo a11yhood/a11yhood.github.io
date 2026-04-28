@@ -4,13 +4,16 @@ import { Button } from "./components/ui/button";
 import { AlertTriangleIcon, RefreshCwIcon } from "lucide-react";
 
 export const ErrorFallback = ({ error, resetErrorBoundary }) => {
-  // When encountering an error in the development mode, rethrow it and don't display the boundary.
-  // The parent UI will take care of showing a more helpful dialog.
-  // Skip the rethrow in Vitest so the fallback UI can be tested directly.
-  if (import.meta.env.DEV && import.meta.env.MODE !== 'test') throw error;
+  // Re-throw in Vite's dev environment so the built-in error overlay is shown instead.
+  // Exclude tests so test runners can render this fallback UI.
+  if (import.meta.env.DEV && import.meta.env.MODE !== "test") throw error;
 
   return (
-    <main className="min-h-screen bg-(--color-bg) flex items-center justify-center p-4" aria-label="Error">
+    // Wrap in <main> so all page content is contained by a landmark (axe "region" rule).
+    <main
+      aria-label="Application error"
+      className="min-h-screen bg-(--color-bg) flex items-center justify-center p-4"
+    >
       <div className="w-full max-w-md">
         <h1 className="sr-only">Application Error</h1>
         <Alert variant="destructive" className="mb-6">
