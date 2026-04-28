@@ -52,11 +52,10 @@ export function AlertBanner() {
       >
         {/* Assertive region – errors interrupt the user */}
         {errors.length > 0 && (
-          <div aria-live="assertive" aria-atomic="false" className="space-y-2">
+          <div role="alert" aria-live="assertive" aria-atomic="false" className="space-y-2">
             {errors.map((n) => (
               <div
                 key={n.id}
-                role="alert"
                 className={cn(
                   'flex w-full items-center justify-between gap-2 border border-x-0 px-4 py-2.5 text-sm',
                   styles[n.type],
@@ -81,11 +80,10 @@ export function AlertBanner() {
 
         {/* Polite region – success/info don't interrupt */}
         {others.length > 0 && (
-          <div aria-live="polite" aria-atomic="false" className="space-y-2">
+          <div role="status" aria-live="polite" aria-atomic="false" className="space-y-2">
             {others.map((n) => (
               <div
                 key={n.id}
-                role="status"
                 className={cn(
                   'flex w-full items-center justify-between gap-2 border border-x-0 px-4 py-2.5 text-sm',
                   styles[n.type],

@@ -7,7 +7,7 @@ export const ErrorFallback = ({ error, resetErrorBoundary }) => {
   // When encountering an error in the development mode, rethrow it and don't display the boundary.
   // The parent UI will take care of showing a more helpful dialog.
   // Skip the rethrow in Vitest so the fallback UI can be tested directly.
-  if (import.meta.env.DEV && !import.meta.env.VITEST) throw error;
+  if (import.meta.env.DEV && import.meta.env.MODE !== 'test') throw error;
 
   return (
     <main className="min-h-screen bg-(--color-bg) flex items-center justify-center p-4" aria-label="Error">

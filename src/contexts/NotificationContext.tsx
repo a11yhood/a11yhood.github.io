@@ -15,6 +15,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -84,6 +85,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }),
     [addNotification],
   )
+
+  // Clear all pending timers when the provider unmounts to avoid state updates
+  // on an unmounted component (common in tests and future refactors).
+  useEffect(() => {
+    return () => {
+      timers.current.forEach((timer) => clearTimeout(timer))
+      timers.current.clear()
+    }
+  }, [])
 
   const value = useMemo(
     () => ({ notifications, notify, dismiss }),
