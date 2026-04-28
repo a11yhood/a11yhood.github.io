@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, XCircle, Info, Copy, Play, CircleNotch } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 import { APIService } from '@/lib/api'
 
@@ -17,6 +17,7 @@ type RavelrySettingsProps = {
 }
 
 export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdate, ravelryAuthTimestamp }: RavelrySettingsProps) {
+  const { notify } = useNotifications()
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [username, setUsername] = useState<string>('')
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
@@ -72,7 +73,7 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
   const handleRunRavelryScraper = async () => {
     setIsScrapingAfterAuth(true)
     try {
-      toast.info('Starting Ravelry scraper...')
+      notify.info('Starting Ravelry scraper...')
       
       // Call backend API to trigger scraper
       await APIService.triggerScraper('ravelry', false)
@@ -87,11 +88,11 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
       )
       
       if (ravelryProducts.length === 0) {
-        toast.info('No patterns found')
+        notify.info('No patterns found')
         return
       }
 
-      toast.success(`Scraper started! Found ${ravelryProducts.length} Ravelry patterns`)
+      notify.success(`Scraper started! Found ${ravelryProducts.length} Ravelry patterns`)
       
       // Update product list if callback provided
       if (onProductsUpdate) {
@@ -105,7 +106,7 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
       }
     } catch (error) {
       console.error('[RavelrySettings] Scraper error:', error)
-      toast.error('Failed to run Ravelry scraper')
+      notify.error('Failed to run Ravelry scraper')
     } finally {
       setIsScrapingAfterAuth(false)
     }
@@ -113,7 +114,7 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
 
   const handleSaveCredentials = async () => {
     if (!clientId.trim() || !clientSecret.trim()) {
-      toast.error('Please enter both Client ID and Client Secret')
+      notify.error('Please enter both Client ID and Client Secret')
       return
     }
 
@@ -160,14 +161,14 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
       setShowSetupForm(false)
       setClientId('')
       setClientSecret('')
-      toast.success('Credentials saved! Now click "Authorize with Ravelry" to complete setup.')
+      notify.success('Credentials saved! Now click "Authorize with Ravelry" to complete setup.')
     } catch (error) {
       console.error('[Ravelry] ✗ Save credentials error:', error)
       if (error instanceof Error) {
         console.error('[Ravelry] Error message:', error.message)
         console.error('[Ravelry] Error stack:', error.stack)
       }
-      toast.error('Failed to save credentials. Please try again.')
+      notify.error('Failed to save credentials. Please try again.')
     } finally {
       setIsSaving(false)
     }
@@ -189,7 +190,7 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
         hasClientId: !!config?.clientId,
         hasClientSecret: !!config?.clientSecret,
       })
-      toast.error('Please save your Client ID and Secret first')
+      notify.error('Please save your Client ID and Secret first')
       setShowSetupForm(true)
       return
     }
@@ -222,14 +223,14 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
       console.log('[Ravelry] → Target URL:', authUrl)
       console.log('[Ravelry] → Using same-window redirect for better OAuth callback handling')
       
-      toast.info('Redirecting to Ravelry for authorization...')
+      notify.info('Redirecting to Ravelry for authorization...')
       
       setTimeout(() => {
         window.location.href = authUrl
       }, 500)
     } catch (error) {
       console.error('[Ravelry] ✗ Authorization error:', error)
-      toast.error('Failed to generate authorization URL. Please check your credentials.')
+      notify.error('Failed to generate authorization URL. Please check your credentials.')
     }
   }
 
@@ -240,16 +241,16 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
       setHasCredentials(false)
       setShowSetupForm(false)
       setUsername('')
-      toast.success('Ravelry disconnected successfully')
+      notify.success('Ravelry disconnected successfully')
     } catch (error) {
       console.error('Disconnect error:', error)
-      toast.error('Failed to disconnect Ravelry')
+      notify.error('Failed to disconnect Ravelry')
     }
   }
 
   const handleCopyRedirectUri = () => {
     navigator.clipboard.writeText(getRedirectUri())
-    toast.success('Redirect URI copied to clipboard!')
+    notify.success('Redirect URI copied to clipboard!')
   }
 
   if (isCheckingAuth) {
@@ -564,7 +565,7 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
                     setSaveLog(null)
                     localStorage.removeItem('ravelry-oauth-flow-log')
                     localStorage.removeItem('ravelry-oauth-save-log')
-                    toast.success('Diagnostics cleared')
+                    notify.success('Diagnostics cleared')
                   }}
                   className="w-full"
                 >

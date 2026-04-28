@@ -8,8 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { CheckCircle, X, FloppyDisk, Eye, Image as ImageIcon, Trash, UserPlus } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { renderMarkdown } from '@/lib/markdown'
 import { toIsoTimestamp } from '@/lib/utils'
 
@@ -26,6 +27,7 @@ type BlogPostEditorProps = {
  * Provides split-view editing with live markdown preview, image uploads, and publish controls
  */
 export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }: BlogPostEditorProps) {
+  const { notify } = useNotifications()
   const [title, setTitle] = useState(post?.title || '')
   const [content, setContent] = useState(post?.content || '')
   const [excerpt, setExcerpt] = useState(post?.excerpt || '')
@@ -50,6 +52,9 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
   })
   const headerImageInputRef = useRef<HTMLInputElement>(null)
   const errorSummaryRef = useRef<HTMLDivElement>(null)
+  const [imageUrlDialogOpen, setImageUrlDialogOpen] = useState(false)
+  const [imageUrlInput, setImageUrlInput] = useState('')
+  const [imageAltInput, setImageAltInput] = useState('')
 
   // Backend now normalizes images; `headerImage` should be an http(s) URL or data URL already
 
@@ -89,47 +94,56 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file')
+      notify.error('Please select an image file')
       return
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be less than 5MB')
+      notify.error('Image must be less than 5MB')
       return
     }
 
     try {
       const base64 = await handleImageUpload(file)
       setHeaderImage(base64)
-      toast.success('Header image uploaded')
+      notify.success('Header image uploaded')
     } catch {
-      toast.error('Failed to upload image')
+      notify.error('Failed to upload image')
     }
   }
 
   // Insert image by URL into markdown content
   const insertImageUrlIntoContent = () => {
-    const url = prompt('Enter the image URL (https://...)')?.trim()
-    if (!url) return
+    setImageUrlInput('')
+    setImageAltInput('')
+    setImageUrlDialogOpen(true)
+  }
+
+  const handleConfirmImageUrl = () => {
+    const url = imageUrlInput.trim()
+    if (!url) {
+      notify.error('Please enter an image URL')
+      return
+    }
 
     // Only allow http/https URLs (avoid embedding data URLs)
     try {
       const parsed = new URL(url)
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        toast.error('Please provide an http/https image URL')
+        notify.error('Please provide an http/https image URL')
         return
       }
     } catch {
-      toast.error('Please provide a valid image URL')
+      notify.error('Please provide a valid image URL')
       return
     }
 
-    const altText = prompt('Enter alt text for the image (for accessibility)')?.trim()
     // Use angle brackets around URL to safely handle spaces/parentheses per CommonMark
-    const markdown = `![${altText || 'image'}](<${url}>)\n`
+    const markdown = `![${imageAltInput.trim() || 'image'}](<${url}>)\n`
     setContent((prev) => prev + markdown)
-    toast.success('Image URL inserted')
+    notify.success('Image URL inserted')
+    setImageUrlDialogOpen(false)
   }
 
   const handleSave = async () => {
@@ -185,7 +199,7 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
         })
 
         if (!updated) {
-          toast.error('Failed to update post')
+          notify.error('Failed to update post')
           return
         }
         savedPost = updated
@@ -209,11 +223,11 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
         })
       }
 
-      toast.success(post ? 'Post updated successfully' : 'Post created successfully')
+      notify.success(post ? 'Post updated successfully' : 'Post created successfully')
       onSave(savedPost)
     } catch (error) {
       console.error('Failed to save post:', error)
-      toast.error('Failed to save post')
+      notify.error('Failed to save post')
     } finally {
       setSaving(false)
     }
@@ -222,12 +236,12 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
   const handleAddAuthor = () => {
     const trimmedAuthor = newAuthor.trim()
     if (!trimmedAuthor) {
-      toast.error('Please enter an author name')
+      notify.error('Please enter an author name')
       return
     }
     
     if (authorNames.some(name => name.toLowerCase() === trimmedAuthor.toLowerCase())) {
-      toast.error('Author already added')
+      notify.error('Author already added')
       return
     }
     
@@ -235,17 +249,17 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
     setNewAuthor('')
     setErrors((prev) => prev.filter((err) => err.id !== 'new-author'))
     setInvalidFields((prev) => ({ ...prev, authors: false }))
-    toast.success('Author added')
+    notify.success('Author added')
   }
 
   const handleRemoveAuthor = (index: number) => {
     if (authorNames.length === 1) {
-      toast.error('At least one author is required')
+      notify.error('At least one author is required')
       return
     }
     const removedAuthor = authorNames[index]
     setAuthorNames(authorNames.filter((_, i) => i !== index))
-    toast.success(`Removed ${removedAuthor}`)
+    notify.success(`Removed ${removedAuthor}`)
   }
 
   return (
@@ -705,6 +719,46 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
           </Tabs>
         </CardContent>
       </Card>
+
+      <Dialog open={imageUrlDialogOpen} onOpenChange={setImageUrlDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Insert Image by URL</DialogTitle>
+            <DialogDescription>
+              Enter the image URL and optional alt text for accessibility. Only http/https URLs are supported.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="image-url-input">Image URL</Label>
+              <Input
+                id="image-url-input"
+                type="url"
+                placeholder="https://example.com/image.png"
+                value={imageUrlInput}
+                onChange={(e) => setImageUrlInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmImageUrl() }}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="image-alt-input">Alt text (for accessibility)</Label>
+              <Input
+                id="image-alt-input"
+                placeholder="Describe the image..."
+                value={imageAltInput}
+                onChange={(e) => setImageAltInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmImageUrl() }}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImageUrlDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleConfirmImageUrl}>Insert Image</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

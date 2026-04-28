@@ -7,14 +7,14 @@
  */
 console.log('📦 [App.tsx] Loading imports...')
 
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef, type MouseEvent } from 'react'
 import { Routes, Route, Navigate, Link, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { MagnifyingGlass, Rows, SquaresFour } from '@phosphor-icons/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faLayerGroup } from '@fortawesome/free-solid-svg-icons'
-import { Toaster } from '@/components/ui/sonner'
+import { AlertBanner } from '@/components/AlertBanner'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductListItem } from '@/components/ProductListItem'
 import { ProductDetail } from '@/components/ProductDetail'
@@ -41,8 +41,8 @@ import { logger, setRuntimeLogLevel } from '@/lib/logger'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 // API adapter disabled - using real backend API now
 // import '@/lib/api-adapter'
-import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { AppHeader } from '@/components/AppHeader'
 import { AppFooter } from '@/components/AppFooter'
 import { DevRoleSwitcher } from '@/components/DevRoleSwitcher'
@@ -744,7 +744,7 @@ function ProductDetailPageWrapper({
     const updated = await APIService.addProductToCollection(collectionSlug, slug)
     if (updated) {
       onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
-      toast.success('Added to collection')
+      notify.success('Added to collection')
     }
   }
 
@@ -753,7 +753,7 @@ function ProductDetailPageWrapper({
     const updated = await APIService.removeProductFromCollection(collectionSlug, slug)
     if (updated) {
       onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
-      toast.success('Removed from collection')
+      notify.success('Removed from collection')
     }
   }
 
@@ -848,13 +848,13 @@ function BlogPostPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userA
   const handleSave = async (updatedPost: BlogPost) => {
     try {
       await APIService.updateBlogPost(post.id, updatedPost)
-      toast.success('Blog post updated successfully')
+      notify.success('Blog post updated successfully')
       // Remove edit mode from URL
       setSearchParams({})
       // Reload blog posts
       window.location.reload()
     } catch (error) {
-      toast.error('Failed to update blog post')
+      notify.error('Failed to update blog post')
       console.error('Update error:', error)
     }
   }
@@ -1234,10 +1234,10 @@ function CollectionDetailPage({
             }
             // Update fallback state for direct-link views
             setExternalCollection(updated)
-            toast.success(`Collection is now ${nextPublic ? 'public' : 'private'}`)
+            notify.success(`Collection is now ${nextPublic ? 'public' : 'private'}`)
           }
         } catch {
-          toast.error('Failed to update collection visibility')
+          notify.error('Failed to update collection visibility')
         }
       }}
     />
@@ -1407,6 +1407,8 @@ function App() {
   const [initialCollectionIsPublic, setInitialCollectionIsPublic] = useState<boolean>(true)
   const [showSignup, setShowSignup] = useState(false)
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
+  const [pageError, setPageError] = useState<string | null>(null)
+  const errorSummaryRef = useRef<HTMLDivElement>(null)
   const oauthProcessedRef = useRef(false)
   const [ravelryAuthTimestamp, setRavelryAuthTimestamp] = useState(0)
   const isTestEnv = import.meta.env.MODE === 'test'
@@ -1433,6 +1435,19 @@ function App() {
     // In non-production, respect the configured env log level.
     setRuntimeLogLevel(null)
   }, [isAdmin, adminVerboseLoggingEnabled])
+
+  useEffect(() => {
+    if (!pageError) return
+    errorSummaryRef.current?.focus()
+  }, [pageError])
+
+  useEffect(() => {
+    setPageError(null)
+  }, [location.pathname])
+
+  const showPageError = (message: string) => {
+    setPageError(message)
+  }
 
   // Tracks optimistically-applied tags per product ID across sequential async handleAddTag calls
   const pendingProductTagsRef = useRef<Map<string, string[]>>(new Map())
@@ -1891,6 +1906,7 @@ function App() {
 
   // Use AuthContext (supports both dev mode and production)
   const { user: authUser, loading: authLoading, getAccessToken, signIn, signOut } = useAuth()
+  const { notify } = useNotifications()
 
   // Set up the auth token getter for API calls
   useEffect(() => {
@@ -2218,7 +2234,7 @@ function App() {
         console.error('Failed to load user account:', error)
         // Show user-friendly error message
         const errorMessage = error instanceof Error ? error.message : 'Failed to create account'
-        toast.error(`Account setup failed: ${errorMessage}`)
+        showPageError(`Account setup failed: ${errorMessage}`)
         setShowSignup(false)
         setUser(null)
         setUserAccount(null)
@@ -2271,7 +2287,7 @@ function App() {
       if (!authUser && !isDevMode) {
         if (code) {
           console.warn('[App OAuth] ⚠️  Ravelry OAuth callback received but user not logged in')
-          toast.error('Please sign in with GitHub first, then authorize Ravelry.')
+          showPageError('Please sign in with GitHub first, then authorize Ravelry.')
           oauthProcessedRef.current = true
           window.history.replaceState({}, document.title, '/admin')
         }
@@ -2287,7 +2303,7 @@ function App() {
         const errorDesc = urlParams.get('error_description')
         console.error('[App OAuth] ✗ Error description:', errorDesc)
         
-        toast.error(`OAuth Error: ${errorParam}${errorDesc ? ` - ${errorDesc}` : ''}`)
+        showPageError(`OAuth Error: ${errorParam}${errorDesc ? ` - ${errorDesc}` : ''}`)
         window.history.replaceState({}, document.title, '/admin')
         oauthProcessedRef.current = true
         return
@@ -2322,7 +2338,7 @@ function App() {
             console.error('[App OAuth]   - Received state:', state || 'MISSING')
             console.error('[App OAuth]   - Expected state:', savedState || 'MISSING')
             
-            toast.error('OAuth state validation failed. Please try again.')
+            showPageError('OAuth state validation failed. Please try again.')
             localStorage.removeItem('ravelry-oauth-config-state')
             return
           }
@@ -2340,7 +2356,7 @@ function App() {
               hasClientId: !!config?.clientId,
               hasClientSecret: !!config?.clientSecret,
             }))
-            toast.error('OAuth credentials not configured. Please set up your Client ID and Secret first.')
+            showPageError('OAuth credentials not configured. Please set up your Client ID and Secret first.')
             return
           }
 
@@ -2359,15 +2375,15 @@ function App() {
 
           if (success) {
             console.log('[App OAuth] ✓ OAuth flow completed successfully!')
-            toast.success('Successfully authorized with Ravelry!')
+            notify.success('Successfully authorized with Ravelry!')
             setRavelryAuthTimestamp(Date.now())
           } else {
             console.error('[App OAuth] ✗ Token exchange failed')
-            toast.error('Failed to complete Ravelry authorization. Please try again.')
+            showPageError('Failed to complete Ravelry authorization. Please try again.')
           }
         } catch (error) {
           console.error('[App OAuth] ✗ OAuth callback error:', error)
-          toast.error('Error during Ravelry authorization')
+          showPageError('Error during Ravelry authorization')
         } finally {
           console.log('[App OAuth] ========== OAUTH CALLBACK COMPLETE ==========')
         }
@@ -2512,10 +2528,10 @@ function App() {
         console.warn('[handleRate] Failed to refetch ratings (non-critical):', refetchError)
       }
       
-      toast.success('Rating saved')
+      notify.success('Rating saved')
     } catch (error) {
       console.error('Failed to save rating:', error)
-      toast.error('Failed to save rating')
+      showPageError('Failed to save rating')
     }
   }
 
@@ -2549,10 +2565,10 @@ function App() {
         }).catch(err => console.warn('Failed to log discussion activity:', err))
       }
       
-      toast.success(parentId ? 'Reply posted' : 'Discussion started')
+      notify.success(parentId ? 'Reply posted' : 'Discussion started')
     } catch (error) {
       console.error('Failed to post discussion:', error)
-      toast.error('Failed to post discussion')
+      showPageError('Failed to post discussion')
     }
   }
 
@@ -2569,7 +2585,7 @@ function App() {
       const updated = await APIService.updateDiscussion(discussionId, { content })
       if (updated) {
         setDiscussions((current) => (current || []).map((d) => (d.id === discussionId ? { ...d, ...updated } : d)))
-        toast.success('Post updated')
+        notify.success('Post updated')
       }
     } catch (error: unknown) {
       // rollback optimistic update
@@ -2579,7 +2595,7 @@ function App() {
       })
       const message = (error as ApiErrorLike)?.message || 'Failed to update post'
       console.error('Failed to update discussion:', error)
-      toast.error(message)
+      showPageError(message)
       throw error
     }
   }
@@ -2590,11 +2606,11 @@ function App() {
       if (deleted) {
         // Keep the node for threading, mark content as deleted
         setDiscussions((current) => (current || []).map((d) => (d.id === discussionId ? { ...d, content: deleted.content } : d)))
-        toast.success('Post deleted')
+        notify.success('Post deleted')
       }
     } catch (error) {
       console.error('Failed to delete discussion:', error)
-      toast.error('Failed to delete post')
+      showPageError('Failed to delete post')
     }
   }
 
@@ -2605,11 +2621,11 @@ function App() {
         : await APIService.unblockDiscussion(discussionId)
 
       setDiscussions((current) => (current || []).map((d) => (d.id === discussionId ? { ...d, ...updated } as Discussion : d)))
-      toast.success(block ? 'Post blocked' : 'Post unblocked')
+      notify.success(block ? 'Post blocked' : 'Post unblocked')
     } catch (error: unknown) {
       console.error('Failed to toggle block on discussion:', error)
       const message = (error as ApiErrorLike)?.message || (block ? 'Failed to block post' : 'Failed to unblock post')
-      toast.error(message)
+      showPageError(message)
     }
   }
 
@@ -2630,7 +2646,7 @@ function App() {
 
       if (!product.id) {
         console.error('[App.handleAddTag] Product is missing UUID id; cannot update via PATCH endpoint')
-        toast.error('Failed to add tag: product identifier not found')
+        showPageError('Failed to add tag: product identifier not found')
         return
       }
 
@@ -2641,7 +2657,7 @@ function App() {
       const latestTags = pendingProductTagsRef.current.get(product.id) ?? product.tags
 
       if (latestTags.some((t) => t.toLowerCase() === normalizedTag)) {
-        toast.info('Tag already exists')
+        notify.info('Tag already exists')
         return
       }
 
@@ -2677,13 +2693,13 @@ function App() {
             }).catch(err => console.warn('Failed to log tag activity:', err))
           }
           
-          toast.success('Tag added successfully')
+          notify.success('Tag added successfully')
         } else {
           // API did not throw but also did not return an updated product; treat as failure.
           // Roll back optimistic tags so subsequent calls don't build on unpersisted state.
           pendingProductTagsRef.current.set(product.id, latestTags)
           console.error('[App.handleAddTag] updateProduct returned null; tag change was not persisted')
-          toast.error('Failed to add tag')
+          showPageError('Failed to add tag')
         }
       } catch (error) {
         // Roll back the optimistic ref update so the next sequential call starts from the
@@ -2693,7 +2709,7 @@ function App() {
       }
     } catch (error) {
       console.error('Failed to add tag:', error)
-      toast.error('Failed to add tag')
+      showPageError('Failed to add tag')
     }
   }
 
@@ -2703,7 +2719,7 @@ function App() {
     console.log('[App] → signIn function:', typeof signIn)
     
     if (isTestEnv) {
-      toast.info('Login is disabled in tests')
+      notify.info('Login is disabled in tests')
       return
     }
     
@@ -2711,7 +2727,7 @@ function App() {
     // Call auth context signIn which triggers GitHub OAuth
     signIn().catch((error) => {
       console.error('[App] ❌ Sign in error:', error)
-      toast.error('Failed to sign in. Please try again.')
+      showPageError('Failed to sign in. Please try again.')
     })
     console.log('[App] → signIn() called (waiting for redirect or error)')
   }
@@ -2724,10 +2740,10 @@ function App() {
       setHasAutoEnabledBanned(false)
       setIncludeBanned(false)
       setProducts((current) => current.filter((p) => !p.banned))
-      toast.success('Signed out successfully')
+      notify.success('Signed out successfully')
     } catch (error) {
       console.error('Logout error:', error)
-      toast.error('Failed to sign out. Please try again.')
+      showPageError('Failed to sign out. Please try again.')
     }
   }
 
@@ -2809,13 +2825,13 @@ function App() {
         })
       )
       
-      toast.success('Product deleted successfully')
+      notify.success('Product deleted successfully')
     } catch (error) {
       console.error('[App] Failed to delete product:', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
       const detailedMessage = `Failed to delete product: ${errorMessage}`
       console.error('[App] Error details:', { error, errorMessage })
-      toast.error(detailedMessage)
+      showPageError(detailedMessage)
     }
   }
 
@@ -2864,10 +2880,10 @@ function App() {
         }
       }
       
-      toast.success('Product updated successfully')
+      notify.success('Product updated successfully')
     } catch (error) {
       console.error('Failed to update product:', error)
-      toast.error('Failed to update product')
+      showPageError('Failed to update product')
     }
   }
 
@@ -2880,7 +2896,7 @@ function App() {
       userRole: userAccount?.role
     })
     if (!userAccount || (userAccount.role !== 'admin' && userAccount.role !== 'moderator')) {
-      toast.error('Only moderators or admins can change ban status')
+      showPageError('Only moderators or admins can change ban status')
       console.warn('[App.handleToggleBan] blocked - insufficient role', { role: userAccount?.role })
       return
     }
@@ -2888,7 +2904,7 @@ function App() {
     try {
       const productKey = product.slug || product.id
       if (!productKey) {
-        toast.error('Missing product identifier')
+        showPageError('Missing product identifier')
         return
       }
 
@@ -2905,19 +2921,19 @@ function App() {
         const updated = await APIService.unbanProduct(productKey)
         if (updated) {
           setProducts((existing) => existing.map((p) => (p.slug === productKey || p.id === productKey ? updated : p)))
-          toast.success('Product unbanned')
+          notify.success('Product unbanned')
         }
       } else {
         const banReason = reason && reason.trim() ? reason.trim() : `Banned by ${userAccount.role}`
         const updated = await APIService.banProduct(productKey, banReason, userAccount.username)
         if (updated) {
           setProducts((existing) => existing.map((p) => (p.slug === productKey || p.id === productKey ? updated : p)))
-          toast.success('Product banned')
+          notify.success('Product banned')
         }
       }
     } catch (error) {
       console.error('Failed to toggle ban:', error)
-      toast.error('Failed to update ban status')
+      showPageError('Failed to update ban status')
     }
   }
 
@@ -2942,10 +2958,10 @@ function App() {
         if (lastUpdated) finalCollection = lastUpdated
       }
       setCollections((current) => [finalCollection, ...current])
-      toast.success('Collection created successfully')
+      notify.success('Collection created successfully')
     } catch (error) {
       console.error('Failed to create collection:', error)
-      toast.error('Failed to create collection')
+      showPageError('Failed to create collection')
     }
   }
 
@@ -2969,7 +2985,7 @@ function App() {
       const newCollection = await APIService.createCollectionFromSearch(payload)
       setCollections((current) => [newCollection, ...current])
       setShowCreateCollectionFromSearchDialog(false)
-      toast.success('Collection created from search results!')
+      notify.success('Collection created from search results!')
     } catch (error: unknown) {
       const apiError = error as ApiErrorLike
       console.error('[CreateCollectionFromSearch] Error response:', {
@@ -2981,7 +2997,7 @@ function App() {
         fullData: apiError.data
       })
       const errorDetail = apiError.data?.detail || apiError.message || 'Failed to create collection from search'
-      toast.error(errorDetail)
+      showPageError(errorDetail)
     }
   }
 
@@ -2995,11 +3011,11 @@ function App() {
         setCollections((current) =>
           current.map((c) => (c.slug === collectionSlug ? updated : c))
         )
-        toast.success('Collection updated successfully')
+        notify.success('Collection updated successfully')
       }
     } catch (error) {
       console.error('Failed to update collection:', error)
-      toast.error('Failed to update collection')
+      showPageError('Failed to update collection')
     }
   }
 
@@ -3007,10 +3023,10 @@ function App() {
     try {
       await APIService.deleteCollection(collectionSlug)
       setCollections((current) => current.filter((c) => c.slug !== collectionSlug && c.id !== collectionSlug))
-      toast.success('Collection deleted successfully')
+      notify.success('Collection deleted successfully')
     } catch (error) {
       console.error('Failed to delete collection:', error)
-      toast.error('Failed to delete collection')
+      showPageError('Failed to delete collection')
     }
   }
 
@@ -3021,22 +3037,35 @@ function App() {
         setCollections((current) =>
           current.map((c) => (c.slug === collectionSlug ? updated : c))
         )
-        toast.success('Product removed from collection')
+        notify.success('Product removed from collection')
       }
     } catch (error) {
       console.error('Failed to remove product:', error)
-      toast.error('Failed to remove product')
+      showPageError('Failed to remove product')
     }
   }
 
   const handleCompleteSignup = () => {
     setShowSignup(false)
-    toast.success('Welcome to a11yhood!')
+    notify.success('Welcome to a11yhood!')
   }
 
   const handleSkipSignup = () => {
     setShowSignup(false)
-    toast.success('Welcome to a11yhood!')
+    notify.success('Welcome to a11yhood!')
+  }
+
+  const handleSkipToMainClick = (_event: MouseEvent<HTMLAnchorElement>) => {
+    // Preserve native anchor navigation for resilience, then move focus to main.
+    requestAnimationFrame(() => {
+      const main = document.getElementById('main-content') as HTMLElement | null
+      if (main) {
+        if (!main.hasAttribute('tabIndex')) {
+          main.setAttribute('tabIndex', '-1')
+        }
+        main.focus()
+      }
+    })
   }
 
   return (
@@ -3056,16 +3085,7 @@ function App() {
           <a
             href="#main-content"
             className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            onClick={() => {
-              const main = document.getElementById('main-content') as HTMLElement | null
-              if (main) {
-                // Ensure main is programmatically focusable, then move focus
-                if (!main.hasAttribute('tabIndex')) {
-                  main.setAttribute('tabIndex', '-1')
-                }
-                main.focus()
-              }
-            }}
+            onClick={handleSkipToMainClick}
           >
             Skip to main content
           </a>
@@ -3078,6 +3098,36 @@ function App() {
             onLogout={handleLogout}
             onProductCreated={handleProductCreated}
           />
+
+          <AlertBanner />
+
+          {pageError && (
+            <div className="max-w-7xl mx-auto px-6 pt-4">
+              <div
+                ref={errorSummaryRef}
+                role="alert"
+                tabIndex={-1}
+                className="error-summary rounded-md border border-destructive/40 bg-destructive/10 p-4 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-base font-semibold">We couldn't complete your request</h2>
+                    <p className="mt-1 text-sm">{pageError}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto px-2 py-1"
+                    onClick={() => setPageError(null)}
+                    aria-label="Dismiss error message"
+                  >
+                    Dismiss
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {(isTestEnv || devMode) && (
             <DevRoleSwitcher 
@@ -3298,7 +3348,6 @@ function App() {
             </>
           )}
 
-          <Toaster />
           <AppFooter />
         </>
       )}
