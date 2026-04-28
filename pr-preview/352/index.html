@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>a11yhood - Accessible Product Reviews</title>
+    <link rel="icon" type="image/x-icon" href="/pr-preview/352/favicon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter&family=Noto+Serif&family=JetBrains+Mono&display=swap">
+    
+    <!-- Single Page Apps for GitHub Pages -->
+    <!-- Handle redirects from 404.html for client-side routing -->
+    <script>
+      (function(l) {
+        function decodePayload(value) {
+          if (!value) return '';
+          try {
+            return decodeURIComponent(value);
+          } catch (_e) {
+            return value;
+          }
+        }
+
+        if (l.search[1] === '/' ) {
+          var q = l.search.slice(1).split('&');
+          var route = decodePayload(q[0].slice(1));
+          var query = decodePayload(q.slice(1).join('&'));
+          var basePath = l.pathname.replace(/\/$/, '');
+
+          // A query string starting with '/' indicates malformed redirect data
+          // (e.g. '?/some-route&%2F...'); drop it to prevent URL growth loops.
+          if (query.charAt(0) === '/') {
+            query = '';
+          }
+
+          window.history.replaceState(null, null,
+              basePath + (route ? '/' + route : '/') + (query ? '?' + query : '') + l.hash
+          );
+        }
+      }(window.location))
+    </script>
+  <script type="module" crossorigin src="/pr-preview/352/assets/index-BVOQ-7mw.js"></script>
+  <link rel="stylesheet" crossorigin href="/pr-preview/352/assets/index-BkwQ2BYM.css">
+</head>
+
+<body>
+    <div id="root"></div>
+</body>
+
+</html>
