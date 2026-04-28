@@ -40,7 +40,7 @@ jobs:
       - name: Run tests
         env:
           TEST_BACKEND_URL: ${{ vars.TEST_BACKEND_URL }}
-	  CI: 'false'
+          CI: 'false'
         run: npm run test:run
 
       - name: Build for GitHub Pages
