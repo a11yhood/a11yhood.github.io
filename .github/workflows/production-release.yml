@@ -39,7 +39,7 @@ jobs:
 
       - name: Run tests
         env:
-          CI: true
+          TEST_BACKEND_URL: https://a11yhood-backend-test.cs.washington.edu
         run: npm run test:run
 
       - name: Build for GitHub Pages
