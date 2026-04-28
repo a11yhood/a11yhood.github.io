@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Plus, Pen, Trash, Eye, EyeSlash, Star } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 
 type BlogManagerProps = {
   onCreateNew: () => void
@@ -23,6 +23,7 @@ type BlogManagerProps = {
  * Provides table view of all posts with CRUD operations and publishing controls
  */
 export function BlogManager({ onCreateNew, onEditPost, userAccount, onPostsUpdate, reloadKey }: BlogManagerProps) {
+  const { notify } = useNotifications()
   const [posts, setPosts] = useState<BlogPost[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -38,7 +39,7 @@ export function BlogManager({ onCreateNew, onEditPost, userAccount, onPostsUpdat
       setPosts(allPosts)
     } catch (error) {
       console.error('Failed to load posts:', error)
-      toast.error('Failed to load blog posts')
+      notify.error('Failed to load blog posts')
     } finally {
       setLoading(false)
     }
@@ -57,7 +58,7 @@ export function BlogManager({ onCreateNew, onEditPost, userAccount, onPostsUpdat
 
       if (updated) {
         setPosts(posts.map(p => (p.id === post.id ? updated : p)))
-        toast.success(
+        notify.success(
           updated.published ? 'Post published successfully' : 'Post unpublished successfully'
         )
         
@@ -67,7 +68,7 @@ export function BlogManager({ onCreateNew, onEditPost, userAccount, onPostsUpdat
       }
     } catch (error) {
       console.error('Failed to toggle publish:', error)
-      toast.error('Failed to update post status')
+      notify.error('Failed to update post status')
     }
   }
 
@@ -79,13 +80,13 @@ export function BlogManager({ onCreateNew, onEditPost, userAccount, onPostsUpdat
 
       if (updated) {
         setPosts(posts.map(p => (p.id === post.id ? updated : p)))
-        toast.success(
+        notify.success(
           updated.featured ? 'Post featured successfully' : 'Post removed from featured'
         )
       }
     } catch (error) {
       console.error('Failed to toggle featured:', error)
-      toast.error('Failed to update post')
+      notify.error('Failed to update post')
     }
   }
 
@@ -102,17 +103,17 @@ export function BlogManager({ onCreateNew, onEditPost, userAccount, onPostsUpdat
 
       if (result.success) {
         setPosts(posts.filter(p => p.id !== postToDelete.id))
-        toast.success('Post deleted successfully')
+        notify.success('Post deleted successfully')
         
         if (onPostsUpdate) {
           onPostsUpdate()
         }
       } else {
-        toast.error('Failed to delete post')
+        notify.error('Failed to delete post')
       }
     } catch (error) {
       console.error('Failed to delete post:', error)
-      toast.error('Failed to delete post')
+      notify.error('Failed to delete post')
     } finally {
       setDeleteDialogOpen(false)
       setPostToDelete(null)

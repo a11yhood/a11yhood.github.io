@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { UserRequest, UserData, UserAccount } from '@/lib/types'
 import { APIService } from '@/lib/api'
 import { Clock, CheckCircle, XCircle, FolderOpen } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { RequestCard } from './RequestCard'
 
 type UserRequestsPanelProps = {
@@ -19,6 +19,7 @@ type UserRequestsPanelProps = {
 }
 
 export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: UserRequestsPanelProps) {
+  const { notify } = useNotifications()
   const [requests, setRequests] = useState<UserRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [showRequestDialog, setShowRequestDialog] = useState(false)
@@ -54,7 +55,7 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
 
   const handleSubmitRequest = async () => {
     if (!message.trim()) {
-      toast.error(`Please provide a message explaining why you want to become ${requestType === 'moderator' ? 'a moderator' : 'an admin'}`)
+      notify.error(`Please provide a message explaining why you want to become ${requestType === 'moderator' ? 'a moderator' : 'an admin'}`)
       return
     }
 
@@ -68,15 +69,15 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
         message: message.trim(),
       })
       
-      toast.success('Your request has been submitted to the admins')
+      notify.success('Your request has been submitted to the admins')
       setShowRequestDialog(false)
       setMessage('')
       await loadRequests()
     } catch (error) {
       if (error instanceof Error) {
-        toast.error(error.message)
+        notify.error(error.message)
       } else {
-        toast.error('Failed to submit request')
+        notify.error('Failed to submit request')
       }
     } finally {
       setSubmitting(false)
@@ -90,16 +91,16 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
       const result = await APIService.withdrawRequest(withdrawingRequestId, user.id)
       
       if (result.success) {
-        toast.success('Request withdrawn successfully')
+        notify.success('Request withdrawn successfully')
         await loadRequests()
       } else {
-        toast.error('Failed to withdraw request')
+        notify.error('Failed to withdraw request')
       }
     } catch (error) {
       if (error instanceof Error) {
-        toast.error(error.message)
+        notify.error(error.message)
       } else {
-        toast.error('Failed to withdraw request')
+        notify.error('Failed to withdraw request')
       }
     } finally {
       setShowWithdrawDialog(false)

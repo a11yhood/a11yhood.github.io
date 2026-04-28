@@ -24,7 +24,7 @@ import { Product, UserData } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { ProductImageManager } from './ProductImageManager'
 import { ProductCard } from './ProductCard'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { APIService } from '@/lib/api'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faUniversalAccess } from '@fortawesome/free-solid-svg-icons'
@@ -40,6 +40,7 @@ export interface ProductSubmissionRef {
 }
 
 export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmissionProps>(function ProductSubmission({ user, onSubmit, onRequestOwnership }, ref) {
+  const { notify } = useNotifications()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
@@ -168,14 +169,14 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
         if (typeof p.sourceRatingCount === 'number') setSourceRatingCount(p.sourceRatingCount)
         if (typeof p.stars === 'number') setStars(p.stars)
         
-        toast.success(`Successfully scraped product information`)
+        notify.success(`Successfully scraped product information`)
         setUrlCheckState('form')
         return
       }
 
       // Not found and couldn't scrape: show manual form with URL pre-filled
       setSourceUrl(normalizeProductUrl(normalized))
-      toast.info(`Please fill in the product details below`)
+      notify.info(`Please fill in the product details below`)
       setUrlCheckState('form')
     } catch (error) {
       // Check if this is an unsupported domain error
@@ -194,7 +195,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
           // Allow manual form entry even when the domain is unsupported
           setSourceUrl(normalizeProductUrl(normalized))
           setUrlCheckState('form')
-          toast.info('This source is not supported yet. Please submit details manually.')
+          notify.info('This source is not supported yet. Please submit details manually.')
           // Trigger parent component to show request dialog
           const event = new CustomEvent('unsupported-domain', { detail: { domain, url: normalized } })
           window.dispatchEvent(event)

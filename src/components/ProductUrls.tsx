@@ -4,6 +4,7 @@ import { APIService } from '../lib/api'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog'
 
 interface ProductUrlsProps {
   productId: string
@@ -18,6 +19,8 @@ export function ProductUrls({ productId, isEditor, onUrlsChange }: ProductUrlsPr
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState<ProductUrlCreate>({ url: '', description: '' })
   const [submitting, setSubmitting] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [urlToDelete, setUrlToDelete] = useState<string | null>(null)
 
   // Load URLs on mount
   useEffect(() => {
@@ -59,16 +62,23 @@ export function ProductUrls({ productId, isEditor, onUrlsChange }: ProductUrlsPr
     }
   }
 
-  const handleDelete = async (urlId: string) => {
-    if (!confirm('Delete this URL?')) return
+  const handleDelete = (urlId: string) => {
+    setUrlToDelete(urlId)
+    setDeleteDialogOpen(true)
+  }
 
+  const handleConfirmDelete = async () => {
+    if (!urlToDelete) return
     try {
-      await APIService.deleteProductUrl(productId, urlId)
-      const updated = urls.filter(u => u.id !== urlId)
+      await APIService.deleteProductUrl(productId, urlToDelete)
+      const updated = urls.filter(u => u.id !== urlToDelete)
       setUrls(updated)
       onUrlsChange?.(updated)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete URL')
+    } finally {
+      setDeleteDialogOpen(false)
+      setUrlToDelete(null)
     }
   }
 
@@ -192,6 +202,23 @@ export function ProductUrls({ productId, isEditor, onUrlsChange }: ProductUrlsPr
           No URLs added yet. Add links to source code, documentation, or related resources.
         </p>
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete URL?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this URL? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

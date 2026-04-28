@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, XCircle, Info, CircleNotch } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { GitHubOAuthManager } from '@/lib/scrapers/github'
 import { APIService } from '@/lib/api'
 
@@ -16,6 +16,7 @@ type GitHubSettingsProps = {
 }
 
 export function GitHubSettings({ onAuthComplete, products = [], onProductsUpdate }: GitHubSettingsProps) {
+  const { notify } = useNotifications()
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [appName, setAppName] = useState<string>('')
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
@@ -54,7 +55,7 @@ export function GitHubSettings({ onAuthComplete, products = [], onProductsUpdate
   const handleRunGitHubScraper = async () => {
     setIsScrapingAfterAuth(true)
     try {
-      toast.info('Starting GitHub scraper...')
+      notify.info('Starting GitHub scraper...')
       
       // Call backend API to trigger scraper
       await APIService.triggerScraper('github', false)
@@ -69,11 +70,11 @@ export function GitHubSettings({ onAuthComplete, products = [], onProductsUpdate
       )
       
       if (githubProducts.length === 0) {
-        toast.info('No repositories found')
+        notify.info('No repositories found')
         return
       }
 
-      toast.success(`Scraper started! Found ${githubProducts.length} GitHub repositories`)
+      notify.success(`Scraper started! Found ${githubProducts.length} GitHub repositories`)
       
       // Update product list if callback provided
       if (onProductsUpdate) {
@@ -87,7 +88,7 @@ export function GitHubSettings({ onAuthComplete, products = [], onProductsUpdate
       }
     } catch (error) {
       console.error('[GitHubSettings] Scraper error:', error)
-      toast.error('Failed to run GitHub scraper')
+      notify.error('Failed to run GitHub scraper')
     } finally {
       setIsScrapingAfterAuth(false)
     }
@@ -95,7 +96,7 @@ export function GitHubSettings({ onAuthComplete, products = [], onProductsUpdate
 
   const handleSaveCredentials = async () => {
     if (!accessToken.trim()) {
-      toast.error('Please enter your GitHub Personal Access Token')
+      notify.error('Please enter your GitHub Personal Access Token')
       return
     }
 
@@ -134,14 +135,14 @@ export function GitHubSettings({ onAuthComplete, products = [], onProductsUpdate
       setShowSetupForm(false)
       setAccessToken('')
       setAppNameInput('')
-      toast.success('Personal Access Token saved successfully!')
+      notify.success('Personal Access Token saved successfully!')
     } catch (error) {
       console.error('[GitHub] ✗ Save credentials error:', error)
       if (error instanceof Error) {
         console.error('[GitHub] Error message:', error.message)
         console.error('[GitHub] Error stack:', error.stack)
       }
-      toast.error('Failed to save credentials. Please try again.')
+      notify.error('Failed to save credentials. Please try again.')
     } finally {
       setIsSaving(false)
     }
@@ -152,10 +153,10 @@ export function GitHubSettings({ onAuthComplete, products = [], onProductsUpdate
       await GitHubOAuthManager.clearConfig()
       setIsAuthorized(false)
       setAppName('')
-      toast.success('GitHub disconnected successfully')
+      notify.success('GitHub disconnected successfully')
     } catch (error) {
       console.error('Disconnect error:', error)
-      toast.error('Failed to disconnect GitHub')
+      notify.error('Failed to disconnect GitHub')
     }
   }
 
