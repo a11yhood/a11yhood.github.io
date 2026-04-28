@@ -3055,15 +3055,17 @@ function App() {
     notify.success('Welcome to a11yhood!')
   }
 
-  const handleSkipToMainClick = (event: MouseEvent<HTMLAnchorElement>) => {
-    event.preventDefault()
-    const main = document.getElementById('main-content') as HTMLElement | null
-    if (main) {
-      if (!main.hasAttribute('tabIndex')) {
-        main.setAttribute('tabIndex', '-1')
+  const handleSkipToMainClick = (_event: MouseEvent<HTMLAnchorElement>) => {
+    // Preserve native anchor navigation for resilience, then move focus to main.
+    requestAnimationFrame(() => {
+      const main = document.getElementById('main-content') as HTMLElement | null
+      if (main) {
+        if (!main.hasAttribute('tabIndex')) {
+          main.setAttribute('tabIndex', '-1')
+        }
+        main.focus()
       }
-      main.focus()
-    }
+    })
   }
 
   return (
