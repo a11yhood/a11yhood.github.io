@@ -119,7 +119,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
               }`}
             >
               <FontAwesomeIcon icon={faNewspaper} className="w-[18px] h-[18px]" />
-              <span className="hidden sm:inline">News</span>
+              <span className="hidden sm:inline">Blog</span>
             </Link>
           </div>
 

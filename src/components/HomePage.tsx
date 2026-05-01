@@ -239,7 +239,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
         data-testid="homepage-news-section"
         className="lg:col-start-4 lg:col-span-7 lg:row-start-2"
       >
-        <h2 className="text-2xl font-bold sm:text-3xl mb-4">News</h2>
+        <h2 className="text-2xl font-bold sm:text-3xl mb-4">Blog</h2>
         {renderNewsContent()}
       </section>
 

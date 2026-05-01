@@ -76,7 +76,7 @@ describe('HomePage', () => {
     expect(screen.queryByText(/no more products/i)).not.toBeInTheDocument()
   })
 
-  it('hides secondary news posts on mobile while keeping the first post visible', () => {
+  it('hides secondary blog posts on mobile while keeping the first post visible', () => {
     const blogPosts = [
       createMockBlogPost({ id: 'post-1', title: 'First Post', slug: 'first-post', publishDate: '2026-04-16T00:00:00.000Z' }),
       createMockBlogPost({ id: 'post-2', title: 'Second Post', slug: 'second-post', publishDate: '2026-04-15T00:00:00.000Z' }),
@@ -107,7 +107,7 @@ describe('HomePage', () => {
       </MemoryRouter>
     )
 
-    expect(screen.getAllByRole('heading', { name: 'News' })).toHaveLength(1)
+    expect(screen.getAllByRole('heading', { name: 'Blog' })).toHaveLength(1)
     expect(screen.getAllByRole('heading', { name: 'Explore Products' })).toHaveLength(1)
 
     const grid = screen.getByTestId('homepage-grid')

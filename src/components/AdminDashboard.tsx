@@ -150,8 +150,8 @@ export function AdminDashboard({ onBack, products, onProductsUpdate, userAccount
             </div>
           </CollapsibleCard>
           <CollapsibleCard
-            title="News & Blog Posts"
-            description="Publish announcements and feature news posts"
+            title="Blog Posts"
+            description="Publish announcements and feature blog posts"
             defaultOpen
           >
             {showBlogEditor ? (
