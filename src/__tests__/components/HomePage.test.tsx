@@ -114,7 +114,7 @@ describe('HomePage', () => {
     expect(Array.from(grid.children).map((element) => element.getAttribute('data-testid'))).toEqual([
       'homepage-welcome-section',
       'homepage-search-section',
-      'homepage-news-section',
+      'homepage-blog-section',
       'homepage-explore-section',
     ])
 
@@ -127,7 +127,7 @@ describe('HomePage', () => {
       'lg:col-span-3',
       'lg:row-start-1'
     )
-    expect(screen.getByTestId('homepage-news-section')).toHaveClass(
+    expect(screen.getByTestId('homepage-blog-section')).toHaveClass(
       'lg:col-start-4',
       'lg:col-span-7',
       'lg:row-start-2'
