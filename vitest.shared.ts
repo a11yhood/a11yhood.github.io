@@ -13,7 +13,6 @@ export const REDUCED_TEST_INCLUDE = [
   '**/__tests__/components/UserProfile.website.test.tsx',
   '**/__tests__/components/HomePage.test.tsx',
   '**/__tests__/accessibility/BlogPostDraftPage.a11y.test.tsx',
-  '**/__tests__/components/HomePage.a11y.test.tsx',
   '**/__tests__/accessibility/HomePage.a11y.test.tsx',
   '**/__tests__/accessibility/AboutPage.a11y.test.tsx',
   '**/__tests__/accessibility/ProductFilters.a11y.test.tsx',
