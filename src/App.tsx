@@ -9,26 +9,9 @@ console.log('📦 [App.tsx] Loading imports...')
 
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { Routes, Route, Navigate, Link, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { MagnifyingGlass, Rows, SquaresFour } from '@phosphor-icons/react'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faLayerGroup } from '@fortawesome/free-solid-svg-icons'
 import { Toaster } from '@/components/ui/sonner'
-import { ProductCard } from '@/components/ProductCard'
-import { ProductListItem } from '@/components/ProductListItem'
-import { ProductDetail } from '@/components/ProductDetail'
-import { ProductFilters } from '@/components/ProductFilters'
-import { UserProfile } from '@/components/UserProfile'
-import { AdminDashboard } from '@/components/AdminDashboard'
-import { AdminUsersStats } from '@/components/AdminUsersStats'
-import { AdminLogs } from '@/components/AdminLogs'
-import { BlogPostList } from '@/components/BlogPostList'
-import { BlogPostDetail } from '@/components/BlogPostDetail'
-import { BlogPostEditor } from '@/components/BlogPostEditor'
 import { BlogPostDraftPage } from '@/components/BlogPostDraftPage'
-import { CollectionsList } from '@/components/CollectionsList'
-import { CollectionDetail } from '@/components/CollectionDetail'
 import { CreateCollectionDialog } from '@/components/CreateCollectionDialog'
 import { EditCollectionDialog } from '@/components/EditCollectionDialog'
 import { AboutPage } from '@/components/AboutPage'
@@ -47,7 +30,16 @@ import { AppHeader } from '@/components/AppHeader'
 import { AppFooter } from '@/components/AppFooter'
 import { DevRoleSwitcher } from '@/components/DevRoleSwitcher'
 import { PublicProfile } from '@/components/PublicProfile'
-import { Switch } from '@/components/ui/switch'
+import { BlogPage } from '@/pages/BlogPage'
+import { AdminLogsPage } from '@/pages/AdminLogsPage'
+import { BlogPostPage } from '@/pages/BlogPostPage'
+import { AdminPage } from '@/pages/AdminPage'
+import { AdminUsersPage } from '@/pages/AdminUsersPage'
+import { ProfilePage } from '@/pages/ProfilePage'
+import { CollectionsPage } from '@/pages/CollectionsPage'
+import { CollectionDetailPage } from '@/pages/CollectionDetailPage'
+import { asProductArray } from '@/pages/ProductListPage'
+import { ProductDetailPageWrapper } from '@/pages/ProductDetailPage'
 
 console.log('✓ [App.tsx] All imports loaded')
 
@@ -61,726 +53,16 @@ type ApiErrorLike = {
   }
 }
 
-function asProductArray(value: unknown): Product[] {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (value && typeof value === 'object') {
-    const candidate = value as { products?: unknown; items?: unknown; data?: unknown }
-    if (Array.isArray(candidate.products)) return candidate.products as Product[]
-    if (Array.isArray(candidate.items)) return candidate.items as Product[]
-    if (Array.isArray(candidate.data)) return candidate.data as Product[]
-  }
-
-  return []
-}
-
-function getProductRenderKey(product: Product, index: number): string {
-  if (product.slug) {
-    return `slug:${product.slug}`
-  }
-
-  if (product.id !== undefined && product.id !== null) {
-    return `id:${String(product.id)}`
-  }
-
-  return `idx:${index}`
-}
-
-export function ProductListPage({ 
-  products, 
-  ratings, 
-  user,
-  userAccount,
-  canViewBanned,
-  canModerate,
-  includeBanned,
-  onIncludeBannedChange,
-  collections,
-  blogPosts,
-  allProductSources,
-  allProductTypes,
-  popularTags,
-  filteredTags,
-  totalProductCount,
-  currentPage,
-  onPageChange,
-  pageSize,
-  onPageSizeChange,
-  onRate,
-  onDeleteProduct,
-  onToggleBan,
-  onCreateCollection,
-  onOpenCreateCollection,
-  searchQuery,
-  onSearchChange,
-  searchInputValue,
-  onSearchInputChange,
-  onSearchInputBlur,
-  onSearchInputKeyDown,
-  isSearching,
-  selectedTypes,
-  onTypeToggle,
-  selectedTags,
-  onTagToggle,
-  selectedSources,
-  onSourceToggle,
-  minRating,
-  onMinRatingChange,
-  updatedSince,
-  onUpdatedSinceChange,
-  sortBy,
-  sortOrder,
-  onSortChange,
-  onClearFilters
-}: {
-  products: Product[]
-  ratings: Rating[]
-  user: UserData | null
-  userAccount: UserAccount | null
-  canViewBanned: boolean
-  canModerate: boolean
-  includeBanned: boolean
-  onIncludeBannedChange: (next: boolean) => void
-  collections: Collection[]
-  blogPosts: BlogPost[]
-  allProductSources: Array<{ name: string; count: number }>
-  allProductTypes: string[]
-  popularTags: string[]
-  filteredTags: string[]
-  totalProductCount: number
-  currentPage: number
-  onPageChange: (page: number) => void
-  pageSize: number
-  onPageSizeChange: (size: number) => void
-  onRate: (productId: string, rating: number) => void
-  onDeleteProduct: (productId: string) => void
-  onToggleBan: (product: Product) => void
-  onCreateCollection: (data: CollectionCreateInput) => void
-  onOpenCreateCollection: (defaults: { name?: string; description?: string; productSlugs?: string[]; isPublic?: boolean }) => void
-  searchQuery: string
-  onSearchChange: (query: string) => void
-  searchInputValue: string
-  onSearchInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void
-  onSearchInputBlur: () => void
-  onSearchInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void
-  isSearching: boolean
-  selectedTypes: string[]
-  onTypeToggle: (type: string) => void
-  selectedTags: string[]
-  onTagToggle: (tag: string) => void
-  selectedSources: string[]
-  onSourceToggle: (source: string) => void
-  minRating: number
-  onMinRatingChange: (rating: number) => void
-  updatedSince: string | null
-  onUpdatedSinceChange: (date: string | null) => void
-  sortBy: 'rating' | 'updated_at' | 'created_at'
-  sortOrder: 'asc' | 'desc'
-  onSortChange: (value: string) => void
-  onClearFilters: () => void
-}) {
-  const navigate = useNavigate()
-  const initialColumns = typeof window !== 'undefined' && window.innerWidth >= 1024 ? 3 : 1
-  const [columnCount, setColumnCount] = useState<1 | 3>(initialColumns as 1 | 3)
-  const [page, setPage] = useState(1)
-
-  // These are intentionally accepted for API compatibility with SearchPage props.
-  void blogPosts
-  void popularTags
-  void onCreateCollection
-  void onSearchChange
-
-  // Sync local page with parent's currentPage
-  useEffect(() => {
-    setPage(currentPage)
-  }, [currentPage])
-
-  // Update mobile state on window resize
-  useEffect(() => {
-    const handleResize = () => {
-      const nextIsMobile = window.innerWidth < 1024
-      setColumnCount(nextIsMobile ? 1 : 3)
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
-  useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(totalProductCount / pageSize))
-    if (page > totalPages) {
-      setPage(totalPages)
-      onPageChange(totalPages)
-    }
-  }, [totalProductCount, page, pageSize, onPageChange])
-
-  const totalPages = Math.max(1, Math.ceil(totalProductCount / pageSize))
-  const paginatedProducts = products
-
-  // Combine API-filtered tags with tags from current page of products, plus selected tags
-  const allTags = useMemo(() => {
-    const normalizedProducts = asProductArray(products)
-    const tagCounts = new Map<string, number>()
-    normalizedProducts.forEach(product => {
-      if (product && product.tags) {
-        product.tags.filter(Boolean).forEach(tag => {
-          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
-        })
-      }
-    })
-    
-    // Add filtered tags (from API) and selected tags with lower priority if not in current results
-    ;[...(filteredTags || []), ...selectedTags].forEach(tag => {
-      if (tag && !tagCounts.has(tag)) {
-        tagCounts.set(tag, 0) // Add with 0 count to include but sort last
-      }
-    })
-    
-    // Sort by frequency (descending), then alphabetically
-    return Array.from(tagCounts.entries())
-      .sort((a, b) => {
-        if (b[1] !== a[1]) return b[1] - a[1] // Higher frequency first
-        return a[0].localeCompare(b[0]) // Alphabetically for same frequency
-      })
-      .map(([tag]) => tag)
-  }, [products, filteredTags, selectedTags])
-
-  return (
-    <div>
-      <div className="mb-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold">Find Access Solutions</h1>
-          <div className="relative w-full sm:max-w-md">
-            <MagnifyingGlass
-              size={20}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
-              type="search"
-              placeholder="Search products..."
-              value={searchInputValue}
-              onChange={onSearchInputChange}
-              onBlur={onSearchInputBlur}
-              onKeyDown={onSearchInputKeyDown}
-              className="pl-10"
-              aria-label="Search products"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <aside className="lg:col-span-1" aria-label="Filters">
-          {canViewBanned && (
-            <div className="flex items-center justify-between mb-4">
-              <label className="text-sm text-muted-foreground cursor-pointer flex items-center gap-2">
-                Include banned products (admin/mod only)
-                <Switch
-                  id="include-banned"
-                  checked={includeBanned}
-                  onCheckedChange={onIncludeBannedChange}
-                  data-testid="include-banned-switch"
-                />
-              </label>
-            </div>
-          )}
-          <ProductFilters
-            types={allProductTypes}
-            tags={allTags}
-            sources={allProductSources}
-            selectedTypes={selectedTypes}
-            selectedTags={selectedTags}
-            selectedSources={selectedSources}
-            minRating={minRating}
-            updatedSince={updatedSince}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onTypeToggle={onTypeToggle}
-            onTagToggle={onTagToggle}
-            onSourceToggle={onSourceToggle}
-            onMinRatingChange={onMinRatingChange}
-            onUpdatedSinceChange={onUpdatedSinceChange}
-            onSortChange={onSortChange}
-            onClearFilters={onClearFilters}
-          />
-        </aside>
-
-        <div className="lg:col-span-3">
-          <div className="mb-4 space-y-2">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="text-sm text-muted-foreground">
-                {totalProductCount === 0
-                  ? 'Showing 0 products'
-                  : `Showing ${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, totalProductCount)} of ${totalProductCount}`}
-              </div>
-              
-              {user && totalProductCount > 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onOpenCreateCollection({
-                    name: searchQuery ? `Search: ${searchQuery}` : 'Filtered Products',
-                    productSlugs: products.map(p => p.slug).filter((s): s is string => !!s),
-                    isPublic: false
-                  })}
-                  className="text-xs"
-                >
-                  Save as Collection
-                </Button>
-              )}
-              
-              {isSearching && (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  <span className="text-sm text-muted-foreground">Loading results...</span>
-                </div>
-              )}
-              
-              {/* Screen reader announcements */}
-              <div 
-                role="status" 
-                aria-live="polite" 
-                aria-atomic="true" 
-                className="sr-only"
-              >
-                {isSearching && 'Searching products'}
-                {!isSearching && products.length > 0 && `Showing ${products.length} products`}
-                {!isSearching && products.length === 0 && 'No products found'}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 flex-wrap">
-              <fieldset className="flex items-center gap-1 border border-border rounded-md p-1">
-                <legend className="text-xs text-muted-foreground px-2">Items per page:</legend>
-                {[30, 50, 100].map((size) => (
-                  <Button
-                    key={size}
-                    variant={pageSize === size ? 'secondary' : 'ghost'}
-                    size="sm"
-                    onClick={() => {
-                      onPageSizeChange(size)
-                      setPage(1)
-                      onPageChange(1)
-                    }}
-                    className="h-8 px-2 text-xs"
-                    aria-pressed={pageSize === size}
-                  >
-                    {size}
-                  </Button>
-                ))}
-              </fieldset>
-
-              <div className="flex items-center gap-1 border border-border rounded-md p-1">
-                <Button
-                  variant={columnCount === 3 ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setColumnCount(3)}
-                  className="h-8 w-8 p-0"
-                  aria-label="3 column view"
-                  aria-pressed={columnCount === 3}
-                >
-                  <SquaresFour size={18} />
-                </Button>
-                <Button
-                  variant={columnCount === 1 ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setColumnCount(1)}
-                  className="h-8 w-8 p-0"
-                  aria-label="1 column view"
-                  aria-pressed={columnCount === 1}
-                >
-                  <Rows size={18} />
-                </Button>
-              </div>
-
-              {user && products.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    onOpenCreateCollection({
-                      name: searchQuery ? `Search: ${searchQuery}` : 'My Collection',
-                      description: `Collection with ${products.length} products`,
-                      productSlugs: products.map(p => p.slug).filter((s): s is string => !!s),
-                      isPublic: true,
-                    })
-                  }}
-                  className="flex items-center gap-2"
-                  aria-label={searchQuery ? 'Save search results as collection' : 'Save products as collection'}
-                >
-                  <FontAwesomeIcon icon={faLayerGroup} className="w-[16px] h-[16px]" />
-                  <span className="hidden sm:inline">Save as Collection</span>
-                  <span className="sm:hidden">Save</span>
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <h2 className="sr-only">Search Results</h2>
-
-          {isSearching && products.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24">
-              <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-              <p className="text-muted-foreground">Loading results...</p>
-            </div>
-          ) : !isSearching && products.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-lg text-muted-foreground">
-                No products found. Try adjusting your filters.
-              </p>
-              {(selectedTypes.length > 0 || selectedTags.length > 0 || minRating > 0) && (
-                <Button variant="outline" onClick={onClearFilters} className="mt-4">
-                  Clear all filters
-                </Button>
-              )}
-            </div>
-          ) : columnCount === 1 ? (
-            <div className="border border-border rounded-md overflow-hidden bg-card opacity-90" aria-busy={isSearching}>
-              {paginatedProducts.map((product, index) => (
-                <ProductListItem
-                  key={getProductRenderKey(product, index)}
-                  product={product}
-                  ratings={ratings}
-                  collections={collections}
-                  selectedTags={selectedTags}
-                  href={`/product/${product.slug ?? product.id}`}
-                  onNavigate={() => navigate(`/product/${product.slug ?? product.id}`)}
-                  onTagClick={onTagToggle}
-                  user={user}
-                  onRate={onRate}
-                  showBannedBadge={canViewBanned}
-                  canModerate={canModerate}
-                  onToggleBan={() => onToggleBan(product)}
-                  onDelete={onDeleteProduct}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 opacity-90" aria-busy={isSearching}>
-              {paginatedProducts.map((product, index) => (
-                <ProductCard
-                  key={getProductRenderKey(product, index)}
-                  product={product}
-                  ratings={ratings}
-                  collections={collections}
-                  selectedTags={selectedTags}
-                  href={`/product/${product.slug ?? product.id}`}
-                  onNavigate={() => navigate(`/product/${product.slug ?? product.id}`)}
-                  onTagClick={onTagToggle}
-                  onDelete={onDeleteProduct}
-                  user={user}
-                  onRate={onRate}
-                  userAccount={userAccount}
-                  showBannedBadge={canViewBanned}
-                  canModerate={canModerate}
-                  onToggleBan={() => onToggleBan(product)}
-                />
-              ))}
-            </div>
-          )}
-
-          {totalProductCount > 0 && (
-            <div className="flex items-center justify-between gap-3 flex-wrap mt-6">
-              <div className="text-sm text-muted-foreground">
-                {totalProductCount === 0
-                  ? 'Showing 0 products'
-                  : `Showing ${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, totalProductCount)} of ${totalProductCount}`}
-              </div>
-
-              {totalPages > 1 && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const newPage = Math.max(1, page - 1)
-                      setPage(newPage)
-                      onPageChange(newPage)
-                    }}
-                    disabled={page <= 1}
-                    className="h-8 px-2"
-                    aria-label="Previous page"
-                  >
-                    Prev
-                  </Button>
-                  <span className="text-sm text-muted-foreground min-w-[6ch] text-center">
-                    Page {page} / {totalPages}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const newPage = Math.min(totalPages, page + 1)
-                      setPage(newPage)
-                      onPageChange(newPage)
-                    }}
-                    disabled={page >= totalPages}
-                    className="h-8 px-2"
-                    aria-label="Next page"
-                  >
-                    Next
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ProductDetailPage({ 
-  products,
-  ratings,
-  discussions,
-  user,
-  userAccount,
-  userCollections,
-  onRate,
-  onDiscuss,
-  onAddTag,
-  onAddToCollection,
-  onRemoveFromCollection,
-  onCreateCollection,
-  onDelete,
-  onEdit,
-  onToggleBan,
-  onEditDiscussion,
-  onDeleteDiscussion,
-  onToggleBlockDiscussion,
-  allTags,
-  allProductTypes = [],
-}: {
-  products: Product[]
-  ratings: Rating[]
-  discussions: Discussion[]
-  user: UserData | null
-  userAccount: UserAccount | null
-  userCollections: Collection[]
-  onRate: (productId: string, rating: number) => void
-  onDiscuss: (productId: string, content: string, parentId?: string) => void
-  onAddTag: (productId: string, tag: string, productObj?: Product) => void
-  onAddToCollection: (collectionSlug: string) => Promise<void>
-  onRemoveFromCollection: (collectionSlug: string) => Promise<void>
-  onCreateCollection: (data: CollectionCreateInput) => void
-  onDelete: (productId: string) => void
-  onEdit: (product: Product) => void
-  onToggleBan: (product: Product, reason?: string) => void
-  onEditDiscussion: (id: string, content: string) => Promise<void> | void
-  onDeleteDiscussion: (id: string) => Promise<void> | void
-  onToggleBlockDiscussion: (id: string, block: boolean) => Promise<void> | void
-  allTags: string[]
-  allProductTypes?: string[]
-}) {
-  const { slug: productSlug } = useParams()
-  const [searchParams] = useSearchParams()
-  const autoOpenEdit = searchParams.get('edit') === '1'
-  const autoOpenOwnershipRequest = searchParams.get('requestEdit') === '1'
-  const navigate = useNavigate()
-  const [product, setProduct] = useState<Product | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchProduct = async () => {
-      if (!productSlug) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        // First check if product is already in the products array (from home page navigation)
-        const cachedProduct = products.find(p => p.slug === productSlug)
-        if (cachedProduct) {
-          setProduct({ ...cachedProduct, slug: cachedProduct.slug ?? productSlug })
-          setLoading(false)
-          return
-        }
-
-        // Otherwise fetch just this product
-        const fetchedProduct = await APIService.getProductBySlug(productSlug)
-        setProduct(fetchedProduct ? { ...fetchedProduct, slug: fetchedProduct.slug ?? productSlug } : null)
-      } catch (error) {
-        console.error('Failed to fetch product:', error)
-        setProduct(null)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchProduct()
-  }, [productSlug, products])
-
-  if (loading) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-lg text-muted-foreground">Loading...</p>
-      </div>
-    )
-  }
-
-  if (!product) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-lg text-muted-foreground">Product not found</p>
-        <Button variant="outline" onClick={() => navigate('/')} className="mt-4">
-          Back to Products
-        </Button>
-      </div>
-    )
-  }
-
-  return (
-    <ProductDetail
-      product={product}
-      ratings={ratings}
-      discussions={discussions}
-      user={user}
-      userAccount={userAccount}
-      userCollections={userCollections}
-      onBack={() => navigate('/')}
-      onRate={(rating) => onRate(product.id, rating)}
-      onDiscuss={(content, parentId) => onDiscuss(product.id, content, parentId)}
-      onAddTag={(tag) => onAddTag(product.slug ?? product.id, tag, product)}
-      onAddToCollection={onAddToCollection}
-      onRemoveFromCollection={onRemoveFromCollection}
-      onCreateCollection={onCreateCollection}
-      allTags={allTags}
-      allProductTypes={allProductTypes}
-      onDelete={onDelete}
-      onEdit={onEdit}
-      onToggleBan={onToggleBan}
-      onEditDiscussion={onEditDiscussion}
-      onDeleteDiscussion={onDeleteDiscussion}
-      onToggleBlockDiscussion={onToggleBlockDiscussion}
-      autoOpenEdit={autoOpenEdit}
-      autoOpenOwnershipRequest={autoOpenOwnershipRequest}
-    />
-  )
-}
-
-function ProductDetailPageWrapper({ 
-  products,
-  ratings,
-  discussions,
-  user,
-  userAccount,
-  userCollections,
-  onRate,
-  onDiscuss,
-  onAddTag,
-  onCollectionsChange,
-  onCreateCollection,
-  onDelete,
-  onEdit,
-  onToggleBan,
-  onEditDiscussion,
-  onDeleteDiscussion,
-  onToggleBlockDiscussion,
-  allTags,
-  allProductTypes = [],
-}: {
-  products: Product[]
-  ratings: Rating[]
-  discussions: Discussion[]
-  user: UserData | null
-  userAccount: UserAccount | null
-  userCollections: Collection[]
-  onRate: (productId: string, rating: number) => void
-  onDiscuss: (productId: string, content: string, parentId?: string) => void
-  onAddTag: (productId: string, tag: string, productObj?: Product) => void
-  onCollectionsChange: (collections: Collection[] | ((current: Collection[]) => Collection[])) => void
-  onCreateCollection: (data: CollectionCreateInput) => void
-  onDelete: (productId: string) => void
-  onEdit: (product: Product) => void
-  onToggleBan: (product: Product, reason?: string) => void
-  onEditDiscussion: (id: string, content: string) => Promise<void> | void
-  onDeleteDiscussion: (id: string) => Promise<void> | void
-  onToggleBlockDiscussion: (id: string, block: boolean) => Promise<void> | void
-  allTags: string[]
-  allProductTypes?: string[]
-}) {
-  const { slug } = useParams()
-  const [searchParams] = useSearchParams()
-  void searchParams
-  
-  const [localRatings, setLocalRatings] = useState<Rating[]>(ratings)
-  const [localDiscussions, setLocalDiscussions] = useState<Discussion[]>(discussions)
-
-  // Fetch ratings and discussions if not already loaded
-  useEffect(() => {
-    const fetchData = async () => {
-      if (ratings.length === 0) {
-        try {
-          const [allRatings, allDiscussions] = await Promise.all([
-            APIService.getAllRatings(),
-            APIService.getAllDiscussions(),
-          ])
-          setLocalRatings(allRatings)
-          setLocalDiscussions(allDiscussions)
-        } catch (error) {
-          console.warn('[ProductDetailPageWrapper] Failed to fetch ratings/discussions:', error)
-        }
-      }
-    }
-    fetchData()
-  }, [ratings.length])
-
-  // Keep local state in sync when parent updates
-  useEffect(() => {
-    if (ratings.length > 0) setLocalRatings(ratings)
-  }, [ratings])
-
-  useEffect(() => {
-    if (discussions.length > 0) setLocalDiscussions(discussions)
-  }, [discussions])
-
-  const handleAddToCollection = async (collectionSlug: string) => {
-    if (!slug) return
-
-    if (!collectionSlug) return
-
-    const updated = await APIService.addProductToCollection(collectionSlug, slug)
-    if (updated) {
-      onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
-      toast.success('Added to collection')
-    }
-  }
-
-  const handleRemoveFromCollection = async (collectionSlug: string) => {
-    if (!slug) return
-    const updated = await APIService.removeProductFromCollection(collectionSlug, slug)
-    if (updated) {
-      onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
-      toast.success('Removed from collection')
-    }
-  }
-
-  return (
-    <ProductDetailPage
-      products={products}
-      ratings={localRatings}
-      discussions={localDiscussions}
-      user={user}
-      userAccount={userAccount}
-      userCollections={userCollections}
-      onRate={onRate}
-      onDiscuss={onDiscuss}
-      onAddTag={onAddTag}
-      onAddToCollection={handleAddToCollection}
-      onRemoveFromCollection={handleRemoveFromCollection}
-      onCreateCollection={onCreateCollection}
-      onDelete={onDelete}
-      onEdit={onEdit}
-      onToggleBan={onToggleBan}
-      onEditDiscussion={onEditDiscussion}
-      onDeleteDiscussion={onDeleteDiscussion}
-      onToggleBlockDiscussion={onToggleBlockDiscussion}
-      allTags={allTags}
-      allProductTypes={allProductTypes}
-    />
-  )
+type CollectionFromSearchPayload = {
+  name: string
+  description?: string
+  isPublic: boolean
+  search?: string
+  sources?: string[]
+  types?: string[]
+  tags?: string[]
+  tagsMode?: string
+  minRating?: number
 }
 
 function NotFoundPage() {
@@ -797,577 +79,6 @@ function NotFoundPage() {
   )
 }
 
-function BlogPage({ blogPosts, blogPostsLoading, userAccount }: { blogPosts: BlogPost[], blogPostsLoading: boolean, userAccount: UserAccount | null }) {
-  const navigate = useNavigate()
-  const isAdmin = userAccount?.role === 'admin'
-
-  return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Blog</h1>
-        <div className="flex items-center gap-2">
-          {isAdmin && (
-            <Button variant="outline" onClick={() => navigate('/admin')}>
-              Manage Posts
-            </Button>
-          )}
-          <Button variant="outline" onClick={() => navigate('/')} className="flex items-center gap-2">
-            ← Back to Products
-          </Button>
-        </div>
-      </div>
-      <BlogPostList 
-        posts={blogPosts}
-        isLoading={blogPostsLoading}
-        onSelectPost={(post) => navigate(`/blog/${post.slug}`)}
-      />
-    </div>
-  )
-}
-
-function BlogPostPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userAccount: UserAccount | null }) {
-  const { slug } = useParams()
-  const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const isEditMode = searchParams.get('edit') === 'true'
-  const post = blogPosts.find(p => p.slug === slug)
-  const isAdmin = userAccount?.role === 'admin'
-
-  if (!post) {
-    return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold mb-2">Blog Post Not Found</h1>
-        <p className="text-lg text-muted-foreground">Blog post not found</p>
-        <Button variant="outline" onClick={() => navigate('/blog')} className="mt-4">
-          Back to Blog
-        </Button>
-      </div>
-    )
-  }
-
-  const handleSave = async (updatedPost: BlogPost) => {
-    try {
-      await APIService.updateBlogPost(post.id, updatedPost)
-      toast.success('Blog post updated successfully')
-      // Remove edit mode from URL
-      setSearchParams({})
-      // Reload blog posts
-      window.location.reload()
-    } catch (error) {
-      toast.error('Failed to update blog post')
-      console.error('Update error:', error)
-    }
-  }
-
-  const handleCancelEdit = () => {
-    setSearchParams({})
-  }
-
-  if (isEditMode && isAdmin && userAccount) {
-    return (
-      <div>
-        <h1 className="text-3xl font-bold mb-6">Edit Blog Post</h1>
-        <BlogPostEditor
-          post={post}
-          authorName={userAccount.username || 'Unknown'}
-          authorId={userAccount.id}
-          onSave={handleSave}
-          onCancel={handleCancelEdit}
-        />
-      </div>
-    )
-  }
-
-  return (
-    <BlogPostDetail
-      post={post}
-      onBack={() => navigate('/blog')}
-      onEdit={isAdmin ? () => setSearchParams({ edit: 'true' }) : undefined}
-    />
-  )
-}
-
-function CollectionsPage({ 
-  collections, 
-  products, 
-  user,
-  userAccount,
-  collectionsFirstLoadComplete,
-  onDeleteCollection,
-  onEditCollection,
-  onCreateCollection
-}: {
-  collections: Collection[]
-  products: Product[]
-  user: UserData | null
-  userAccount: UserAccount | null
-  collectionsFirstLoadComplete: boolean
-  onDeleteCollection: (collectionSlug: string) => void
-  onEditCollection: (collection: Collection) => void
-  onCreateCollection: () => void
-}) {
-  const navigate = useNavigate()
-  const [publicCollections, setPublicCollections] = useState<Collection[]>([])
-  const [myPage, setMyPage] = useState(1)
-  const [publicPage, setPublicPage] = useState(1)
-  const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
-  const [loadedCollectionIds, setLoadedCollectionIds] = useState<Set<string>>(new Set())
-  const [publicCollectionsFirstLoadComplete, setPublicCollectionsFirstLoadComplete] = useState(false)
-  const itemsPerPage = 12 // 3 columns x 4 rows
-
-  useEffect(() => {
-    const loadPublic = async () => {
-      setPublicCollectionsFirstLoadComplete(false)
-      try {
-        const result = await APIService.getPublicCollections('updated_at')
-        setPublicCollections(result)
-      } catch (error) {
-        console.warn('[CollectionsPage] Failed to load public collections:', error)
-      } finally {
-        setPublicCollectionsFirstLoadComplete(true)
-      }
-    }
-    loadPublic()
-  }, [])
-
-  // Filter to only show collections created by the current user
-  const myCollections = userAccount 
-    ? collections.filter(c => {
-        const match = c.userId === userAccount.id
-        console.log('[CollectionsPage] Checking collection:', {
-          collectionName: c.name,
-          collectionUserId: c.userId,
-          userAccountId: userAccount.id,
-          match
-        })
-        return match
-      })
-    : []
-
-  console.log('[CollectionsPage] Total collections:', collections.length, 'My collections:', myCollections.length)
-
-  // Paginate collections
-  const myStart = (myPage - 1) * itemsPerPage
-  const myEnd = myStart + itemsPerPage
-  const paginatedMyCollections = myCollections.slice(myStart, myEnd)
-  const myTotalPages = Math.ceil(myCollections.length / itemsPerPage)
-
-  const filteredPublicCollections = publicCollections.filter(c => 
-    !userAccount || c.userId !== userAccount.id
-  )
-  const publicStart = (publicPage - 1) * itemsPerPage
-  const publicEnd = publicStart + itemsPerPage
-  const paginatedPublicCollections = filteredPublicCollections.slice(publicStart, publicEnd)
-  const publicTotalPages = Math.ceil(filteredPublicCollections.length / itemsPerPage)
-
-  // Reset loaded collections when pagination changes
-  useEffect(() => {
-    setLoadedCollectionIds(new Set())
-    setCollectionProducts([])
-  }, [myPage, publicPage])
-
-  // Load products from each visible collection for image display, one collection at a time
-  useEffect(() => {
-    const loadNextCollectionImages = async () => {
-      const visibleCollections = [...paginatedMyCollections, ...paginatedPublicCollections]
-      const MAX_IMAGE_PRODUCTS_PER_COLLECTION = 3
-
-      // Find the first unloaded collection
-      const unloadedCollection = visibleCollections.find(c => !loadedCollectionIds.has(c.id))
-
-      if (!unloadedCollection) return
-
-      // Get up to the first N product slugs from this collection
-      const candidateProductSlugs = (unloadedCollection.productSlugs || [])
-        .slice(0, MAX_IMAGE_PRODUCTS_PER_COLLECTION)
-        .filter(slug => slug)
-
-      if (candidateProductSlugs.length === 0) {
-        // Mark as loaded even if no products
-        setLoadedCollectionIds(prev => new Set([...prev, unloadedCollection.id]))
-        return
-      }
-
-      // Check which products we don't already have
-      const existingSlugs = new Set([...products, ...collectionProducts].map(p => p.slug))
-      const slugsToFetch = candidateProductSlugs.filter(slug => !existingSlugs.has(slug))
-
-      console.log('[CollectionsPage] Loading image products for collection:', {
-        collectionName: unloadedCollection.name,
-        totalSlugs: candidateProductSlugs.length,
-        slugsToFetch: slugsToFetch.length
-      })
-
-      try {
-        if (slugsToFetch.length > 0) {
-          // Fetch products for this collection
-          const results = await Promise.allSettled(
-            slugsToFetch.map(slug => APIService.getProductBySlug(slug))
-          )
-
-          const newProducts: Product[] = []
-          results.forEach(result => {
-            if (result.status === 'fulfilled' && result.value) {
-              newProducts.push(result.value)
-            }
-          })
-
-          if (newProducts.length > 0) {
-            console.log('[CollectionsPage] Loaded image products for collection:', newProducts.length)
-            setCollectionProducts(prev => [...prev, ...newProducts])
-          }
-        }
-      } catch (error) {
-        console.error('[CollectionsPage] Failed to load collection image products:', error)
-      } finally {
-        // Mark this collection as loaded
-        setLoadedCollectionIds(prev => new Set([...prev, unloadedCollection.id]))
-      }
-    }
-
-    loadNextCollectionImages()
-  }, [paginatedMyCollections, paginatedPublicCollections, products, collectionProducts, loadedCollectionIds])
-
-  // Merge products from App and locally loaded collection products
-  const allProducts = [...products, ...collectionProducts]
-
-  return (
-    <div>
-      {user ? (
-        <>
-          <div className="mb-6 flex items-center justify-between">
-            <h1 className="text-3xl font-bold">My Collections</h1>
-            <div className="flex items-center gap-2">
-              <Button onClick={onCreateCollection}>Create Collection</Button>
-              <Button variant="outline" onClick={() => navigate('/')}>
-                ← Back to Products
-              </Button>
-            </div>
-          </div>
-          <CollectionsList
-            collections={paginatedMyCollections}
-            products={allProducts}
-            isFirstLoadComplete={collectionsFirstLoadComplete}
-            onSelectCollection={(collection) =>
-              navigate(`/collections/${collection.slug || collection.id}`, {
-                state: { collectionSnapshot: collection },
-              })
-            }
-            onDeleteCollection={onDeleteCollection}
-            onEditCollection={onEditCollection}
-            currentUserId={user?.id}
-          />
-          {myTotalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => setMyPage(p => Math.max(1, p - 1))}
-                disabled={myPage === 1}
-              >
-                Previous
-              </Button>
-              <span className="flex items-center px-4">
-                Page {myPage} of {myTotalPages}
-              </span>
-              <Button
-                variant="outline"
-                onClick={() => setMyPage(p => Math.min(myTotalPages, p + 1))}
-                disabled={myPage === myTotalPages}
-              >
-                Next
-              </Button>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="mb-6 flex items-center justify-between">
-          <p className="text-lg text-muted-foreground">Log in to create your own collection</p>
-          <Button variant="outline" onClick={() => navigate('/')}>
-            ← Back to Products
-          </Button>
-        </div>
-      )}
-
-      <div className="mt-10">
-        <h2 className="text-2xl font-semibold mb-4">Public Collections</h2>
-        <CollectionsList
-          collections={paginatedPublicCollections}
-          products={allProducts}
-          isFirstLoadComplete={publicCollectionsFirstLoadComplete}
-          onSelectCollection={(collection) =>
-            navigate(`/collections/${collection.slug || collection.id}`, {
-              state: { collectionSnapshot: collection },
-            })
-          }
-          onDeleteCollection={() => { /* no-op for public */ }}
-          currentUserId={user?.id}
-        />
-        {publicTotalPages > 1 && (
-          <div className="flex justify-center gap-2 mt-6">
-            <Button
-              variant="outline"
-              onClick={() => setPublicPage(p => Math.max(1, p - 1))}
-              disabled={publicPage === 1}
-            >
-              Previous
-            </Button>
-            <span className="flex items-center px-4">
-              Page {publicPage} of {publicTotalPages}
-            </span>
-            <Button
-              variant="outline"
-              onClick={() => setPublicPage(p => Math.min(publicTotalPages, p + 1))}
-              disabled={publicPage === publicTotalPages}
-            >
-              Next
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function CollectionDetailPage({ 
-  collections,
-  ratings,
-  products,
-  user,
-  userAccount,
-  onRemoveProductFromCollection,
-  onDeleteProduct,
-  onDeleteCollection,
-  onEditCollection,
-}: {
-  collections: Collection[]
-  ratings: Rating[]
-  products: Product[]
-  user: UserData | null
-  userAccount: UserAccount | null
-  onRemoveProductFromCollection: (collectionSlug: string, productSlug: string) => void
-  onDeleteProduct: (productId: string) => void
-  onDeleteCollection?: (collectionSlug: string) => void
-  onEditCollection?: (collection: Collection) => void
-}) {
-  const { collectionSlug } = useParams()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const state = location.state as { collectionSnapshot?: Collection } | null
-  
-  // Try to find by slug first, then by ID.
-  const collection = collections.find(c => c.slug === collectionSlug || c.id === collectionSlug)
-  const snapshotCollection = state?.collectionSnapshot &&
-    (state.collectionSnapshot.slug === collectionSlug || state.collectionSnapshot.id === collectionSlug)
-    ? state.collectionSnapshot
-    : null
-  const [externalCollection, setExternalCollection] = useState<Collection | null>(null)
-
-  // Explicit refresh for post-mutation actions.
-  const refetchExternalCollection = async () => {
-    if (collectionSlug) {
-      try {
-        const fetched = await APIService.getCollection(collectionSlug)
-        setExternalCollection(fetched)
-      } catch (e) {
-        console.error('Failed to refetch collection:', e)
-      }
-    }
-  }
-
-  useEffect(() => {
-    const load = async () => {
-      // Avoid extra backend call when we already have collection data from
-      // list state or route-state snapshot.
-      if (!collection && !snapshotCollection && collectionSlug) {
-        try {
-          const fetched = await APIService.getCollection(collectionSlug)
-          setExternalCollection(fetched)
-        } catch (error) {
-          console.warn('[CollectionDetailPage] Failed to load collection:', collectionSlug, error)
-          setExternalCollection(null)
-        }
-      }
-    }
-    load()
-  }, [collection, snapshotCollection, collectionSlug])
-
-  const effectiveCollection = externalCollection || snapshotCollection || collection || null
-
-  if (!effectiveCollection) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-lg text-muted-foreground">Collection not found</p>
-        <Button variant="outline" onClick={() => navigate('/collections')} className="mt-4">
-          Back to Collections
-        </Button>
-      </div>
-    )
-  }
-
-  return (
-    <CollectionDetail
-      collection={effectiveCollection}
-      ratings={ratings}
-      products={products}
-      onBack={() => navigate('/collections')}
-      onRemoveProduct={async (productSlug) => {
-        onRemoveProductFromCollection(effectiveCollection.slug || effectiveCollection.id, productSlug)
-        // Refetch collection after removal to update UI
-        await refetchExternalCollection()
-      }}
-      onSelectProduct={(productSlug) => navigate(`/product/${productSlug}`)}
-      isOwner={user?.id === effectiveCollection.userId}
-      userAccount={userAccount}
-      onDeleteProduct={onDeleteProduct}
-      onDeleteCollection={onDeleteCollection ? async () => {
-        await onDeleteCollection(effectiveCollection.slug || effectiveCollection.id)
-        navigate('/collections')
-      } : undefined}
-      onEditCollection={onEditCollection ? () => onEditCollection(effectiveCollection) : undefined}
-      onTogglePrivacy={async (nextPublic) => {
-        try {
-          const updated = await APIService.updateCollection(effectiveCollection.id, { isPublic: nextPublic })
-          if (updated) {
-            // Update local list if present
-            if (collections.find(c => c.slug === effectiveCollection.slug)) {
-              // trigger state change via navigation back
-            }
-            // Update fallback state for direct-link views
-            setExternalCollection(updated)
-            toast.success(`Collection is now ${nextPublic ? 'public' : 'private'}`)
-          }
-        } catch {
-          toast.error('Failed to update collection visibility')
-        }
-      }}
-    />
-  )
-}
-
-function ProfilePage({ 
-  user, 
-  userAccount,
-  onUpdate 
-}: {
-  user: UserData
-  userAccount: UserAccount
-  onUpdate: () => void
-}) {
-  const navigate = useNavigate()
-
-  return (
-    <div>
-      <Button variant="outline" onClick={() => navigate('/')} className="mb-6">
-        ← Back to Products
-      </Button>
-      <UserProfile 
-        userAccount={userAccount}
-        user={user}
-        onUpdate={onUpdate}
-        onProductClick={(product) => navigate(`/product/${product.slug ?? product.id}`)}
-        onCollectionsClick={() => navigate('/collections')}
-        onBlogPostClick={(post) => navigate(`/blog/${post.slug}`)}
-      />
-    </div>
-  )
-}
-
-function AdminPage({ 
-  products,
-  userAccount,
-  ravelryAuthTimestamp,
-  onProductsUpdate,
-  onBlogPostsUpdate,
-  adminVerboseLoggingEnabled,
-  onAdminVerboseLoggingChange,
-}: {
-  products: Product[]
-  userAccount: UserAccount | null
-  ravelryAuthTimestamp: number
-  onProductsUpdate: (products: Product[]) => void
-  onBlogPostsUpdate: () => void
-  adminVerboseLoggingEnabled: boolean
-  onAdminVerboseLoggingChange: (enabled: boolean) => void
-}) {
-  const navigate = useNavigate()
-
-  const role = userAccount?.role
-  const canAccess = role === 'admin' || role === 'moderator'
-  if (!canAccess) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-lg text-muted-foreground">Access denied</p>
-        <Button variant="outline" onClick={() => navigate('/')} className="mt-4">
-          Back to Home
-        </Button>
-      </div>
-    )
-  }
-
-  return (
-    <AdminDashboard 
-      onBack={() => navigate('/')} 
-      products={products}
-      onProductsUpdate={onProductsUpdate}
-      userAccount={userAccount}
-      ravelryAuthTimestamp={ravelryAuthTimestamp}
-      onBlogPostsUpdate={onBlogPostsUpdate}
-      adminVerboseLoggingEnabled={adminVerboseLoggingEnabled}
-      onAdminVerboseLoggingChange={onAdminVerboseLoggingChange}
-    />
-  )
-}
-
-function AdminUsersPage({ userAccount }: { userAccount: UserAccount | null }) {
-  const navigate = useNavigate()
-
-  if (userAccount?.role !== 'admin') {
-    return (
-      <div className="text-center py-12">
-        <p className="text-lg text-muted-foreground">Access denied</p>
-        <Button variant="outline" onClick={() => navigate('/admin')} className="mt-4">
-          Back to Admin
-        </Button>
-      </div>
-    )
-  }
-
-  return <AdminUsersStats />
-}
-
-function AdminLogsPage({ 
-  products,
-  userAccount,
-  ravelryAuthTimestamp,
-  onProductsUpdate
-}: {
-  products: Product[]
-  userAccount: UserAccount | null
-  ravelryAuthTimestamp: number
-  onProductsUpdate: (products: Product[]) => void
-}) {
-  const navigate = useNavigate()
-
-  if (userAccount?.role !== 'admin') {
-    return (
-      <div className="text-center py-12">
-        <p className="text-lg text-muted-foreground">Access denied</p>
-        <Button variant="outline" onClick={() => navigate('/admin')} className="mt-4">
-          Back to Admin
-        </Button>
-      </div>
-    )
-  }
-
-  return (
-    <AdminLogs 
-      products={products}
-      onProductsUpdate={onProductsUpdate}
-      ravelryAuthTimestamp={ravelryAuthTimestamp}
-    />
-  )
-}
-
 function App() {
   console.log('🎯 [App] Function App() called - component initializing')
   const [products, setProducts] = useState<Product[]>([])
@@ -1381,7 +92,7 @@ function App() {
   const [totalProductCount, setTotalProductCount] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
-  
+
   console.log('✓ [App] State initialized')
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -1391,7 +102,7 @@ function App() {
   const [blogPostsLoading, setBlogPostsLoading] = useState(true)
   const [includeBanned, setIncludeBanned] = useState(false)
   const [hasAutoEnabledBanned, setHasAutoEnabledBanned] = useState(false)
-  
+
   // Derive admin/moderator status from userAccount role
   const isAdmin = userAccount?.role === 'admin'
   const isModerator = userAccount?.role === 'moderator' || userAccount?.role === 'admin'
@@ -1436,7 +147,7 @@ function App() {
 
   // Tracks optimistically-applied tags per product ID across sequential async handleAddTag calls
   const pendingProductTagsRef = useRef<Map<string, string[]>>(new Map())
-  
+
   // Helper to normalize URL param arrays: filter empty strings, deduplicate, and sort so
   // order differences between URL and state never cause spurious state updates.
   const normalizeParamArray = (params: string[]): string[] => {
@@ -1474,7 +185,7 @@ function App() {
     if (!param) return null
     return /^\d{4}-\d{2}-\d{2}$/.test(param) ? param : null
   }
-  
+
   // Filter states - initialize from URL params
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
   const [searchInputValue, setSearchInputValue] = useState(searchParams.get('q') || '')
@@ -1500,7 +211,7 @@ function App() {
     )
   })
   const [isSearching, setIsSearching] = useState(false)
-  
+
   // Track the latest search request to ignore stale responses
   const latestSearchIdRef = useRef(0)
   const userAccountFetchRef = useRef<string | null>(null) // Track which user we've fetched account for
@@ -1662,7 +373,7 @@ function App() {
     // Guard primitives too — avoid enqueuing a state update when nothing changed.
     setSearchQuery(current => current === urlQuery ? current : urlQuery)
     setSearchInputValue(current => current === urlQuery ? current : urlQuery)
-    
+
     // Only update filter states when the normalized URL params actually differ from current state.
     // normalizeParamArray sorts the values, so order changes in the URL don't trigger spurious updates.
     const urlTags = normalizeParamArray(searchParams.getAll('tag'))
@@ -1670,7 +381,7 @@ function App() {
     const urlSources = normalizeParamArray(searchParams.getAll('source'))
     const urlMinRating = parseMinRatingParam(searchParams.get('minRating'))
     const urlUpdatedSince = parseUpdatedSinceParam(searchParams.get('updatedSince'))
-    
+
     setSelectedTags(current => {
       return arraysEqual(current, urlTags) ? current : urlTags
     })
@@ -1710,14 +421,14 @@ function App() {
         })
       }
     })
-    
-    // Add filtered tags and selected tags with lower priority if not in current results
-    ;[...filteredTags, ...selectedTags].forEach(tag => {
-      if (tag && !tagCounts.has(tag)) {
-        tagCounts.set(tag, 0) // Add with 0 count to include but sort last
-      }
-    })
-    
+
+      // Add filtered tags and selected tags with lower priority if not in current results
+      ;[...filteredTags, ...selectedTags].forEach(tag => {
+        if (tag && !tagCounts.has(tag)) {
+          tagCounts.set(tag, 0) // Add with 0 count to include but sort last
+        }
+      })
+
     // Sort by frequency (descending), then alphabetically
     return Array.from(tagCounts.entries())
       .sort((a, b) => {
@@ -1731,16 +442,16 @@ function App() {
     const loadData = async () => {
       setIsSearching(true)
       console.log('[App] Loading initial data...', { pathname: location.pathname })
-      
+
       // Only load all products on pages that need the full list
-      const needsFullProductList = location.pathname === '/products' || 
-                                   location.pathname === '/submit' ||
-                                   location.pathname.startsWith('/admin')
-      
+      const needsFullProductList = location.pathname === '/products' ||
+        location.pathname === '/submit' ||
+        location.pathname.startsWith('/admin')
+
       // Only load filter metadata (tags, sources, types) on pages that use them
       // Don't load on collection detail pages (/collections/:slug)
       const needsFilterMetadata = needsFullProductList
-      
+
       try {
         // Load metadata only if needed (search, admin pages)
         // Do not block initial product load on slow metadata endpoints.
@@ -1850,19 +561,19 @@ function App() {
 
         const loadedProducts = productsResult.status === 'fulfilled' ? asProductArray(productsResult.value) : []
         const totalCount = countResult.status === 'fulfilled' ? countResult.value : loadedProducts.length
-        
+
         console.log('[App] Data loaded:', {
           products: loadedProducts.length,
           totalCount,
         })
-        
+
         setProducts(loadedProducts)
         setTotalProductCount(totalCount)
         setCurrentPage(1)
-        
+
         setDataLoaded(true)
         setIsSearching(false)
-        
+
         // Load ratings and discussions asynchronously
         Promise.all([
           APIService.getAllRatings(),
@@ -1885,7 +596,7 @@ function App() {
         setIsSearching(false)
       }
     }
-    
+
     loadData()
   }, [location.pathname, pageSize, searchParams])
 
@@ -1917,7 +628,7 @@ function App() {
       selectedTypes.length === 0 && selectedTags.length === 0 &&
       minRating === 0 && committedUpdatedSince === null &&
       sortBy === defaultSortByForRoute && sortOrder === 'desc' && !sortHasChanged
-    
+
     if (isInitialLoad) {
       console.log('[App.fetchEffect] Skipping - using data from initial load')
       return
@@ -1954,9 +665,9 @@ function App() {
         const minorSources = (allProductSources || []).filter(s => (s?.count ?? 0) < 5).map(s => s.name)
         const effectiveSources = selectedSources.includes('Other')
           ? Array.from(new Set([
-              ...selectedSources.filter(s => s !== 'Other'),
-              ...minorSources,
-            ]))
+            ...selectedSources.filter(s => s !== 'Other'),
+            ...minorSources,
+          ]))
           : selectedSources
 
         const requiredHomeTags = location.pathname === '/' ? ['featured'] : undefined
@@ -2044,9 +755,9 @@ function App() {
 
         const fallbackCount = productsResult.status === 'fulfilled' ? asProductArray(productsResult.value).length : 0
         const finalCount = countResult.status === 'fulfilled' ? countResult.value : fallbackCount
-        
+
         setTotalProductCount(finalCount)
-        
+
         // Only reset to page 1 if this was triggered by search/filter change (not page change)
         if (currentPage === 1) {
           console.log('[App.fetchEffect] Already on page 1')
@@ -2078,9 +789,9 @@ function App() {
   useEffect(() => {
     const fetchUser = async () => {
       console.log('🔍 [App] fetchUser called. authLoading:', authLoading, 'authUser:', authUser?.id)
-      
+
       if (authLoading) return
-      
+
       try {
         if (!authUser) {
           console.log('❌ [App] No authUser - clearing user state')
@@ -2103,18 +814,18 @@ function App() {
           account = await APIService.getCurrentUser()
           if (!account) throw new Error('No account returned from /users/me')
           userAccountFetchRef.current = authUser.id
-          
+
           const userData = {
             id: authUser.id,
             username: account.username || authUser.id,
             avatarUrl: account.avatarUrl,
           }
-          
+
           setUser(userData)
           setUserAccount(account)
           console.log('🔐 [App] User account loaded from backend:', { username: account.username, role: account.role })
           console.log('✅ [App] User role:', account.role, '| isAdmin:', account.role === 'admin')
-          
+
           if (isTestEnv) {
             setShowSignup(false)
           }
@@ -2137,11 +848,11 @@ function App() {
         // Account doesn't exist yet — create it using minimal info from auth
         // Priority: preferred_username (from GitHub via Supabase) > user_name > email > default
         let createUsername = 'user'
-        
+
         // Check Supabase user_metadata for GitHub username fields
         const preferredUsername = authUser.user_metadata?.preferred_username
         const userName = authUser.user_metadata?.user_name
-        
+
         if (preferredUsername && typeof preferredUsername === 'string') {
           createUsername = preferredUsername
         } else if (userName && typeof userName === 'string') {
@@ -2151,18 +862,18 @@ function App() {
         } else if (authUser.email) {
           createUsername = authUser.email
         }
-        
+
         // Ensure username is safe by removing special characters and limiting length
         createUsername = createUsername.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 20)
-        
+
         console.log('📨 [App] Creating user account...', { username: createUsername, email: authUser.email, source: preferredUsername ? 'preferred_username' : userName ? 'user_name' : 'email/default' })
-        
+
         // Try to create account; if username conflict, retry with random suffix
         // Re-use account variable declared earlier in the scope
         let usernameToCreate = createUsername
         let retries = 0
         const maxRetries = 3
-        
+
         while (retries < maxRetries) {
           try {
             account = await APIService.createOrUpdateUserAccount(
@@ -2178,7 +889,7 @@ function App() {
             const apiError = error as ApiErrorLike
             const errorMessage = apiError.message?.toLowerCase()
             const isUniqueError = apiError.status === 409 || Boolean(errorMessage && errorMessage.includes('unique'))
-            
+
             if (isUniqueError && retries < maxRetries - 1) {
               // Username taken - append random suffix and retry
               retries++
@@ -2192,11 +903,11 @@ function App() {
             }
           }
         }
-        
+
         if (!account) {
           throw new Error('Failed to create user account after retries')
         }
-        
+
         userAccountFetchRef.current = authUser.id
 
         const userData = {
@@ -2208,7 +919,7 @@ function App() {
         setUser(userData)
         setUserAccount(account)
         console.log('🔐 [App] New user account created:', { username: account.username, role: account.role })
-        
+
         if (!isTestEnv) {
           setShowSignup(true)
         } else {
@@ -2233,27 +944,27 @@ function App() {
       console.log('[App OAuth] → Current URL:', window.location.href)
       console.log('[App OAuth] → Pathname:', window.location.pathname)
       console.log('[App OAuth] → Search params:', window.location.search)
-      
+
       // Check for OAuth callback params first
       const urlParams = new URLSearchParams(window.location.search)
       const code = urlParams.get('code')
       const state = urlParams.get('state')
       const errorParam = urlParams.get('error')
       const isCallback = (code || errorParam) && window.location.pathname === '/admin'
-      
+
       console.log('[App OAuth] → Code in URL:', code ? `YES (${code.substring(0, 10)}...)` : 'NO')
       console.log('[App OAuth] → Is OAuth callback:', isCallback)
       console.log('[App OAuth] → oauthProcessed flag:', oauthProcessedRef.current)
       console.log('[App OAuth] → authUser:', authUser ? `${authUser.id}` : 'null')
       console.log('[App OAuth] → authLoading:', authLoading)
-      
+
       // If this is a fresh callback, reset the processed flag
       if (isCallback && oauthProcessedRef.current) {
         console.log('[App OAuth] → Fresh callback detected, resetting oauthProcessed flag')
         oauthProcessedRef.current = false
         return // Return and let next render process it
       }
-      
+
       if (oauthProcessedRef.current && !isCallback) {
         console.log('[App OAuth] → Already processed and no callback params, skipping')
         return
@@ -2277,25 +988,25 @@ function App() {
         }
         return
       }
-      
+
       console.log('[App OAuth] → State in URL:', state ? `YES (${state.substring(0, 16)}...)` : 'NO')
       console.log('[App OAuth] → Error in URL:', errorParam || 'NO')
       console.log('[App OAuth] → Path is /admin:', window.location.pathname === '/admin')
-      
+
       if (errorParam) {
         console.error('[App OAuth] ✗ OAuth error in callback:', errorParam)
         const errorDesc = urlParams.get('error_description')
         console.error('[App OAuth] ✗ Error description:', errorDesc)
-        
+
         toast.error(`OAuth Error: ${errorParam}${errorDesc ? ` - ${errorDesc}` : ''}`)
         window.history.replaceState({}, document.title, '/admin')
         oauthProcessedRef.current = true
         return
       }
-      
+
       if (code && window.location.pathname === '/admin') {
         oauthProcessedRef.current = true
-        
+
         console.log('[App OAuth] ========== OAUTH CALLBACK DETECTED ==========')
         console.log('[App OAuth] → Authorization code received:', code.substring(0, 10) + '...')
         console.log('[App OAuth] → State received:', state ? state.substring(0, 16) + '...' : 'MISSING')
@@ -2316,22 +1027,22 @@ function App() {
         try {
           const savedState = localStorage.getItem('ravelry-oauth-config-state')
           console.log('[App OAuth] → Saved state:', savedState ? savedState.substring(0, 16) + '...' : 'MISSING')
-          
+
           if (!state || !savedState || state !== savedState) {
             console.error('[App OAuth] ✗ State validation failed!')
             console.error('[App OAuth]   - Received state:', state || 'MISSING')
             console.error('[App OAuth]   - Expected state:', savedState || 'MISSING')
-            
+
             toast.error('OAuth state validation failed. Please try again.')
             localStorage.removeItem('ravelry-oauth-config-state')
             return
           }
-          
+
           console.log('[App OAuth] ✓ State validation successful')
           localStorage.removeItem('ravelry-oauth-config-state')
-          
+
           const config = await RavelryOAuthManager.getConfig()
-          
+
           if (!config?.clientId || !config?.clientSecret) {
             console.error('[App OAuth] ✗ No OAuth credentials found in config')
             localStorage.setItem('ravelry-oauth-flow-log', JSON.stringify({
@@ -2390,14 +1101,14 @@ function App() {
       try {
         // Only load public collections on pages that need them (currently collections list)
         // Skip on collection detail pages (/collections/:slug) and other routes
-        const needsPublicCollections = 
+        const needsPublicCollections =
           location.pathname === '/collections'
-        
+
         const publicCollections = needsPublicCollections ? await APIService.getPublicCollections() : []
-        
+
         // Load user's own collections only on the collections list page
         const userCollections = (user && isCollectionsListPage) ? await APIService.getUserCollections() : []
-        
+
         // Combine public and user collections (avoiding duplicates)
         const allCollections = [...userCollections]
         publicCollections.forEach(pub => {
@@ -2405,7 +1116,7 @@ function App() {
             allCollections.push(pub)
           }
         })
-        
+
         setCollections(allCollections)
       } catch (error) {
         // Silently handle errors - collections are optional
@@ -2442,11 +1153,11 @@ function App() {
       }
     }
     loadPendingRequests()
-    
+
     // Only set up polling when on admin pages
     const isAdminPage = location.pathname.startsWith('/admin')
     const interval = isAdminPage ? setInterval(loadPendingRequests, 60000) : null
-    
+
     return () => {
       if (interval) clearInterval(interval)
     }
@@ -2458,7 +1169,7 @@ function App() {
     try {
       const savedRating = await APIService.updateRating(productSlug, user.id, rating)
       console.log('[handleRate] savedRating:', savedRating)
-      
+
       // Immediately update local state with the saved rating
       setRatings((currentRatings) => {
         const current = currentRatings || []
@@ -2511,7 +1222,7 @@ function App() {
       } catch (refetchError) {
         console.warn('[handleRate] Failed to refetch ratings (non-critical):', refetchError)
       }
-      
+
       toast.success('Rating saved')
     } catch (error) {
       console.error('Failed to save rating:', error)
@@ -2536,7 +1247,7 @@ function App() {
       })
 
       setDiscussions((currentDiscussions) => [...(currentDiscussions || []), newDiscussion])
-      
+
       // Stats are computed dynamically from database, no need to increment
       // APIService.incrementUserStats(user.id, 'discussionsParticipated')
       if (user?.id && newDiscussion.productId) {
@@ -2548,7 +1259,7 @@ function App() {
           metadata: { parentId },
         }).catch(err => console.warn('Failed to log discussion activity:', err))
       }
-      
+
       toast.success(parentId ? 'Reply posted' : 'Discussion started')
     } catch (error) {
       console.error('Failed to post discussion:', error)
@@ -2620,10 +1331,10 @@ function App() {
 
     try {
       const normalizedTag = tag.trim().toLowerCase()
-      
+
       // Use provided product object if available, otherwise look it up
       const product = productObj || products?.find(p => p.slug === productIdOrSlug || p.id === productIdOrSlug)
-      
+
       if (!product) {
         return
       }
@@ -2666,7 +1377,7 @@ function App() {
             const current = currentProducts || []
             return current.map((p) => (p.slug === productIdOrSlug || p.id === productIdOrSlug) ? updatedProduct : p)
           })
-          
+
           if (user?.id && product.id) {
             APIService.logUserActivity({
               userId: user.id,
@@ -2676,7 +1387,7 @@ function App() {
               metadata: { tag: normalizedTag },
             }).catch(err => console.warn('Failed to log tag activity:', err))
           }
-          
+
           toast.success('Tag added successfully')
         } else {
           // API did not throw but also did not return an updated product; treat as failure.
@@ -2701,12 +1412,12 @@ function App() {
     console.log('[App] 🔐 handleLogin called')
     console.log('[App] → isTestEnv:', isTestEnv)
     console.log('[App] → signIn function:', typeof signIn)
-    
+
     if (isTestEnv) {
       toast.info('Login is disabled in tests')
       return
     }
-    
+
     console.log('[App] → Calling signIn()...')
     // Call auth context signIn which triggers GitHub OAuth
     signIn().catch((error) => {
@@ -2785,30 +1496,30 @@ function App() {
     console.log('[App] Current user:', user)
     console.log('[App] Current userAccount:', userAccount)
     const resolvedSlug = products.find(p => p.slug === productSlug || p.id === productSlug)?.slug || productSlug
-    
+
     try {
       console.log('[App] Calling APIService.deleteProduct...')
       await APIService.deleteProduct(resolvedSlug)
       console.log('[App] Delete successful, updating local state')
-      
-      setProducts((currentProducts) => 
+
+      setProducts((currentProducts) =>
         (currentProducts || []).filter(p => p.id !== productSlug && p.slug !== productSlug)
       )
-      
+
       setRatings((currentRatings) =>
         (currentRatings || []).filter(r => {
           const maybeWithProductSlug = r as Rating & { productSlug?: string }
           return r.productId !== productSlug && maybeWithProductSlug.productSlug !== productSlug
         })
       )
-      
+
       setDiscussions((currentDiscussions) =>
         (currentDiscussions || []).filter(d => {
           const maybeWithProductSlug = d as Discussion & { productSlug?: string }
           return d.productId !== productSlug && maybeWithProductSlug.productSlug !== productSlug
         })
       )
-      
+
       toast.success('Product deleted successfully')
     } catch (error) {
       console.error('[App] Failed to delete product:', error)
@@ -2827,15 +1538,15 @@ function App() {
         imageUrl: updatedProduct.imageUrl,
         imageAlt: updatedProduct.imageAlt
       })
-      
+
       const savedProduct = await APIService.updateProduct(updatedProduct.id, updatedProduct, user?.id)
-      
+
       logger.debug('[App.handleEditProduct] Product saved, response:', {
         savedProduct,
         hasImageUrl: savedProduct?.imageUrl,
         hasImageAlt: savedProduct?.imageAlt
       })
-      
+
       // Use the saved product from backend if available; otherwise normalise null
       // image fields back to undefined to keep Product state consistent.
       const productToUse: Product = savedProduct || {
@@ -2843,13 +1554,13 @@ function App() {
         imageUrl: updatedProduct.imageUrl ?? undefined,
         imageAlt: updatedProduct.imageAlt ?? undefined,
       }
-      
+
       setProducts((currentProducts) =>
         (currentProducts || []).map(p =>
           p.slug === productToUse.slug || p.id === productToUse.id ? productToUse : p
         )
       )
-      
+
       if (user?.id && updatedProduct.id) {
         try {
           await APIService.logUserActivity({
@@ -2863,7 +1574,7 @@ function App() {
           console.warn('Failed to log activity (non-critical):', activityError)
         }
       }
-      
+
       toast.success('Product updated successfully')
     } catch (error) {
       console.error('Failed to update product:', error)
@@ -2951,7 +1662,7 @@ function App() {
 
   const handleCreateCollectionFromSearch = async (collectionData: CollectionCreateInput) => {
     try {
-      const payload: Record<string, unknown> = {
+      const payload: CollectionFromSearchPayload = {
         name: collectionData.name,
         description: collectionData.description,
         isPublic: collectionData.isPublic,
@@ -2961,7 +1672,6 @@ function App() {
         tags: selectedTags.length > 0 ? selectedTags : undefined,
         minRating: minRating > 0 ? minRating : undefined,
       }
-      // Only include tagsMode if tags are actually present
       if (selectedTags.length > 0) {
         payload.tagsMode = 'or'
       }
@@ -3069,8 +1779,8 @@ function App() {
           >
             Skip to main content
           </a>
-          
-          <AppHeader 
+
+          <AppHeader
             user={user}
             userAccount={userAccount}
             pendingRequestsCount={pendingRequestsCount}
@@ -3080,7 +1790,7 @@ function App() {
           />
 
           {(isTestEnv || devMode) && (
-            <DevRoleSwitcher 
+            <DevRoleSwitcher
               userAccount={userAccount}
             />
           )}

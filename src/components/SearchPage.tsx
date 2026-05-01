@@ -2,7 +2,7 @@
  * SearchPage component - Product search and filtering page
  * This is the content that was previously on the homepage
  */
-import { ProductListPage } from '@/App'
+import { ProductListPage } from '@/pages/ProductListPage'
 import type { Product, Rating, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput } from '@/lib/types'
 
 type SearchPageProps = {
