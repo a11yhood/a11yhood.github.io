@@ -39,9 +39,8 @@ jobs:
 
       - name: Run tests
         env:
-          TEST_BACKEND_URL: ${{ vars.TEST_BACKEND_URL }}
-          CI: 'false'
-        run: npm run test:run
+          TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
+        run: npm run test:run:full
 
       - name: Build for GitHub Pages
         env:
