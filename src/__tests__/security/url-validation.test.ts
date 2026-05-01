@@ -190,9 +190,12 @@ describeWithBackend('Backend URL Validation Security', () => {
   })
 
   describe('Product URL Additional Links', () => {
-    it('should reject dangerous URLs in additional product URLs', async () => {
+    it('should reject dangerous URLs in additional product URLs', async (ctx) => {
       const product = await createOrReuseProductForAdditionalUrlTests()
-      if (!product) return
+      if (!product) {
+        ctx.skip()
+        return
+      }
 
       // Try to add a javascript: URL as an additional link
       const addUrlRes = await fetch(`${API_BASE}/products/${product.id}/urls`, {
@@ -207,9 +210,12 @@ describeWithBackend('Backend URL Validation Security', () => {
       expect(addUrlRes.status).toBe(422)
     })
 
-    it('should accept valid URLs in additional product URLs', async () => {
+    it('should accept valid URLs in additional product URLs', async (ctx) => {
       const product = await createOrReuseProductForAdditionalUrlTests()
-      if (!product) return
+      if (!product) {
+        ctx.skip()
+        return
+      }
 
       // Add a valid URL (backend now properly checks ownership via product_editors table)
       const addUrlRes = await fetch(`${API_BASE}/products/${product.id}/urls`, {
