@@ -64,17 +64,19 @@ export async function setup() {
   let backendAvailable = false
   const healthUrls = [`${backendBase}/health`, `${backendBase}/api/health`]
   for (const healthUrl of healthUrls) {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS)
+
     try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS)
       const res = await fetch(healthUrl, { signal: controller.signal })
-      clearTimeout(timeout)
       if (res.ok) {
         backendAvailable = true
         break
       }
     } catch {
       // backend not reachable at this path — try next health path
+    } finally {
+      clearTimeout(timeout)
     }
   }
 
