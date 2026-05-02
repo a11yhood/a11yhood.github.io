@@ -32,6 +32,14 @@
       target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
     }
 
+    // Guard against 414 URI Too Long: the redirect double-encodes search params, which
+    // can more than double the URL length.  If the redirect URL would exceed a safe
+    // threshold (well under most servers' 8 KB limit), drop the query string and
+    // redirect to just the path so the server can still serve index.html.
+    if (target.length > 6000) {
+      target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + '?/' + encodedRoute + l.hash;
+    }
+
     if (target !== l.href) {
       l.replace(target);
     }
