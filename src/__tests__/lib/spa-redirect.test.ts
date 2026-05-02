@@ -7,7 +7,7 @@
  * with many query parameters can balloon past server URI length limits (HTTP 414).
  *
  * These tests mirror the script logic so we can verify the URL-length guard that
- * drops the query string when the redirect target would exceed 6 000 characters.
+ * drops the query string when the redirect target would exceed 6000 characters.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -104,7 +104,7 @@ describe('SPA redirect – PR preview paths', () => {
 })
 
 describe('SPA redirect – URI-length guard', () => {
-  it('drops query string when redirect URL would exceed 6 000 characters', () => {
+  it('drops query string when redirect URL would exceed 6000 characters', () => {
     // Build a URL whose search params would push the redirect over the limit
     const longTag = 'a'.repeat(100)
     const manyParams = Array.from({ length: 80 }, (_, i) => `tag=${longTag}${i}`).join('&')
@@ -122,7 +122,7 @@ describe('SPA redirect – URI-length guard', () => {
     expect(target).not.toContain(encodeURIComponent(manyParams))
   })
 
-  it('returns a redirect URL under 6 000 characters when params are dropped', () => {
+  it('returns a redirect URL under 6000 characters when params are dropped', () => {
     const manyParams = Array.from({ length: 100 }, (_, i) => `tag=verylongtagnumber${i}`).join('&')
     const loc = makeLocation('/pr-preview/359/products', '?' + manyParams)
 
