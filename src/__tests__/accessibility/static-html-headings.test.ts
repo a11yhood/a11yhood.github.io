@@ -24,7 +24,7 @@ function readHtml(relativePath: string): string {
 describe('page-has-heading-one – static HTML documents', () => {
   it('public/404.html contains a level-one heading', () => {
     const html = readHtml('public/404.html')
-    // The body must include at least one <h1> (with optional attributes)
-    expect(html).toMatch(/<h1[\s>]/)
+    // The body must include at least one <h1> with non-empty text content
+    expect(html).toMatch(/<h1[^>]*>[^<]+<\/h1>/)
   })
 })
