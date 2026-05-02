@@ -3,6 +3,7 @@ import { cleanup } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import 'vitest-axe/extend-expect'
 import * as axeMatchers from 'vitest-axe/matchers'
+import { normalizeBackendBase } from './helpers/helpers'
 
 expect.extend(axeMatchers)
 
@@ -21,7 +22,9 @@ if (!('ResizeObserver' in globalThis)) {
 // Mock fetch globally for KV operations
 const kvStore = new Map()
 
-const resolvedBackendBase = (process.env.TEST_BACKEND_URL || process.env.VITE_API_URL || 'http://localhost:8002').replace(/\/$/, '')
+const resolvedBackendBase = normalizeBackendBase(
+  process.env.TEST_BACKEND_URL || process.env.VITE_API_URL || 'http://localhost:8002'
+)
 ;(globalThis as any).__TEST_BACKEND_BASE__ = resolvedBackendBase
 ;(globalThis as any).__TEST_API_BASE__ = `${resolvedBackendBase}/api`
 
