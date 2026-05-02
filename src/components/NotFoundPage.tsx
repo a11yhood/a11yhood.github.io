@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { usePageTitle } from '@/hooks/use-page-title'
 
 /**
  * NotFoundPage renders when no route matches.
@@ -6,6 +7,7 @@ import { Link } from 'react-router-dom'
  * for any unrecognized URL path (e.g. /draft/211/).
  */
 export function NotFoundPage() {
+  usePageTitle('Page Not Found')
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
       <h1 className="text-4xl font-bold mb-4">Page Not Found</h1>

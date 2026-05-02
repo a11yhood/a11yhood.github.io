@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { BlogPostDetail } from '@/components/BlogPostDetail'
 import { APIService } from '@/lib/api'
 import type { BlogPost, UserAccount } from '@/lib/types'
+import { usePageTitle } from '@/hooks/use-page-title'
 
 type BlogPostDraftPageProps = {
   userAccount: UserAccount | null
@@ -21,6 +22,7 @@ export function BlogPostDraftPage({ userAccount }: BlogPostDraftPageProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const isAdmin = userAccount?.role === 'admin'
+  usePageTitle(post?.title ? `Draft: ${post.title}` : 'Draft Preview')
 
   useEffect(() => {
     if (!id) {

@@ -48,6 +48,7 @@ import { AppFooter } from '@/components/AppFooter'
 import { DevRoleSwitcher } from '@/components/DevRoleSwitcher'
 import { PublicProfile } from '@/components/PublicProfile'
 import { Switch } from '@/components/ui/switch'
+import { usePageTitle } from '@/hooks/use-page-title'
 
 console.log('✓ [App.tsx] All imports loaded')
 
@@ -182,6 +183,7 @@ export function ProductListPage({
   onClearFilters: () => void
 }) {
   const navigate = useNavigate()
+  usePageTitle('Products')
   const initialColumns = typeof window !== 'undefined' && window.innerWidth >= 1024 ? 3 : 1
   const [columnCount, setColumnCount] = useState<1 | 3>(initialColumns as 1 | 3)
   const [page, setPage] = useState(1)
@@ -581,6 +583,7 @@ function ProductDetailPage({
   const navigate = useNavigate()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
+  usePageTitle(product?.name || 'Product')
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -784,6 +787,7 @@ function ProductDetailPageWrapper({
 }
 
 function NotFoundPage() {
+  usePageTitle('Page Not Found')
   return (
     <div className="text-center py-16">
       <h1 className="text-4xl font-bold mb-4">Page Not Found</h1>
@@ -800,6 +804,7 @@ function NotFoundPage() {
 function BlogPage({ blogPosts, blogPostsLoading, userAccount }: { blogPosts: BlogPost[], blogPostsLoading: boolean, userAccount: UserAccount | null }) {
   const navigate = useNavigate()
   const isAdmin = userAccount?.role === 'admin'
+  usePageTitle('Blog')
 
   return (
     <div>
@@ -832,6 +837,7 @@ function BlogPostPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userA
   const isEditMode = searchParams.get('edit') === 'true'
   const post = blogPosts.find(p => p.slug === slug)
   const isAdmin = userAccount?.role === 'admin'
+  usePageTitle(isEditMode ? `Edit: ${post?.title || 'Blog Post'}` : (post?.title || 'Blog Post'))
 
   if (!post) {
     return (
@@ -907,6 +913,7 @@ function CollectionsPage({
   onCreateCollection: () => void
 }) {
   const navigate = useNavigate()
+  usePageTitle('Collections')
   const [publicCollections, setPublicCollections] = useState<Collection[]>([])
   const [myPage, setMyPage] = useState(1)
   const [publicPage, setPublicPage] = useState(1)
@@ -1192,6 +1199,7 @@ function CollectionDetailPage({
   }, [collection, snapshotCollection, collectionSlug])
 
   const effectiveCollection = externalCollection || snapshotCollection || collection || null
+  usePageTitle(effectiveCollection?.name || 'Collection')
 
   if (!effectiveCollection) {
     return (
@@ -1254,6 +1262,7 @@ function ProfilePage({
   onUpdate: () => void
 }) {
   const navigate = useNavigate()
+  usePageTitle(`${user.username}'s Account`)
 
   return (
     <div>
@@ -1290,6 +1299,7 @@ function AdminPage({
   onAdminVerboseLoggingChange: (enabled: boolean) => void
 }) {
   const navigate = useNavigate()
+  usePageTitle('Admin')
 
   const role = userAccount?.role
   const canAccess = role === 'admin' || role === 'moderator'
@@ -1320,6 +1330,7 @@ function AdminPage({
 
 function AdminUsersPage({ userAccount }: { userAccount: UserAccount | null }) {
   const navigate = useNavigate()
+  usePageTitle('Admin: Users')
 
   if (userAccount?.role !== 'admin') {
     return (
@@ -1347,6 +1358,7 @@ function AdminLogsPage({
   onProductsUpdate: (products: Product[]) => void
 }) {
   const navigate = useNavigate()
+  usePageTitle('Admin: Logs')
 
   if (userAccount?.role !== 'admin') {
     return (
@@ -3359,6 +3371,7 @@ export default App
 
 function PublicProfileWrapper() {
   const { username } = useParams()
+  usePageTitle(username ? `${username}'s Profile` : 'Profile')
   if (!username) return <div className="text-center py-12"><p className="text-muted-foreground">No user specified</p></div>
   return <PublicProfile username={username} />
 }

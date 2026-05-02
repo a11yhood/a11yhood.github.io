@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { MagnifyingGlass, ArrowRight } from '@phosphor-icons/react'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
+import { usePageTitle } from '@/hooks/use-page-title'
 
 const RANDOM_PRODUCT_COUNT = 5
 const NEWS_POST_LIMIT = 10
@@ -26,6 +27,7 @@ type HomePageProps = {
 }
 
 export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRate }: HomePageProps) {
+  usePageTitle('')
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const normalizedProducts = Array.isArray(products) ? products : []

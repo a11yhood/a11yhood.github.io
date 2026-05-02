@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
+import { usePageTitle } from '@/hooks/use-page-title'
 
 export function AboutPage() {
+  usePageTitle('About')
   const [content, setContent] = useState<string>('')
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
