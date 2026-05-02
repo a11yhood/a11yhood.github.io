@@ -356,13 +356,12 @@ async function request<T>(
     }
   }
 
+  const hasRequestBody = processedOptions.body !== undefined && processedOptions.body !== null
   const response = await fetch(url, {
     ...processedOptions,
     headers: {
-      'Content-Type': 'application/json',
+      ...(hasRequestBody ? { 'Content-Type': 'application/json' } : {}),
       ...(shouldSendAuth ? { 'Authorization': `Bearer ${token}` } : {}),
-      // Fallback header for proxies that may drop Authorization
-      ...(shouldSendAuth ? { 'X-Forwarded-Authorization': token } : {}),
       ...options.headers,
     },
   })
@@ -752,7 +751,6 @@ export class APIService {
 
     const response = await fetch(fullUrl, {
       headers: {
-        'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       },
     })
