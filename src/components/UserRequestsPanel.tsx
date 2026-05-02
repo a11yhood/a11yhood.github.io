@@ -44,7 +44,7 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
     setLoading(true)
     try {
       const userRequests = await APIService.getMyRequests()
-      setRequests(userRequests)
+      setRequests(Array.isArray(userRequests) ? userRequests : [])
     } catch (error) {
       console.error('Failed to load requests:', error)
     } finally {

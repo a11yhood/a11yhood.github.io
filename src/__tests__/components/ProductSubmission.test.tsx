@@ -5,18 +5,22 @@ import type { ReactElement } from 'react'
 import userEvent from '@testing-library/user-event'
 import { ProductSubmission } from '@/components/ProductSubmission'
 import { ScraperService } from '@/lib/scrapers'
-import { toast } from 'sonner'
 import { APIService } from '@/lib/api'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 import type { Product, UserData } from '@/lib/types'
 
-// Mock sonner toast notifications
-vi.mock('sonner', () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-  },
+const notificationSpies = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+}))
+
+vi.mock('@/contexts/NotificationContext', () => ({
+  useNotifications: () => ({
+    notifications: [],
+    dismiss: vi.fn(),
+    notify: notificationSpies,
+  }),
 }))
 
 const mockUser: UserData = {
@@ -79,8 +83,6 @@ describe('ProductSubmission', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    vi.mocked(toast.success).mockReturnValue(1)
-    vi.mocked(toast.error).mockReturnValue(1)
     products = []
     
     // Save original fetch (no external API mocks needed for current flow)
@@ -298,7 +300,7 @@ describe('ProductSubmission', () => {
       const sourceUrlInput = screen.getByLabelText(/Source URL/i) as HTMLInputElement
       expect(sourceUrlInput.value).toContain('github.com/scraped/repo')
       // Source is now auto-determined from URL domain, not manually set
-      expect(toast.info).toHaveBeenCalled()
+      expect(notificationSpies.info).toHaveBeenCalled()
     })
 
     it('should identify Ravelry URLs and show manual form', async () => {
@@ -326,7 +328,7 @@ describe('ProductSubmission', () => {
         expect(screen.getByLabelText(/Product Name/i)).toBeInTheDocument()
       })
       // Source is now auto-determined from URL domain, not manually set
-      expect(toast.info).toHaveBeenCalled()
+      expect(notificationSpies.info).toHaveBeenCalled()
     })
 
     it('should identify Thingiverse URLs and show manual form', async () => {
@@ -353,7 +355,7 @@ describe('ProductSubmission', () => {
         expect(screen.getByLabelText(/Product Name/i)).toBeInTheDocument()
       })
       // Source is now auto-determined from URL domain, not manually set
-      expect(toast.info).toHaveBeenCalled()
+      expect(notificationSpies.info).toHaveBeenCalled()
     })
 
     it('should handle scraping errors gracefully', async () => {
@@ -466,8 +468,8 @@ describe('ProductSubmission', () => {
       expect(nameInput.value).toBe('Test Repository')
       expect(sourceUrlInput.value).toBe('https://github.com/test/test-repo')
       
-      // Should show success toast
-      expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Successfully scraped'))
+      // Should show success notification
+      expect(notificationSpies.success).toHaveBeenCalledWith(expect.stringContaining('Successfully scraped'))
     })
   })
 
