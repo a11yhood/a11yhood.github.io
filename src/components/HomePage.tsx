@@ -118,7 +118,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
                 )}
                 <CardHeader>
                   <div className="flex items-start justify-between gap-4">
-                    <CardTitle className="text-xl">{post.title}</CardTitle>
+                    <CardTitle as="h2" className="text-xl">{post.title}</CardTitle>
                     <time className="text-sm text-muted-foreground whitespace-nowrap">
                       {displayDate.toLocaleDateString('en-US', {
                         year: 'numeric',
@@ -172,7 +172,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
         {/* Site Mission */}
         <Card>
           <CardHeader>
-            <h1 className="text-2xl sm:text-3xl font-semibold leading-tight">Welcome to a11yhood</h1>
+            <CardTitle as="h1" className="text-2xl sm:text-3xl font-semibold leading-tight">Welcome to a11yhood</CardTitle>
             <CardDescription className="text-base sm:text-lg leading-relaxed text-foreground/90">
               A place to learn about and share open source accessibility technology.
             </CardDescription>
@@ -208,7 +208,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
       >
         <Card>
           <CardHeader>
-            <CardTitle>Quick Search</CardTitle>
+            <CardTitle as="h2">Quick Search</CardTitle>
             <CardDescription>Find accessibility solutions</CardDescription>
           </CardHeader>
           <CardContent>

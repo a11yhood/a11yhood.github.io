@@ -1,6 +1,6 @@
 import { Collection, Product, Rating, UserAccount } from '@/lib/types'
 import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardDescription, CardContent } from '@/components/ui/card'
+import { Card, CardHeader, CardDescription, CardContent, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Lock, LockOpen, Trash, Pencil } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductFilterTag } from '@/components/ProductFilterTag'
@@ -194,12 +194,13 @@ export function CollectionDetail({
         Back to Collections
       </Button>
 
+      <h1 className="text-2xl font-semibold leading-none mb-4">{collection.name}</h1>
+
       <Card className="mb-6">
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              {/* h1 satisfies WCAG page-has-heading-one; CardTitle renders as div and would not count */}
-              <h1 className="leading-none font-semibold text-2xl mb-2">{collection.name}</h1>
+              <CardTitle as="h2" className="text-lg mb-2">Collection details</CardTitle>
               <div className="flex items-center gap-3">
                 <CardDescription className="flex items-center gap-2">
                   {collection.isPublic ? (
@@ -300,9 +301,9 @@ export function CollectionDetail({
         </div>
       ) : (
         <div>
-          <h3 className="text-xl font-semibold mb-4">
+          <h2 className="text-xl font-semibold mb-4">
             Products ({collectionProducts.length}{isLoading ? '…' : ''})
-          </h3>
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {collectionProducts.map((product) => (
               <div key={product.id} className="relative">

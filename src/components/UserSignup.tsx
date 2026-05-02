@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { UserAccount } from '@/lib/types'
 import { CheckCircle } from '@phosphor-icons/react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -42,8 +42,7 @@ export function UserSignup({ user, onComplete, onSkip }: UserSignupProps) {
               <CheckCircle size={48} className="text-primary" weight="duotone" />
             </div>
           </div>
-          {/* h1 is required for WCAG page-has-heading-one; CardTitle renders as div */}
-          <h1 className="text-3xl leading-none font-semibold">Welcome to a11yhood!</h1>
+          <CardTitle as="h1" className="text-3xl leading-none">Welcome to a11yhood!</CardTitle>
           <CardDescription className="text-base mt-2">
             Complete your profile to get started (or skip for now)
           </CardDescription>
