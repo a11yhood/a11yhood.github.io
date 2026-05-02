@@ -44,6 +44,24 @@ describe('Landmark Regions Accessibility', () => {
     })
   })
 
+  // Regression test for landmark-one-main (axe rule):
+  // The document must have exactly one <main> landmark at the root path.
+  // This mirrors the Playwright + axe scan that filed the original issue.
+  it('should have exactly one main landmark on the root path', async () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      const mains = document.querySelectorAll('main')
+      expect(mains.length).toBe(1)
+    })
+  })
+
   it('should have main landmark region', async () => {
     renderApp()
     

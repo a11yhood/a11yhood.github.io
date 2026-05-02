@@ -44,7 +44,14 @@
 </head>
 
 <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Loading placeholder – replaced by React once it hydrates.
+           Provides the required <main> landmark so axe/screen readers always
+           see a main region, even in the brief window before JS runs. -->
+      <main aria-label="Loading a11yhood">
+        <p style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0">Loading…</p>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
 </body>
 
