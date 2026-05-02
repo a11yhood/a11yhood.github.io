@@ -6,6 +6,12 @@ import * as axeMatchers from 'vitest-axe/matchers'
 
 expect.extend(axeMatchers)
 
+function normalizeBackendBase(rawUrl: string): string {
+  const trimmed = rawUrl.replace(/\/$/, '')
+  // CI secrets sometimes store an API base URL; tests expect service root.
+  return trimmed.replace(/\/api$/i, '')
+}
+
 // Provide a simple ResizeObserver polyfill for components that expect it
 class MockResizeObserver {
   observe() {}
@@ -21,7 +27,9 @@ if (!('ResizeObserver' in globalThis)) {
 // Mock fetch globally for KV operations
 const kvStore = new Map()
 
-const resolvedBackendBase = (process.env.TEST_BACKEND_URL || process.env.VITE_API_URL || 'http://localhost:8002').replace(/\/$/, '')
+const resolvedBackendBase = normalizeBackendBase(
+  process.env.TEST_BACKEND_URL || process.env.VITE_API_URL || 'http://localhost:8002'
+)
 ;(globalThis as any).__TEST_BACKEND_BASE__ = resolvedBackendBase
 ;(globalThis as any).__TEST_API_BASE__ = `${resolvedBackendBase}/api`
 
