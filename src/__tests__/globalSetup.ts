@@ -3,11 +3,20 @@ import { DEV_USERS, getDevToken } from '../lib/dev-users'
 /** Milliseconds to wait for backend health check before considering it unavailable. */
 const HEALTH_CHECK_TIMEOUT_MS = 3000
 
-function normalizeBackendBase(rawUrl: string): string {
-  const trimmed = rawUrl.replace(/\/$/, '')
-  // CI secrets sometimes store an API base URL; tests expect service root.
-  return trimmed.replace(/\/api$/i, '')
-}
+type NormalizeBackendBase = (rawUrl: string) => string
+ const testGlobals = globalThis as typeof globalThis & {
+   __NORMALIZE_BACKEND_BASE__?: NormalizeBackendBase
+ }
+
+const normalizeBackendBase: NormalizeBackendBase =
+   testGlobals.__NORMALIZE_BACKEND_BASE__ ??
+   ((rawUrl: string) => {
+     const trimmed = rawUrl.replace(/\/$/, '')
+     // CI secrets sometimes store an API base URL; tests expect service root.
+     return trimmed.replace(/\/api$/i, '')
+   })
+ testGlobals.__NORMALIZE_BACKEND_BASE__ = normalizeBackendBase
+
 
 function shouldResetDevDbForRun(argv: string[]): boolean {
   if (process.env.VITEST_SKIP_DEV_DB_RESET === '1') {

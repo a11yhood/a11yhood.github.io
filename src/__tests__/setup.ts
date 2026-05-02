@@ -3,14 +3,9 @@ import { cleanup } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import 'vitest-axe/extend-expect'
 import * as axeMatchers from 'vitest-axe/matchers'
+import { normalizeBackendBase } from './helpers/helpers'
 
 expect.extend(axeMatchers)
-
-function normalizeBackendBase(rawUrl: string): string {
-  const trimmed = rawUrl.replace(/\/$/, '')
-  // CI secrets sometimes store an API base URL; tests expect service root.
-  return trimmed.replace(/\/api$/i, '')
-}
 
 // Provide a simple ResizeObserver polyfill for components that expect it
 class MockResizeObserver {
