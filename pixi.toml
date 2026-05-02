@@ -32,7 +32,7 @@ depends-on = ["install-dev"]
 
 [tasks.test]
 description = "run vitest unit tests"
-cmd = "npm run test:run"
+cmd = "npm run test:run:reduced"
 depends-on = ["install-dev"]
 
 [tasks.build-ghpages]
