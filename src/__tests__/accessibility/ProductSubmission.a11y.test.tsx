@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
@@ -24,6 +23,8 @@ describe('ProductSubmission Accessibility Tests', () => {
   beforeEach(async () => {
     // Set auth token getter for dev mode
     APIService.setAuthTokenGetter(async () => getDevToken(DEV_USERS.user.role))
+    vi.spyOn(APIService, 'productExistsByUrl').mockResolvedValue({ exists: false, product: null })
+    vi.spyOn(APIService, 'loadUrl').mockResolvedValue({ success: false, source: 'scraper', product: null })
     vi.clearAllMocks()
   })
 
@@ -66,7 +67,7 @@ describe('ProductSubmission Accessibility Tests', () => {
     })
   })
 
-  describeWithBackend('Form Labels and Accessibility (Story 3.1)', () => {
+  describe('Form Labels and Accessibility (Story 3.1)', () => {
     beforeEach(async () => {
       renderWithRouter(<ProductSubmission user={testUser} onSubmit={vi.fn()} />)
       const triggerButton = screen.getByRole('button', { name: /submit product/i })
@@ -77,7 +78,7 @@ describe('ProductSubmission Accessibility Tests', () => {
       })
 
       const urlInput = screen.getByLabelText('Product URL')
-      fireEvent.change(urlInput, { target: { value: 'https://github.com/test/a11y-test-unique' } })
+      fireEvent.change(urlInput, { target: { value: `https://github.com/test/a11y-test-${Date.now()}` } })
       
       // Click check button and wait for form to appear
       fireEvent.click(screen.getByRole('button', { name: /Check/i }))
@@ -132,7 +133,7 @@ describe('ProductSubmission Accessibility Tests', () => {
     })
   })
 
-  describeWithBackend('Image Alt Text Accessibility (Story 3.1)', () => {
+  describe('Image Alt Text Accessibility (Story 3.1)', () => {
     beforeEach(async () => {
       renderWithRouter(<ProductSubmission user={testUser} onSubmit={vi.fn()} />)
       const triggerButton = screen.getByRole('button', { name: /submit product/i })

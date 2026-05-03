@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import App from '@/App'
@@ -28,7 +28,9 @@ describe('Accessibility: Skip to Main Content', () => {
     await user.keyboard('{Enter}')
 
     // Expect focus to move to the main landmark
-    const main = screen.getByRole('main')
-    expect(main).toHaveFocus()
+    await waitFor(() => {
+      const main = screen.getByRole('main')
+      expect(main).toHaveFocus()
+    })
   })
 })

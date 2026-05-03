@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Users, TrendUp, ChatCircle, Star, Package, Calendar, CircleNotch } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 
 type UserStats = {
   productsSubmitted: number
@@ -37,6 +37,7 @@ type UserStats = {
 type UserWithStats = UserAccount & UserStats
 
 export function AdminUsersStats() {
+  const { notify } = useNotifications()
   const navigate = useNavigate()
   const [users, setUsers] = useState<UserWithStats[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,7 +64,7 @@ export function AdminUsersStats() {
       setUsers(usersWithStats)
     } catch (error) {
       console.error('Failed to load users:', error)
-      toast.error('Failed to load users')
+      notify.error('Failed to load users')
     } finally {
       setLoading(false)
     }
@@ -73,10 +74,10 @@ export function AdminUsersStats() {
     try {
       await APIService.setUserRole(username, newRole)
       await loadUsers()
-      toast.success(`User role updated to ${newRole}`)
+      notify.success(`User role updated to ${newRole}`)
     } catch (error) {
       console.error('Failed to update user role:', error)
-      toast.error('Failed to update user role')
+      notify.error('Failed to update user role')
     }
   }
 

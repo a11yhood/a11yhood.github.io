@@ -140,7 +140,7 @@ describeWithBackend('Backend Authorization Enforcement', () => {
       )
 
       expect(addRes.status).toBe(403)
-    })
+    }, 15000)
   })
 
   describe('Private Collection Access Control', () => {

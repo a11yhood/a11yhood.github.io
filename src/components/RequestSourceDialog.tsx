@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { APIService } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -32,6 +32,7 @@ type RequestSourceDialogProps = {
  * @param domain - The domain being requested
  */
 export function RequestSourceDialog({ open, onOpenChange, domain, url, userId, userName, userAvatarUrl }: RequestSourceDialogProps) {
+  const { notify } = useNotifications()
   const [reason, setReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const { getAccessToken } = useAuth()
@@ -40,14 +41,14 @@ export function RequestSourceDialog({ open, onOpenChange, domain, url, userId, u
     e.preventDefault()
     
     if (!reason.trim()) {
-      toast.error('Please provide a reason for requesting this domain')
+      notify.error('Please provide a reason for requesting this domain')
       return
     }
 
     // Get token from auth context
     const token = await getAccessToken()
     if (!token) {
-      toast.error('Please sign in to submit a request')
+      notify.error('Please sign in to submit a request')
       return
     }
 
@@ -83,7 +84,7 @@ export function RequestSourceDialog({ open, onOpenChange, domain, url, userId, u
         await navigator.clipboard.writeText(requestMessage)
       } catch {}
 
-      toast.success('Request submitted for review. Moderators will see it shortly.')
+      notify.success('Request submitted for review. Moderators will see it shortly.')
 
       setReason('')
       onOpenChange(false)
@@ -91,13 +92,13 @@ export function RequestSourceDialog({ open, onOpenChange, domain, url, userId, u
       const message = error instanceof Error ? error.message : String(error)
       // Provide clearer guidance for different error types
       if (message.includes('No authorization header') || message.toLowerCase().includes('unauthorized')) {
-        toast.error('Authorization missing. Please sign in and try again.')
+        notify.error('Authorization missing. Please sign in and try again.')
       } else if (message.includes('not supported') || message.includes('Unsupported domain')) {
-        toast.error(`The domain ${domain} is not currently supported. Your request has been submitted for review.`)
+        notify.error(`The domain ${domain} is not currently supported. Your request has been submitted for review.`)
       } else if (message.includes('Internal server error') || message.includes('500')) {
-        toast.error('Server error. Your request may not have been submitted. Please try again.')
+        notify.error('Server error. Your request may not have been submitted. Please try again.')
       } else {
-        toast.error('Failed to process request. Please try again.')
+        notify.error('Failed to process request. Please try again.')
       }
       console.error('RequestSourceDialog submit error:', error)
     } finally {

@@ -7,11 +7,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { UserRequest, Product, UserAccount } from '@/lib/types'
 import { APIService } from '@/lib/api'
 import { ShieldCheck, Clock, CheckCircle, XCircle, User as UserIcon, Package, Trash } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { RequestCard } from './RequestCard'
 import { Link } from 'react-router-dom'
 
@@ -22,6 +23,7 @@ type AdminRequestsPanelProps = {
 }
 
 export function AdminRequestsPanel({ adminId, products = [], canManageRoleRequests = true }: AdminRequestsPanelProps) {
+  const { notify } = useNotifications()
   const [allRequests, setAllRequests] = useState<UserRequest[]>([])
   const [loading, setLoading] = useState(true)
   // Collapsible handled by CollapsibleCard
@@ -30,6 +32,8 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [userLookup, setUserLookup] = useState<Record<string, UserAccount>>({})
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [requestToDelete, setRequestToDelete] = useState<UserRequest | null>(null)
 
   useEffect(() => {
     loadRequests()
@@ -85,7 +89,7 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
 
   const handleReviewRequest = async (request: UserRequest, action: 'approve' | 'reject') => {
     if (!canManageRoleRequests && (request.type === 'admin' || request.type === 'moderator')) {
-      toast.error('Only admins can review role change requests')
+      notify.error('Only admins can review role change requests')
       return
     }
 
@@ -101,13 +105,13 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
       if (!freshRequest) {
         console.error('Request not found in fresh list. Request ID:', request.id)
         console.error('Available request IDs:', freshRequests.map(r => r.id))
-        toast.error('Request no longer exists. The list has been refreshed.')
+        notify.error('Request no longer exists. The list has been refreshed.')
         await loadRequests()
         return
       }
       
       if (freshRequest.status !== 'pending') {
-        toast.error(`This request has already been ${freshRequest.status}`)
+        notify.error(`This request has already been ${freshRequest.status}`)
         await loadRequests()
         return
       }
@@ -118,7 +122,7 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
       setReviewNote('')
     } catch (error) {
       console.error('Failed to load fresh request:', error)
-      toast.error('Failed to load request details')
+      notify.error('Failed to load request details')
     }
   }
 
@@ -129,12 +133,12 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
     }
 
     if (!canManageRoleRequests && (reviewingRequest.type === 'admin' || reviewingRequest.type === 'moderator')) {
-      toast.error('Only admins can review role change requests')
+      notify.error('Only admins can review role change requests')
       return
     }
     
     if (!adminId) {
-      toast.error('Admin ID not available. Please refresh the page.')
+      notify.error('Admin ID not available. Please refresh the page.')
       return
     }
 
@@ -151,7 +155,7 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
       
       if (!stillExists) {
         console.error('Request disappeared before submission')
-        toast.error('Request no longer exists. Please refresh.')
+        notify.error('Request no longer exists. Please refresh.')
         setReviewingRequest(null)
         setReviewAction(null)
         await loadRequests()
@@ -160,7 +164,7 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
       
       if (stillExists.status !== 'pending') {
         console.error('Request status changed to:', stillExists.status)
-        toast.error(`This request has already been ${stillExists.status}`)
+        notify.error(`This request has already been ${stillExists.status}`)
         setReviewingRequest(null)
         setReviewAction(null)
         await loadRequests()
@@ -182,7 +186,7 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
       
       if (result) {
         console.log('Request processed successfully, reloading...')
-        toast.success(`Request ${reviewAction}d successfully`)
+        notify.success(`Request ${reviewAction}d successfully`)
         setReviewingRequest(null)
         setReviewAction(null)
         setReviewNote('')
@@ -190,7 +194,7 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
         console.log('=== REVIEW COMPLETE ===')
       } else {
         console.error('API returned null/falsy response')
-        toast.error('Failed to process request')
+        notify.error('Failed to process request')
       }
     } catch (error) {
       console.error('=== ERROR PROCESSING REQUEST ===')
@@ -198,9 +202,9 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
       if (error instanceof Error) {
         console.error('Error message:', error.message)
         console.error('Error stack:', error.stack)
-        toast.error(`Failed: ${error.message}`)
+        notify.error(`Failed: ${error.message}`)
       } else {
-        toast.error('Failed to process request')
+        notify.error('Failed to process request')
       }
     } finally {
       setSubmitting(false)
@@ -209,26 +213,31 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
 
 
 
-  const handleDeleteRequest = async (request: UserRequest) => {
-    if (!confirm(`Are you sure you want to delete this request from ${request.userName}? This action cannot be undone.`)) {
-      return
-    }
+  const handleDeleteRequest = (request: UserRequest) => {
+    setRequestToDelete(request)
+    setDeleteDialogOpen(true)
+  }
 
+  const handleConfirmDelete = async () => {
+    if (!requestToDelete) return
     try {
-      const result = await APIService.deleteRequest(request.id)
+      const result = await APIService.deleteRequest(requestToDelete.id)
       if (result.success) {
-        toast.success('Request deleted successfully')
+        notify.success('Request deleted successfully')
         await loadRequests()
       } else {
-        toast.error('Failed to delete request')
+        notify.error('Failed to delete request')
       }
     } catch (error) {
       console.error('Failed to delete request:', error)
       if (error instanceof Error) {
-        toast.error(`Failed: ${error.message}`)
+        notify.error(`Failed: ${error.message}`)
       } else {
-        toast.error('Failed to delete request')
+        notify.error('Failed to delete request')
       }
+    } finally {
+      setDeleteDialogOpen(false)
+      setRequestToDelete(null)
     }
   }
 
@@ -457,6 +466,23 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this request from {requestToDelete?.userName}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

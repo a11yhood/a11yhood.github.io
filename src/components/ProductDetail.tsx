@@ -4,6 +4,9 @@ import { ArrowLeft, Link as LinkIcon, Trash, Prohibit, CheckCircle } from '@phos
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { StarRating } from './StarRating'
 import { DiscussionSection } from './DiscussionSection'
 import { TagManager } from './TagManager'
@@ -81,6 +84,8 @@ export function ProductDetail({
   const [showAddToCollectionDialog, setShowAddToCollectionDialog] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
   const prevShowAddToCollectionDialogRef = useRef(false)
+  const [banDialogOpen, setBanDialogOpen] = useState(false)
+  const [banReason, setBanReason] = useState('')
 
   // Load collections function (extracted for reuse)
   const loadCollections = async () => {
@@ -178,8 +183,15 @@ export function ProductDetail({
       return
     }
 
-    const reason = window.prompt('Provide a reason for banning this product (optional):', product.bannedReason || '')
-    onToggleBan(product, reason?.trim() || undefined)
+    setBanReason(product.bannedReason || '')
+    setBanDialogOpen(true)
+  }
+
+  const handleConfirmBan = () => {
+    if (!onToggleBan) return
+    onToggleBan(product, banReason.trim() || undefined)
+    setBanDialogOpen(false)
+    setBanReason('')
   }
 
   const updatedTs = (product as any).source_last_updated ?? (product as any).sourceLastUpdated
@@ -192,17 +204,6 @@ export function ProductDetail({
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center gap-3 justify-between mb-4 sm:mb-6 sm:flex-nowrap">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          className="-ml-2 flex items-center gap-1 sm:gap-2 px-2 sm:px-3"
-          aria-label="Back to products"
-        >
-          <ArrowLeft size={20} />
-          <FontAwesomeIcon icon={faUniversalAccess} className="w-4 h-4" />
-          <span className="hidden sm:inline">Back to Products</span>
-        </Button>
-
         <div className="flex items-center gap-2 sm:gap-3">
           {user && (canModerate || isEditor) && (
             <>
@@ -434,6 +435,31 @@ export function ProductDetail({
           username={user.username}
         />
       )}
+
+      <Dialog open={banDialogOpen} onOpenChange={setBanDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ban Product</DialogTitle>
+            <DialogDescription>
+              Provide an optional reason for banning this product. Leave blank if no reason is needed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Label htmlFor="ban-reason">Reason (optional)</Label>
+            <Input
+              id="ban-reason"
+              value={banReason}
+              onChange={(e) => setBanReason(e.target.value)}
+              placeholder="Reason for banning..."
+              className="mt-1"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBanDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleConfirmBan}>Ban Product</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

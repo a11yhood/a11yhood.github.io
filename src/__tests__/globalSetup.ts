@@ -3,14 +3,48 @@ import { DEV_USERS, getDevToken } from '../lib/dev-users'
 /** Milliseconds to wait for backend health check before considering it unavailable. */
 const HEALTH_CHECK_TIMEOUT_MS = 3000
 
+type NormalizeBackendBase = (rawUrl: string) => string
+ const testGlobals = globalThis as typeof globalThis & {
+   __NORMALIZE_BACKEND_BASE__?: NormalizeBackendBase
+ }
+
+const normalizeBackendBase: NormalizeBackendBase =
+   testGlobals.__NORMALIZE_BACKEND_BASE__ ??
+   ((rawUrl: string) => {
+     const trimmed = rawUrl.replace(/\/$/, '')
+     // CI secrets sometimes store an API base URL; tests expect service root.
+     return trimmed.replace(/\/api$/i, '')
+   })
+ testGlobals.__NORMALIZE_BACKEND_BASE__ = normalizeBackendBase
+
+
 function shouldResetDevDbForRun(argv: string[]): boolean {
+  if (process.env.VITEST_SKIP_DEV_DB_RESET === '1') {
+    return false
+  }
+
   // Ignore the first entries (node + vitest binary path)
   const args = argv.slice(2).map(arg => arg.replace(/\\/g, '/').replace(/\/$/, ''))
 
-  // Only enforce auto-reset for full integration-suite runs.
-  return args.some(
-    arg => arg === 'src/__tests__/integration' || arg === './src/__tests__/integration'
+  // If no test-file/directory arguments are passed, this is a full suite run — always reset.
+  const testPathArgs = args.filter(
+    arg => !arg.startsWith('--') && !arg.startsWith('-') && arg !== 'run'
   )
+  if (testPathArgs.length === 0) {
+    return true
+  }
+
+  // Auto-reset for any integration workflow invocation, whether a single file,
+  // multiple files, or the whole integration directory is targeted.
+  return testPathArgs.some(arg => {
+    const normalized = arg.replace(/^\.\//, '')
+    return (
+      normalized === 'src/__tests__/integration' ||
+      normalized.startsWith('src/__tests__/integration/') ||
+      normalized === 'src/__tests__/a11y-integration' ||
+      normalized.startsWith('src/__tests__/a11y-integration/')
+    )
+  })
 }
 
 /**
@@ -24,11 +58,11 @@ function shouldResetDevDbForRun(argv: string[]): boolean {
  * helpers/with-backend.ts, which skips the suite when the flag is false.
  */
 export async function setup() {
-  const backendBase = (
+  const backendBase = normalizeBackendBase((
     process.env.TEST_BACKEND_URL ||
     process.env.VITE_API_URL ||
     'http://localhost:8002'
-  ).replace(/\/$/, '')
+  ))
 
   // Local HTTPS backends often use self-signed certs in dev.
   // Relax TLS verification only when targeting localhost.
@@ -37,15 +71,22 @@ export async function setup() {
   }
 
   let backendAvailable = false
-  const healthUrl = `${backendBase}/health`
-  try {
+  const healthUrls = [`${backendBase}/health`, `${backendBase}/api/health`]
+  for (const healthUrl of healthUrls) {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS)
-    const res = await fetch(healthUrl, { signal: controller.signal })
-    clearTimeout(timeout)
-    backendAvailable = res.ok
-  } catch {
-    // backend not reachable — backendAvailable stays false
+
+    try {
+      const res = await fetch(healthUrl, { signal: controller.signal })
+      if (res.ok) {
+        backendAvailable = true
+        break
+      }
+    } catch {
+      // backend not reachable at this path — try next health path
+    } finally {
+      clearTimeout(timeout)
+    }
   }
 
   process.env.VITEST_BACKEND_AVAILABLE = backendAvailable ? '1' : '0'
@@ -72,7 +113,7 @@ export async function setup() {
       '\n' +
       '┌──────────────────────────────────────────────────────────────┐\n' +
       `│  ⚠️  Backend not available at ${backendBase}\n` +
-      '│  Integration and security tests will be skipped.\n' +
+      '│  Backend-dependent tests will be marked skipped, not failed.\n' +
       '│  ▶ Start the backend and re-run to include all tests.\n' +
       '│  ▶ Unit tests only:  CI=true npm run test:run\n' +
       '└──────────────────────────────────────────────────────────────┘\n'

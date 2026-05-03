@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { UserAccount, UserRequest } from '@/lib/types'
 import { APIService } from '@/lib/api'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 
 type ProductEditorsProps = {
   productId: string
@@ -27,6 +27,7 @@ export function ProductEditors({
   onEditorsChange,
   autoOpenRequestForm,
 }: ProductEditorsProps) {
+  const { notify } = useNotifications()
   const isBrowser = typeof window !== 'undefined'
   const [editors, setEditors] = useState<UserAccount[]>([])
   const [loading, setLoading] = useState(true)
@@ -93,7 +94,7 @@ export function ProductEditors({
     try {
       const userAccount = await APIService.getUserAccount(username)
       if (!userAccount) {
-        toast.error('User account not found')
+        notify.error('User account not found')
         return
       }
 
@@ -106,14 +107,14 @@ export function ProductEditors({
         productId,
       })
 
-      toast.success('Management request submitted')
+      notify.success('Management request submitted')
       setHasExistingRequest(true)
       setShowRequestForm(false)
       setRequestMessage('')
       checkExistingRequest()
     } catch (error) {
       console.error('Failed to submit editor request:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to submit request')
+      notify.error(error instanceof Error ? error.message : 'Failed to submit request')
     }
   }
 
@@ -122,12 +123,12 @@ export function ProductEditors({
 
     try {
       await APIService.withdrawRequest(pendingRequest.id, username)
-      toast.success('Request withdrawn')
+      notify.success('Request withdrawn')
       setHasExistingRequest(false)
       setPendingRequest(null)
     } catch (error) {
       console.error('Failed to withdraw request:', error)
-      toast.error('Failed to withdraw request')
+      notify.error('Failed to withdraw request')
     }
   }
 
@@ -137,12 +138,12 @@ export function ProductEditors({
 
     try {
       await APIService.removeProductOwner(productId, editorId)
-      toast.success('Manager removed')
+      notify.success('Manager removed')
       loadEditors()
       onEditorsChange?.()
     } catch (error) {
       console.error('Failed to remove manager:', error)
-      toast.error('Failed to remove manager')
+      notify.error('Failed to remove manager')
     }
   }
 

@@ -6,7 +6,7 @@ import { ProductSubmission, ProductSubmissionRef } from '@/components/ProductSub
 import { RequestSourceDialog } from '@/components/RequestSourceDialog'
 import { UserData, UserAccount } from '@/lib/types'
 import { APIService } from '@/lib/api'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import logoImage from '@/assets/images/ahood-small.png'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faLayerGroup, faNewspaper } from '@fortawesome/free-solid-svg-icons'
@@ -41,6 +41,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
   onLogout: () => void
   onProductCreated?: () => void
 }) {
+  const { notify } = useNotifications()
   const navigate = useNavigate()
   const location = useLocation()
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
@@ -63,7 +64,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
           )
           
           if (existingRequest) {
-            toast.info(
+            notify.info(
               `You already have a pending request for "${domain}". A moderator will review it soon.`
             )
             return
@@ -76,7 +77,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
       
       // Keep submission dialog open so users see the inline error before requesting a new source
       setRequestSource({ domain, url })
-      toast.info(
+      notify.info(
         `The domain "${domain}" is not yet in our allowed sources. Would you like to request it?`
       )
     }
@@ -148,10 +149,10 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                   ? 'bg-primary text-primary-foreground' 
                   : 'hover:bg-accent hover:text-accent-foreground'
               }`}
-              aria-label="Search products"
+              aria-label="Products"
             >
               <MagnifyingGlass size={18} />
-              <span className="hidden sm:inline">Search</span>
+              <span className="hidden sm:inline">Products</span>
             </Link>
             {user ? (
               <div className="flex items-center gap-3">
@@ -168,7 +169,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                       productId: newProduct.id,
                       timestamp: new Date().toISOString(),
                     })
-                    toast.success('Product submitted successfully! You are now an editor of this product.')
+                    notify.success('Product submitted successfully! You are now an editor of this product.')
                     onProductCreated?.()
                     navigate('/')
                   } catch (error) {
@@ -180,16 +181,16 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                       if (url) {
                         try {
                           const domain = new URL(url).hostname
-                          setRequestSourceDomain(domain)
-                          toast.info(
+                          setRequestSource({ domain, url })
+                          notify.info(
                             `The domain "${domain}" is not yet in our allowed sources. Would you like to request it?`
                           )
                         } catch {
-                          toast.error('Invalid URL format')
+                          notify.error('Invalid URL format')
                         }
                       }
                     } else {
-                      toast.error(errorMessage || 'Failed to submit product')
+                      notify.error(errorMessage || 'Failed to submit product')
                     }
                   }
                 }} />

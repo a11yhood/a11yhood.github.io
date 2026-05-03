@@ -1,43 +1,24 @@
 import React, { useEffect, useState } from 'react'
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { describeWithBackend } from '../helpers/with-backend'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DiscussionSection } from '@/components/DiscussionSection'
 import { APIService } from '@/lib/api'
-import { getValidProductType } from '../testData'
-import { DEV_USERS, getDevToken } from '@/lib/dev-users'
+import { DEV_USERS } from '@/lib/dev-users'
 import type { Discussion, UserData } from '@/lib/types'
 
-type TestUser = UserData & { token: string }
+type TestUser = UserData
 
-const API_BASE = (globalThis as any).__TEST_API_BASE__
-
-// Use existing seeded dev users instead of creating new ones
-function getTestUser(role: 'admin' | 'moderator' | 'user'): TestUser {
-  const devUser = DEV_USERS[role]
-  return {
-    id: devUser.id,
-    username: devUser.username,
-    avatarUrl: undefined,
-    token: getDevToken(devUser.role),
-  }
+const owner: TestUser = {
+  id: DEV_USERS.admin.id,
+  username: DEV_USERS.admin.username,
+  avatarUrl: undefined,
 }
 
-async function createTestProduct(owner: TestUser): Promise<string> {
-  // Set auth token for this request
-  APIService.setAuthTokenGetter(async () => owner.token)
-  
-  const product = await APIService.createProduct({
-    name: `Discussion Product ${Date.now()}`,
-    type: getValidProductType('user-submitted'),
-    source: 'user-submitted',
-    category: 'Software',
-    sourceUrl: `https://github.com/test/discussion-${Date.now()}`,
-    editorIds: [owner.id],
-  })
-
-  return product.id
+const helper: TestUser = {
+  id: DEV_USERS.moderator.id,
+  username: DEV_USERS.moderator.username,
+  avatarUrl: undefined,
 }
 
 const DiscussionHarness = ({ productId, user }: { productId: string; user: TestUser | null }) => {
@@ -68,73 +49,50 @@ const DiscussionHarness = ({ productId, user }: { productId: string; user: TestU
     setDiscussions((prev) => [...prev, created])
   }
 
-  const userData = user
-    ? { id: user.id, username: user.username, avatarUrl: user.avatarUrl }
-    : null
-
-  return (
-    <DiscussionSection
-      discussions={discussions}
-      user={userData}
-      onDiscuss={handleDiscuss}
-    />
-  )
+  return <DiscussionSection discussions={discussions} user={user} onDiscuss={handleDiscuss} />
 }
 
-describeWithBackend('DiscussionSection Integration Tests (live API)', () => {
-  let owner: TestUser
-  let helper: TestUser
+describe('DiscussionSection Component Tests (APIService mocked)', () => {
   let productId: string
-  let activeToken: string | null
-
-  APIService.setAuthTokenGetter(async () => activeToken)
+  let store: Discussion[]
 
   const seedDiscussion = async (user: TestUser, content: string, parentId?: string) => {
-    activeToken = user.token
-    return APIService.createDiscussion({
+    const created = await APIService.createDiscussion({
       productId,
       content,
       parentId,
       userId: user.id,
       username: user.username,
     })
+    return created
   }
 
-  beforeEach(async () => {
-    owner = getTestUser('admin')
-    helper = getTestUser('moderator')
-    activeToken = owner.token
-    productId = await createTestProduct(owner)
+  beforeEach(() => {
+    productId = 'test-product-id'
+    store = []
+
+    vi.spyOn(APIService, 'getAllDiscussions').mockImplementation(async () => [...store])
+    vi.spyOn(APIService, 'createDiscussion').mockImplementation(async (payload) => {
+      const created: Discussion = {
+        id: `d-${store.length + 1}`,
+        productId: payload.productId,
+        userId: payload.userId,
+        username: payload.username,
+        content: payload.content,
+        parentId: payload.parentId,
+        createdAt: Date.now(),
+      }
+      store = [...store, created]
+      return created
+    })
   })
 
-  afterEach(async () => {
-    // Safely cleanup only if owner exists
-    if (owner?.token && productId) {
-      activeToken = owner.token
-      try {
-        const response = await fetch(`${API_BASE}/products/${productId}`, {
-          method: 'DELETE',
-          headers: { Authorization: owner.token },
-        })
-
-        if (!response.ok) {
-          const details = await response.text().catch(() => '')
-          console.warn(
-            `[DiscussionSection.test] Cleanup failed for product ${productId}: ${response.status} ${response.statusText} ${details}`
-          )
-        }
-      } catch (error) {
-        console.warn(
-          `[DiscussionSection.test] Cleanup request threw for product ${productId}:`,
-          error
-        )
-      }
-    }
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('posts a new discussion thread and clears the textarea', async () => {
     const user = userEvent.setup()
-    activeToken = owner.token
 
     render(<DiscussionHarness productId={productId} user={owner} />)
 
@@ -155,7 +113,25 @@ describeWithBackend('DiscussionSection Integration Tests (live API)', () => {
 
   it('shows "Posting..." while submitting', async () => {
     const user = userEvent.setup()
-    activeToken = owner.token
+
+    vi.mocked(APIService.createDiscussion).mockImplementationOnce(
+      async (payload: any) =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            const created: Discussion = {
+              id: `d-${store.length + 1}`,
+              productId: payload.productId,
+              userId: payload.userId,
+              username: payload.username,
+              content: payload.content,
+              parentId: payload.parentId,
+              createdAt: Date.now(),
+            }
+            store = [...store, created]
+            resolve(created)
+          }, 10)
+        })
+    )
 
     render(<DiscussionHarness productId={productId} user={owner} />)
 
@@ -182,7 +158,6 @@ describeWithBackend('DiscussionSection Integration Tests (live API)', () => {
   it('shows and hides reply UI while posting a reply', async () => {
     await seedDiscussion(owner, 'How do I install this?')
     const user = userEvent.setup()
-    activeToken = owner.token
 
     render(<DiscussionHarness productId={productId} user={owner} />)
 
@@ -208,7 +183,6 @@ describeWithBackend('DiscussionSection Integration Tests (live API)', () => {
   it('renders multiple users and message count from the API', async () => {
     await seedDiscussion(owner, 'Owner thread')
     await seedDiscussion(helper, 'Helper chimes in')
-    activeToken = owner.token
 
     render(<DiscussionHarness productId={productId} user={owner} />)
 
@@ -217,13 +191,11 @@ describeWithBackend('DiscussionSection Integration Tests (live API)', () => {
       expect(screen.getByText('Helper chimes in')).toBeInTheDocument()
     })
 
-    // Verify message count is displayed
     expect(screen.getByText(/messages$/i)).toBeInTheDocument()
   })
 
   it('shows login prompt when unauthenticated', async () => {
     await seedDiscussion(owner, 'Public question')
-    activeToken = owner.token
 
     render(<DiscussionHarness productId={productId} user={null} />)
 

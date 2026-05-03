@@ -21,7 +21,7 @@ import { UserAccount, UserData, Product, BlogPost } from '@/lib/types'
 import { APIService } from '@/lib/api'
 import { UserRequestsPanel } from '@/components/UserRequestsPanel'
 import { Pencil, MapPin, Globe, CalendarBlank, ChartBar, Package, Article, CaretDown, CaretRight } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
 
 type UserProfileProps = {
@@ -34,6 +34,7 @@ type UserProfileProps = {
 }
 
 export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCollectionsClick, onBlogPostClick }: UserProfileProps) {
+  const { notify } = useNotifications()
   const [open, setOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(true)
   const [statsOpen, setStatsOpen] = useState(true)
@@ -105,7 +106,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
 
   const handleSave = async () => {
     if (!userAccount.username) {
-      toast.error('Cannot update profile: username is missing')
+      notify.error('Cannot update profile: username is missing')
       return
     }
     try {
@@ -116,11 +117,11 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
         website: website.trim() || undefined,
       })
       
-      toast.success('Profile updated successfully')
+      notify.success('Profile updated successfully')
       setOpen(false)
       onUpdate?.()
     } catch (error) {
-      toast.error('Failed to update profile')
+      notify.error('Failed to update profile')
       console.error('Profile update error:', error)
     }
   }

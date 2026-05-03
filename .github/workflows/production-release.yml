@@ -39,8 +39,12 @@ jobs:
 
       - name: Run tests
         env:
-          CI: true
-        run: npm run test:run
+          TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
+        run: npm run test:run:full
+
+      - name: Set app version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo "VITE_APP_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
 
       - name: Build for GitHub Pages
         env:
@@ -49,7 +53,7 @@ jobs:
           VITE_LOG_LEVEL: ${{ secrets.VITE_LOG_LEVEL }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        run: npm run build:ghpages
+        run: npm run build:ghpages:ci
 
       - name: Upload production build artifact
         uses: actions/upload-artifact@v5
