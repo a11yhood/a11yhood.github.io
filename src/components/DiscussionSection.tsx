@@ -351,7 +351,7 @@ export function DiscussionSection({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">
+        <h2 className="text-base font-medium">
           Discussion
         </h2>
         <span className="text-sm text-muted-foreground">{visibleDiscussions.length} messages</span>
