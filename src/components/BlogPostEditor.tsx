@@ -307,7 +307,7 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
       {/* Metadata Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Post Details</CardTitle>
+          <CardTitle as="h2">Post Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <fieldset className="space-y-4" aria-describedby="post-details-help">
@@ -559,7 +559,7 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
 
       <Card>
         <CardHeader>
-          <CardTitle>Content</CardTitle>
+          <CardTitle as="h2">Content</CardTitle>
           <CardDescription>
             Write your post using Markdown formatting for rich text content
           </CardDescription>
@@ -628,7 +628,7 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
             <TabsContent value="help" className="mt-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Markdown Formatting Guide</CardTitle>
+                  <CardTitle as="h2" className="text-lg">Markdown Formatting Guide</CardTitle>
                   <CardDescription>
                     Use these formatting options to style your blog post
                   </CardDescription>

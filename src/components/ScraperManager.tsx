@@ -543,7 +543,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>External Product Scraper</CardTitle>
+          <CardTitle as="h2">External Product Scraper</CardTitle>
           <CardDescription>
             Automatically import accessibility products from Thingiverse, Ravelry, and GitHub
           </CardDescription>
@@ -671,7 +671,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Scraper Debug Info</CardTitle>
+              <CardTitle as="h2">Scraper Debug Info</CardTitle>
               <CardDescription>Real-time status for each scraper platform</CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -824,7 +824,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
 
       <Card>
         <CardHeader>
-          <CardTitle>Manage by Source</CardTitle>
+          <CardTitle as="h2">Manage by Source</CardTitle>
           <CardDescription>Delete all products from a specific source</CardDescription>
         </CardHeader>
         <CardContent>
@@ -879,7 +879,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
 
       <Card>
         <CardHeader>
-          <CardTitle>Scraped Products ({scrapedProducts.length})</CardTitle>
+          <CardTitle as="h2">Scraped Products ({scrapedProducts.length})</CardTitle>
           <CardDescription>Manage products imported from external sources</CardDescription>
         </CardHeader>
         <CardContent>
@@ -971,7 +971,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
 
       <Card>
         <CardHeader>
-          <CardTitle>User-Submitted Products ({userProducts.length})</CardTitle>
+          <CardTitle as="h2">User-Submitted Products ({userProducts.length})</CardTitle>
           <CardDescription>Manage products added by community members</CardDescription>
         </CardHeader>
         <CardContent>

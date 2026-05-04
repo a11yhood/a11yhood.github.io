@@ -163,7 +163,7 @@ export function AdminUsersStats() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+              <CardTitle as="h2" className="text-sm font-medium">Total Users</CardTitle>
               <Users size={20} className="text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -176,7 +176,7 @@ export function AdminUsersStats() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Contributions</CardTitle>
+              <CardTitle as="h2" className="text-sm font-medium">Total Contributions</CardTitle>
               <TrendUp size={20} className="text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -189,7 +189,7 @@ export function AdminUsersStats() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Products Submitted</CardTitle>
+              <CardTitle as="h2" className="text-sm font-medium">Products Submitted</CardTitle>
               <Package size={20} className="text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -202,7 +202,7 @@ export function AdminUsersStats() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Ratings Given</CardTitle>
+              <CardTitle as="h2" className="text-sm font-medium">Ratings Given</CardTitle>
               <Star size={20} className="text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -215,7 +215,7 @@ export function AdminUsersStats() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Discussions</CardTitle>
+              <CardTitle as="h2" className="text-sm font-medium">Discussions</CardTitle>
               <ChatCircle size={20} className="text-muted-foreground" />
             </CardHeader>
             <CardContent>

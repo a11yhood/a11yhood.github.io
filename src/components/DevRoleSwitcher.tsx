@@ -80,7 +80,7 @@ export function DevRoleSwitcher({ userAccount, onRoleChange }: DevRoleSwitcherPr
   return (
     <Card role="region" aria-label="Developer tools" className="fixed bottom-4 right-4 w-80 shadow-lg border-blue-200 bg-blue-50 z-50">
       <CardHeader className="pb-2 flex items-center justify-between gap-2">
-        <CardTitle className="text-sm flex items-center gap-2">
+        <CardTitle as="h2" className="text-sm flex items-center gap-2">
           <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
           Dev Mode: Role Switcher
         </CardTitle>
