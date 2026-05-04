@@ -257,7 +257,7 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Ravelry OAuth2 Configuration</CardTitle>
+          <CardTitle as="h2">Ravelry OAuth2 Configuration</CardTitle>
           <CardDescription>Loading authorization status...</CardDescription>
         </CardHeader>
       </Card>
@@ -267,7 +267,7 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle as="h2" className="flex items-center gap-2">
           Ravelry OAuth2 Configuration
           {isAuthorized && <CheckCircle size={20} className="text-green-600" weight="fill" />}
           {!isAuthorized && <XCircle size={20} className="text-muted-foreground" />}
