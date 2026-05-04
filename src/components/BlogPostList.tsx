@@ -151,7 +151,7 @@ function BlogPostCard({
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
-            <CardTitle className="text-xl leading-tight">{post.title}</CardTitle>
+            <CardTitle as="h2" className="text-xl leading-tight">{post.title}</CardTitle>
             <CardDescription className="mt-1">
               By {authorsText} • {publishDate}
             </CardDescription>

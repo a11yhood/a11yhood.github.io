@@ -131,7 +131,7 @@ export function CollectionsList({
             <CardHeader>
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <CardTitle className="text-lg line-clamp-2">{collection.name}</CardTitle>
+                  <CardTitle as="h2" className="text-lg line-clamp-2">{collection.name}</CardTitle>
                   <CardDescription className="flex items-center gap-2 mt-1">
                     {collection.isPublic ? (
                       <LockOpen size={14} className="text-muted-foreground" />

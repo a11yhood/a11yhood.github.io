@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -100,7 +100,18 @@ export function RequestCard({
 
   return (
     <Card key={request.id}>
-      <CardContent className="pt-6">
+      <CardHeader>
+        <CardTitle as="h3" className="text-base">
+          {request.type === 'moderator'
+            ? 'Editor Request'
+            : request.type === 'admin'
+              ? 'Admin Request'
+              : request.type === 'source-domain'
+                ? 'Source Domain Request'
+                : 'Product Editor Request'}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
         <div className="space-y-4">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">

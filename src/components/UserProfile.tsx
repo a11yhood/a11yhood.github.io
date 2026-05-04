@@ -147,7 +147,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
               </Avatar>
               <div className="space-y-2">
                 <div>
-                  <CardTitle className="text-2xl flex items-center gap-2">
+                  <CardTitle as="h2" className="text-2xl flex items-center gap-2">
                     {userAccount.username}
                     {userAccount.role === 'moderator' && (
                       <Badge variant="secondary">Moderator</Badge>
@@ -284,7 +284,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle as="h2" className="flex items-center gap-2">
             <ChartBar size={24} />
             Contribution Statistics
           </CardTitle>
@@ -438,7 +438,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
       {userAccount.role === 'admin' && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle as="h2" className="flex items-center gap-2">
               <Article size={24} />
               My Posts
             </CardTitle>

@@ -164,7 +164,7 @@ export function ThingiverseSettings({ onAuthComplete, products = [], onProductsU
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Thingiverse Personal Access Token Configuration</CardTitle>
+          <CardTitle as="h2">Thingiverse Personal Access Token Configuration</CardTitle>
           <CardDescription>Loading authorization status...</CardDescription>
         </CardHeader>
       </Card>
@@ -174,7 +174,7 @@ export function ThingiverseSettings({ onAuthComplete, products = [], onProductsU
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle as="h2" className="flex items-center gap-2">
           Thingiverse Personal Access Token Configuration
           {isAuthorized && <CheckCircle size={20} className="text-green-600" weight="fill" />}
           {!isAuthorized && <XCircle size={20} className="text-muted-foreground" />}

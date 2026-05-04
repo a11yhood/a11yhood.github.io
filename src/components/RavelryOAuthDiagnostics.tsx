@@ -155,7 +155,7 @@ export function RavelryOAuthDiagnostics() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>OAuth Flow Diagnostics</CardTitle>
+          <CardTitle as="h2">OAuth Flow Diagnostics</CardTitle>
           <CardDescription>Loading diagnostic information...</CardDescription>
         </CardHeader>
       </Card>
@@ -189,7 +189,7 @@ export function RavelryOAuthDiagnostics() {
           <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>OAuth Flow Diagnostics</CardTitle>
+              <CardTitle as="h2">OAuth Flow Diagnostics</CardTitle>
               <CardDescription>Review the OAuth authorization flow logs and current state</CardDescription>
             </div>
             <div className="flex gap-2">
@@ -596,7 +596,7 @@ export function RavelryOAuthDiagnostics() {
       {allLogs.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>All Ravelry KV Store Entries</CardTitle>
+            <CardTitle as="h2">All Ravelry KV Store Entries</CardTitle>
             <CardDescription>Raw data from the KV store for debugging</CardDescription>
           </CardHeader>
           <CardContent>
