@@ -273,14 +273,14 @@ export function ProductDetail({
         </Card>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 overflow-hidden">
+        <div className="lg:col-span-2 min-w-0">
           <div className="mb-6">
             {shouldShowImage ? (
               <img
                 src={product.imageUrl}
                 alt={product.imageAlt || `${product.name} product image`}
-                className="float-left mr-4 mb-3 sm:mr-6 sm:mb-4 rounded-lg max-w-[300px] w-full h-auto"
+                className="mb-4 sm:mb-6 rounded-lg max-w-[300px] w-full h-auto"
                 onError={() => setImageError(true)}
               />
             ) : (
@@ -291,7 +291,7 @@ export function ProductDetail({
             )}
 
             <div className="flex items-start justify-between gap-3 sm:gap-4 mb-2 sm:mb-3">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight line-clamp-2 sm:line-clamp-none">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight line-clamp-2 sm:line-clamp-none break-words">
                 {product.name}
               </h1>
               <div className="flex items-center gap-2">
