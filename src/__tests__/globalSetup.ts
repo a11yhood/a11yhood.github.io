@@ -8,6 +8,8 @@ type NormalizeBackendBase = (rawUrl: string) => string
    __NORMALIZE_BACKEND_BASE__?: NormalizeBackendBase
  }
 
+type DevDbResetMode = 'always' | 'never' | 'auto'
+
 const normalizeBackendBase: NormalizeBackendBase =
    testGlobals.__NORMALIZE_BACKEND_BASE__ ??
    ((rawUrl: string) => {
@@ -26,10 +28,40 @@ function shouldResetDevDbForRun(argv: string[]): boolean {
   // Ignore the first entries (node + vitest binary path)
   const args = argv.slice(2).map(arg => arg.replace(/\\/g, '/').replace(/\/$/, ''))
 
+  // Options that consume the following token as their value.
+  // Important: npm scripts usually invoke Vitest as
+  // `vitest run --config vitest.config.ts`; without skipping `--config`'s
+  // value, we incorrectly treat the config path as a test target and skip reset.
+  const optionFlagsWithValue = new Set([
+    '--config',
+    '-c',
+    '--root',
+    '--dir',
+    '--reporter',
+    '--outputFile',
+    '--testNamePattern',
+    '--project',
+    '--pool',
+  ])
+
+  const positionalArgs: string[] = []
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+
+    if (optionFlagsWithValue.has(arg)) {
+      i += 1
+      continue
+    }
+
+    if (arg.startsWith('-')) {
+      continue
+    }
+
+    positionalArgs.push(arg)
+  }
+
   // If no test-file/directory arguments are passed, this is a full suite run — always reset.
-  const testPathArgs = args.filter(
-    arg => !arg.startsWith('--') && !arg.startsWith('-') && arg !== 'run'
-  )
+  const testPathArgs = positionalArgs.filter(arg => arg !== 'run')
   if (testPathArgs.length === 0) {
     return true
   }
@@ -45,6 +77,14 @@ function shouldResetDevDbForRun(argv: string[]): boolean {
       normalized.startsWith('src/__tests__/a11y-integration/')
     )
   })
+}
+
+function resolveDevDbResetMode(raw: string | undefined): DevDbResetMode {
+  const normalized = (raw || '').trim().toLowerCase()
+  if (normalized === 'always' || normalized === 'never' || normalized === 'auto') {
+    return normalized
+  }
+  return 'auto'
 }
 
 /**
@@ -91,7 +131,12 @@ export async function setup() {
 
   process.env.VITEST_BACKEND_AVAILABLE = backendAvailable ? '1' : '0'
 
-  if (backendAvailable && shouldResetDevDbForRun(process.argv)) {
+  const resetMode = resolveDevDbResetMode(process.env.VITEST_DEV_DB_RESET_MODE)
+  const shouldReset =
+    resetMode === 'always' ||
+    (resetMode === 'auto' && shouldResetDevDbForRun(process.argv))
+
+  if (backendAvailable && shouldReset) {
     const adminToken = getDevToken(DEV_USERS.admin.role)
     const resetRes = await fetch(`${backendBase}/api/dev/reset`, {
       method: 'POST',

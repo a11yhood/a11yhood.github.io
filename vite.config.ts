@@ -59,13 +59,25 @@ function withApiProxy(target: string) {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, projectRoot, '')
-  const packageJsonPath = resolve(projectRoot, 'package.json')
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8')) as { version?: string }
+
+  // Prefer GitHub tag version in CI builds so the footer tracks releases
+  // even when package.json version is omitted.
+  const githubRef = process.env.GITHUB_REF || ''
+  const githubRefName = process.env.GITHUB_REF_NAME || ''
+  const githubRefType = process.env.GITHUB_REF_TYPE || ''
+  const githubTagFromRef = githubRef.startsWith('refs/tags/')
+    ? githubRef.replace('refs/tags/', '')
+    : ''
+  const githubTag =
+    githubRefType === 'tag'
+      ? githubRefName
+      : githubTagFromRef
+
   const appVersion =
     process.env.VITE_APP_VERSION ||
+    githubTag ||
     process.env.npm_package_version ||
-    packageJson.version ||
-    'dev'
+    'unknown'
   const apiProxyTarget =
     process.env.VITE_API_URL ||
     env.VITE_API_URL ||

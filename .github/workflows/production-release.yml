@@ -40,6 +40,7 @@ jobs:
       - name: Run tests
         env:
           TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
+          VITEST_DEV_DB_RESET_MODE: always
         run: npm run test:run:full
 
       - name: Set app version from tag
