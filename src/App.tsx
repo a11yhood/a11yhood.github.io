@@ -2730,7 +2730,8 @@ function App() {
     // Call auth context signIn which triggers GitHub OAuth
     signIn().catch((error) => {
       console.error('[App] ❌ Sign in error:', error)
-      showPageError('Failed to sign in. Please try again.')
+      const detail = error instanceof Error ? error.message : ''
+      showPageError(detail ? `Failed to sign in: ${detail}` : 'Failed to sign in. Please try again.')
     })
     console.log('[App] → signIn() called (waiting for redirect or error)')
   }
@@ -3384,8 +3385,10 @@ function AuthCallback() {
       } catch (e) {
         console.error('[AuthCallback] Failed to process session from URL:', e)
       } finally {
-        // Clean up the URL and redirect to home
-        window.history.replaceState({}, document.title, '/')
+        // Clean up URL fragments while preserving app basename for hosted deployments.
+        const basePathRaw = import.meta.env.BASE_URL || '/'
+        const basePath = basePathRaw.endsWith('/') ? basePathRaw : `${basePathRaw}/`
+        window.history.replaceState({}, document.title, basePath)
         navigate('/', { replace: true })
       }
     }

@@ -39,14 +39,52 @@ function ProductionAuthProvider({ children }: { children: ReactNode }) {
       try {
         const { supabase } = await import('@/lib/supabase');
 
+        const parseHashOAuthTokens = () => {
+          if (typeof window === 'undefined') return null;
+          const hash = window.location.hash.startsWith('#') ? window.location.hash.substring(1) : window.location.hash;
+          if (!hash) return null;
+          const params = new URLSearchParams(hash);
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+          if (!accessToken || !refreshToken) return null;
+          return { accessToken, refreshToken };
+        };
+
         // Register token getter for API calls
         APIService.setAuthTokenGetter(async () => {
           const { data: { session: freshSession } } = await supabase.auth.getSession();
           return freshSession?.access_token ?? null;
         });
 
-        // Initial session
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        // Initial session (getSession handles standard callback parsing).
+        let { data: { session: initialSession } } = await supabase.auth.getSession();
+
+        // Fallback for hash-based implicit callbacks arriving at '/' before session is persisted.
+        if (!initialSession) {
+          const hashTokens = parseHashOAuthTokens();
+          if (hashTokens) {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: hashTokens.accessToken,
+              refresh_token: hashTokens.refreshToken,
+            });
+
+            if (error) {
+              if (error.message?.includes('Unregistered API key')) {
+                console.error(
+                  '[ProductionAuthProvider] Supabase API key is not valid for this project. Update VITE_SUPABASE_ANON_KEY in .env.local from Supabase Dashboard > Settings > API.'
+                );
+              }
+              console.error('[ProductionAuthProvider] Failed to set session from OAuth hash:', error);
+            } else {
+              initialSession = data.session;
+            }
+
+            // Always clear hash tokens to prevent repeated processing loops on reload.
+            const cleanUrl = `${window.location.pathname}${window.location.search}`;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+        }
+
         if (!unsubscribed) {
           setSession(initialSession);
           setUser(initialSession?.user ?? null);
@@ -63,6 +101,11 @@ function ProductionAuthProvider({ children }: { children: ReactNode }) {
 
         cleanup = () => subscription.unsubscribe();
       } catch (error) {
+        if (error instanceof Error && error.message.includes('Unregistered API key')) {
+          console.error(
+            '[ProductionAuthProvider] Supabase API key is unregistered. Update VITE_SUPABASE_ANON_KEY in .env.local with a valid key for VITE_SUPABASE_URL.'
+          );
+        }
         console.error('[ProductionAuthProvider] Failed to initialize Supabase auth:', error);
         if (!unsubscribed) setLoading(false);
       }

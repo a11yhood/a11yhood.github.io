@@ -8,6 +8,68 @@
  */
 type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent'
 
+const REDACTED = '[REDACTED]'
+
+const SENSITIVE_KEY_PATTERN = /(token|secret|apikey|api_key|authorization|access[_-]?token|refresh[_-]?token|provider[_-]?token|password|jwt|key)/i
+
+const SENSITIVE_VALUE_PATTERNS: RegExp[] = [
+  /sb_(?:publishable|secret|service_role)_[A-Za-z0-9._-]+/gi,
+  /\bBearer\s+[A-Za-z0-9._~+\-/]+=*\b/gi,
+  /([?&#](?:access_token|refresh_token|provider_token|token|apikey|api_key|key|secret|authorization)=)([^&#\s]+)/gi,
+  /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,
+]
+
+const sanitizeString = (input: string): string => {
+  let output = input
+  for (const pattern of SENSITIVE_VALUE_PATTERNS) {
+    output = output.replace(pattern, (_match, prefix) => {
+      if (typeof prefix === 'string') {
+        return `${prefix}${REDACTED}`
+      }
+      return REDACTED
+    })
+  }
+  return output
+}
+
+const sanitizeForLogging = (value: unknown, seen = new WeakSet<object>()): unknown => {
+  if (typeof value === 'string') {
+    return sanitizeString(value)
+  }
+
+  if (value instanceof Error) {
+    return {
+      name: value.name,
+      message: sanitizeString(value.message || ''),
+      stack: sanitizeString(value.stack || ''),
+    }
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeForLogging(entry, seen))
+  }
+
+  if (value && typeof value === 'object') {
+    const asObject = value as Record<string, unknown>
+    if (seen.has(asObject)) {
+      return '[Circular]'
+    }
+    seen.add(asObject)
+
+    const redacted: Record<string, unknown> = {}
+    for (const [key, nestedValue] of Object.entries(asObject)) {
+      if (SENSITIVE_KEY_PATTERN.test(key)) {
+        redacted[key] = REDACTED
+      } else {
+        redacted[key] = sanitizeForLogging(nestedValue, seen)
+      }
+    }
+    return redacted
+  }
+
+  return value
+}
+
 const LEVELS: LogLevel[] = ['debug', 'info', 'warn', 'error', 'silent']
 const levelRank: Record<LogLevel, number> = {
   debug: 10,
@@ -42,7 +104,8 @@ const createLoggerMethod = (
 ) =>
   (...args: unknown[]) => {
     if (!shouldLog(level)) return
-    fallback(...args)
+    const sanitizedArgs = args.map((arg) => sanitizeForLogging(arg))
+    fallback(...sanitizedArgs)
   }
 
 export const logger = {
