@@ -24,19 +24,21 @@
     var encodedRoute = encodeURIComponent(routePayload);
     var encodedSearch = encodeURIComponent(searchPayload);
     var redirectPath = basePath + '?/' + encodedRoute + (searchPayload ? '&' + encodedSearch : '');
-    var target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + redirectPath + l.hash;
+    var origin = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '');
+    var fallbackTarget = origin + basePath + l.hash;
+    var target = origin + redirectPath + l.hash;
 
     // Guard against self-redirect loops (e.g. /pr-preview/331/?/%2F%26...).
     // If the computed target is identical, fall back to the canonical base path.
     if (target === l.href) {
-      target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
+      target = fallbackTarget;
     }
 
     // Guard against HTTP 414 URI Too Long: if the redirect URL exceeds a safe
     // length limit, fall back to the canonical base path to avoid the server
     // rejecting the request entirely.
     if (target.length > 2000) {
-      target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
+      target = fallbackTarget;
     }
 
     if (target !== l.href) {
