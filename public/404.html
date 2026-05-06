@@ -22,6 +22,16 @@
     var routePayload = l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/');
     var searchPayload = l.search ? l.search.slice(1) : '';
     var encodedRoute = encodeURIComponent(routePayload);
+
+    // Guard against redirect-loop URL growth: if the search payload already
+    // contains a percent sign (i.e. it was URL-encoded in a previous redirect
+    // cycle), encoding it again would cause exponential growth and eventually
+    // a 414 "URI Too Long" error from the CDN.  Drop the search payload so
+    // the redirect lands cleanly on the base path.
+    if (searchPayload.indexOf('%') !== -1) {
+      searchPayload = '';
+    }
+
     var encodedSearch = encodeURIComponent(searchPayload);
     var redirectPath = basePath + '?/' + encodedRoute + (searchPayload ? '&' + encodedSearch : '');
     var target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + redirectPath + l.hash;
@@ -32,11 +42,25 @@
       target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
     }
 
+    // Final safety net: if the redirect URL is excessively long (which could
+    // still trigger a 414 from the CDN), fall back to the base path.
+    if (target.length > 2000) {
+      target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
+    }
+
     if (target !== l.href) {
       l.replace(target);
     }
   </script>
 </head>
 <body>
+  <!--
+    Fallback content shown when JavaScript is disabled.
+    The <main> landmark satisfies WCAG landmark requirements.
+  -->
+  <main>
+    <p>Redirecting&hellip;</p>
+    <p><a href="/">Return to home</a></p>
+  </main>
 </body>
 </html>
