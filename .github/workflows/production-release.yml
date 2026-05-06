@@ -49,26 +49,32 @@ jobs:
               console.error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');
               process.exit(1);
             }
-            const parts = key.split('.');
-            if (parts.length < 2) {
-              console.error('VITE_SUPABASE_ANON_KEY is not a JWT-like key.');
-              process.exit(1);
-            }
-            const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-            const iss = String(payload.iss || '');
-            if (!iss) {
-              console.error('Supabase anon key payload is missing iss claim.');
-              process.exit(1);
-            }
+
             const normalizedUrl = url.replace(/\/$/, '');
-            const expectedIssPrefix = normalizedUrl + '/auth/v1';
-            if (!iss.startsWith(expectedIssPrefix)) {
-              console.error('Supabase URL/key mismatch detected.');
-              console.error('Configured URL:', normalizedUrl);
-              console.error('Key issuer:', iss);
+
+            // Validate via a real auth endpoint so both JWT and non-JWT key
+            // formats are supported (Supabase may issue either format).
+            const endpoint = normalizedUrl + '/auth/v1/settings';
+
+            fetch(endpoint, {
+              headers: {
+                apikey: key,
+                Authorization: 'Bearer ' + key,
+              },
+            }).then(async (res) => {
+              if (!res.ok) {
+                const body = await res.text().catch(() => '');
+                console.error('Supabase URL/key validation failed.');
+                console.error('Endpoint:', endpoint);
+                console.error('Status:', res.status, res.statusText);
+                console.error('Body:', body.slice(0, 500));
+                process.exit(1);
+              }
+              console.log('Supabase URL/key pair looks consistent.');
+            }).catch((err) => {
+              console.error('Supabase URL/key validation request failed:', err);
               process.exit(1);
-            }
-            console.log('Supabase URL/key pair looks consistent.');
+            });
           "
 
       - name: Run tests
