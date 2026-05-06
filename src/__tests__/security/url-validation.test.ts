@@ -68,7 +68,7 @@ const createOrReuseProductForAdditionalUrlTests = async () => {
 describeWithBackend('Backend URL Validation Security', () => {
   beforeAll(async () => {
     await runAllSeeds()
-  })
+  }, 60000)
 
   describe('XSS Prevention - Dangerous Protocols', () => {
     it('should reject javascript: URLs in product source_url', async () => {
