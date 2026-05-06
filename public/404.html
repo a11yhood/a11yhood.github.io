@@ -20,15 +20,24 @@
     var l = window.location;
     var basePath = l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
     var routePayload = l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/');
+    // searchPayload is already correctly URL-encoded by the browser; pass it through
+    // without re-encoding to avoid inflating the redirect URL length. Double-encoding
+    // (&→%26, =→%3D …) was the root cause of 414 "URI Too Long" server errors.
     var searchPayload = l.search ? l.search.slice(1) : '';
     var encodedRoute = encodeURIComponent(routePayload);
-    var encodedSearch = encodeURIComponent(searchPayload);
-    var redirectPath = basePath + '?/' + encodedRoute + (searchPayload ? '&' + encodedSearch : '');
+    var redirectPath = basePath + '?/' + encodedRoute + (searchPayload ? '&' + searchPayload : '');
     var target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + redirectPath + l.hash;
 
     // Guard against self-redirect loops (e.g. /pr-preview/331/?/%2F%26...).
     // If the computed target is identical, fall back to the canonical base path.
     if (target === l.href) {
+      target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
+    }
+
+    // Guard against overly long redirect URLs (GitHub Pages / nginx return 414
+    // for URLs exceeding ~8 KB). If the redirect would exceed this limit, fall
+    // back to the base path so the app still loads without a server error.
+    if (target.length > 4096) {
       target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
     }
 

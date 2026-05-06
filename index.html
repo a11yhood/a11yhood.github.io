@@ -25,13 +25,17 @@
 
         if (l.search[1] === '/' ) {
           var q = l.search.slice(1).split('&');
+          // Route segment was encodeURIComponent'd by 404.html; decode it back.
           var route = decodePayload(q[0].slice(1));
-          var query = decodePayload(q.slice(1).join('&'));
+          // Query string was NOT double-encoded by 404.html (since v0.2.6+), so
+          // pass it through as-is.  Decoding it here would turn %20→space etc.
+          // and produce an invalid URL after history.replaceState.
+          var query = q.slice(1).join('&');
           var basePath = l.pathname.replace(/\/$/, '');
 
-          // A query string starting with '/' indicates malformed redirect data
-          // (e.g. '?/some-route&%2F...'); drop it to prevent URL growth loops.
-          if (query.charAt(0) === '/') {
+          // A query string starting with '/' or '%2F' indicates malformed
+          // redirect data; drop it to prevent URL growth loops.
+          if (query.charAt(0) === '/' || query.slice(0, 3).toLowerCase() === '%2f') {
             query = '';
           }
 
