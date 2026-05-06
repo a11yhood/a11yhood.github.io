@@ -1,4 +1,4 @@
-  /**
+/**
  * Accessibility tests for the Collections page.
  * Ensures WCAG 2.1 compliance:
  * - Page must contain a level-one heading (page-has-heading-one) in ALL states:
