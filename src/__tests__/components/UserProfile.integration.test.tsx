@@ -181,7 +181,7 @@ describeWithBackend('UserProfile owned products navigation', () => {
     await user.click(screen.getByText(ownedProduct.name))
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Back to Products/i })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: ownedProduct.name, level: 1 })).toBeInTheDocument()
     })
 
     expect(screen.getAllByText(ownedProduct.name).length).toBeGreaterThan(0)
