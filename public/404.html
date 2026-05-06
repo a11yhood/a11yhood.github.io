@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Redirecting...</title>
+  <title>Redirecting… | a11yhood</title>
   <script>
     // Single Page Apps for GitHub Pages
     // MIT License
@@ -32,11 +32,29 @@
       target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
     }
 
+    // Guard against HTTP 414 URI Too Long: if the redirect URL exceeds a safe
+    // length limit, fall back to the canonical base path to avoid the server
+    // rejecting the request entirely.
+    if (target.length > 2000) {
+      target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
+    }
+
     if (target !== l.href) {
       l.replace(target);
     }
   </script>
 </head>
 <body>
+  <main>
+    <h1>Redirecting…</h1>
+    <p>Please wait while you are redirected to the correct page.</p>
+    <noscript>
+      <p>
+        JavaScript is required for navigation on this site.
+        Please enable JavaScript in your browser settings and
+        <a href="/">return to the home page</a>.
+      </p>
+    </noscript>
+  </main>
 </body>
 </html>

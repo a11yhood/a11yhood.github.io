@@ -26,3 +26,13 @@ describe('html-has-lang – static HTML documents', () => {
     expect(html).toMatch(/<html[^>]+lang\s*=\s*["'][a-zA-Z][a-zA-Z-]*["']/)
   })
 })
+
+describe('page-has-heading-one – static HTML documents', () => {
+  it('public/404.html contains a level-one heading (<h1>) in the body', () => {
+    const html = readHtml('public/404.html')
+    // The body must include an <h1> so accessibility scanners that see the
+    // redirect page (before JavaScript runs or when JS is disabled) do not
+    // flag the page-has-heading-one rule.
+    expect(html).toMatch(/<h1[\s>]/)
+  })
+})
