@@ -32,6 +32,14 @@
       target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
     }
 
+    // Guard against URI Too Long (HTTP 414): if the redirect URL would exceed a safe
+    // length the CDN rejects it with a bare error page that has no landmark elements,
+    // causing an axe "region" violation.  Fall back to the base path so the SPA loads
+    // and shows the NotFoundPage instead.
+    if (target.length > 2000) {
+      target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
+    }
+
     if (target !== l.href) {
       l.replace(target);
     }
