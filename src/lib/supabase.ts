@@ -56,7 +56,20 @@ export const signInWithGitHub = async () => {
   // Allow explicit override when environments need a fixed callback URL.
   const configuredRedirect = String(import.meta.env.VITE_SUPABASE_REDIRECT_URL || '').trim();
   const basePath = normalizeBasePath(import.meta.env.BASE_URL);
-  const redirectTo = configuredRedirect || new URL(`${basePath}auth/callback`, window.location.origin).toString();
+  let redirectTo: string;
+  if (configuredRedirect) {
+    // Normalize to an absolute URL so both path-style ("/auth/callback") and
+    // fully-qualified overrides work reliably with signInWithOAuth.
+    const normalized = new URL(configuredRedirect, window.location.origin);
+    if (normalized.protocol !== 'http:' && normalized.protocol !== 'https:') {
+      throw new Error(
+        `[Supabase] VITE_SUPABASE_REDIRECT_URL uses a non-http(s) scheme: ${normalized.protocol}`
+      );
+    }
+    redirectTo = normalized.toString();
+  } else {
+    redirectTo = new URL(`${basePath}auth/callback`, window.location.origin).toString();
+  }
   
   console.log('[Supabase] → Redirect URL will be:', redirectTo);
   console.log('[Supabase] → Calling supabase.auth.signInWithOAuth...');

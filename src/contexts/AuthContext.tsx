@@ -59,8 +59,16 @@ function ProductionAuthProvider({ children }: { children: ReactNode }) {
         // Initial session (getSession handles standard callback parsing).
         let { data: { session: initialSession } } = await supabase.auth.getSession();
 
-        // Fallback for hash-based implicit callbacks arriving at '/' before session is persisted.
-        if (!initialSession) {
+        // Gate hash-token fallback to the expected auth callback route only.
+        // Accepting hash tokens on arbitrary pages would allow session-fixation
+        // attacks via crafted links containing valid tokens.
+        const isOnAuthCallbackPath =
+          typeof window !== 'undefined' &&
+          (window.location.pathname === '/auth/callback' ||
+            window.location.pathname.endsWith('/auth/callback'));
+
+        // Fallback for hash-based implicit callbacks that arrive before the session is persisted.
+        if (!initialSession && isOnAuthCallbackPath) {
           const hashTokens = parseHashOAuthTokens();
           if (hashTokens) {
             const { data, error } = await supabase.auth.setSession({
