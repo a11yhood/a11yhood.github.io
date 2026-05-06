@@ -37,6 +37,40 @@ jobs:
           npm ci
           npm install --no-save @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu
 
+      - name: Validate Supabase URL/key pairing
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          node -e "
+            const url = (process.env.VITE_SUPABASE_URL || '').trim();
+            const key = (process.env.VITE_SUPABASE_ANON_KEY || '').trim();
+            if (!url || !key) {
+              console.error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');
+              process.exit(1);
+            }
+            const parts = key.split('.');
+            if (parts.length < 2) {
+              console.error('VITE_SUPABASE_ANON_KEY is not a JWT-like key.');
+              process.exit(1);
+            }
+            const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+            const iss = String(payload.iss || '');
+            if (!iss) {
+              console.error('Supabase anon key payload is missing iss claim.');
+              process.exit(1);
+            }
+            const normalizedUrl = url.replace(/\/$/, '');
+            const expectedIssPrefix = normalizedUrl + '/auth/v1';
+            if (!iss.startsWith(expectedIssPrefix)) {
+              console.error('Supabase URL/key mismatch detected.');
+              console.error('Configured URL:', normalizedUrl);
+              console.error('Key issuer:', iss);
+              process.exit(1);
+            }
+            console.log('Supabase URL/key pair looks consistent.');
+          "
+
       - name: Run tests
         env:
           TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
@@ -145,8 +179,11 @@ jobs:
       - name: Upload assembled site as Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/pages-artifact
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
