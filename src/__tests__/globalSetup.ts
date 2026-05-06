@@ -8,6 +8,8 @@ type NormalizeBackendBase = (rawUrl: string) => string
    __NORMALIZE_BACKEND_BASE__?: NormalizeBackendBase
  }
 
+type DevDbResetMode = 'always' | 'never' | 'auto'
+
 const normalizeBackendBase: NormalizeBackendBase =
    testGlobals.__NORMALIZE_BACKEND_BASE__ ??
    ((rawUrl: string) => {
@@ -77,6 +79,14 @@ function shouldResetDevDbForRun(argv: string[]): boolean {
   })
 }
 
+function resolveDevDbResetMode(raw: string | undefined): DevDbResetMode {
+  const normalized = (raw || '').trim().toLowerCase()
+  if (normalized === 'always' || normalized === 'never' || normalized === 'auto') {
+    return normalized
+  }
+  return 'auto'
+}
+
 /**
  * Vitest global setup — runs once in the main process before any workers start.
  *
@@ -121,7 +131,12 @@ export async function setup() {
 
   process.env.VITEST_BACKEND_AVAILABLE = backendAvailable ? '1' : '0'
 
-  if (backendAvailable && shouldResetDevDbForRun(process.argv)) {
+  const resetMode = resolveDevDbResetMode(process.env.VITEST_DEV_DB_RESET_MODE)
+  const shouldReset =
+    resetMode === 'always' ||
+    (resetMode === 'auto' && shouldResetDevDbForRun(process.argv))
+
+  if (backendAvailable && shouldReset) {
     const adminToken = getDevToken(DEV_USERS.admin.role)
     const resetRes = await fetch(`${backendBase}/api/dev/reset`, {
       method: 'POST',

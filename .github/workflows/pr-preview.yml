@@ -38,6 +38,7 @@ jobs:
       - name: Run tests
         env:
           TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
+          VITEST_DEV_DB_RESET_MODE: never
         run: pixi run test
       - name: Build for GitHub Pages
         env:
