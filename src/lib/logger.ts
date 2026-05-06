@@ -8,6 +8,102 @@
  */
 type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent'
 
+const REDACTED = '[REDACTED]'
+
+const SENSITIVE_KEY_PATTERN =
+  /^(?:token|secret|apikey|api[_-]?key|x-api-key|authorization|access[_-]?token|refresh[_-]?token|provider[_-]?token|password|jwt|service[_-]?role)$/i
+
+const SENSITIVE_VALUE_PATTERNS: RegExp[] = [
+  /sb_(?:publishable|secret|service_role)_[A-Za-z0-9._-]+/gi,
+  /\bBearer\s+[A-Za-z0-9._~+\-/]+=*\b/gi,
+  /([?&#](?:access_token|refresh_token|provider_token|token|apikey|api_key|key|secret|authorization)=)([^&#\s]+)/gi,
+  /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,
+]
+
+const sanitizeString = (input: string): string => {
+  let output = input
+  for (const pattern of SENSITIVE_VALUE_PATTERNS) {
+    output = output.replace(pattern, (_match, prefix) => {
+      if (typeof prefix === 'string') {
+        return `${prefix}${REDACTED}`
+      }
+      return REDACTED
+    })
+  }
+  return output
+}
+
+const sanitizeErrorForLogging = (error: Error, seen: WeakSet<object>): Error => {
+  const sanitizedError = new Error(sanitizeString(error.message || ''))
+  sanitizedError.name = error.name
+
+  if (error.stack) {
+    sanitizedError.stack = sanitizeString(error.stack)
+  }
+
+  const causeDescriptor = Object.getOwnPropertyDescriptor(error, 'cause')
+  if (causeDescriptor) {
+    Object.defineProperty(sanitizedError, 'cause', {
+      ...causeDescriptor,
+      value: sanitizeForLogging(causeDescriptor.value, seen),
+    })
+  }
+
+  const errorWithFields = error as Error & Record<string, unknown>
+  const sanitizedErrorWithFields = sanitizedError as Error & Record<string, unknown>
+  for (const [key, nestedValue] of Object.entries(errorWithFields)) {
+    if (key === 'name' || key === 'message' || key === 'stack' || key === 'cause') {
+      continue
+    }
+
+    if (SENSITIVE_KEY_PATTERN.test(key)) {
+      sanitizedErrorWithFields[key] = REDACTED
+    } else {
+      sanitizedErrorWithFields[key] = sanitizeForLogging(nestedValue, seen)
+    }
+  }
+
+  return sanitizedError
+}
+
+const sanitizeForLogging = (value: unknown, seen = new WeakSet<object>()): unknown => {
+  if (typeof value === 'string') {
+    return sanitizeString(value)
+  }
+
+  if (value instanceof Error) {
+    if (seen.has(value)) {
+      return '[Circular]'
+    }
+    seen.add(value)
+    return sanitizeErrorForLogging(value, seen)
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeForLogging(entry, seen))
+  }
+
+  if (value && typeof value === 'object') {
+    const asObject = value as Record<string, unknown>
+    if (seen.has(asObject)) {
+      return '[Circular]'
+    }
+    seen.add(asObject)
+
+    const redacted: Record<string, unknown> = {}
+    for (const [key, nestedValue] of Object.entries(asObject)) {
+      if (SENSITIVE_KEY_PATTERN.test(key)) {
+        redacted[key] = REDACTED
+      } else {
+        redacted[key] = sanitizeForLogging(nestedValue, seen)
+      }
+    }
+    return redacted
+  }
+
+  return value
+}
+
 const LEVELS: LogLevel[] = ['debug', 'info', 'warn', 'error', 'silent']
 const levelRank: Record<LogLevel, number> = {
   debug: 10,
@@ -42,7 +138,8 @@ const createLoggerMethod = (
 ) =>
   (...args: unknown[]) => {
     if (!shouldLog(level)) return
-    fallback(...args)
+    const sanitizedArgs = args.map((arg) => sanitizeForLogging(arg))
+    fallback(...sanitizedArgs)
   }
 
 export const logger = {

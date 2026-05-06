@@ -82,7 +82,8 @@ Every pull request automatically gets a full preview of the site at
 The [PR Preview](.github/workflows/pr-preview.yml) workflow:
 1. Runs lint and tests on the PR branch.
 2. Builds the site with `VITE_BASE_URL=/pr-preview/<PR#>/` so all asset and router
-   paths are scoped to the preview URL.
+   paths are scoped to the preview URL, using preview-specific backend and
+   preview-specific Supabase credentials.
 3. Checks out `gh-pages`, places the build under `pr-preview/<PR#>/`, and commits.
 4. Pushes to `gh-pages`, which triggers [Publish Pages](.github/workflows/publish-pages.yml)
    to deploy the merged site.
@@ -107,9 +108,20 @@ typically read-only. In practice, that means only checks that do not require
 secrets or repository writes are expected to run normally.
 
 For PR previews specifically, the build depends on repository `VITE_*` secrets
-and deployment updates `gh-pages`, so preview build/deploy (and related PR
-comments) may be skipped or fail for forked PRs unless the workflow explicitly
-gates those steps to non-fork pull requests.
+for the preview backend, preview Supabase project, and deployment updates
+`gh-pages`, so preview build/deploy (and related PR comments) may be skipped or
+fail for forked PRs unless the workflow explicitly gates those steps to
+non-fork pull requests.
+
+PR previews must not embed production Supabase client settings. They should use
+preview-specific secrets only:
+- `VITE_API_URL_PREVIEW`
+- `VITE_SUPABASE_URL_PREVIEW`
+- `VITE_SUPABASE_ANON_KEY_PREVIEW`
+
+Preview builds run with `VITE_DEV_MODE=true` for preview auth behavior, but any
+embedded Supabase client settings must still point to the isolated preview
+Supabase project rather than production.
 ---
 
 ## Repository settings required
@@ -126,7 +138,11 @@ to open PRs or contribute code.
 | **Pages → Source** | GitHub Actions |
 | **Environment → `github-pages`** | Must exist; `id-token: write` depends on it |
 | **Actions → General → Workflow permissions** | Read and write permissions |
-| **Secrets** | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_URL`, `VITE_DEV_MODE`, `VITE_LOG_LEVEL`, `GH_TOKEN`, `GH_PAGES_PUSH_PAT` |
+| **Secrets** | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SUPABASE_URL_PREVIEW`, `VITE_SUPABASE_ANON_KEY_PREVIEW`, `VITE_API_URL`, `VITE_API_URL_PREVIEW`, `VITE_DEV_MODE`, `VITE_LOG_LEVEL`, `GH_TOKEN`, `GH_PAGES_PUSH_PAT` |
+
+Preview builds require the preview backend secret plus preview-specific
+Supabase client secrets. Production and preview secrets must point at different
+projects.
 
 The `GH_TOKEN` secret is used for accessibility testing. It must be a personal access token with repo scope — the
 default `GITHUB_TOKEN` is not supported by the `github/accessibility-scanner`

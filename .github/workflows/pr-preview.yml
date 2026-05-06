@@ -41,13 +41,13 @@ jobs:
         run: pixi run test
       - name: Build for GitHub Pages
         env:
-          # Prefer preview-specific backend; fall back to legacy shared secret.
+          # PR previews must use isolated preview services, never production.
           VITE_API_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
           VITE_DEV_MODE: "true"
           VITE_ENV: development
           VITE_LOG_LEVEL: debug
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL_PREVIEW }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY_PREVIEW }}
           VITE_BASE_URL: /pr-preview/${{ github.event.number }}/
         run: pixi run build-vite
 
