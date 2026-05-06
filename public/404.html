@@ -37,7 +37,11 @@
     // Guard against HTTP 414 URI Too Long: if the redirect URL exceeds a safe
     // length limit, fall back to the canonical base path to avoid the server
     // rejecting the request entirely.
-    if (target.length > 2000) {
+    // 2000 characters is a conservative safe limit widely supported by servers
+    // and browsers (e.g. IE caps at 2083; nginx defaults to 8192 but many CDNs
+    // are stricter).
+    var MAX_URI_LENGTH = 2000;
+    if (target.length > MAX_URI_LENGTH) {
       target = fallbackTarget;
     }
 
