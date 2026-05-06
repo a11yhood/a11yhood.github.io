@@ -26,10 +26,40 @@ function shouldResetDevDbForRun(argv: string[]): boolean {
   // Ignore the first entries (node + vitest binary path)
   const args = argv.slice(2).map(arg => arg.replace(/\\/g, '/').replace(/\/$/, ''))
 
+  // Options that consume the following token as their value.
+  // Important: npm scripts usually invoke Vitest as
+  // `vitest run --config vitest.config.ts`; without skipping `--config`'s
+  // value, we incorrectly treat the config path as a test target and skip reset.
+  const optionFlagsWithValue = new Set([
+    '--config',
+    '-c',
+    '--root',
+    '--dir',
+    '--reporter',
+    '--outputFile',
+    '--testNamePattern',
+    '--project',
+    '--pool',
+  ])
+
+  const positionalArgs: string[] = []
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+
+    if (optionFlagsWithValue.has(arg)) {
+      i += 1
+      continue
+    }
+
+    if (arg.startsWith('-')) {
+      continue
+    }
+
+    positionalArgs.push(arg)
+  }
+
   // If no test-file/directory arguments are passed, this is a full suite run — always reset.
-  const testPathArgs = args.filter(
-    arg => !arg.startsWith('--') && !arg.startsWith('-') && arg !== 'run'
-  )
+  const testPathArgs = positionalArgs.filter(arg => arg !== 'run')
   if (testPathArgs.length === 0) {
     return true
   }
