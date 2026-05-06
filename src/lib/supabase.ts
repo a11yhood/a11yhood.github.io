@@ -63,7 +63,7 @@ export const signInWithGitHub = async () => {
     const normalized = new URL(configuredRedirect, window.location.origin);
     if (normalized.protocol !== 'http:' && normalized.protocol !== 'https:') {
       throw new Error(
-        `[Supabase] VITE_SUPABASE_REDIRECT_URL uses a non-http(s) scheme: ${normalized.protocol}`
+        '[Supabase] VITE_SUPABASE_REDIRECT_URL must use an http or https scheme.'
       );
     }
     redirectTo = normalized.toString();
