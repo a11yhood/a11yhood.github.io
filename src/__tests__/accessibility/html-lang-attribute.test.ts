@@ -25,4 +25,16 @@ describe('html-has-lang – static HTML documents', () => {
     const html = readHtml('public/404.html')
     expect(html).toMatch(/<html[^>]+lang\s*=\s*["'][a-zA-Z][a-zA-Z-]*["']/)
   })
+
+  it('public/404.html redirect script guards against URL-growth loops', () => {
+    // When 404.html is served for a URL that already has a ?/... query string
+    // (i.e. a redirect target that itself got a 404), re-encoding the search
+    // payload would grow the URL on every round-trip until the server returns
+    // HTTP 414 "URI Too Long" — whose browser-generated error page has no lang.
+    // Verify the guard is present to prevent this scenario.
+    const html = readHtml('public/404.html')
+    // The script must check whether searchPayload starts with '/' and reset it.
+    expect(html).toMatch(/searchPayload\.charAt\(0\)\s*===\s*['"]\/['"]/)
+    expect(html).toContain("searchPayload = '';")
+  })
 })

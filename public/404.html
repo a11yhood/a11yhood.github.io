@@ -21,6 +21,14 @@
     var basePath = l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
     var routePayload = l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/');
     var searchPayload = l.search ? l.search.slice(1) : '';
+    // If the search payload already starts with '/', the current URL is itself
+    // a redirect target that got a 404 (e.g. /pr-preview/N/?/route). Re-encoding
+    // it would grow the URL on every round-trip and eventually cause an HTTP 414
+    // "URI Too Long" error. Discard it here to break the loop, mirroring the
+    // same guard that exists in index.html.
+    if (searchPayload.charAt(0) === '/') {
+      searchPayload = '';
+    }
     var encodedRoute = encodeURIComponent(routePayload);
     var encodedSearch = encodeURIComponent(searchPayload);
     var redirectPath = basePath + '?/' + encodedRoute + (searchPayload ? '&' + encodedSearch : '');
