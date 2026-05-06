@@ -10,7 +10,8 @@ type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent'
 
 const REDACTED = '[REDACTED]'
 
-const SENSITIVE_KEY_PATTERN = /(token|secret|apikey|api_key|authorization|access[_-]?token|refresh[_-]?token|provider[_-]?token|password|jwt|key)/i
+const SENSITIVE_KEY_PATTERN =
+  /^(?:token|secret|apikey|api[_-]?key|x-api-key|authorization|access[_-]?token|refresh[_-]?token|provider[_-]?token|password|jwt|service[_-]?role)$/i
 
 const SENSITIVE_VALUE_PATTERNS: RegExp[] = [
   /sb_(?:publishable|secret|service_role)_[A-Za-z0-9._-]+/gi,
