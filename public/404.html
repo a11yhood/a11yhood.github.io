@@ -32,6 +32,16 @@
       target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
     }
 
+    // Guard against URI Too Long (HTTP 414) errors.
+    // When the encoded redirect URL exceeds a safe threshold, the GitHub Pages
+    // server returns a bare <pre>Error: URI Too Long</pre> page that has no
+    // landmark elements, causing an axe "region" accessibility violation.
+    // Fall back to the base path so the SPA can render a proper error state.
+    var MAX_REDIRECT_URL_LENGTH = 2048;
+    if (target.length > MAX_REDIRECT_URL_LENGTH) {
+      target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
+    }
+
     if (target !== l.href) {
       l.replace(target);
     }
