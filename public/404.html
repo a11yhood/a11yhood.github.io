@@ -32,6 +32,13 @@
       target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
     }
 
+    // Guard against URI Too Long (HTTP 414): if the redirect URL would exceed
+    // a safe character limit, fall back to the base path so the SPA can render
+    // a proper page (with a level-one heading) rather than a server error page.
+    if (target.length > 2000) {
+      target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
+    }
+
     if (target !== l.href) {
       l.replace(target);
     }
