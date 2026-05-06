@@ -1,7 +1,8 @@
 /**
  * Accessibility tests for the Not Found (404) page.
- * Ensures WCAG 2.1 compliance: page must contain a level-one heading
- * (https://dequeuniversity.com/rules/axe/4.11/page-has-heading-one).
+ * Ensures WCAG 2.1 compliance:
+ * - Page must contain a level-one heading (page-has-heading-one).
+ * - Page must have exactly one main landmark (landmark-one-main).
  */
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
@@ -46,5 +47,21 @@ describe('NotFoundPage – level-one heading', () => {
 
     const results = await runA11yScan(container)
     expect(results).toHaveNoViolations()
+  })
+})
+
+describe('NotFoundPage – landmark-one-main (within full App)', () => {
+  it('has exactly one main landmark when rendered inside App on an unmatched route', () => {
+    render(
+      <MemoryRouter initialEntries={['/this-route-does-not-exist']}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </MemoryRouter>
+    )
+
+    // There must be exactly one <main> element in the document
+    const mains = document.querySelectorAll('main')
+    expect(mains.length).toBe(1)
   })
 })

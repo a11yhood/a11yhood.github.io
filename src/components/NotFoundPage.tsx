@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom'
  * NotFoundPage renders when no route matches.
  * The <h1> helps satisfy axe's page-has-heading-one rule
  * for any unrecognized URL path (e.g. /draft/211/).
+ *
+ * Rendered inside App's <main> landmark — use div to avoid nested <main> elements.
  */
 export function NotFoundPage() {
   return (
