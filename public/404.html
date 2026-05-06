@@ -25,11 +25,12 @@
     var encodedSearch = encodeURIComponent(searchPayload);
     var redirectPath = basePath + '?/' + encodedRoute + (searchPayload ? '&' + encodedSearch : '');
     var target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + redirectPath + l.hash;
+    var baseTarget = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
 
     // Guard against self-redirect loops (e.g. /pr-preview/331/?/%2F%26...).
     // If the computed target is identical, fall back to the canonical base path.
     if (target === l.href) {
-      target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
+      target = baseTarget;
     }
 
     // Guard against URI Too Long (HTTP 414): if the redirect URL would exceed a safe
@@ -37,7 +38,7 @@
     // causing an axe "region" violation.  Fall back to the base path so the SPA loads
     // and shows the NotFoundPage instead.
     if (target.length > 2000) {
-      target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
+      target = baseTarget;
     }
 
     if (target !== l.href) {
