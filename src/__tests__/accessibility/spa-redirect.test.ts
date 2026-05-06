@@ -90,7 +90,7 @@ function applyIndexRedirect(
   // Query is NOT decoded – passed through as-is (no double-encoding from 404.html)
   let query = q.slice(1).join('&')
   // Malformed data guard
-  if (query.charAt(0) === '/' || query.slice(0, 3).toLowerCase() === '%2f') {
+  if (query.startsWith('/') || query.slice(0, 3).toLowerCase() === '%2f') {
     query = ''
   }
 
@@ -150,9 +150,10 @@ describe('public/404.html – redirect URL length', () => {
   it('does NOT double-encode equals signs in the search string', () => {
     const search = '?q=ramp&minRating=3'
     const target = compute404Redirect(ORIGIN, '/products', search, '')
-    // Original '=' in param values would wrongly become '%3D with double-encoding
-    // (We care about the ones in values, not the key=value separator which is kept as-is)
-    expect(target).not.toMatch(/q%3D/)
+    // With double-encoding the key=value separator '=' would become '%3D'.
+    // Verify that no key-value '=' in the search string is percent-encoded
+    // (i.e. that '%3D' does not appear anywhere in the redirect target).
+    expect(target).not.toContain('%3D')
   })
 
   it('still encodes slashes in the route path segment', () => {

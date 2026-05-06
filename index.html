@@ -35,7 +35,7 @@
 
           // A query string starting with '/' or '%2F' indicates malformed
           // redirect data; drop it to prevent URL growth loops.
-          if (query.charAt(0) === '/' || query.slice(0, 3).toLowerCase() === '%2f') {
+          if (query.startsWith('/') || query.slice(0, 3).toLowerCase() === '%2f') {
             query = '';
           }
 
