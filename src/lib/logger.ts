@@ -33,17 +33,50 @@ const sanitizeString = (input: string): string => {
   return output
 }
 
+const sanitizeErrorForLogging = (error: Error, seen: WeakSet<object>): Error => {
+  const sanitizedError = new Error(sanitizeString(error.message || ''))
+  sanitizedError.name = error.name
+
+  if (error.stack) {
+    sanitizedError.stack = sanitizeString(error.stack)
+  }
+
+  const causeDescriptor = Object.getOwnPropertyDescriptor(error, 'cause')
+  if (causeDescriptor) {
+    Object.defineProperty(sanitizedError, 'cause', {
+      ...causeDescriptor,
+      value: sanitizeForLogging(causeDescriptor.value, seen),
+    })
+  }
+
+  const errorWithFields = error as Error & Record<string, unknown>
+  const sanitizedErrorWithFields = sanitizedError as Error & Record<string, unknown>
+  for (const [key, nestedValue] of Object.entries(errorWithFields)) {
+    if (key === 'name' || key === 'message' || key === 'stack' || key === 'cause') {
+      continue
+    }
+
+    if (SENSITIVE_KEY_PATTERN.test(key)) {
+      sanitizedErrorWithFields[key] = REDACTED
+    } else {
+      sanitizedErrorWithFields[key] = sanitizeForLogging(nestedValue, seen)
+    }
+  }
+
+  return sanitizedError
+}
+
 const sanitizeForLogging = (value: unknown, seen = new WeakSet<object>()): unknown => {
   if (typeof value === 'string') {
     return sanitizeString(value)
   }
 
   if (value instanceof Error) {
-    return {
-      name: value.name,
-      message: sanitizeString(value.message || ''),
-      stack: sanitizeString(value.stack || ''),
+    if (seen.has(value)) {
+      return '[Circular]'
     }
+    seen.add(value)
+    return sanitizeErrorForLogging(value, seen)
   }
 
   if (Array.isArray(value)) {
