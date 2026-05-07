@@ -358,7 +358,7 @@ export function DiscussionSection({
         <p className="text-sm text-muted-foreground">Sign in to start a thread or reply.</p>
       ) : (
         <Card className="p-6" aria-labelledby="start-discussion-heading">
-          <CardTitle id="start-discussion-heading" className="text-lg font-semibold mb-4" as={'h1'}>
+          <CardTitle id="start-discussion-heading" className="text-base font-medium mb-4" as={'h2'}>
             Start a New Thread
           </CardTitle>
           <form onSubmit={handleSubmit} className="space-y-4">
