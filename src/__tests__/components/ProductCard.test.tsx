@@ -93,7 +93,7 @@ describeWithBackend('ProductCard - API-backed', () => {
     } else {
       ratingsFromApi = []
     }
-  })
+  }, 60000)
 
   it('should render product information', () => {
     render(<ProductCard product={productFromApi} ratings={ratingsFromApi} onClick={vi.fn()} />)
