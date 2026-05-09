@@ -521,7 +521,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
 
             <div className="space-y-2">
               {currentImageReference && (
-                <p className="text-xs text-muted-foreground break-all" aria-live="polite">
+                <p className="text-xs text-muted-foreground break-all">
                   {getImageReferenceSummary(currentImageReference, currentImageId)}
                 </p>
               )}
@@ -606,6 +606,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
                 variant="outline"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={disabled || isUploadingImage}
+                aria-busy={isUploadingImage}
                 className="w-full"
               >
                 {isUploadingImage ? 'Uploading Image…' : 'Upload Image File'}
