@@ -188,7 +188,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
         setCropSourceUrl(result)
         setCropSourceDimensions(null)
         onImageChange(result, altText)
-        notify.success('Image uploaded')
+        notify.success('Image selected')
       }
     }
     reader.onerror = () => notify.error('Failed to read file')
