@@ -354,7 +354,8 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
   const handleAltTextChange = (value: string) => {
     setAltText(value)
     // Keep parent state in sync even when preview is temporarily hidden during edit mode.
-    // `cropSourceUrl` tracks the currently confirmed image source in both preview and edit states.
+    // `cropSourceUrl` tracks the most recently confirmed image source (original or cropped)
+    // in both preview and edit states.
     const currentImageUrl = previewUrl ?? cropSourceUrl
     if (currentImageUrl) {
       logger.debug('[ProductImageManager.handleAltTextChange] Calling onImageChange:', { currentImageUrl, altText: value })
@@ -606,7 +607,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
                 variant="outline"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={disabled || isUploadingImage}
-                aria-busy={isUploadingImage}
+                aria-busy={isUploadingImage ? 'true' : 'false'}
                 className="w-full"
               >
                 {isUploadingImage ? 'Uploading Image…' : 'Upload Image File'}
