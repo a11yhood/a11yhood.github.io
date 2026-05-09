@@ -14,7 +14,7 @@ import { MagnifyingGlass, ArrowRight } from '@phosphor-icons/react'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
 
 const RANDOM_PRODUCT_COUNT = 5
-const NEWS_POST_LIMIT = 10
+const BLOG_POST_LIMIT = 10
 const EXCERPT_MAX_LENGTH = 200
 
 type HomePageProps = {
@@ -53,7 +53,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
         const dateB = b.publishDate || b.publishedAt || b.createdAt
         return Date.parse(dateB) - Date.parse(dateA)
       })
-      .slice(0, NEWS_POST_LIMIT)
+      .slice(0, BLOG_POST_LIMIT)
   }, [normalizedBlogPosts])
 
   const handleSearch = (e?: React.FormEvent) => {
@@ -70,7 +70,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
     return text.slice(0, maxLength).trim() + '...'
   }
 
-  const renderNewsContent = () => {
+  const renderBlogContent = () => {
     if (blogPostsLoading) {
       return (
         <Card>
@@ -236,11 +236,11 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
       </aside>
 
       <section
-        data-testid="homepage-news-section"
+        data-testid="homepage-blog-section"
         className="lg:col-start-4 lg:col-span-7 lg:row-start-2"
       >
-        <h2 className="text-2xl font-bold sm:text-3xl mb-4">News</h2>
-        {renderNewsContent()}
+        <h2 className="text-2xl font-bold sm:text-3xl mb-4">Blog</h2>
+        {renderBlogContent()}
       </section>
 
       <section
