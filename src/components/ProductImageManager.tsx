@@ -120,6 +120,59 @@ function isSupportedCropMimeType(mimeType: string) {
   return ['image/jpeg', 'image/png', 'image/webp'].includes(mimeType)
 }
 
+function parseImageIdFromUrl(referenceUrl: string) {
+  try {
+    const parsed = new URL(
+      referenceUrl,
+      typeof window !== 'undefined' ? window.location.origin : 'http://localhost'
+    )
+    const match = parsed.pathname.match(/\/api\/images\/([^/?#]+)/)
+    return match?.[1]
+  } catch {
+    return undefined
+  }
+}
+
+function getImageReferenceSummary(referenceUrl: string, imageId?: string) {
+  if (imageId) {
+    return `Image ID: ${decodeURIComponent(imageId)}`
+  }
+
+  if (referenceUrl.startsWith('data:image/')) {
+    return 'Image source: Uploaded file preview'
+  }
+
+  if (referenceUrl.startsWith('blob:')) {
+    return 'Image source: Local preview'
+  }
+
+  return `Image URL: ${referenceUrl}`
+}
+
+function isEditableImageReference(url: string | undefined) {
+  if (!url) {
+    return false
+  }
+
+  if (url.startsWith('/api/images/')) {
+    return true
+  }
+
+  return url.startsWith('http://') || url.startsWith('https://')
+}
+
+function toEditableInputUrl(referenceUrl: string | undefined) {
+  if (!referenceUrl || !isEditableImageReference(referenceUrl)) {
+    return ''
+  }
+
+  if (referenceUrl.startsWith('/api/images/') && typeof window !== 'undefined') {
+    return `${window.location.origin}${referenceUrl}`
+  }
+
+  return referenceUrl
+}
+
 async function sourceUrlToFile(sourceUrl: string): Promise<File> {
   try {
     const response = await fetch(sourceUrl)
@@ -163,38 +216,44 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
   const [cropXPercent, setCropXPercent] = useState(50)
   const [cropYPercent, setCropYPercent] = useState(50)
   const [isApplyingCrop, setIsApplyingCrop] = useState(false)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
   const { notify } = useNotifications()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cropPreviewRef = useRef<HTMLDivElement>(null)
   const activeCropPointerIdRef = useRef<number | null>(null)
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) {
       notify.error('Please select an image file')
+      input.value = ''
       return
     }
     if (file.size > 5 * 1024 * 1024) {
       notify.error('Image must be less than 5MB')
+      input.value = ''
       return
     }
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const result = ev.target?.result
-      if (typeof result === 'string') {
-        setUrlInput('')
-        setPreviewUrl(result)
-        setCropSourceUrl(result)
-        setCropSourceDimensions(null)
-        onImageChange(result, altText)
-        notify.success('Image uploaded')
-      }
+
+    setIsUploadingImage(true)
+    try {
+      const uploadedImageReference = await APIService.uploadImage(file)
+      const editableInputUrl = toEditableInputUrl(uploadedImageReference)
+      setUrlInput(editableInputUrl)
+      setPreviewUrl(uploadedImageReference)
+      setCropSourceUrl(uploadedImageReference)
+      setCropSourceDimensions(null)
+      onImageChange(uploadedImageReference, altText)
+      notify.success('Image uploaded')
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : 'Failed to upload image')
+    } finally {
+      setIsUploadingImage(false)
+      // Reset the input so the same file can be re-selected if needed
+      input.value = ''
     }
-    reader.onerror = () => notify.error('Failed to read file')
-    reader.readAsDataURL(file)
-    // Reset the input so the same file can be re-selected if needed
-    e.target.value = ''
   }
 
   // Keep image source state in sync when parent-provided image URL changes.
@@ -318,9 +377,8 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
 
   const handleEditImage = () => {
     logger.debug('[ProductImageManager.handleEditImage] Editing image - populating fields with current values')
-    // Pre-populate the URL input field with current value
-    // (altText already has the current value in state)
-    setUrlInput(previewUrl || '')
+    // Only prefill with editable URLs; local data/blob previews are not useful to edit.
+    setUrlInput(toEditableInputUrl(previewUrl))
     // Clear preview to show input mode
     setPreviewUrl(undefined)
   }
@@ -413,6 +471,9 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
     }
   }
 
+  const currentImageReference = (previewUrl ?? cropSourceUrl ?? urlInput.trim()) || undefined
+  const currentImageId = currentImageReference ? parseImageIdFromUrl(currentImageReference) : undefined
+
   return (
     <>
       <div className="space-y-4">
@@ -457,6 +518,11 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
             </div>
 
             <div className="space-y-2">
+              {currentImageReference && (
+                <p className="text-xs text-muted-foreground break-all" aria-live="polite">
+                  {getImageReferenceSummary(currentImageReference, currentImageId)}
+                </p>
+              )}
               <label className="block text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
                 Alt Text <span className="text-destructive">*</span>
                 <Input
@@ -530,17 +596,17 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
                 accept="image/*"
                 className="hidden"
                 onChange={handleFileUpload}
-                disabled={disabled}
+                disabled={disabled || isUploadingImage}
                 aria-label="Upload image file"
               />
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={disabled}
+                disabled={disabled || isUploadingImage}
                 className="w-full"
               >
-                Upload Image File
+                {isUploadingImage ? 'Uploading Image…' : 'Upload Image File'}
               </Button>
               <p className="text-xs text-muted-foreground mt-1">Upload an image from your device (max 5MB)</p>
             </div>

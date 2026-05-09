@@ -67,6 +67,60 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
   const [isScrapingUrl, setIsScrapingUrl] = useState(false)
   const [urlToCheck, setUrlToCheck] = useState('')
 
+  const resolveScrapedImageReference = (primaryImageUrl: unknown, imageReference: unknown): string | undefined => {
+    const tryAsAbsoluteUrl = (value: unknown) => {
+      if (typeof value !== 'string') return undefined
+      const trimmed = value.trim()
+      if (!trimmed) return undefined
+      try {
+        const parsed = new URL(trimmed)
+        return parsed.toString()
+      } catch {
+        return undefined
+      }
+    }
+
+    const imageUrlFromPrimary = tryAsAbsoluteUrl(primaryImageUrl)
+    if (imageUrlFromPrimary) {
+      return imageUrlFromPrimary
+    }
+
+    const imageUrlFromReference = tryAsAbsoluteUrl(imageReference)
+    if (imageUrlFromReference) {
+      return imageUrlFromReference
+    }
+
+    const referenceId = (() => {
+      if (typeof imageReference === 'number' && Number.isFinite(imageReference)) {
+        return String(Math.trunc(imageReference))
+      }
+
+      if (typeof imageReference === 'string') {
+        const trimmed = imageReference.trim()
+        if (/^\d+$/.test(trimmed)) {
+          return trimmed
+        }
+      }
+
+      return undefined
+    })()
+
+    if (!referenceId) {
+      return undefined
+    }
+
+    const base = APIService.getBaseUrl().replace(/\/$/, '')
+    if (base) {
+      return `${base}/api/images/${encodeURIComponent(referenceId)}`
+    }
+
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/api/images/${encodeURIComponent(referenceId)}`
+    }
+
+    return `/api/images/${encodeURIComponent(referenceId)}`
+  }
+
   // Expose close method to parent via ref
   useImperativeHandle(ref, () => ({
     close: () => {
@@ -158,8 +212,9 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
         if (p.description) setDescription(p.description)
         if (p.type) setType(p.type)
         if (p.tags) setTags(p.tags)
-        if (p.imageUrl || p.image) {
-          setImageUrl(p.imageUrl || p.image)
+        const scrapedImageUrl = resolveScrapedImageReference(p.imageUrl, p.image)
+        if (scrapedImageUrl) {
+          setImageUrl(scrapedImageUrl)
           if (p.imageAlt) setImageAlt(p.imageAlt)
         }
         if (p.sourceLastUpdated || p.source_last_updated) setSourceLastUpdated(p.sourceLastUpdated || p.source_last_updated)

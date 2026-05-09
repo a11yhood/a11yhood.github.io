@@ -471,6 +471,45 @@ describe('ProductSubmission', () => {
       // Should show success notification
       expect(notificationSpies.success).toHaveBeenCalledWith(expect.stringContaining('Successfully scraped'))
     })
+
+    it('converts scraped numeric image references into image URLs and shows image ID', async () => {
+      vi.spyOn(APIService, 'loadUrl').mockResolvedValueOnce({
+        success: true,
+        product: {
+          id: 'test-id-image-ref',
+          name: 'Image Id Product',
+          description: 'Product with an image table ID from scraper response',
+          type: 'Software',
+          source: 'github',
+          sourceUrl: 'https://github.com/test/image-id-product',
+          image: 98765,
+          tags: ['accessibility'],
+        } as any,
+        source: 'scraped',
+      })
+
+      render(
+        <ProductSubmission
+          user={mockUser}
+          onSubmit={mockOnSubmit}
+          onRequestOwnership={mockOnRequestOwnership}
+        />
+      )
+
+      fireEvent.click(screen.getByText('Submit Product'))
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Product URL')).toBeInTheDocument()
+      })
+
+      const urlInput = screen.getByLabelText('Product URL')
+      fireEvent.change(urlInput, { target: { value: 'https://github.com/test/image-id-product' } })
+      fireEvent.click(screen.getByText('Check'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Image ID: 98765')).toBeInTheDocument()
+      })
+    })
   })
 
   describe('URL Checking - Unsupported URLs', () => {
