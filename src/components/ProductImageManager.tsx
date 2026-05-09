@@ -197,15 +197,21 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
     e.target.value = ''
   }
 
-  // Sync internal state when props change (e.g., when dialog opens with existing product data)
+  // Keep image source state in sync when parent-provided image URL changes.
+  // This should not run on every alt text keystroke, or edit mode gets interrupted.
   useEffect(() => {
-    logger.debug('[ProductImageManager] Props changed:', { imageUrl, imageAlt })
+    logger.debug('[ProductImageManager] Image URL prop changed:', { imageUrl })
     setUrlInput(imageUrl || '')
-    setAltText(imageAlt || '')
     setPreviewUrl(imageUrl)
     setCropSourceUrl(imageUrl)
     setCropSourceDimensions(null)
-  }, [imageUrl, imageAlt])
+  }, [imageUrl])
+
+  // Keep alt text in sync from parent updates without forcing preview/edit mode transitions.
+  useEffect(() => {
+    logger.debug('[ProductImageManager] Image alt prop changed:', { imageAlt })
+    setAltText(imageAlt || '')
+  }, [imageAlt])
 
   useEffect(() => {
     if (!cropDialogOpen || !cropSourceUrl) {
@@ -288,9 +294,12 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
 
   const handleAltTextChange = (value: string) => {
     setAltText(value)
-    if (previewUrl) {
-      logger.debug('[ProductImageManager.handleAltTextChange] Calling onImageChange:', { previewUrl, altText: value })
-      onImageChange(previewUrl, value)
+    // Keep parent state in sync even when preview is temporarily hidden during edit mode.
+    // `cropSourceUrl` tracks the currently confirmed image source in both preview and edit states.
+    const currentImageUrl = previewUrl ?? cropSourceUrl
+    if (currentImageUrl) {
+      logger.debug('[ProductImageManager.handleAltTextChange] Calling onImageChange:', { currentImageUrl, altText: value })
+      onImageChange(currentImageUrl, value)
     }
   }
 
@@ -544,7 +553,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
                   name="imageAlt"
                   autoComplete="off"
                   value={altText}
-                  onChange={(e) => setAltText(e.target.value)}
+                  onChange={(e) => handleAltTextChange(e.target.value)}
                   placeholder="Describe the image for accessibility (minimum 10 characters)"
                   disabled={disabled}
                   aria-invalid={!!imageAltError}

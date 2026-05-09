@@ -1054,5 +1054,67 @@ describe('ProductSubmission', () => {
     })
   })
 
+  describe('Image Alt Text Sync', () => {
+    it('should submit edited image alt text after switching to image edit mode', async () => {
+      const user = userEvent.setup()
+
+      render(
+        <ProductSubmission
+          user={mockUser}
+          onSubmit={mockOnSubmit}
+          onRequestOwnership={mockOnRequestOwnership}
+        />
+      )
+
+      fireEvent.click(screen.getByText('Submit Product'))
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Product URL')).toBeInTheDocument()
+      })
+
+      const urlCheckInput = screen.getByLabelText('Product URL')
+      fireEvent.change(urlCheckInput, { target: { value: 'https://example.com/alt-sync-test' } })
+      fireEvent.click(screen.getByRole('button', { name: /Check/i }))
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Product Name/i)).toBeInTheDocument()
+      })
+
+      fireEvent.change(screen.getByLabelText(/Product Name/i), { target: { value: 'Alt Sync Product' } })
+      fireEvent.change(screen.getByLabelText('Description *'), {
+        target: { value: 'This product description is long enough to satisfy validation checks.' },
+      })
+
+      const typeInput = screen.getByLabelText(/Product Type/i)
+      await user.click(typeInput)
+      const softwareOption = await screen.findByRole('option', { name: 'Software' })
+      await user.click(softwareOption)
+
+      const imageUrlInput = screen.getByLabelText(/Image URL/i)
+      fireEvent.change(imageUrlInput, { target: { value: 'https://example.com/alt-sync-image.png' } })
+      fireEvent.click(screen.getByRole('button', { name: /Add URL/i }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Edit image URL and alt text/i })).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: /Edit image URL and alt text/i }))
+
+      const altInput = screen.getByRole('textbox', { name: /Alt Text/i })
+      await user.clear(altInput)
+      await user.type(altInput, 'Updated alt text propagated from edit mode')
+
+      fireEvent.click(screen.getByRole('button', { name: /^Submit Product$/i }))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalled()
+      })
+
+      const submittedProduct = mockOnSubmit.mock.calls.at(-1)?.[0]
+      expect(submittedProduct.imageAlt).toBe('Updated alt text propagated from edit mode')
+      expect(submittedProduct.imageUrl).toBe('https://example.com/alt-sync-image.png')
+    })
+  })
+
   // Additional URLs during submission removed: tests deleted
 })
