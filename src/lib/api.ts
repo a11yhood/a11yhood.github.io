@@ -22,10 +22,10 @@ export function getApiBaseUrl(
 
   const origin = locationOrigin ?? (typeof window !== 'undefined' ? window.location.origin : '')
 
-  // For https localhost frontend talking to http localhost backend, fall back to relative paths
-  // so the Vite proxy can avoid mixed-content/CORS. Only do this for runtime (when locationOrigin
-  // is not explicitly supplied, e.g., tests pass locationOrigin and should keep the configured base).
-  if (!locationOrigin && configuredBaseUrl.startsWith('http://localhost') && origin.startsWith('https://localhost')) {
+  // For localhost frontend talking to a localhost backend on a different port, fall back to
+  // relative paths so the Vite proxy handles the request (avoids CORS and mixed-content).
+  // Only do this for runtime (tests pass locationOrigin explicitly and keep the configured base).
+  if (!locationOrigin && /^https?:\/\/localhost(:\d+)?/.test(configuredBaseUrl) && /^https?:\/\/localhost(:\d+)?/.test(origin)) {
     return ''
   }
 
@@ -377,6 +377,13 @@ async function request<T>(
   return result
 }
 
+type ImageUploadCrop = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export class APIService {
   private static normalizeCollection(collection: Collection): Collection {
     const raw = collection as Collection & {
@@ -420,6 +427,79 @@ export class APIService {
     await request('/auth/signout', {
       method: 'POST',
     })
+  }
+
+  static async uploadImage(file: File, crop?: ImageUploadCrop): Promise<string> {
+    const base = getApiBaseUrl()
+    const url = `${base}/api/images/upload`
+    const token = getAuthToken ? await getAuthToken() : null
+    const formData = new FormData()
+
+    formData.append('file', file)
+
+    if (crop) {
+      formData.append('crop_x', String(crop.x))
+      formData.append('crop_y', String(crop.y))
+      formData.append('crop_width', String(crop.width))
+      formData.append('crop_height', String(crop.height))
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(token ? { 'X-Forwarded-Authorization': token } : {}),
+      },
+    })
+
+    if (!response.ok) {
+      let errorData: any = { message: response.statusText }
+      const contentType = response.headers.get('content-type') || ''
+
+      if (contentType.includes('application/json')) {
+        errorData = await response.json().catch(() => ({ message: response.statusText }))
+      } else {
+        const errorText = await response.text().catch(() => '')
+        errorData = { message: errorText?.trim() || response.statusText }
+      }
+
+      throw new APIError(
+        errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`,
+        response.status,
+        errorData
+      )
+    }
+
+    const contentType = response.headers.get('content-type') || ''
+    if (contentType.includes('application/json')) {
+      const data = await response.json()
+
+      if (typeof data === 'string') {
+        return data
+      }
+
+      if (typeof data?.imageUrl === 'string') {
+        return data.imageUrl
+      }
+
+      if (typeof data?.url === 'string') {
+        return data.url
+      }
+
+      if (typeof data?.dataUrl === 'string') {
+        return data.dataUrl
+      }
+
+      throw new APIError('Image upload succeeded but returned an unexpected payload.', 500, data)
+    }
+
+    const dataUrl = (await response.text()).trim()
+    if (!dataUrl) {
+      throw new APIError('Image upload succeeded but returned an empty response.', 500)
+    }
+
+    return dataUrl
   }
   
   // Get user account by internal user ID (Supabase UUID)
