@@ -1080,11 +1080,14 @@ function CollectionsPage({
           )}
         </>
       ) : (
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-3xl font-bold">Collections</h1>
+            <Button variant="outline" onClick={() => navigate('/')}>
+              ← Back to Products
+            </Button>
+          </div>
           <p className="text-lg text-muted-foreground">Log in to create your own collection</p>
-          <Button variant="outline" onClick={() => navigate('/')}>
-            ← Back to Products
-          </Button>
         </div>
       )}
 
@@ -2727,7 +2730,8 @@ function App() {
     // Call auth context signIn which triggers GitHub OAuth
     signIn().catch((error) => {
       console.error('[App] ❌ Sign in error:', error)
-      showPageError('Failed to sign in. Please try again.')
+      const detail = error instanceof Error ? error.message : ''
+      showPageError(detail ? `Failed to sign in: ${detail}` : 'Failed to sign in. Please try again.')
     })
     console.log('[App] → signIn() called (waiting for redirect or error)')
   }
@@ -3381,8 +3385,10 @@ function AuthCallback() {
       } catch (e) {
         console.error('[AuthCallback] Failed to process session from URL:', e)
       } finally {
-        // Clean up the URL and redirect to home
-        window.history.replaceState({}, document.title, '/')
+        // Clean up URL fragments while preserving app basename for hosted deployments.
+        const basePathRaw = import.meta.env.BASE_URL || '/'
+        const basePath = basePathRaw.endsWith('/') ? basePathRaw : `${basePathRaw}/`
+        window.history.replaceState({}, document.title, basePath)
         navigate('/', { replace: true })
       }
     }
@@ -3391,6 +3397,7 @@ function AuthCallback() {
 
   return (
     <div className="text-center py-12">
+      <h1 className="sr-only">Signing in</h1>
       <p className="text-lg text-muted-foreground">Signing you in…</p>
     </div>
   )

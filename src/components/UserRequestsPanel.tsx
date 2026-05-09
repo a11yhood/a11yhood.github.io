@@ -166,7 +166,7 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle as="h2" className="flex items-center gap-2">
             <FolderOpen size={24} />
             Product editor requests
           </CardTitle>

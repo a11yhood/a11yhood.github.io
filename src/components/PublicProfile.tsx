@@ -140,7 +140,7 @@ export function PublicProfile({ username }: { username: string }) {
               </Avatar>
               <div className="space-y-2">
                 <div>
-                  <CardTitle className="text-2xl flex items-center gap-2">
+                  <CardTitle as="h2" className="text-2xl flex items-center gap-2">
                     {account.displayName || account.username || username}
                     {account.role === 'moderator' && (
                       <Badge variant="secondary">Editor</Badge>
@@ -197,7 +197,7 @@ export function PublicProfile({ username }: { username: string }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle as="h2" className="flex items-center gap-2">
             <ChartBar size={24} />
             Contribution Statistics
           </CardTitle>
@@ -227,7 +227,7 @@ export function PublicProfile({ username }: { username: string }) {
       {managedProducts.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle as="h2" className="flex items-center gap-2">
               <BookOpen size={24} />
               Edited Products ({managedProducts.length})
             </CardTitle>
@@ -256,7 +256,7 @@ export function PublicProfile({ username }: { username: string }) {
       {blogPosts.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle as="h2" className="flex items-center gap-2">
               <Article size={24} />
               Posts ({blogPosts.length})
             </CardTitle>
@@ -296,7 +296,7 @@ export function PublicProfile({ username }: { username: string }) {
       {userCollections.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle as="h2" className="flex items-center gap-2">
               <FolderOpen size={24} />
               Collections ({userCollections.length})
             </CardTitle>
@@ -327,7 +327,7 @@ export function PublicProfile({ username }: { username: string }) {
                       )}
                     </div>
                     <CardHeader>
-                      <CardTitle className="text-lg">{collection.name}</CardTitle>
+                      <CardTitle as="h2" className="text-lg">{collection.name}</CardTitle>
                       {collection.description && (
                         <CardDescription className="line-clamp-2">
                           {collection.description}

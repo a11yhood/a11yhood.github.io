@@ -42,7 +42,7 @@ export function UserSignup({ user, onComplete, onSkip }: UserSignupProps) {
               <CheckCircle size={48} className="text-primary" weight="duotone" />
             </div>
           </div>
-          <CardTitle className="text-3xl">Welcome to a11yhood!</CardTitle>
+          <CardTitle as="h1" className="text-3xl leading-none">Welcome to a11yhood!</CardTitle>
           <CardDescription className="text-base mt-2">
             Complete your profile to get started (or skip for now)
           </CardDescription>
@@ -146,7 +146,7 @@ export function UserSignup({ user, onComplete, onSkip }: UserSignupProps) {
             </fieldset>
 
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
-              <h3 className="font-semibold mb-2 text-sm">What you can do on a11yhood:</h3>
+              <h2 className="font-semibold mb-2 text-sm">What you can do on a11yhood:</h2>
               <ul className="text-sm space-y-1 text-muted-foreground">
                 <li>✓ Browse and find access solutions</li>
                 <li>✓ Rate products you've tried</li>
