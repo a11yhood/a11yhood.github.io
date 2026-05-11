@@ -6,6 +6,7 @@ export const REDUCED_TEST_INCLUDE = [
   '**/__tests__/helpers/**/*.test.{ts,tsx}',
   '**/__tests__/types/**/*.test.{ts,tsx}',
   '**/__tests__/lib/api.base-url.test.ts',
+  '**/__tests__/lib/api.upload-image.test.ts',
   '**/__tests__/lib/api.timestamp-validation.test.ts',
   '**/__tests__/lib/source-ratings.test.ts',
   '**/__tests__/lib/normalize-image-url.test.ts',

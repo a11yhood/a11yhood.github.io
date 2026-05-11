@@ -59,7 +59,7 @@ type CropRect = {
   height: number
 }
 
-function calculateCropRect(imageWidth: number, imageHeight: number, xPercent: number, yPercent: number): CropRect {
+export function calculateCropRect(imageWidth: number, imageHeight: number, xPercent: number, yPercent: number): CropRect {
   const imageAspectRatio = imageWidth / imageHeight
 
   if (imageAspectRatio > PRODUCT_IMAGE_ASPECT_RATIO) {
@@ -94,7 +94,7 @@ function calculateCropRect(imageWidth: number, imageHeight: number, xPercent: nu
   }
 }
 
-function getCropPreviewSize(imageWidth: number, imageHeight: number) {
+export function getCropPreviewSize(imageWidth: number, imageHeight: number) {
   const scale = Math.min(
     MAX_CROP_PREVIEW_WIDTH / imageWidth,
     MAX_CROP_PREVIEW_HEIGHT / imageHeight,
@@ -386,8 +386,10 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
   }
 
   const commitAltTextToParent = useCallback(() => {
-    // Commit alt text to parent only on blur/save to avoid per-keystroke state churn.
-    // `cropSourceUrl` tracks the confirmed image source in both preview and edit states.
+    // Keep parent state in sync even when preview is temporarily hidden during edit mode.
+    // Commit alt text on blur/save to avoid per-keystroke state churn.
+    // `cropSourceUrl` tracks the most recently confirmed image source (original or cropped)
+    // in both preview and edit states.
     const currentImageUrl = previewUrl ?? cropSourceUrl
     if (currentImageUrl) {
       logger.debug('[ProductImageManager.commitAltTextToParent] Calling onImageChange:', { currentImageUrl, altText })
@@ -493,6 +495,8 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
       const imageFile = await sourceUrlToFile(cropSourceUrl)
       const croppedImageUrl = await APIService.uploadImage(imageFile, cropRect)
       setPreviewUrl(croppedImageUrl)
+      setCropSourceUrl(croppedImageUrl)
+      setCropSourceDimensions(null)
       logger.debug('[ProductImageManager.handleApplyCrop] Calling onImageChange:', { croppedImageUrl, altText, cropRect })
       onImageChange(croppedImageUrl, altText)
       setCropDialogOpen(false)
@@ -553,7 +557,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
 
             <div className="space-y-2">
               {currentImageReference && (
-                <p className="text-xs text-muted-foreground break-all" aria-live="polite">
+                <p className="text-xs text-muted-foreground break-all">
                   {getImageReferenceSummary(currentImageReference, currentImageId)}
                 </p>
               )}
@@ -649,6 +653,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
                       fileInputRef.current?.click()
                     }}
                     disabled={disabled || isUploadingImage}
+                    aria-busy={isUploadingImage ? 'true' : 'false'}
                     className="w-full"
                   >
                     {isUploadingImage ? 'Uploading Image…' : 'Upload Image File'}
