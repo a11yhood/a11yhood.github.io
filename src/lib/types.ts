@@ -21,7 +21,8 @@ export type Product = {
   
   // Product classification and presentation
   description: string
-  imageUrl?: string // Base64 or URL to product image
+  imageUrl?: string // Editor input or product image URL (may be transient during upload)
+  imageId?: string // Canonical backend image reference (maps from image_id)
   imageAlt?: string // Accessibility: descriptive text for screen readers
   tags: string[] // User-defined and scraped tags
   

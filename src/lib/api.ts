@@ -82,6 +82,64 @@ function toSnakeCase(obj: any): any {
   return result
 }
 
+function normalizeProductImageReference<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeProductImageReference(item)) as T
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value
+  }
+
+  const record = value as Record<string, unknown>
+  const imageRecord = record.image && typeof record.image === 'object'
+    ? (record.image as Record<string, unknown>)
+    : undefined
+
+  const maybeImageId = record.imageId ?? imageRecord?.id
+  const imageUrl = typeof record.imageUrl === 'string' ? record.imageUrl.trim() : ''
+  const nestedImageUrl = typeof imageRecord?.url === 'string' ? imageRecord.url.trim() : ''
+  const nestedImageAlt = typeof imageRecord?.alt === 'string' ? imageRecord.alt.trim() : ''
+
+  const hasProductIdentity = 'id' in record || 'slug' in record
+  const hasImageReferenceFields = maybeImageId !== undefined || !!nestedImageUrl || imageUrl.startsWith('data:image/')
+
+  const hasStaleDataUrl = imageUrl.startsWith('data:image/')
+  const shouldReplaceImageUrl = !imageUrl || hasStaleDataUrl
+
+  if (hasProductIdentity && hasImageReferenceFields && shouldReplaceImageUrl) {
+    if (typeof maybeImageId === 'string' && maybeImageId.trim()) {
+      record.imageUrl = `/api/images/${encodeURIComponent(maybeImageId.trim())}`
+    } else if (nestedImageUrl) {
+      record.imageUrl = nestedImageUrl
+      if (nestedImageAlt) {
+        record.imageAlt = nestedImageAlt
+      }
+    } else if (hasStaleDataUrl) {
+      // New contract: stale data URLs should never be treated as persistent product image references.
+      delete record.imageUrl
+    }
+  }
+
+  if (record.imageId === undefined) {
+    if (typeof maybeImageId === 'string' && maybeImageId.trim()) {
+      record.imageId = maybeImageId.trim()
+    }
+  }
+
+  if ((record.imageAlt === undefined || record.imageAlt === null || record.imageAlt === '') && nestedImageAlt) {
+    record.imageAlt = nestedImageAlt
+  }
+
+  for (const [key, child] of Object.entries(record)) {
+    if (child && typeof child === 'object') {
+      record[key] = normalizeProductImageReference(child)
+    }
+  }
+
+  return record as T
+}
+
 class APIError extends Error {
   constructor(
     message: string,
@@ -259,14 +317,17 @@ async function handleResponse<T>(response: Response): Promise<T> {
     logger.debug('[API.handleResponse] 🖼️ Product update response:', {
       url: response.url,
       hasImageUrl: 'image_url' in data,
+      hasImageId: 'image_id' in data,
       hasImageAlt: 'image_alt' in data,
       imageUrl: (data as any).image_url,
+      imageId: (data as any).image_id,
       imageAlt: (data as any).image_alt,
       rawData: data
     })
   }
-  
-  return toCamelCase(data) as T
+
+  const camel = toCamelCase(data)
+  return normalizeProductImageReference(camel) as T
 }
 
 async function request<T>(
@@ -321,11 +382,11 @@ async function request<T>(
       logger.debug('[API] Body conversion - camelCase:', bodyObj)
       logger.debug('[API] Body conversion - snake_case:', snakeCaseBody)
       
-      // Special logging for image fields
-      if (endpoint.includes('/products/') && (bodyObj.imageUrl !== undefined || bodyObj.imageAlt !== undefined)) {
+      // Special logging for product image payloads
+      if (endpoint.includes('/products/') && (bodyObj.image !== undefined || bodyObj.imageUrl !== undefined || bodyObj.imageAlt !== undefined)) {
         logger.debug('[API] 🖼️ Image fields in update:', {
-          camelCase: { imageUrl: bodyObj.imageUrl, imageAlt: bodyObj.imageAlt },
-          snakeCase: { image_url: snakeCaseBody.image_url, image_alt: snakeCaseBody.image_alt }
+          camelCase: { image: bodyObj.image, imageUrl: bodyObj.imageUrl, imageAlt: bodyObj.imageAlt },
+          snakeCase: { image: snakeCaseBody.image, image_url: snakeCaseBody.image_url, image_alt: snakeCaseBody.image_alt }
         })
       }
       
@@ -384,6 +445,109 @@ type ImageUploadCrop = {
   height: number
 }
 
+function normalizeUploadedImageId(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim()) {
+    return `/api/images/${encodeURIComponent(value.trim())}`
+  }
+
+  return null
+}
+
+function normalizeUploadedImageReference(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return null
+  }
+
+  const relativeMatch = trimmed.match(/^\/api\/images\/([^/?#]+)$/)
+  if (relativeMatch?.[1]) {
+    return `/api/images/${encodeURIComponent(decodeURIComponent(relativeMatch[1]))}`
+  }
+
+  try {
+    const parsed = new URL(trimmed)
+    const absoluteMatch = parsed.pathname.match(/^\/api\/images\/([^/?#]+)$/)
+    if (absoluteMatch?.[1]) {
+      return `/api/images/${encodeURIComponent(decodeURIComponent(absoluteMatch[1]))}`
+    }
+  } catch {
+    // Not an absolute URL; fall back to treating as raw image ID.
+  }
+
+  return normalizeUploadedImageId(trimmed)
+}
+
+type ProductImagePayload = { id: string; alt?: string }
+
+function normalizeImageAlt(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+
+  const trimmed = value.trim()
+  return trimmed || undefined
+}
+
+function buildImagePayloadFromUrl(imageUrl: string, imageAlt?: string): ProductImagePayload | undefined {
+  if (imageUrl.startsWith('data:image/')) {
+    return undefined
+  }
+
+  const relativeMatch = imageUrl.match(/^\/api\/images\/([^/?#]+)$/)
+  if (relativeMatch?.[1]) {
+    return imageAlt ? { id: decodeURIComponent(relativeMatch[1]), alt: imageAlt } : { id: decodeURIComponent(relativeMatch[1]) }
+  }
+
+  try {
+    const parsed = new URL(imageUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+    const match = parsed.pathname.match(/^\/api\/images\/([^/?#]+)$/)
+    if (match?.[1]) {
+      return imageAlt ? { id: decodeURIComponent(match[1]), alt: imageAlt } : { id: decodeURIComponent(match[1]) }
+    }
+  } catch {
+    return undefined
+  }
+
+  return undefined
+}
+
+function buildProductImagePayload(input: {
+  image?: unknown
+  imageUrl?: unknown
+  imageAlt?: unknown
+}): ProductImagePayload | null | undefined {
+  if (input.image === null) {
+    return null
+  }
+
+  const imageAlt = normalizeImageAlt(input.imageAlt)
+
+  if (input.image && typeof input.image === 'object') {
+    const imageObj = input.image as { id?: unknown; alt?: unknown }
+    if (typeof imageObj.id === 'string' && imageObj.id.trim()) {
+      const alt = normalizeImageAlt(imageObj.alt) ?? imageAlt
+      const id = imageObj.id.trim()
+      return alt ? { id, alt } : { id }
+    }
+  }
+
+  const imageUrl = typeof input.imageUrl === 'string' ? input.imageUrl.trim() : input.imageUrl
+
+  if (imageUrl === null) {
+    return null
+  }
+
+  if (typeof imageUrl !== 'string' || !imageUrl) {
+    return undefined
+  }
+
+  return buildImagePayloadFromUrl(imageUrl, imageAlt)
+}
+
 export class APIService {
   private static normalizeCollection(collection: Collection): Collection {
     const raw = collection as Collection & {
@@ -434,6 +598,9 @@ export class APIService {
     const url = `${base}/api/images/upload`
     const token = getAuthToken ? await getAuthToken() : null
     const formData = new FormData()
+    const controller = new AbortController()
+    const timeoutMs = 30000
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
     formData.append('file', file)
 
@@ -444,13 +611,43 @@ export class APIService {
       formData.append('crop_height', String(crop.height))
     }
 
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(token ? { 'X-Forwarded-Authorization': token } : {}),
-      },
+    logger.debug('[API.uploadImage] Starting upload:', {
+      url,
+      hasToken: !!token,
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+      hasCrop: !!crop,
+    })
+
+    let response: Response
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(token ? { 'X-Forwarded-Authorization': token } : {}),
+        },
+      })
+    } catch (error) {
+      clearTimeout(timeoutId)
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        logger.error('[API.uploadImage] Upload timed out after 30s')
+        throw new APIError('Image upload timed out after 30 seconds. Please try again.', 408)
+      }
+      logger.error('[API.uploadImage] Upload request failed before response:', error)
+      throw error
+    } finally {
+      clearTimeout(timeoutId)
+    }
+
+    logger.debug('[API.uploadImage] Upload response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      contentType: response.headers.get('content-type') || '',
     })
 
     if (!response.ok) {
@@ -475,31 +672,42 @@ export class APIService {
     if (contentType.includes('application/json')) {
       const data = await response.json()
 
-      if (typeof data === 'string') {
-        return data
+      const objectData = data && typeof data === 'object'
+        ? (data as Record<string, unknown>)
+        : null
+
+      const candidates: unknown[] = [
+        data,
+        objectData?.id,
+        objectData?.image_id,
+        objectData?.url,
+        objectData?.image_url,
+        objectData?.path,
+      ]
+
+      for (const candidate of candidates) {
+        const normalized = normalizeUploadedImageReference(candidate)
+        if (normalized) {
+          return normalized
+        }
       }
 
-      if (typeof data?.imageUrl === 'string') {
-        return data.imageUrl
-      }
-
-      if (typeof data?.url === 'string') {
-        return data.url
-      }
-
-      if (typeof data?.dataUrl === 'string') {
-        return data.dataUrl
-      }
+      logger.error('[API.uploadImage] Unexpected JSON upload payload shape:', data)
 
       throw new APIError('Image upload succeeded but returned an unexpected payload.', 500, data)
     }
 
-    const dataUrl = (await response.text()).trim()
-    if (!dataUrl) {
+    const rawBody = (await response.text()).trim()
+    if (!rawBody) {
       throw new APIError('Image upload succeeded but returned an empty response.', 500)
     }
 
-    return dataUrl
+    const normalizedReference = normalizeUploadedImageReference(rawBody)
+    if (normalizedReference) {
+      return normalizedReference
+    }
+
+    throw new APIError('Image upload succeeded but returned an unexpected payload.', 500, rawBody)
   }
   
   // Get user account by internal user ID (Supabase UUID)
@@ -880,29 +1088,55 @@ export class APIService {
   }
 
   static async createProduct(product: Omit<Product, 'id' | 'createdAt'>): Promise<Product> {
+    const productWithImageInput = product as Omit<Product, 'id' | 'createdAt'> & {
+      image?: unknown
+      imageUrl?: unknown
+      imageAlt?: unknown
+    }
+    const image = buildProductImagePayload({
+      image: productWithImageInput.image,
+      imageUrl: productWithImageInput.imageUrl,
+      imageAlt: productWithImageInput.imageAlt,
+    })
+
+    const createPayload: Record<string, unknown> = {
+      ...product,
+      image,
+    }
+
+    // Image contract: send nested image object.
+    delete createPayload.imageId
+    delete createPayload.imageUrl
+    delete createPayload.imageAlt
+
     return request<Product>('/products', {
       method: 'POST',
-      body: JSON.stringify(product),
+      body: JSON.stringify(createPayload),
     })
   }
 
   static async updateProduct(
     productId: string,
-    updates: Partial<ProductUpdate>,
+    updates: Partial<ProductUpdate> & { image?: unknown },
     editorId?: string
   ): Promise<Product | null> {
     logger.debug('[API.updateProduct] Raw updates received:', updates)
     logger.debug('[API.updateProduct] EditorId:', editorId)
     
-    // Extract only editable fields that match backend's ProductUpdate schema
-    const editableUpdates: Partial<ProductUpdate & { editorId?: string }> = {
+    const image = buildProductImagePayload({
+      image: updates.image,
+      imageUrl: updates.imageUrl,
+      imageAlt: updates.imageAlt,
+    })
+
+    // Extract only editable fields for backend update schema.
+    const editableUpdates: Partial<ProductUpdate & { editorId?: string; image?: ProductImagePayload | null }> = {
       name: updates.name,
       description: updates.description,
       source: updates.source,
       sourceUrl: updates.sourceUrl,
       type: updates.type,
-      imageUrl: updates.imageUrl,
-      imageAlt: updates.imageAlt,
+      image,
       tags: updates.tags,
     }
     
@@ -922,10 +1156,8 @@ export class APIService {
     
     logger.debug('[API.updateProduct] Filtered editable updates (camelCase):', editableUpdates)
     logger.debug('[API.updateProduct] Image fields being sent:', {
-      imageUrl: editableUpdates.imageUrl,
-      imageAlt: editableUpdates.imageAlt,
-      hasImageUrl: 'imageUrl' in editableUpdates,
-      hasImageAlt: 'imageAlt' in editableUpdates
+      image: editableUpdates.image,
+      hasImage: 'image' in editableUpdates,
     })
     logger.debug('[API.updateProduct] Target endpoint:', `/products/${productId}`)
     

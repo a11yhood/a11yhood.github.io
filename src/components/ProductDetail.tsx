@@ -76,9 +76,22 @@ export function ProductDetail({
 }: ProductDetailProps) {
   const navigate = useNavigate()
   const [imageError, setImageError] = useState(false)
+  const [imageLooksInvisible, setImageLooksInvisible] = useState(false)
   const [localCollections, setLocalCollections] = useState<Collection[]>(userCollections)
   const collectionLoadStartedRef = useRef(false)
-  const shouldShowImage = !!product.imageUrl && !imageError
+  const resolvedImageUrl = (() => {
+    if (product.imageUrl) {
+      return product.imageUrl
+    }
+
+    const imageId = typeof product.imageId === 'string' ? product.imageId.trim() : ''
+    if (imageId) {
+      return `/api/images/${encodeURIComponent(imageId)}`
+    }
+
+    return undefined
+  })()
+  const shouldShowImage = !!resolvedImageUrl && !imageError
   const canModerate = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
   const isEditor = !!userAccount?.id && (product.editorIds?.includes(userAccount.id) || false)
   const [showAddToCollectionDialog, setShowAddToCollectionDialog] = useState(false)
@@ -129,6 +142,11 @@ export function ProductDetail({
     }
     prevShowAddToCollectionDialogRef.current = showAddToCollectionDialog
   }, [showAddToCollectionDialog, user])
+
+  useEffect(() => {
+    setImageError(false)
+    setImageLooksInvisible(false)
+  }, [resolvedImageUrl])
 
   console.log('[ProductDetail] Filtering ratings:', {
     productId: product.id,
@@ -277,12 +295,24 @@ export function ProductDetail({
         <div className="lg:col-span-2">
           <div className="mb-6">
             {shouldShowImage ? (
-              <img
-                src={product.imageUrl}
-                alt={product.imageAlt || `${product.name} product image`}
-                className="float-left mr-4 mb-3 sm:mr-6 sm:mb-4 rounded-lg max-w-[300px] w-full h-auto"
-                onError={() => setImageError(true)}
-              />
+              <div className="float-left mr-4 mb-3 sm:mr-6 sm:mb-4 max-w-[300px] w-full">
+                <img
+                  src={resolvedImageUrl}
+                  alt={product.imageAlt || `${product.name} product image`}
+                  className="rounded-lg w-full h-auto"
+                  onLoad={(event) => {
+                    const target = event.currentTarget
+                    // Tiny assets (e.g. 1x1 transparent PNGs) render as "nothing" to users.
+                    setImageLooksInvisible(target.naturalWidth <= 2 && target.naturalHeight <= 2)
+                  }}
+                  onError={() => setImageError(true)}
+                />
+                {imageLooksInvisible && (
+                  <p className="mt-2 text-xs text-muted-foreground" role="status" aria-live="polite">
+                    Image loaded, but the file is very small and may look blank.
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="float-left mr-4 mb-3 sm:mr-6 sm:mb-4 rounded-lg max-w-[300px] w-full h-auto min-h-[180px] bg-muted text-muted-foreground flex items-center justify-center text-sm">
                 <span aria-hidden="true">Image unavailable</span>

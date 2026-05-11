@@ -38,6 +38,22 @@ describe('ProductImageManager', () => {
     expect(screen.getByText('Image ID: 98765')).toBeInTheDocument()
   })
 
+  it('keeps showing image ID after switching to image edit mode', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <ProductImageManager
+        imageUrl="/api/images/24680"
+        imageAlt="Uploaded image"
+        onImageChange={vi.fn()}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: /edit image url and alt text/i }))
+
+    expect(screen.getByText('Image ID: 24680')).toBeInTheDocument()
+  })
+
   it('shows a compact label for uploaded data URLs instead of raw base64', () => {
     render(
       <ProductImageManager
@@ -49,6 +65,20 @@ describe('ProductImageManager', () => {
 
     expect(screen.getByText('Image source: Uploaded file preview')).toBeInTheDocument()
     expect(screen.queryByText(/Image URL: data:image/i)).not.toBeInTheDocument()
+  })
+
+  it('hides file upload controls when uploads are not allowed', () => {
+    render(
+      <ProductImageManager
+        imageUrl="https://example.com/photo.png"
+        imageAlt="Old alt text"
+        onImageChange={vi.fn()}
+        canUploadFile={false}
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: /upload image file/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/^or$/i)).not.toBeInTheDocument()
   })
 
   it('syncs alt text edits to parent while in image edit mode', async () => {
@@ -68,6 +98,7 @@ describe('ProductImageManager', () => {
     const altInput = screen.getByRole('textbox', { name: /alt text/i })
     await user.clear(altInput)
     await user.type(altInput, 'Updated alt text for product image')
+      altInput.blur() // Blur to trigger commitAltTextToParent
 
     expect(onImageChange).toHaveBeenCalled()
     expect(onImageChange).toHaveBeenLastCalledWith(

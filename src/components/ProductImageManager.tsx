@@ -14,11 +14,16 @@ type ProductImageManagerProps = {
   onImageChange: (imageUrl: string | undefined | null, imageAlt: string | undefined | null) => void
   disabled?: boolean
   imageAltError?: string
+  canUploadFile?: boolean
 }
 
 export type ProductImageManagerRef = {
   getPendingImageData: () => { url: string; alt: string } | null
   submitPendingImage: () => boolean
+  /** Returns the current alt text without triggering a state update. Use on submit to capture uncommitted keystrokes. */
+  getCommittedAltText: () => string | null
+  /** Indicates whether upload/crop work is still in-flight. */
+  isProcessingImage: () => boolean
 }
 
 /**
@@ -204,6 +209,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
     onImageChange,
     disabled = false,
     imageAltError,
+    canUploadFile = true,
   },
   ref
 ) => {
@@ -225,7 +231,15 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file) {
+      logger.debug('[ProductImageManager.handleFileUpload] No file selected (file picker canceled)')
+      return
+    }
+    logger.debug('[ProductImageManager.handleFileUpload] File selected:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+    })
     if (!file.type.startsWith('image/')) {
       notify.error('Please select an image file')
       input.value = ''
@@ -240,6 +254,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
     setIsUploadingImage(true)
     try {
       const uploadedImageReference = await APIService.uploadImage(file)
+      logger.debug('[ProductImageManager.handleFileUpload] Upload complete:', { uploadedImageReference })
       const editableInputUrl = toEditableInputUrl(uploadedImageReference)
       setUrlInput(editableInputUrl)
       setPreviewUrl(uploadedImageReference)
@@ -326,10 +341,18 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
     getPendingImageData: () => {
-      // Return pending URL data even if alt text is empty so the dialog's
-      // validation can catch the missing alt and show the appropriate error.
+      // Always return the manager's current image state first. This prevents
+      // submit-time races where parent form state is stale immediately after
+      // selecting/uploading an image.
+      const currentImageUrl = previewUrl ?? cropSourceUrl
+      if (currentImageUrl) {
+        return { url: currentImageUrl, alt: altText.trim() }
+      }
+
+      // Return pending URL input even if alt text is empty so the dialog's
+      // validation can catch missing alt text rather than dropping the URL.
       const trimmedUrl = urlInput.trim()
-      if (!previewUrl && trimmedUrl) {
+      if (trimmedUrl) {
         try {
           // Validate and normalize the URL before returning
           new URL(trimmedUrl)
@@ -348,19 +371,29 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
         return true
       }
       return false
-    }
-  }), [previewUrl, urlInput, altText, handleUrlSubmit])
+    },
+    getCommittedAltText: () => {
+      // Return the current alt text when an image is present, so submit handlers
+      // can read uncommitted keystrokes without waiting for a state update.
+      const currentImageUrl = previewUrl ?? cropSourceUrl
+      return currentImageUrl ? altText : null
+    },
+    isProcessingImage: () => isUploadingImage || isApplyingCrop,
+  }), [previewUrl, cropSourceUrl, urlInput, altText, handleUrlSubmit, isUploadingImage, isApplyingCrop])
 
   const handleAltTextChange = (value: string) => {
     setAltText(value)
-    // Keep parent state in sync even when preview is temporarily hidden during edit mode.
-    // `cropSourceUrl` tracks the currently confirmed image source in both preview and edit states.
+  }
+
+  const commitAltTextToParent = useCallback(() => {
+    // Commit alt text to parent only on blur/save to avoid per-keystroke state churn.
+    // `cropSourceUrl` tracks the confirmed image source in both preview and edit states.
     const currentImageUrl = previewUrl ?? cropSourceUrl
     if (currentImageUrl) {
-      logger.debug('[ProductImageManager.handleAltTextChange] Calling onImageChange:', { currentImageUrl, altText: value })
-      onImageChange(currentImageUrl, value)
+      logger.debug('[ProductImageManager.commitAltTextToParent] Calling onImageChange:', { currentImageUrl, altText })
+      onImageChange(currentImageUrl, altText)
     }
-  }
+  }, [previewUrl, cropSourceUrl, altText, onImageChange])
 
   const handleRemoveImage = () => {
     setPreviewUrl(undefined)
@@ -500,6 +533,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
                   size="sm"
                   onClick={handleOpenCropDialog}
                   disabled={disabled}
+                  className="!bg-white !text-black hover:!bg-white border border-border shadow-sm"
                 >
                   Crop
                 </Button>
@@ -509,7 +543,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
                 variant="destructive"
                 size="sm"
                 onClick={handleRemoveImage}
-                className="absolute top-2 right-2"
+                className="absolute top-2 right-2 !bg-white !text-black hover:!bg-white border border-border shadow-sm"
                 disabled={disabled}
               >
                 <Trash size={16} className="mr-1" />
@@ -524,14 +558,15 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
                 </p>
               )}
               <label className="block text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
-                Alt Text <span className="text-destructive">*</span>
+                Alt Text (optional)
                 <Input
                   id="image-alt-text"
                   name="imageAlt"
                   autoComplete="off"
                   value={altText}
                   onChange={(e) => handleAltTextChange(e.target.value)}
-                  placeholder="Describe the image for accessibility (minimum 10 characters)"
+                  onBlur={commitAltTextToParent}
+                  placeholder="Describe the image for accessibility"
                   disabled={disabled}
                   aria-invalid={!!imageAltError}
                   aria-describedby={`image-alt-help${imageAltError ? ' image-alt-error' : ''}`}
@@ -539,7 +574,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
                 />
               </label>
               <p id="image-alt-help" className="text-xs text-muted-foreground">
-                Provide a clear description of the image for users who cannot see it.
+                Add alt text when available; if omitted, fallback alt may be used.
               </p>
               {imageAltError && (
                 <p id="image-alt-error" className="text-sm text-destructive" role="alert">{imageAltError}</p>
@@ -549,6 +584,11 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
         ) : (
           <div className="space-y-3">
             <div className="space-y-2">
+              {currentImageReference && (
+                <p className="text-xs text-muted-foreground break-all" aria-live="polite">
+                  {getImageReferenceSummary(currentImageReference, currentImageId)}
+                </p>
+              )}
               <label className="block text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
                 Image URL
                 <div className="flex gap-2 mt-1">
@@ -583,44 +623,52 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
               </p>
             </div>
 
-            <div className="flex items-center gap-2 my-1">
-              <hr className="flex-1 border-border" />
-              <span className="text-xs text-muted-foreground">or</span>
-              <hr className="flex-1 border-border" />
-            </div>
+            {canUploadFile && (
+              <>
+                <div className="flex items-center gap-2 my-1">
+                  <hr className="flex-1 border-border" />
+                  <span className="text-xs text-muted-foreground">or</span>
+                  <hr className="flex-1 border-border" />
+                </div>
 
-            <div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileUpload}
-                disabled={disabled || isUploadingImage}
-                aria-label="Upload image file"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={disabled || isUploadingImage}
-                className="w-full"
-              >
-                {isUploadingImage ? 'Uploading Image…' : 'Upload Image File'}
-              </Button>
-              <p className="text-xs text-muted-foreground mt-1">Upload an image from your device (max 5MB)</p>
-            </div>
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                    disabled={disabled || isUploadingImage}
+                    aria-label="Upload image file"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      logger.debug('[ProductImageManager] Upload Image File button clicked')
+                      fileInputRef.current?.click()
+                    }}
+                    disabled={disabled || isUploadingImage}
+                    className="w-full"
+                  >
+                    {isUploadingImage ? 'Uploading Image…' : 'Upload Image File'}
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">Upload an image from your device (max 5MB)</p>
+                </div>
+              </>
+            )}
 
             <div className="space-y-2">
               <label className="block text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
-                Alt Text {urlInput.trim() && <span className="text-destructive">*</span>}
+                Alt Text (optional)
                 <Input
                   id="image-alt-text"
                   name="imageAlt"
                   autoComplete="off"
                   value={altText}
                   onChange={(e) => handleAltTextChange(e.target.value)}
-                  placeholder="Describe the image for accessibility (minimum 10 characters)"
+                  onBlur={commitAltTextToParent}
+                  placeholder="Describe the image for accessibility"
                   disabled={disabled}
                   aria-invalid={!!imageAltError}
                   aria-describedby={`image-alt-help${imageAltError ? ' image-alt-error' : ''}`}
@@ -628,7 +676,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
                 />
               </label>
               <p id="image-alt-help" className="text-xs text-muted-foreground">
-                Provide a clear description of the image for users who cannot see it.
+                Add alt text when available; if omitted, fallback alt may be used.
               </p>
               {imageAltError && (
                 <p id="image-alt-error" className="text-sm text-destructive" role="alert">{imageAltError}</p>

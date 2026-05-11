@@ -602,7 +602,12 @@ function ProductDetailPage({
         const fetchedProduct = await APIService.getProductBySlug(productSlug)
         setProduct(fetchedProduct ? { ...fetchedProduct, slug: fetchedProduct.slug ?? productSlug } : null)
       } catch (error) {
-        console.error('Failed to fetch product:', error)
+        const status = (error as ApiErrorLike | undefined)?.status
+        // 404 is expected when the URL slug is stale or invalid.
+        // Treat it as a normal "not found" state without noisy error logging.
+        if (status !== 404) {
+          console.error('Failed to fetch product:', error)
+        }
         setProduct(null)
       } finally {
         setLoading(false)
@@ -2856,19 +2861,27 @@ function App() {
         hasImageAlt: savedProduct?.imageAlt
       })
       
-      // Use the saved product from backend if available; otherwise normalise null
-      // image fields back to undefined to keep Product state consistent.
-      const productToUse: Product = savedProduct || {
+      // Prefer server state; some backends return 204 for PATCH, so refetch.
+      const refetchedProduct = !savedProduct
+        ? await APIService.getProduct(updatedProduct.slug || updatedProduct.id)
+        : null
+
+      // Use saved/refetched product when available; otherwise fall back to local draft.
+      const productToUse: Product = savedProduct || refetchedProduct || {
         ...updatedProduct,
         imageUrl: updatedProduct.imageUrl ?? undefined,
         imageAlt: updatedProduct.imageAlt ?? undefined,
       }
       
-      setProducts((currentProducts) =>
-        (currentProducts || []).map(p =>
+      setProducts((currentProducts) => {
+        const current = currentProducts || []
+        const next = current.map((p) =>
           p.slug === productToUse.slug || p.id === productToUse.id ? productToUse : p
         )
-      )
+
+        const exists = current.some((p) => p.slug === productToUse.slug || p.id === productToUse.id)
+        return exists ? next : [productToUse, ...next]
+      })
       
       if (user?.id && updatedProduct.id) {
         try {

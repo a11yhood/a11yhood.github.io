@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { APIService } from '@/lib/api';
 import { getDevUser, getDevToken } from '@/lib/dev-users';
@@ -180,6 +180,25 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
   const defaultUser = storedUser || import.meta.env.VITE_DEV_USER || 'admin';
   const devUserFixture = getDevUser(defaultUser);
 
+  // getAccessToken is a pure function of devUserFixture — define it before any hooks
+  // so we can register it synchronously with the API service during render.
+  const getAccessToken = async (): Promise<string | null> => {
+    // Return dev token in format backend expects: dev-token-<role>
+    const token = getDevToken(devUserFixture.role);
+    console.log('[DevAuthProvider] getAccessToken called, returning:', token);
+    return token;
+  };
+
+  // Register the token getter synchronously during the first render (guarded by ref)
+  // rather than inside a useEffect. useEffect fires AFTER child effects, so registering
+  // there causes a race: child components fire their effects (making authenticated API
+  // calls) before the token getter is available, producing spurious 401 errors.
+  const tokenGetterRegistered = useRef(false);
+  if (!tokenGetterRegistered.current) {
+    tokenGetterRegistered.current = true;
+    APIService.setAuthTokenGetter(getAccessToken);
+  }
+
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(false);
@@ -215,25 +234,12 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
     setSession(mockSession);
   }, [devUserFixture]);
 
-  // Register token getter with APIService once on load
-  useEffect(() => {
-    console.log('[DevAuthProvider] Registering token getter for user:', devUserFixture.id);
-    APIService.setAuthTokenGetter(getAccessToken);
-  }, []);
-
   const signIn = async () => {
     // No-op in dev mode
   };
 
   const signOut = async () => {
     // No-op in dev mode
-  };
-
-  const getAccessToken = async (): Promise<string | null> => {
-    // Return dev token in format backend expects: dev-token-<role>
-    const token = getDevToken(devUserFixture.role);
-    console.log('[DevAuthProvider] getAccessToken called, returning:', token);
-    return token;
   };
 
   const value = {

@@ -31,9 +31,106 @@ type ProductEditDialogProps = {
   allProductTypes?: string[]
 }
 
+function resolveImageUrlFromProduct(product: Product): string | undefined {
+  const candidate = product as Product & { imageId?: unknown }
+  const imageUrl = typeof candidate.imageUrl === 'string' ? candidate.imageUrl : undefined
+  const imageReference = candidate.imageId
+
+  const imageId = (() => {
+    if (imageReference && typeof imageReference === 'object') {
+      const idValue = (imageReference as { id?: unknown }).id
+      if (typeof idValue === 'string') {
+        const trimmed = idValue.trim()
+        if (trimmed) {
+          return trimmed
+        }
+      }
+    }
+
+    if (typeof imageReference === 'string') {
+      const trimmed = imageReference.trim()
+      if (trimmed) {
+        return trimmed
+      }
+    }
+
+    return undefined
+  })()
+
+  if (imageId) {
+    return `/api/images/${encodeURIComponent(imageId)}`
+  }
+
+  return imageUrl
+}
+
+function normalizeProductForEdit(product: Product): ProductUpdate {
+  return {
+    ...product,
+    imageUrl: resolveImageUrlFromProduct(product) ?? undefined,
+  }
+}
+
+/**
+ * Extract image ID from /api/images/{id} references for ID-only API payloads.
+ * Returns undefined when no image ID reference is available.
+ */
+function buildImagePayload(
+  imageUrl: string | null | undefined,
+  imageAlt: string | null | undefined
+): { id: string; alt?: string } | { url: string; alt?: string } | undefined {
+  if (!imageUrl) {
+    return undefined
+  }
+
+  // If this is an existing image reference, extract the ID and include alt if provided.
+  // Accept both relative (/api/images/{id}) and same-origin absolute URLs.
+  const relativeMatch = imageUrl.match(/^\/api\/images\/([^/?#]+)$/)
+  const imageIdFromReference = (() => {
+    if (relativeMatch?.[1]) {
+      return relativeMatch[1]
+    }
+
+    try {
+      const parsed = new URL(imageUrl)
+      const sameOrigin = typeof window !== 'undefined' && parsed.origin === window.location.origin
+      if (!sameOrigin) {
+        return undefined
+      }
+      const absoluteMatch = parsed.pathname.match(/^\/api\/images\/([^/?#]+)$/)
+      return absoluteMatch?.[1]
+    } catch {
+      return undefined
+    }
+  })()
+
+  if (imageIdFromReference) {
+    const alt = imageAlt?.trim()
+    return alt ? { id: imageIdFromReference, alt } : { id: imageIdFromReference }
+  }
+
+  // Data URLs from file uploads: send to backend so it can store the image and assign an ID.
+  if (imageUrl.startsWith('data:image/')) {
+    const alt = imageAlt?.trim() || ''
+    return alt ? { url: imageUrl, alt } : { url: imageUrl }
+  }
+
+  try {
+    const parsed = new URL(imageUrl)
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      const alt = imageAlt?.trim() || ''
+      return alt ? { url: parsed.toString(), alt } : { url: parsed.toString() }
+    }
+  } catch {
+    // Invalid URL for payload conversion
+  }
+
+  return undefined
+}
+
 export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allProductTypes = [] }: ProductEditDialogProps) {
   const [open, setOpen] = useState(!!autoOpen)
-  const [formData, setFormData] = useState<ProductUpdate>(product)
+  const [formData, setFormData] = useState<ProductUpdate>(() => normalizeProductForEdit(product))
   const [tagInput, setTagInput] = useState('')
   const [errors, setErrors] = useState<{ id: string; message: string }[]>([])
   const [saving, setSaving] = useState(false)
@@ -50,13 +147,14 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
         imageAlt: product.imageAlt,
         fullProduct: product
       })
-      setFormData(product)
+      setFormData(normalizeProductForEdit(product))
       setTagInput('')
     }
   }, [open, product])
 
   const isEditor = userAccount?.id && product.editorIds?.includes(userAccount.id)
   const canEdit = userAccount?.role === 'admin' || userAccount?.role === 'moderator' || !!isEditor
+  const canUploadFile = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
 
   // Ensure current product type is in the list
   const availableTypes = React.useMemo(() => {
@@ -72,13 +170,21 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (imageManagerRef.current?.isProcessingImage()) {
+      setErrors([{ id: 'image-url-input', message: 'Please wait for image upload/cropping to finish before saving.' }])
+      setTimeout(() => errorSummaryRef.current?.focus(), 0)
+      return
+    }
+
     // Collect any pending image data (URL typed but "Add URL" not clicked).
     // getPendingImageData returns the URL even when alt text is empty so that
     // validation below can surface the "alt text is required" error instead of
     // silently dropping the URL.
     let finalImageData: { url: string | null | undefined, alt: string | null | undefined } = {
       url: formData.imageUrl,
-      alt: formData.imageAlt
+      // Read uncommitted alt text directly from the image manager (handles the case
+      // where the user types and immediately clicks Save without blurring the field).
+      alt: imageManagerRef.current?.getCommittedAltText() ?? formData.imageAlt
     }
     
     const pendingImage = imageManagerRef.current?.getPendingImageData()
@@ -103,6 +209,12 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
       fullFormData: finalFormData
     })
 
+    const originalImageUrl = resolveImageUrlFromProduct(product)
+    const hasAnyImageSelection = !!(finalFormData.imageUrl || originalImageUrl)
+    if (!hasAnyImageSelection) {
+      logger.debug('[ProductEditDialog.handleSubmit] No image selected or existing image present at submit time')
+    }
+
     const validationErrors: { id: string; message: string }[] = []
 
     if (!finalFormData.name.trim()) {
@@ -121,17 +233,7 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
       validationErrors.push({ id: 'source', message: 'Product source is required.' })
     }
 
-    if (finalFormData.imageUrl && !finalFormData.imageAlt?.trim()) {
-      // If this error is caused by a pending (unconfirmed) image URL, give a clearer message.
-      const message = pendingImage
-        ? 'Please click \'Add URL\' to confirm the image URL and provide alt text, or clear the image URL field to submit without an image.'
-        : 'Alt text is required when an image is provided.'
-      validationErrors.push({ id: 'image-alt-text', message })
-    }
-
-    if (finalFormData.imageAlt && finalFormData.imageUrl && finalFormData.imageAlt.trim().length < 10) {
-      validationErrors.push({ id: 'image-alt-text', message: 'Alt text should be at least 10 characters.' })
-    }
+    // image.alt is optional in the new contract; backend may fall back to stored/default alt.
 
     if (validationErrors.length > 0) {
       setErrors(validationErrors)
@@ -148,7 +250,14 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
     setErrors([])
     setSaving(true)
     try {
-      await onSave(finalFormData)
+      // Build the API payload with the new image object contract
+      const image = buildImagePayload(finalFormData.imageUrl, finalFormData.imageAlt)
+      const payloadToSend = {
+        ...finalFormData,
+        image,
+      } as any
+
+      await onSave(payloadToSend)
       setOpen(false)
     } catch {
       // Error feedback is handled by the onSave caller (e.g. App.tsx toast)
@@ -331,6 +440,7 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
                     ref={imageManagerRef}
                     imageUrl={formData.imageUrl ?? undefined}
                     imageAlt={formData.imageAlt ?? undefined}
+                    canUploadFile={canUploadFile}
                     onImageChange={(imageUrl, imageAlt) => {
                       logger.debug('[ProductEditDialog] onImageChange callback:', { imageUrl, imageAlt })
                       setFormData(prev => {
