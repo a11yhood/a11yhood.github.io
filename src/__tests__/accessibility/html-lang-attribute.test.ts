@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
+import { Script, createContext } from 'vm'
 
 // Resolve paths relative to the repository root (three levels above src/__tests__/accessibility/)
 const root = resolve(__dirname, '../../../')
@@ -14,9 +15,15 @@ function readHtml(relativePath: string): string {
   return readFileSync(resolve(root, relativePath), 'utf-8')
 }
 
+const TRUSTED_INLINE_SCRIPT_FIXTURES = new Set(['index.html', 'public/404.html'])
+
 function readInlineScript(relativePath: string): string {
+  if (!TRUSTED_INLINE_SCRIPT_FIXTURES.has(relativePath)) {
+    throw new Error(`Inline script fixture is not trusted: ${relativePath}`)
+  }
+
   const html = readHtml(relativePath)
-  const match = html.match(/<script>([\s\S]*?)<\/script>/)
+  const match = html.match(/<script\b[^>]*>([\s\S]*?)<\/script>/i)
 
   if (!match) {
     throw new Error(`No inline script found in ${relativePath}`)
@@ -68,8 +75,8 @@ function runInlineScript(script: string, initialUrl: string): string {
     },
   }
 
-  const execute = new Function('window', script)
-  execute(window)
+  const context = createContext({ window })
+  new Script(script).runInContext(context)
 
   return currentUrl.toString()
 }
@@ -86,7 +93,7 @@ describe('html-has-lang – static HTML documents', () => {
     expect(html).toMatch(/<html[^>]+lang\s*=\s*["'][a-zA-Z][a-zA-Z-]*["']/)
   })
 
-  it('normalizes malformed PR preview redirect payloads instead of bouncing them between index and 404', () => {
+  it('normalizes malformed PR preview redirect paths with leading slashes', () => {
     const notFoundRedirect = readInlineScript('public/404.html')
     const previewIndexRedirect = readInlineScript('index.html')
 
