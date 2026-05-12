@@ -30,6 +30,7 @@ describe('html-has-lang – static HTML documents', () => {
     const html = readHtml('public/404.html')
     expect(html).toMatch(/<main[\s>]/)
     expect(html).toMatch(/<h1[^>]*>\s*Redirecting/)
+    expect(html).toContain('id="fallback-home-link"')
   })
 
   it('public/404.html caps redirect growth for malformed payload URLs', () => {

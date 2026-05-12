@@ -39,13 +39,18 @@
     if (target !== l.href) {
       l.replace(target);
     }
+
+    var fallbackHomeLink = document.getElementById('fallback-home-link');
+    if (fallbackHomeLink) {
+      fallbackHomeLink.setAttribute('href', basePath);
+    }
   </script>
 </head>
 <body>
   <main>
     <h1>Redirecting…</h1>
     <p>If you are not redirected automatically, use the link below.</p>
-    <p><a href="./">Return to a11yhood home</a></p>
+    <p><a id="fallback-home-link" href="/">Return to a11yhood home</a></p>
   </main>
 </body>
 </html>
