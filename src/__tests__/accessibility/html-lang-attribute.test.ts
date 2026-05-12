@@ -15,15 +15,15 @@ function readHtml(relativePath: string): string {
   return readFileSync(resolve(root, relativePath), 'utf-8')
 }
 
-const TRUSTED_INLINE_SCRIPT_FIXTURES = new Set(['index.html', 'public/404.html'])
+const ALLOWED_INLINE_SCRIPT_FILES = new Set(['index.html', 'public/404.html'])
 
 function readInlineScript(relativePath: string): string {
-  if (!TRUSTED_INLINE_SCRIPT_FIXTURES.has(relativePath)) {
+  if (!ALLOWED_INLINE_SCRIPT_FILES.has(relativePath)) {
     throw new Error(`Inline script fixture is not trusted: ${relativePath}`)
   }
 
   const html = readHtml(relativePath)
-  const match = html.match(/<script\b[^>]*>([\s\S]*?)<\/script>/i)
+  const match = html.match(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/i)
 
   if (!match) {
     throw new Error(`No inline script found in ${relativePath}`)
@@ -93,7 +93,7 @@ describe('html-has-lang – static HTML documents', () => {
     expect(html).toMatch(/<html[^>]+lang\s*=\s*["'][a-zA-Z][a-zA-Z-]*["']/)
   })
 
-  it('normalizes malformed PR preview redirect paths with leading slashes', () => {
+  it('prevents PR preview redirect loops for malformed double-slash URLs', () => {
     const notFoundRedirect = readInlineScript('public/404.html')
     const previewIndexRedirect = readInlineScript('index.html')
 
