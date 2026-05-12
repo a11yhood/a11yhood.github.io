@@ -876,9 +876,13 @@ export class APIService {
     }
 
     if (normalizedHeaderImage) {
-      const normalizedReference = normalizeUploadedImageReference(normalizedHeaderImage)
-      if (normalizedReference) {
-        normalizedHeaderImage = normalizedReference
+      try {
+        const normalizedReference = normalizeUploadedImageReference(normalizedHeaderImage)
+        if (normalizedReference) {
+          normalizedHeaderImage = normalizedReference
+        }
+      } catch {
+        // Keep the trimmed original value when server-provided percent-encoding is malformed.
       }
       normalizedHeaderImage = resolveApiImageUrl(normalizedHeaderImage)
     }
