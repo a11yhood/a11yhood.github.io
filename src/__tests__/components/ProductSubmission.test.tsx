@@ -47,18 +47,6 @@ const mockProduct: Product = {
   origin: 'scraped-github',
 }
 
-const mockScrapedData = {
-  name: 'Scraped Product',
-  type: 'Software',
-  source: 'GitHub',
-  sourceUrl: 'https://github.com/scraped/repo',
-  description: 'This is a scraped product with detailed information',
-  tags: ['scraped', 'github'],
-  externalId: 'github-123',
-  imageUrl: 'https://example.com/image.jpg',
-  imageAlt: 'Product screenshot',
-}
-
 let products: Product[] = []
 
 const normalizeTestUrl = (url: string) => {
@@ -426,7 +414,7 @@ describe('ProductSubmission', () => {
         type: 'Software',
         source: 'github',
         sourceUrl: 'https://github.com/test/test-repo',
-        imageUrl: 'https://avatars.githubusercontent.com/u/12345?v=4',
+        image: 'test-image-id',
         tags: ['accessibility', 'testing', 'github'],
       }
 
@@ -470,6 +458,45 @@ describe('ProductSubmission', () => {
       
       // Should show success notification
       expect(notificationSpies.success).toHaveBeenCalledWith(expect.stringContaining('Successfully scraped'))
+    })
+
+    it('converts scraped string image references into image URLs and shows image ID', async () => {
+      vi.spyOn(APIService, 'loadUrl').mockResolvedValueOnce({
+        success: true,
+        product: {
+          id: 'test-id-image-ref',
+          name: 'Image Id Product',
+          description: 'Product with an image table ID from scraper response',
+          type: 'Software',
+          source: 'github',
+          sourceUrl: 'https://github.com/test/image-id-product',
+          image: '123e4567-e89b-12d3-a456-426614174999',
+          tags: ['accessibility'],
+        } as any,
+        source: 'scraped',
+      })
+
+      render(
+        <ProductSubmission
+          user={mockUser}
+          onSubmit={mockOnSubmit}
+          onRequestOwnership={mockOnRequestOwnership}
+        />
+      )
+
+      fireEvent.click(screen.getByText('Submit Product'))
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Product URL')).toBeInTheDocument()
+      })
+
+      const urlInput = screen.getByLabelText('Product URL')
+      fireEvent.change(urlInput, { target: { value: 'https://github.com/test/image-id-product' } })
+      fireEvent.click(screen.getByText('Check'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Image ID: 123e4567-e89b-12d3-a456-426614174999')).toBeInTheDocument()
+      })
     })
   })
 
@@ -1050,6 +1077,71 @@ describe('ProductSubmission', () => {
       await waitFor(() => {
         const removeButtons = screen.getAllByRole('button', { name: /Remove grip tag/i })
         expect(removeButtons).toHaveLength(1)
+      })
+    })
+  })
+
+  describe('Image Alt Text Sync', () => {
+    it('should submit edited image alt text after switching to image edit mode', async () => {
+      const user = userEvent.setup()
+
+      render(
+        <ProductSubmission
+          user={mockUser}
+          onSubmit={mockOnSubmit}
+          onRequestOwnership={mockOnRequestOwnership}
+        />
+      )
+
+      fireEvent.click(screen.getByText('Submit Product'))
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Product URL')).toBeInTheDocument()
+      })
+
+      const urlCheckInput = screen.getByLabelText('Product URL')
+      fireEvent.change(urlCheckInput, { target: { value: 'https://example.com/alt-sync-test' } })
+      fireEvent.click(screen.getByRole('button', { name: /Check/i }))
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Product Name/i)).toBeInTheDocument()
+      })
+
+      fireEvent.change(screen.getByLabelText(/Product Name/i), { target: { value: 'Alt Sync Product' } })
+      fireEvent.change(screen.getByLabelText('Description *'), {
+        target: { value: 'This product description is long enough to satisfy validation checks.' },
+      })
+
+      const typeInput = screen.getByLabelText(/Product Type/i)
+      await user.click(typeInput)
+      const softwareOption = await screen.findByRole('option', { name: 'Software' })
+      await user.click(softwareOption)
+
+      const imageUrlInput = screen.getByLabelText(/Image URL/i)
+      fireEvent.change(imageUrlInput, { target: { value: 'https://example.com/alt-sync-image.png' } })
+      fireEvent.click(screen.getByRole('button', { name: /Add URL/i }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Edit image URL and alt text/i })).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: /Edit image URL and alt text/i }))
+
+      const altInput = screen.getByRole('textbox', { name: /Alt Text/i })
+      await user.clear(altInput)
+      await user.type(altInput, 'Updated alt text propagated from edit mode')
+      altInput.blur() // Blur to trigger commitAltTextToParent callback
+
+      fireEvent.click(screen.getByRole('button', { name: /^Submit Product$/i }))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalled()
+      })
+
+      const submittedProduct = mockOnSubmit.mock.calls.at(-1)?.[0]
+      expect(submittedProduct.image).toEqual({
+        url: 'https://example.com/alt-sync-image.png',
+        alt: 'Updated alt text propagated from edit mode',
       })
     })
   })

@@ -6,14 +6,14 @@ on:
   # verifying the build is ready for production.
   push:
     tags:
-      - 'v*'
+      - "v*"
   # Allow manual re-deploys (e.g. after environment config changes).
   workflow_dispatch:
 
 permissions:
-  contents: write   # Needed to commit updated production build to gh-pages branch
-  pages: write      # Needed to publish the assembled site to GitHub Pages
-  id-token: write   # Required by actions/deploy-pages
+  contents: write # Needed to commit updated production build to gh-pages branch
+  pages: write # Needed to publish the assembled site to GitHub Pages
+  id-token: write # Required by actions/deploy-pages
 
 concurrency:
   group: "pages"
@@ -29,8 +29,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: |
@@ -193,3 +194,4 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
+#

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from 'vite
 import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { APIError, APIService, setAuthTokenGetter } from '@/lib/api'
+import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { ProductEditors } from '@/components/ProductEditors'
 import { ProductCard } from '@/components/ProductCard'
 import * as types from '@/lib/types'
@@ -29,6 +29,20 @@ let testProductId: string
 let authToken: string
 let testUsername = DEV_USERS.user.username
 
+const TEST_IMAGE_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4//8/AwAI/AL+XhNnAAAAAElFTkSuQmCC'
+
+async function uploadTestImageAndGetId() {
+  const response = await fetch(TEST_IMAGE_DATA_URL)
+  const blob = await response.blob()
+  const file = new File([blob], 'integration-test.png', { type: 'image/png' })
+  const imageReference = await APIService.uploadImage(file)
+  const match = imageReference.match(/^\/api\/images\/([^/?#]+)$/)
+  if (!match?.[1]) {
+    throw new Error(`Unexpected image reference from upload: ${imageReference}`)
+  }
+  return decodeURIComponent(match[1])
+}
+
 beforeAll(async () => {
   if (!(globalThis as any).__BACKEND_AVAILABLE__) return
   testUserId = DEV_USERS.user.id
@@ -40,7 +54,6 @@ beforeAll(async () => {
     description: 'Shared product for user-workflows integration tests',
     type: 'Software',
     sourceUrl: `https://github.com/test/shared-product-${Date.now()}`,
-    imageUrl: 'https://example.com/image.png',
   })
   testProductId = product.id
 }, 30000)
@@ -75,7 +88,6 @@ describeWithBackend('Product Submission Workflow', () => {
       description: 'A test product for integration testing with sufficient content',
       type: 'Software',
       sourceUrl: `https://github.com/test/product-${Date.now()}`,
-      imageUrl: 'https://example.com/image.png',
     }
 
     const result = await APIService.createProduct(productData as any)
@@ -99,6 +111,55 @@ describeWithBackend('Product Submission Workflow', () => {
     expect(result.userId).toBe(testUserId)
     expect(result.type).toBe('product_submit')
   })
+
+  it('should create a product with an uploaded image ID and persist the image reference', async () => {
+    const sourceUrl = `https://github.com/test/create-with-upload-${Date.now()}`
+    const imageId = await uploadTestImageAndGetId()
+
+    const createdProduct = await APIService.createProduct({
+      name: `Create With Upload ${Date.now()}`,
+      description: 'Integration test product with an uploaded image',
+      type: 'Software',
+      sourceUrl,
+      image: { id: imageId, alt: 'Uploaded image for create flow' },
+      origin: 'user-submitted',
+    } as any)
+
+    expect(createdProduct.imageId).toBeDefined()
+
+    const fetchedProduct = await APIService.getProduct(createdProduct.id)
+    expect(fetchedProduct).toBeDefined()
+    expect(fetchedProduct?.imageId).toBe(createdProduct.imageId)
+  }, 30000)
+
+  it('should edit a product to add an uploaded image ID and persist it', async () => {
+    const sourceUrl = `https://github.com/test/edit-to-add-upload-${Date.now()}`
+    const imageId = await uploadTestImageAndGetId()
+    const createdProduct = await APIService.createProduct({
+      name: `Edit To Add Upload ${Date.now()}`,
+      description: 'Integration test product that will gain an uploaded image later',
+      type: 'Software',
+      sourceUrl,
+      origin: 'user-submitted',
+    } as any)
+
+    expect(createdProduct.imageUrl).toBeFalsy()
+
+    const updatedProduct = await APIService.updateProduct(
+      createdProduct.id,
+      {
+        image: { id: imageId, alt: 'Uploaded image for edit flow' },
+      },
+      testUserId
+    )
+
+    expect(updatedProduct?.imageId).toBeDefined()
+
+    const fetchedProduct = await APIService.getProduct(createdProduct.id)
+    expect(fetchedProduct).toBeDefined()
+    expect(fetchedProduct?.imageId).toBe(updatedProduct?.imageId)
+  }, 30000)
+
 })
 
 // ============================================================================
@@ -180,6 +241,7 @@ describeWithBackend('Discussion Participation Workflow', () => {
     const result = await APIService.logUserActivity(activity)
     expect(result).toBeDefined()
   })
+
 })
 
 // ============================================================================
@@ -330,14 +392,14 @@ describeWithBackend('Error Handling in Workflows', () => {
     await expect(APIService.updateRating(testProductId, testUserId, 10)).rejects.toBeDefined()
   })
 
-  it('should handle activity logging errors gracefully', async () => {
+  it('should reject invalid activity timestamps before sending the request', async () => {
     const activity: types.UserActivity = {
-      userId: 'non-existent-user',
+      userId: testUserId,
       type: 'rating',
       productId: testProductId,
-      timestamp: new Date().toISOString(),
+      timestamp: 'not-an-iso-timestamp',
     }
 
-    await expect(APIService.logUserActivity(activity)).rejects.toBeInstanceOf(APIError)
+    await expect(APIService.logUserActivity(activity)).rejects.toThrow(/timestamp/i)
   })
 })

@@ -156,7 +156,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
             </Link>
             {user ? (
               <div className="flex items-center gap-3">
-                <ProductSubmission ref={productSubmissionRef} user={user} onSubmit={async (productData) => {
+                <ProductSubmission ref={productSubmissionRef} user={user} canUploadFile={canAccessAdmin} onSubmit={async (productData) => {
                   try {
                     const newProduct = await APIService.createProduct({
                       ...productData,
@@ -171,7 +171,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                     })
                     notify.success('Product submitted successfully! You are now an editor of this product.')
                     onProductCreated?.()
-                    navigate('/')
+                    navigate(-1)
                   } catch (error) {
                     // Check if this is an unsupported domain error
                     const errorMessage = error instanceof Error ? error.message : String(error)

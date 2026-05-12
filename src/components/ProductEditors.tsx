@@ -44,7 +44,7 @@ export function ProductEditors({
   useEffect(() => {
     if (!isBrowser) return
     checkExistingRequest()
-  }, [productId, username])
+  }, [productId, username, userAccount])
 
   useEffect(() => {
     if (!isBrowser) return
@@ -69,20 +69,23 @@ export function ProductEditors({
   }
 
   const checkExistingRequest = async () => {
-    if (!username) return
+    if (!username || !userAccount) return
     
     try {
-      const userRequests = (await APIService.getUserRequests(username)) || []
+      // Use /requests/me (current user's own requests) rather than /users/{username}/requests
+      // to avoid auth timing issues and use the correct endpoint for self-lookup.
+      const userRequests = (await APIService.getMyRequests('pending', 'product-ownership')) || []
       const existingRequest = userRequests.find(
-        r => r.type === 'product-ownership' && 
-            r.productId === productId && 
-            r.status === 'pending'
+        r => r.productId === productId
       )
       setHasExistingRequest(!!existingRequest)
       setPendingRequest(existingRequest || null)
     } catch (error) {
-      // Silently handle 404 for user requests endpoint (not yet implemented)
-      if (error instanceof Error && !error.message.includes('404')) {
+      // Silently handle auth/availability errors — this is optional UI state
+      if (error instanceof Error &&
+          !error.message.includes('404') &&
+          !error.message.includes('401') &&
+          !error.message.includes('No authorization')) {
         console.error('Failed to check existing request:', error)
       }
     }

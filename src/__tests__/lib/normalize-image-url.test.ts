@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeImageUrl } from '@/components/ProductImageManager'
+import { calculateCropRect, getCropPreviewSize, normalizeImageUrl } from '@/components/ProductImageManager'
 
 describe('normalizeImageUrl', () => {
   it('converts a GitHub blob URL to a raw.githubusercontent.com URL', () => {
@@ -58,5 +58,35 @@ describe('normalizeImageUrl', () => {
     expect(normalizeImageUrl(blobUrl)).toBe(
       'https://raw.githubusercontent.com/owner/repo/main/img/photo.png'
     )
+  })
+})
+
+describe('calculateCropRect', () => {
+  it('calculates horizontal crop offsets for wider-than-16:9 images at x boundaries', () => {
+    expect(calculateCropRect(2000, 1000, 0, 50)).toEqual({ x: 0, y: 0, width: 1778, height: 1000 })
+    expect(calculateCropRect(2000, 1000, 50, 50)).toEqual({ x: 111, y: 0, width: 1778, height: 1000 })
+    expect(calculateCropRect(2000, 1000, 100, 50)).toEqual({ x: 222, y: 0, width: 1778, height: 1000 })
+  })
+
+  it('calculates vertical crop offsets for taller-than-16:9 images at y boundaries', () => {
+    expect(calculateCropRect(1000, 2000, 50, 0)).toEqual({ x: 0, y: 0, width: 1000, height: 563 })
+    expect(calculateCropRect(1000, 2000, 50, 50)).toEqual({ x: 0, y: 719, width: 1000, height: 563 })
+    expect(calculateCropRect(1000, 2000, 50, 100)).toEqual({ x: 0, y: 1437, width: 1000, height: 563 })
+  })
+
+  it('returns full image bounds for exact 16:9 images regardless of slider positions', () => {
+    expect(calculateCropRect(1600, 900, 0, 0)).toEqual({ x: 0, y: 0, width: 1600, height: 900 })
+    expect(calculateCropRect(1600, 900, 50, 50)).toEqual({ x: 0, y: 0, width: 1600, height: 900 })
+    expect(calculateCropRect(1600, 900, 100, 100)).toEqual({ x: 0, y: 0, width: 1600, height: 900 })
+  })
+})
+
+describe('getCropPreviewSize', () => {
+  it('scales down large images to fit crop preview bounds', () => {
+    expect(getCropPreviewSize(2000, 1000)).toEqual({ width: 640, height: 320 })
+  })
+
+  it('does not upscale small images', () => {
+    expect(getCropPreviewSize(320, 180)).toEqual({ width: 320, height: 180 })
   })
 })
