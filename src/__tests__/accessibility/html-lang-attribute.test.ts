@@ -14,7 +14,11 @@ function readHtml(relativePath: string): string {
   return readFileSync(resolve(root, relativePath), 'utf-8')
 }
 
-describe('static HTML documents accessibility metadata', () => {
+const nonEmptyHtmlTitlePattern = /<title>\s*[^<\s][^<]*<\/title>/i
+const oversizedRedirectGuardPattern =
+  /if\s*\(\s*target\.length\s*>\s*maxRedirectTargetLength\s*\)\s*\{[\s\S]*?target\s*=\s*l\.href;[\s\S]*?\}/
+
+describe('static HTML documents – lang attribute and title metadata', () => {
   it('index.html has a lang attribute on <html>', () => {
     const html = readHtml('index.html')
     // The opening <html> tag must contain a non-empty lang attribute (e.g. "en", "en-US")
@@ -28,19 +32,18 @@ describe('static HTML documents accessibility metadata', () => {
 
   it('index.html has a non-empty <title>', () => {
     const html = readHtml('index.html')
-    expect(html).toMatch(/<title>\s*[^<\s][^<]*<\/title>/i)
+    expect(html).toMatch(nonEmptyHtmlTitlePattern)
   })
 
   it('public/404.html has a non-empty <title>', () => {
     const html = readHtml('public/404.html')
-    expect(html).toMatch(/<title>\s*[^<\s][^<]*<\/title>/i)
+    expect(html).toMatch(nonEmptyHtmlTitlePattern)
   })
 
-  it('public/404.html avoids rewriting oversized URLs into URI-too-long responses', () => {
+  it('public/404.html preserves an accessible fallback for oversized URLs', () => {
     const html = readHtml('public/404.html')
-    expect(html).toContain('var maxRedirectTargetLength = 7500;')
-    expect(html).toContain('if (target.length > maxRedirectTargetLength) {')
-    expect(html).toContain('target = l.href;')
+    expect(html).toMatch(/maxRedirectTargetLength\s*=\s*7500/)
+    expect(html).toMatch(oversizedRedirectGuardPattern)
     expect(html).toContain('<h1>Page not found</h1>')
   })
 })
