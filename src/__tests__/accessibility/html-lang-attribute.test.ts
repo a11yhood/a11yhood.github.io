@@ -25,4 +25,9 @@ describe('html-has-lang – static HTML documents', () => {
     const html = readHtml('public/404.html')
     expect(html).toMatch(/<html[^>]+lang\s*=\s*["'][a-zA-Z][a-zA-Z-]*["']/)
   })
+
+  it('public/404.html drops malformed query payloads that can cause URI growth loops', () => {
+    const html = readHtml('public/404.html')
+    expect(html).toContain("decodedSearchPayload.charAt(0) === '/' ? '' : rawSearchPayload")
+  })
 })

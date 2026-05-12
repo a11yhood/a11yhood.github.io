@@ -20,7 +20,14 @@
     var l = window.location;
     var basePath = l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
     var routePayload = l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/');
-    var searchPayload = l.search ? l.search.slice(1) : '';
+    var rawSearchPayload = l.search ? l.search.slice(1) : '';
+    var decodedSearchPayload = rawSearchPayload;
+    try {
+      decodedSearchPayload = decodeURIComponent(rawSearchPayload);
+    } catch (_e) {
+      decodedSearchPayload = rawSearchPayload;
+    }
+    var searchPayload = decodedSearchPayload.charAt(0) === '/' ? '' : rawSearchPayload;
     var encodedRoute = encodeURIComponent(routePayload);
     var encodedSearch = encodeURIComponent(searchPayload);
     var redirectPath = basePath + '?/' + encodedRoute + (searchPayload ? '&' + encodedSearch : '');
