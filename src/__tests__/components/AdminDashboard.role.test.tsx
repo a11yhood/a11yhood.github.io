@@ -81,7 +81,8 @@ describe('AdminDashboard role-based tabs', () => {
     const productScraperTitles = await screen.findAllByText('External Product Scraper')
     expect(productScraperTitles.length).toBeGreaterThan(0)
     expect(await screen.findByText('User Requests')).toBeInTheDocument()
-    expect(await screen.findByText('Blog Posts')).toBeInTheDocument()
+    const blogPostTitles = await screen.findAllByText('Blog Posts')
+    expect(blogPostTitles.length).toBeGreaterThan(0)
     expect(await screen.findByText('Authorization Settings')).toBeInTheDocument()
     // Legacy tabs are removed
     expect(screen.queryByRole('tab', { name: 'Users & Stats' })).toBeNull()

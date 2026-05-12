@@ -199,13 +199,9 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
     APIService.setAuthTokenGetter(getAccessToken);
   }
 
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  // Convert dev user fixture to Supabase User format
-  useEffect(() => {
-    const supabaseUser: User = {
+  const [user] = useState<User | null>(() => {
+    // Build dev auth state synchronously so App effects don't see a transient null user.
+    return {
       id: devUserFixture.id,
       aud: 'authenticated',
       email: devUserFixture.email,
@@ -220,19 +216,30 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
       updated_at: new Date().toISOString(),
       is_anonymous: false,
     };
-    setUser(supabaseUser);
-    
-    // Create session after user is set
-    const mockSession: Session = {
-      access_token: 'dev-token',
-      token_type: 'bearer',
-      expires_in: 3600,
-      expires_at: Date.now() / 1000 + 3600,
-      refresh_token: 'dev-refresh-token',
-      user: supabaseUser,
-    };
-    setSession(mockSession);
-  }, [devUserFixture]);
+  });
+  const [session] = useState<Session | null>(() => ({
+    access_token: 'dev-token',
+    token_type: 'bearer',
+    expires_in: 3600,
+    expires_at: Date.now() / 1000 + 3600,
+    refresh_token: 'dev-refresh-token',
+    user: {
+      id: devUserFixture.id,
+      aud: 'authenticated',
+      email: devUserFixture.email,
+      email_confirmed_at: new Date().toISOString(),
+      phone: '',
+      confirmed_at: new Date().toISOString(),
+      last_sign_in_at: new Date().toISOString(),
+      app_metadata: { role: devUserFixture.role },
+      user_metadata: { username: devUserFixture.username },
+      identities: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_anonymous: false,
+    },
+  }));
+  const loading = false;
 
   const signIn = async () => {
     // No-op in dev mode
