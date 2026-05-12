@@ -44,7 +44,6 @@ const mockProduct: Product = {
   description: 'A test product for accessibility',
   tags: ['test', 'accessibility'],
   createdAt: Date.now(),
-  origin: 'scraped-github',
 }
 
 let products: Product[] = []
@@ -93,8 +92,6 @@ describe('ProductSubmission', () => {
         description: data.description,
         tags: data.tags || [],
         createdAt: Date.now(),
-        origin: data.origin || 'user-submitted',
-        ownerIds: [currentUser.id],
         editorIds: [currentUser.id],
       }
       products.push(product)
@@ -102,7 +99,7 @@ describe('ProductSubmission', () => {
     })
     vi.spyOn(APIService, 'productExistsByUrl').mockImplementation(async (url: string) => {
       const normalized = normalizeTestUrl(url)
-      const product = products.find(p => normalizeTestUrl(p.sourceUrl || '') === normalized) || null
+      const product = products.find(p => normalizeTestUrl(p.sourceUrl || '') === normalized)
       return { exists: !!product, product }
     })
     vi.spyOn(APIService, 'loadUrl').mockImplementation(async (url: string) => {
@@ -112,7 +109,7 @@ describe('ProductSubmission', () => {
         return { success: true, source: 'database', product: existing }
       }
       // Default: pretend scraping failed so component falls back to manual form with detected source
-      return { success: false, source: 'scraper', product: null }
+      return { success: false, source: 'scraper' }
     })
     vi.spyOn(APIService, 'setAuthTokenGetter').mockImplementation(() => {})
 
@@ -1138,7 +1135,7 @@ describe('ProductSubmission', () => {
         expect(mockOnSubmit).toHaveBeenCalled()
       })
 
-      const submittedProduct = mockOnSubmit.mock.calls.at(-1)?.[0]
+      const submittedProduct = mockOnSubmit.mock.calls[mockOnSubmit.mock.calls.length - 1]?.[0]
       expect(submittedProduct.image).toEqual({
         url: 'https://example.com/alt-sync-image.png',
         alt: 'Updated alt text propagated from edit mode',
