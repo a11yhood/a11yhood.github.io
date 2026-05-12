@@ -14,6 +14,66 @@ function readHtml(relativePath: string): string {
   return readFileSync(resolve(root, relativePath), 'utf-8')
 }
 
+function readInlineScript(relativePath: string): string {
+  const html = readHtml(relativePath)
+  const match = html.match(/<script>([\s\S]*?)<\/script>/)
+
+  if (!match) {
+    throw new Error(`No inline script found in ${relativePath}`)
+  }
+
+  return match[1]
+}
+
+function runInlineScript(script: string, initialUrl: string): string {
+  let currentUrl = new URL(initialUrl)
+
+  const updateUrl = (nextUrl: string) => {
+    currentUrl = new URL(nextUrl, currentUrl.origin)
+  }
+
+  const location = {
+    get href() {
+      return currentUrl.toString()
+    },
+    get protocol() {
+      return currentUrl.protocol
+    },
+    get hostname() {
+      return currentUrl.hostname
+    },
+    get port() {
+      return currentUrl.port
+    },
+    get pathname() {
+      return currentUrl.pathname
+    },
+    get search() {
+      return currentUrl.search
+    },
+    get hash() {
+      return currentUrl.hash
+    },
+    replace(nextUrl: string) {
+      updateUrl(nextUrl)
+    },
+  }
+
+  const window = {
+    location,
+    history: {
+      replaceState: (_state: unknown, _title: string, nextUrl: string) => {
+        updateUrl(nextUrl)
+      },
+    },
+  }
+
+  const execute = new Function('window', script)
+  execute(window)
+
+  return currentUrl.toString()
+}
+
 describe('html-has-lang – static HTML documents', () => {
   it('index.html has a lang attribute on <html>', () => {
     const html = readHtml('index.html')
@@ -24,5 +84,19 @@ describe('html-has-lang – static HTML documents', () => {
   it('public/404.html has a lang attribute on <html>', () => {
     const html = readHtml('public/404.html')
     expect(html).toMatch(/<html[^>]+lang\s*=\s*["'][a-zA-Z][a-zA-Z-]*["']/)
+  })
+
+  it('normalizes malformed PR preview redirect payloads instead of bouncing them between index and 404', () => {
+    const notFoundRedirect = readInlineScript('public/404.html')
+    const previewIndexRedirect = readInlineScript('index.html')
+
+    const redirectedUrl = runInlineScript(
+      notFoundRedirect,
+      'https://a11yhood.org/pr-preview/416//products'
+    )
+    expect(redirectedUrl).toBe('https://a11yhood.org/pr-preview/416/?/products')
+
+    const finalUrl = runInlineScript(previewIndexRedirect, redirectedUrl)
+    expect(finalUrl).toBe('https://a11yhood.org/pr-preview/416/products')
   })
 })
