@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getApiBaseUrl, resolveApiImageUrl } from '@/lib/api'
+import { extractInternalImageIdFromReference, getApiBaseUrl, resolveApiImageUrl } from '@/lib/api'
 
 describe('getApiBaseUrl', () => {
   it('returns configured base URL for http://localhost:8002 even when frontend is https://localhost:5173', () => {
@@ -38,5 +38,27 @@ describe('resolveApiImageUrl', () => {
   it('returns absolute URLs unchanged', () => {
     const result = resolveApiImageUrl('https://cdn.example.test/image.png', 'https://api.example.test', 'https://a11yhood.example', 'https:')
     expect(result).toBe('https://cdn.example.test/image.png')
+  })
+})
+
+describe('extractInternalImageIdFromReference', () => {
+  it('extracts ID from relative internal image references', () => {
+    const result = extractInternalImageIdFromReference('/api/images/foo-123', 'https://api.example.test', 'https://a11yhood.example', 'https:')
+    expect(result).toBe('foo-123')
+  })
+
+  it('extracts ID from absolute internal image references when origin matches configured backend', () => {
+    const result = extractInternalImageIdFromReference('https://api.example.test/api/images/foo-123', 'https://api.example.test', 'https://a11yhood.example', 'https:')
+    expect(result).toBe('foo-123')
+  })
+
+  it('does not extract ID from absolute URLs on non-backend origins', () => {
+    const result = extractInternalImageIdFromReference('https://cdn.example.com/api/images/foo', 'https://api.example.test', 'https://a11yhood.example', 'https:')
+    expect(result).toBeUndefined()
+  })
+
+  it('does not extract ID from absolute URLs when backend base is empty', () => {
+    const result = extractInternalImageIdFromReference('https://a11yhood.example/api/images/foo', '', 'https://a11yhood.example', 'https:')
+    expect(result).toBeUndefined()
   })
 })

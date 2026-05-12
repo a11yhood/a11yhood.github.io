@@ -57,6 +57,53 @@ export function resolveApiImageUrl(
   return `${base.replace(/\/$/, '')}${trimmed}`
 }
 
+export function extractInternalImageIdFromReference(
+  imageUrl: string,
+  configuredUrl?: string,
+  locationOrigin?: string,
+  locationProtocol?: string
+): string | undefined {
+  const trimmed = imageUrl.trim()
+  if (!trimmed) {
+    return undefined
+  }
+
+  const relativeMatch = trimmed.match(/^\/api\/images\/([^/?#]+)$/)
+  if (relativeMatch?.[1]) {
+    return decodeURIComponent(relativeMatch[1])
+  }
+
+  let parsed: URL
+  try {
+    parsed = new URL(trimmed)
+  } catch {
+    return undefined
+  }
+
+  const absoluteMatch = parsed.pathname.match(/^\/api\/images\/([^/?#]+)$/)
+  if (!absoluteMatch?.[1]) {
+    return undefined
+  }
+
+  const base = getApiBaseUrl(configuredUrl, locationOrigin, locationProtocol).trim()
+  if (!base) {
+    return undefined
+  }
+
+  let backendOrigin: string
+  try {
+    backendOrigin = new URL(base).origin
+  } catch {
+    return undefined
+  }
+
+  if (parsed.origin !== backendOrigin) {
+    return undefined
+  }
+
+  return decodeURIComponent(absoluteMatch[1])
+}
+
 // Token getter function set by AuthContext on app load.
 // In dev mode: returns dev-token-<role> (e.g., dev-token-admin)
 // In prod mode: returns Supabase session access token

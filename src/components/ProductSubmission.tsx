@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge'
 import { ProductImageManager, type ProductImageManagerRef } from './ProductImageManager'
 import { ProductCard } from './ProductCard'
 import { useNotifications } from '@/contexts/NotificationContext'
-import { APIService } from '@/lib/api'
+import { APIService, extractInternalImageIdFromReference } from '@/lib/api'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faUniversalAccess } from '@fortawesome/free-solid-svg-icons'
 
@@ -52,22 +52,9 @@ function buildImagePayload(
     return undefined
   }
 
-  // If this is an existing image reference, extract the ID and include alt if provided.
-  // Accept both relative (/api/images/{id}) and absolute URLs.
-  const relativeMatch = imageUrl.match(/^\/api\/images\/([^/?#]+)$/)
-  const imageIdFromReference = (() => {
-    if (relativeMatch?.[1]) {
-      return relativeMatch[1]
-    }
-
-    try {
-      const parsed = new URL(imageUrl)
-      const absoluteMatch = parsed.pathname.match(/^\/api\/images\/([^/?#]+)$/)
-      return absoluteMatch?.[1]
-    } catch {
-      return undefined
-    }
-  })()
+  // Existing internal image references can be ID-based only when the URL is relative
+  // or when the absolute URL matches the configured backend origin.
+  const imageIdFromReference = extractInternalImageIdFromReference(imageUrl)
 
   if (imageIdFromReference) {
     const alt = imageAlt?.trim()

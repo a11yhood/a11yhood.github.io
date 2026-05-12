@@ -251,6 +251,70 @@ describe('API timestamp validation', () => {
     expect(posts[0].publishedAt).toBeUndefined()
   })
 
+  it('normalizes blog headerImage from header_image_id and resolves it to configured backend base', async () => {
+    vi.stubEnv('VITE_API_URL', 'https://api.example.test')
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify([
+        {
+          id: 'post-1',
+          title: 'Draft post',
+          slug: 'draft-post',
+          content: 'content',
+          excerpt: 'excerpt',
+          author_id: 'author-1',
+          author_name: 'Author',
+          created_at: '2026-04-15T12:30:00.000Z',
+          updated_at: '2026-04-15T12:45:00.000Z',
+          publish_date: null,
+          published: false,
+          published_at: null,
+          header_image_id: 'image-123',
+        },
+      ]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    )
+
+    const posts = await APIService.getAllBlogPosts(true)
+
+    expect(posts).toHaveLength(1)
+    expect(posts[0].headerImage).toBe('https://api.example.test/api/images/image-123')
+  })
+
+  it('normalizes blog headerImage from relative header_image_url and resolves it to configured backend base', async () => {
+    vi.stubEnv('VITE_API_URL', 'https://api.example.test')
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify([
+        {
+          id: 'post-1',
+          title: 'Draft post',
+          slug: 'draft-post',
+          content: 'content',
+          excerpt: 'excerpt',
+          author_id: 'author-1',
+          author_name: 'Author',
+          created_at: '2026-04-15T12:30:00.000Z',
+          updated_at: '2026-04-15T12:45:00.000Z',
+          publish_date: null,
+          published: false,
+          published_at: null,
+          header_image_url: '/api/images/image-456',
+        },
+      ]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    )
+
+    const posts = await APIService.getAllBlogPosts(true)
+
+    expect(posts).toHaveLength(1)
+    expect(posts[0].headerImage).toBe('https://api.example.test/api/images/image-456')
+  })
+
   it('normalizes date-only updatedSince query parameters before sending product requests', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify([]), {
