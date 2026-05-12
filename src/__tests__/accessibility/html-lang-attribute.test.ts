@@ -16,7 +16,7 @@ function readHtml(relativePath: string): string {
 }
 
 function readInlineScript(html: string): string {
-  const match = html.match(/<script>\s*([\s\S]*?)\s*<\/script>/)
+  const match = html.match(/<script>\s*([\s\S]*?)\s*<\/script>/i)
   if (!match) throw new Error('Inline script not found')
   return match[1]
 }
