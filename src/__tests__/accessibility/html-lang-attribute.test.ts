@@ -25,4 +25,15 @@ describe('html-has-lang – static HTML documents', () => {
     const html = readHtml('public/404.html')
     expect(html).toMatch(/<html[^>]+lang\s*=\s*["'][a-zA-Z][a-zA-Z-]*["']/)
   })
+
+  it('public/404.html has one main landmark', () => {
+    const html = readHtml('public/404.html')
+    const mainMatches = html.match(/<main\b/gi) || []
+    expect(mainMatches).toHaveLength(1)
+  })
+
+  it('public/404.html drops malformed redirect query payloads', () => {
+    const html = readHtml('public/404.html')
+    expect(html).toContain("if (searchPayload.charAt(0) === '/')")
+  })
 })
