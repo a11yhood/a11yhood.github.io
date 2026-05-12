@@ -59,7 +59,6 @@ describeWithBackend('ProductCard - API-backed', () => {
       description: productJson.description,
       tags: productJson.tags ?? [],
       createdAt: productJson.created_at ? new Date(productJson.created_at).getTime() : Date.now(),
-      origin: productJson.origin ?? 'user-submitted',
       sourceRating: productJson.source_rating ?? productJson.sourceRating,
       sourceRatingCount: productJson.source_rating_count ?? productJson.sourceRatingCount,
       stars: productJson.stars,

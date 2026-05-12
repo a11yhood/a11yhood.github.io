@@ -27,7 +27,6 @@ beforeEach(() => {
   // The dashboard now shows a requests card instead of tabs
   // and loads requests immediately on mount.
   // Return an empty list to render the empty state deterministically.
-  // @ts-expect-error: dynamic mock target
   vi.spyOn(APIService, 'getAllRequests').mockResolvedValue([])
 })
 
@@ -37,6 +36,8 @@ const baseProps = {
   onProductsUpdate: vi.fn(),
   onBlogPostsUpdate: vi.fn(),
   ravelryAuthTimestamp: 0,
+  adminVerboseLoggingEnabled: false,
+  onAdminVerboseLoggingChange: vi.fn(),
 }
 
 describe('AdminDashboard role-based tabs', () => {

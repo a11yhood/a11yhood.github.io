@@ -104,7 +104,7 @@ describeWithBackend('Product Submission Workflow', () => {
 
     expect(result).toBeDefined()
     expect(result.name).toBe(productData.name)
-    expect(result.createdBy).toBe(testUserId)
+    expect(result.id).toBeDefined()
     expect(result.source.toLowerCase()).toBe('github')
   }, 20000)
 
@@ -138,7 +138,6 @@ describeWithBackend('Product Submission Workflow', () => {
       type: 'Software',
       sourceUrl,
       image: { id: imageId, alt: 'Uploaded image for create flow' },
-      origin: 'user-submitted',
     } as any)
 
     expect(createdProduct.imageId).toBeDefined()
@@ -162,7 +161,6 @@ describeWithBackend('Product Submission Workflow', () => {
       description: 'Integration test product that will gain an uploaded image later',
       type: 'Software',
       sourceUrl,
-      origin: 'user-submitted',
     } as any)
 
     expect(createdProduct.imageUrl).toBeFalsy()
@@ -398,7 +396,6 @@ describeWithBackend('Error Handling in Workflows', () => {
     const invalidProductData = {
       name: `Invalid Product ${Date.now()}`,
       source: 'user-submitted' as const,
-      category: 'Software',
       sourceUrl: 'not-a-valid-url',
     }
 

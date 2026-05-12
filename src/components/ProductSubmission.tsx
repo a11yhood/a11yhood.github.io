@@ -435,7 +435,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
     }
 
     if (imageManagerRef.current?.isProcessingImage()) {
-      notify.warning('Image is still uploading. Please wait a moment and try again.')
+      notify.info('Image is still uploading. Please wait a moment and try again.')
       return
     }
 
