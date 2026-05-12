@@ -7,13 +7,14 @@ const root = resolve(__dirname, '../../../')
 const html = readFileSync(resolve(root, 'public/404.html'), 'utf-8')
 
 function extract404Script(): string {
-  const match = html.match(/<script>([\s\S]*?)<\/script>/)
+  const document = new DOMParser().parseFromString(html, 'text/html')
+  const script = document.querySelector('script')?.textContent
 
-  if (!match?.[1]) {
+  if (!script) {
     throw new Error('Expected public/404.html to contain an inline redirect script')
   }
 
-  return match[1]
+  return script
 }
 
 function runRedirect(pathname: string, search = '') {
