@@ -24,10 +24,11 @@
     var decodedSearchPayload = rawSearchPayload;
     try {
       decodedSearchPayload = decodeURIComponent(rawSearchPayload);
-    } catch (_e) {
+    } catch {
+      // Keep the raw payload when decoding fails so malformed input is safely ignored below.
       decodedSearchPayload = rawSearchPayload;
     }
-    var searchPayload = decodedSearchPayload.charAt(0) === '/' ? '' : rawSearchPayload;
+    var searchPayload = decodedSearchPayload.charAt(0) === '/' ? '' : decodedSearchPayload;
     var encodedRoute = encodeURIComponent(routePayload);
     var encodedSearch = encodeURIComponent(searchPayload);
     var redirectPath = basePath + '?/' + encodedRoute + (searchPayload ? '&' + encodedSearch : '');
