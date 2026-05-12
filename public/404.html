@@ -28,8 +28,17 @@
 
     // Guard against self-redirect loops (e.g. /pr-preview/331/?/%2F%26...).
     // If the computed target is identical, fall back to the canonical base path.
+    var fallback = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
     if (target === l.href) {
-      target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
+      target = fallback;
+    }
+
+    // Guard against "URI Too Long" (HTTP 414) errors: if the redirect URL exceeds
+    // a safe threshold (8000 chars), fall back to the base path so GitHub Pages does
+    // not return a raw <pre> error page that lacks landmark regions (axe/WCAG violation).
+    var MAX_URL_LENGTH = 8000;
+    if (target.length > MAX_URL_LENGTH) {
+      target = fallback;
     }
 
     if (target !== l.href) {
