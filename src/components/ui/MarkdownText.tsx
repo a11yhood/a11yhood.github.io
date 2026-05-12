@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
+import { resolveApiImageUrl } from '@/lib/api'
 
 type MarkdownTextProps = {
   text?: string | null
@@ -24,6 +25,13 @@ export function MarkdownText({ text, className }: MarkdownTextProps) {
     container.querySelectorAll('a').forEach((a) => {
       a.setAttribute('target', '_blank')
       a.setAttribute('rel', 'noopener noreferrer')
+    })
+    container.querySelectorAll('img').forEach((img) => {
+      const src = img.getAttribute('src')
+      if (!src) {
+        return
+      }
+      img.setAttribute('src', resolveApiImageUrl(src))
     })
     return container.innerHTML
   }, [text])

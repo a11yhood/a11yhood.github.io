@@ -1,4 +1,13 @@
 import { marked, type RendererObject } from 'marked'
+import { resolveApiImageUrl } from './api'
+
+function resolveMarkdownImageUrl(href: string | null): string {
+  if (!href) {
+    return ''
+  }
+
+  return resolveApiImageUrl(href)
+}
 
 marked.setOptions({
   gfm: true,
@@ -61,8 +70,9 @@ const renderer: Partial<RendererObject> = {
   },
 
   image({ href, title, text }) {
+    const resolvedHref = resolveMarkdownImageUrl(href)
     const titleAttr = title ? ` title="${title}"` : ''
-    return `<img src="${href}" alt="${text || ''}" class="max-w-full h-auto rounded-lg my-4"${titleAttr} />`
+    return `<img src="${resolvedHref}" alt="${text || ''}" class="max-w-full h-auto rounded-lg my-4"${titleAttr} />`
   },
 
   strong({ tokens }) {

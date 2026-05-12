@@ -553,7 +553,7 @@ function normalizeUploadedImageReference(value: unknown): string | null {
   return normalizeUploadedImageId(trimmed)
 }
 
-type ProductImagePayload = { id: string; alt?: string }
+type ProductImagePayload = { id: string; alt?: string } | { url: string; alt?: string }
 
 function normalizeImageAlt(value: unknown): string | undefined {
   if (typeof value !== 'string') {
@@ -562,6 +562,28 @@ function normalizeImageAlt(value: unknown): string | undefined {
 
   const trimmed = value.trim()
   return trimmed || undefined
+}
+
+function normalizeHttpImageUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return undefined
+  }
+
+  try {
+    const parsed = new URL(trimmed)
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.toString()
+    }
+  } catch {
+    return undefined
+  }
+
+  return undefined
 }
 
 function buildImagePayloadFromUrl(imageUrl: string, imageAlt?: string): ProductImagePayload | undefined {
@@ -574,14 +596,24 @@ function buildImagePayloadFromUrl(imageUrl: string, imageAlt?: string): ProductI
     return imageAlt ? { id: decodeURIComponent(relativeMatch[1]), alt: imageAlt } : { id: decodeURIComponent(relativeMatch[1]) }
   }
 
+  let parsed: URL
   try {
-    const parsed = new URL(imageUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+    parsed = new URL(imageUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
     const match = parsed.pathname.match(/^\/api\/images\/([^/?#]+)$/)
     if (match?.[1]) {
       return imageAlt ? { id: decodeURIComponent(match[1]), alt: imageAlt } : { id: decodeURIComponent(match[1]) }
     }
   } catch {
+    const normalizedHttpUrl = normalizeHttpImageUrl(imageUrl)
+    if (normalizedHttpUrl) {
+      return imageAlt ? { url: normalizedHttpUrl, alt: imageAlt } : { url: normalizedHttpUrl }
+    }
+
     return undefined
+  }
+
+  if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+    return imageAlt ? { url: parsed.toString(), alt: imageAlt } : { url: parsed.toString() }
   }
 
   return undefined
@@ -599,11 +631,16 @@ function buildProductImagePayload(input: {
   const imageAlt = normalizeImageAlt(input.imageAlt)
 
   if (input.image && typeof input.image === 'object') {
-    const imageObj = input.image as { id?: unknown; alt?: unknown }
+    const imageObj = input.image as { id?: unknown; url?: unknown; alt?: unknown }
     if (typeof imageObj.id === 'string' && imageObj.id.trim()) {
       const alt = normalizeImageAlt(imageObj.alt) ?? imageAlt
       const id = imageObj.id.trim()
       return alt ? { id, alt } : { id }
+    }
+
+    if (typeof imageObj.url === 'string' && imageObj.url.trim()) {
+      const alt = normalizeImageAlt(imageObj.alt) ?? imageAlt
+      return buildImagePayloadFromUrl(imageObj.url.trim(), alt)
     }
   }
 
