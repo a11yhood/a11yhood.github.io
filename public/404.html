@@ -2,7 +2,36 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <title>Redirecting...</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, sans-serif;
+      line-height: 1.5;
+    }
+
+    main {
+      min-height: 100vh;
+      display: grid;
+      place-content: center;
+      gap: 0.75rem;
+      padding: 1.5rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Redirecting to a11yhood…</h1>
+    <p>If you are not redirected automatically, use the link below.</p>
+    <p><a id="redirect-link" href="/">Continue to a11yhood</a></p>
+  </main>
   <script>
     // Single Page Apps for GitHub Pages
     // MIT License
@@ -10,15 +39,22 @@
     // This script takes the current url and converts the path and query
     // string into just a query string, and then redirects the browser
     // to the new url with only a query string and hash fragment
-    
+
     // For PR preview paths (/pr-preview/N/...) keep the first 2 path
     // segments so the redirect lands on the PR preview's own index.html
     // rather than the root index.html (main site).
     var parts = window.location.pathname.split('/');
     var pathSegmentsToKeep = (parts[1] === 'pr-preview' && parts[2]) ? 2 : 0;
-    
+
     var l = window.location;
     var basePath = l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
+    var redirectLink = document.getElementById('redirect-link');
+    var maxRedirectPathLength = 1800;
+
+    if (redirectLink) {
+      redirectLink.setAttribute('href', basePath);
+    }
+
     var routePayload = l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/');
     var searchPayload = l.search ? l.search.slice(1) : '';
     var encodedRoute = encodeURIComponent(routePayload);
@@ -26,9 +62,10 @@
     var redirectPath = basePath + '?/' + encodedRoute + (searchPayload ? '&' + encodedSearch : '');
     var target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + redirectPath + l.hash;
 
-    // Guard against self-redirect loops (e.g. /pr-preview/331/?/%2F%26...).
-    // If the computed target is identical, fall back to the canonical base path.
-    if (target === l.href) {
+    // Guard against self-redirect loops (e.g. /pr-preview/331/?/%2F%26...)
+    // and oversized redirect payloads that can trigger "URI Too Long" responses.
+    // In those cases, fall back to the canonical base path for the site/preview.
+    if (target === l.href || l.search.indexOf('?/') === 0 || redirectPath.length > maxRedirectPathLength) {
       target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
     }
 
@@ -36,7 +73,5 @@
       l.replace(target);
     }
   </script>
-</head>
-<body>
 </body>
 </html>
