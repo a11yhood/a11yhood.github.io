@@ -53,7 +53,7 @@ function buildImagePayload(
   }
 
   // If this is an existing image reference, extract the ID and include alt if provided.
-  // Accept both relative (/api/images/{id}) and same-origin absolute URLs.
+  // Accept both relative (/api/images/{id}) and absolute URLs.
   const relativeMatch = imageUrl.match(/^\/api\/images\/([^/?#]+)$/)
   const imageIdFromReference = (() => {
     if (relativeMatch?.[1]) {
@@ -62,10 +62,6 @@ function buildImagePayload(
 
     try {
       const parsed = new URL(imageUrl)
-      const sameOrigin = typeof window !== 'undefined' && parsed.origin === window.location.origin
-      if (!sameOrigin) {
-        return undefined
-      }
       const absoluteMatch = parsed.pathname.match(/^\/api\/images\/([^/?#]+)$/)
       return absoluteMatch?.[1]
     } catch {

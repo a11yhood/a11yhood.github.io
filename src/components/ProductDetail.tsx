@@ -17,7 +17,7 @@ import { CreateCollectionDialog } from './CreateCollectionDialog'
 import { ProductEditors } from './ProductEditors'
 import { CollapsibleCard } from './CollapsibleCard'
 import { Product, ProductUpdate, Rating, Discussion, UserData, Collection, CollectionCreateInput, UserAccount } from '@/lib/types'
-import { APIService } from '@/lib/api'
+import { APIService, resolveApiImageUrl } from '@/lib/api'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faUniversalAccess } from '@fortawesome/free-solid-svg-icons'
 import { formatSourceLabel, getSourceIcon, calculateAverageRating, getCanonicalHost, formatRelativeTime } from '@/lib/utils'
@@ -86,7 +86,7 @@ export function ProductDetail({
 
     const imageId = typeof product.imageId === 'string' ? product.imageId.trim() : ''
     if (imageId) {
-      return `/api/images/${encodeURIComponent(imageId)}`
+      return resolveApiImageUrl(`/api/images/${encodeURIComponent(imageId)}`)
     }
 
     return undefined

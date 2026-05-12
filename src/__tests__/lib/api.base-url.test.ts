@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getApiBaseUrl } from '@/lib/api'
+import { getApiBaseUrl, resolveApiImageUrl } from '@/lib/api'
 
 describe('getApiBaseUrl', () => {
   it('returns configured base URL for http://localhost:8002 even when frontend is https://localhost:5173', () => {
@@ -21,5 +21,22 @@ describe('getApiBaseUrl', () => {
     // Just verify it doesn't throw - actual value depends on build-time env
     const result = getApiBaseUrl()
     expect(typeof result).toBe('string')
+  })
+})
+
+describe('resolveApiImageUrl', () => {
+  it('prefixes relative API image URLs with configured backend base', () => {
+    const result = resolveApiImageUrl('/api/images/abc-123', 'https://api.example.test', 'https://a11yhood.example', 'https:')
+    expect(result).toBe('https://api.example.test/api/images/abc-123')
+  })
+
+  it('keeps relative image URLs when no backend base is configured', () => {
+    const result = resolveApiImageUrl('/api/images/abc-123', '', 'https://a11yhood.example', 'https:')
+    expect(result).toBe('/api/images/abc-123')
+  })
+
+  it('returns absolute URLs unchanged', () => {
+    const result = resolveApiImageUrl('https://cdn.example.test/image.png', 'https://api.example.test', 'https://a11yhood.example', 'https:')
+    expect(result).toBe('https://cdn.example.test/image.png')
   })
 })
