@@ -4,7 +4,8 @@ import { resolveApiImageUrl } from './api'
 
 function resolveMarkdownImageUrl(href: string | null): string {
   if (!href) {
-    return ''
+    // Avoid emitting <img src="">, which can cause a request to the current document.
+    return 'data:,'
   }
 
   return resolveApiImageUrl(href)
