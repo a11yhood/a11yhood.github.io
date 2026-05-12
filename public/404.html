@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Redirecting...</title>
+  <title>Page not found | a11yhood</title>
   <script>
     // Single Page Apps for GitHub Pages
     // MIT License
@@ -25,11 +25,18 @@
     var encodedSearch = encodeURIComponent(searchPayload);
     var redirectPath = basePath + '?/' + encodedRoute + (searchPayload ? '&' + encodedSearch : '');
     var target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + redirectPath + l.hash;
+    var maxRedirectTargetLength = 7500;
 
     // Guard against self-redirect loops (e.g. /pr-preview/331/?/%2F%26...).
     // If the computed target is identical, fall back to the canonical base path.
     if (target === l.href) {
       target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
+    }
+
+    // Avoid generating URI-too-long responses from the host by skipping the
+    // SPA redirect when the rewritten URL would exceed a conservative limit.
+    if (target.length > maxRedirectTargetLength) {
+      target = l.href;
     }
 
     if (target !== l.href) {
@@ -38,5 +45,15 @@
   </script>
 </head>
 <body>
+  <main>
+    <h1>Page not found</h1>
+    <p>
+      If this page does not redirect automatically, the address may be too long
+      to rewrite safely.
+    </p>
+    <p>
+      <a href="/">Go to the a11yhood home page</a>
+    </p>
+  </main>
 </body>
 </html>
