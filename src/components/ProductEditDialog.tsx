@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Product, ProductUpdate, UserAccount } from '@/lib/types'
+import { extractInternalImageIdFromReference, resolveApiImageUrl } from '@/lib/api'
 import { ProductImageManager, ProductImageManagerRef } from './ProductImageManager'
 
 type ProductEditDialogProps = {
@@ -58,7 +59,7 @@ function resolveImageUrlFromProduct(product: Product): string | undefined {
   })()
 
   if (imageId) {
-    return `/api/images/${encodeURIComponent(imageId)}`
+    return resolveApiImageUrl(`/api/images/${encodeURIComponent(imageId)}`)
   }
 
   return imageUrl
@@ -83,26 +84,9 @@ function buildImagePayload(
     return undefined
   }
 
-  // If this is an existing image reference, extract the ID and include alt if provided.
-  // Accept both relative (/api/images/{id}) and same-origin absolute URLs.
-  const relativeMatch = imageUrl.match(/^\/api\/images\/([^/?#]+)$/)
-  const imageIdFromReference = (() => {
-    if (relativeMatch?.[1]) {
-      return relativeMatch[1]
-    }
-
-    try {
-      const parsed = new URL(imageUrl)
-      const sameOrigin = typeof window !== 'undefined' && parsed.origin === window.location.origin
-      if (!sameOrigin) {
-        return undefined
-      }
-      const absoluteMatch = parsed.pathname.match(/^\/api\/images\/([^/?#]+)$/)
-      return absoluteMatch?.[1]
-    } catch {
-      return undefined
-    }
-  })()
+  // Existing internal image references can be ID-based only when the URL is relative
+  // or when the absolute URL matches the configured backend origin.
+  const imageIdFromReference = extractInternalImageIdFromReference(imageUrl)
 
   if (imageIdFromReference) {
     const alt = imageAlt?.trim()

@@ -38,6 +38,72 @@ export function getApiBaseUrl(
   return configuredBaseUrl
 }
 
+export function resolveApiImageUrl(
+  imageUrl: string,
+  configuredUrl?: string,
+  locationOrigin?: string,
+  locationProtocol?: string
+): string {
+  const trimmed = imageUrl.trim()
+  if (!trimmed.startsWith('/api/images/')) {
+    return trimmed
+  }
+
+  const base = getApiBaseUrl(configuredUrl, locationOrigin, locationProtocol)
+  if (!base) {
+    return trimmed
+  }
+
+  return `${base.replace(/\/$/, '')}${trimmed}`
+}
+
+export function extractInternalImageIdFromReference(
+  imageUrl: string,
+  configuredUrl?: string,
+  locationOrigin?: string,
+  locationProtocol?: string
+): string | undefined {
+  const trimmed = imageUrl.trim()
+  if (!trimmed) {
+    return undefined
+  }
+
+  const relativeMatch = trimmed.match(/^\/api\/images\/([^/?#]+)$/)
+  if (relativeMatch?.[1]) {
+    return decodeURIComponent(relativeMatch[1])
+  }
+
+  let parsed: URL
+  try {
+    parsed = new URL(trimmed)
+  } catch {
+    return undefined
+  }
+
+  const absoluteMatch = parsed.pathname.match(/^\/api\/images\/([^/?#]+)$/)
+  if (!absoluteMatch?.[1]) {
+    return undefined
+  }
+
+  const base = getApiBaseUrl(configuredUrl, locationOrigin, locationProtocol).trim()
+  if (!base) {
+    return undefined
+  }
+
+  let backendOrigin: string
+  try {
+    backendOrigin = new URL(base).origin
+  } catch {
+    return undefined
+  }
+
+  if (parsed.origin !== backendOrigin) {
+    return undefined
+  }
+
+  return decodeURIComponent(absoluteMatch[1])
+}
+
 // Token getter function set by AuthContext on app load.
 // In dev mode: returns dev-token-<role> (e.g., dev-token-admin)
 // In prod mode: returns Supabase session access token
@@ -100,6 +166,8 @@ function normalizeProductImageReference<T>(value: T): T {
   const imageUrl = typeof record.imageUrl === 'string' ? record.imageUrl.trim() : ''
   const nestedImageUrl = typeof imageRecord?.url === 'string' ? imageRecord.url.trim() : ''
   const nestedImageAlt = typeof imageRecord?.alt === 'string' ? imageRecord.alt.trim() : ''
+  const resolvedImageUrl = imageUrl ? resolveApiImageUrl(imageUrl) : ''
+  const resolvedNestedImageUrl = nestedImageUrl ? resolveApiImageUrl(nestedImageUrl) : ''
 
   const hasProductIdentity = 'id' in record || 'slug' in record
   const hasImageReferenceFields = maybeImageId !== undefined || !!nestedImageUrl || imageUrl.startsWith('data:image/')
@@ -109,9 +177,9 @@ function normalizeProductImageReference<T>(value: T): T {
 
   if (hasProductIdentity && hasImageReferenceFields && shouldReplaceImageUrl) {
     if (typeof maybeImageId === 'string' && maybeImageId.trim()) {
-      record.imageUrl = `/api/images/${encodeURIComponent(maybeImageId.trim())}`
-    } else if (nestedImageUrl) {
-      record.imageUrl = nestedImageUrl
+      record.imageUrl = resolveApiImageUrl(`/api/images/${encodeURIComponent(maybeImageId.trim())}`)
+    } else if (resolvedNestedImageUrl) {
+      record.imageUrl = resolvedNestedImageUrl
       if (nestedImageAlt) {
         record.imageAlt = nestedImageAlt
       }
@@ -119,6 +187,10 @@ function normalizeProductImageReference<T>(value: T): T {
       // New contract: stale data URLs should never be treated as persistent product image references.
       delete record.imageUrl
     }
+  }
+
+  if (resolvedImageUrl && resolvedImageUrl !== imageUrl) {
+    record.imageUrl = resolvedImageUrl
   }
 
   if (record.imageId === undefined) {
@@ -793,8 +865,31 @@ export class APIService {
   }
 
   private static validateBlogPostResponse(post: BlogPost, context: string): BlogPost {
+    const headerImageFromPost = typeof post.headerImage === 'string' ? post.headerImage.trim() : ''
+    const rawPost = post as BlogPost & { headerImageId?: unknown; headerImageUrl?: unknown }
+    const headerImageFromUrlField = typeof rawPost.headerImageUrl === 'string' ? rawPost.headerImageUrl.trim() : ''
+    const headerImageId = typeof rawPost.headerImageId === 'string' ? rawPost.headerImageId.trim() : ''
+
+    let normalizedHeaderImage = headerImageFromPost || headerImageFromUrlField
+    if (!normalizedHeaderImage && headerImageId) {
+      normalizedHeaderImage = `/api/images/${encodeURIComponent(headerImageId)}`
+    }
+
+    if (normalizedHeaderImage) {
+      try {
+        const normalizedReference = normalizeUploadedImageReference(normalizedHeaderImage)
+        if (normalizedReference) {
+          normalizedHeaderImage = normalizedReference
+        }
+      } catch {
+        // Keep the trimmed original value when server-provided percent-encoding is malformed.
+      }
+      normalizedHeaderImage = resolveApiImageUrl(normalizedHeaderImage)
+    }
+
     return {
       ...post,
+      headerImage: normalizedHeaderImage || undefined,
       createdAt: assertIsoTimestamp(post.createdAt, 'createdAt', context),
       updatedAt: assertIsoTimestamp(post.updatedAt, 'updatedAt', context),
       publishDate: post.publishDate == null ? undefined : assertIsoTimestamp(post.publishDate, 'publishDate', context),
