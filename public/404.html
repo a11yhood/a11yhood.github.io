@@ -19,7 +19,7 @@
     var pathSegmentsToKeep = (parts[1] === 'pr-preview' && parts[2]) ? 2 : 0;
 
     // If a missing preview root (/pr-preview/N/) is already carrying redirect
-    // payload (search starts with "?/"), reroute through the site root so the
+    // payload (search starts with "?/"), re-route through the site root so the
     // URL does not grow on repeated 404 redirects.
     var isPrPreviewRoot = (parts[1] === 'pr-preview' && parts[2] && !parts[3]);
     var hasRedirectPayload = l.search && l.search.charAt(1) === '/';

@@ -32,13 +32,13 @@ describe('html-has-lang – static HTML documents', () => {
     expect(html).toMatch(/<h1[^>]*>[\s\S]*<\/h1>/i)
   })
 
-  it('public/404.html escapes missing PR preview root redirect loops', () => {
+  it('public/404.html prevents redirect loops for missing PR preview roots', () => {
     const html = readHtml('public/404.html')
     const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/i)
     expect(scriptMatch).not.toBeNull()
 
     const script = scriptMatch?.[1] ?? ''
-    const runRedirect = (pathname: string, search = '') => {
+    const simulateRedirectScript = (pathname: string, search = '') => {
       let redirectedTo = ''
       const location = {
         pathname,
@@ -57,9 +57,9 @@ describe('html-has-lang – static HTML documents', () => {
       return redirectedTo
     }
 
-    expect(runRedirect('/pr-preview/416/', ''))
+    expect(simulateRedirectScript('/pr-preview/416/', ''))
       .toBe('https://a11yhood.org/pr-preview/416/?/')
-    expect(runRedirect('/pr-preview/416/', '?/'))
+    expect(simulateRedirectScript('/pr-preview/416/', '?/'))
       .toBe('https://a11yhood.org/?/pr-preview%2F416%2F&%2F')
   })
 })
