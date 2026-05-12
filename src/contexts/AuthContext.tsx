@@ -199,45 +199,33 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
     APIService.setAuthTokenGetter(getAccessToken);
   }
 
-  const [user] = useState<User | null>(() => {
-    // Build dev auth state synchronously so App effects don't see a transient null user.
-    return {
-      id: devUserFixture.id,
-      aud: 'authenticated',
-      email: devUserFixture.email,
-      email_confirmed_at: new Date().toISOString(),
-      phone: '',
-      confirmed_at: new Date().toISOString(),
-      last_sign_in_at: new Date().toISOString(),
-      app_metadata: { role: devUserFixture.role },
-      user_metadata: { username: devUserFixture.username },
-      identities: [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      is_anonymous: false,
-    };
-  });
+  // Build dev auth state synchronously so App effects don't see a transient null user.
+  // Construct once and share between user state and session.user to avoid drift.
+  const supabaseUser: User = {
+    id: devUserFixture.id,
+    aud: 'authenticated',
+    email: devUserFixture.email,
+    email_confirmed_at: new Date().toISOString(),
+    phone: '',
+    confirmed_at: new Date().toISOString(),
+    last_sign_in_at: new Date().toISOString(),
+    app_metadata: { role: devUserFixture.role },
+    user_metadata: { username: devUserFixture.username },
+    identities: [],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    is_anonymous: false,
+  };
+  const [user] = useState<User | null>(() => supabaseUser);
   const [session] = useState<Session | null>(() => ({
-    access_token: 'dev-token',
+    // Match the token returned by getAccessToken() so auth headers are consistent.
+    access_token: getDevToken(devUserFixture.role),
     token_type: 'bearer',
     expires_in: 3600,
-    expires_at: Date.now() / 1000 + 3600,
+    // Supabase session timestamps are seconds-based integers.
+    expires_at: Math.floor(Date.now() / 1000) + 3600,
     refresh_token: 'dev-refresh-token',
-    user: {
-      id: devUserFixture.id,
-      aud: 'authenticated',
-      email: devUserFixture.email,
-      email_confirmed_at: new Date().toISOString(),
-      phone: '',
-      confirmed_at: new Date().toISOString(),
-      last_sign_in_at: new Date().toISOString(),
-      app_metadata: { role: devUserFixture.role },
-      user_metadata: { username: devUserFixture.username },
-      identities: [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      is_anonymous: false,
-    },
+    user: supabaseUser,
   }));
   const loading = false;
 
