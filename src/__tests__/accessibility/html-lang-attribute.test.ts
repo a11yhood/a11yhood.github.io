@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
-import { Script, createContext } from 'vm'
+import { Script } from 'vm'
 
 // Resolve paths relative to the repository root (three levels above src/__tests__/accessibility/)
 const root = resolve(__dirname, '../../../')
@@ -23,13 +23,14 @@ function readInlineScript(relativePath: string): string {
   }
 
   const html = readHtml(relativePath)
-  const match = html.match(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/i)
+  const document = new DOMParser().parseFromString(html, 'text/html')
+  const scripts = Array.from(document.querySelectorAll('script')).filter((script) => script.textContent?.trim())
 
-  if (!match) {
-    throw new Error(`No inline script found in ${relativePath}`)
+  if (scripts.length !== 1) {
+    throw new Error(`Expected exactly one inline script in ${relativePath}, found ${scripts.length}`)
   }
 
-  return match[1]
+  return scripts[0].textContent || ''
 }
 
 function runInlineScript(script: string, initialUrl: string): string {
@@ -75,8 +76,7 @@ function runInlineScript(script: string, initialUrl: string): string {
     },
   }
 
-  const context = createContext({ window })
-  new Script(script).runInContext(context)
+  new Script(script).runInNewContext({ window }, { timeout: 1000 })
 
   return currentUrl.toString()
 }
@@ -93,7 +93,7 @@ describe('html-has-lang – static HTML documents', () => {
     expect(html).toMatch(/<html[^>]+lang\s*=\s*["'][a-zA-Z][a-zA-Z-]*["']/)
   })
 
-  it('prevents PR preview redirect loops for malformed double-slash URLs', () => {
+  it('prevents PR preview redirect loops for malformed double-slash paths', () => {
     const notFoundRedirect = readInlineScript('public/404.html')
     const previewIndexRedirect = readInlineScript('index.html')
 
@@ -103,7 +103,17 @@ describe('html-has-lang – static HTML documents', () => {
     )
     expect(redirectedUrl).toBe('https://a11yhood.org/pr-preview/416/?/products')
 
-    const finalUrl = runInlineScript(previewIndexRedirect, redirectedUrl)
-    expect(finalUrl).toBe('https://a11yhood.org/pr-preview/416/products')
+    const resolvedUrl = runInlineScript(previewIndexRedirect, redirectedUrl)
+    expect(resolvedUrl).toBe('https://a11yhood.org/pr-preview/416/products')
+  })
+
+  it('normalizes malformed PR preview query payloads with leading slashes', () => {
+    const previewIndexRedirect = readInlineScript('index.html')
+
+    const resolvedUrl = runInlineScript(
+      previewIndexRedirect,
+      'https://a11yhood.org/pr-preview/416/?/%2Fproducts'
+    )
+    expect(resolvedUrl).toBe('https://a11yhood.org/pr-preview/416/products')
   })
 })
