@@ -7,6 +7,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
+import { runInNewContext } from 'node:vm'
 
 // Resolve paths relative to the repository root (three levels above src/__tests__/accessibility/)
 const root = resolve(__dirname, '../../../')
@@ -15,7 +16,7 @@ function readHtml(relativePath: string): string {
   return readFileSync(resolve(root, relativePath), 'utf-8')
 }
 
-const nonEmptyTitlePattern = /<title>\s*[^<\s][^<]*<\/title>/i
+const titleWithContentPattern = /<title>\s*[^<\s][^<]*<\/title>/i
 
 function readInlineScript(relativePath: string): string {
   const html = readHtml(relativePath)
@@ -42,12 +43,12 @@ describe('html-has-lang – static HTML documents', () => {
 describe('document-title – static HTML documents', () => {
   it('index.html has a non-empty <title>', () => {
     const html = readHtml('index.html')
-    expect(html).toMatch(nonEmptyTitlePattern)
+    expect(html).toMatch(titleWithContentPattern)
   })
 
   it('public/404.html has a non-empty <title>', () => {
     const html = readHtml('public/404.html')
-    expect(html).toMatch(nonEmptyTitlePattern)
+    expect(html).toMatch(titleWithContentPattern)
   })
 })
 
@@ -66,7 +67,7 @@ describe('SPA redirect loop safeguards', () => {
       },
     }
 
-    new Function('window', script)(windowMock)
+    runInNewContext(script, { window: windowMock })
 
     expect(replaceState).toHaveBeenCalledWith(null, null, '/pr-preview/42/profile')
   })
@@ -86,7 +87,7 @@ describe('SPA redirect loop safeguards', () => {
     }
     const windowMock = { location: locationMock }
 
-    new Function('window', script)(windowMock)
+    runInNewContext(script, { window: windowMock })
 
     expect(replace).toHaveBeenCalledWith('https://a11yhood.org/pr-preview/42/?/post')
   })
