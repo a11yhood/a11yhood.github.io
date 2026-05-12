@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from 'vite
 import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { APIService, setAuthTokenGetter } from '@/lib/api'
+import { APIService, setAuthTokenGetter, APIError } from '@/lib/api'
 import { ProductEditors } from '@/components/ProductEditors'
 import { ProductCard } from '@/components/ProductCard'
 import * as types from '@/lib/types'
@@ -44,12 +44,9 @@ async function uploadTestImageAndGetId(): Promise<string | null> {
     return decodeURIComponent(match[1])
   } catch (error) {
     // CI preview backends can intermittently timeout on multipart upload endpoints.
-    // Do not fail unrelated workflow assertions when image upload infrastructure is unavailable.
-    const isTimeout =
-      error instanceof Error &&
-      (/timed out/i.test(error.message) || /408/.test(error.message) || /Request Timeout/i.test(error.message))
-
-    if (isTimeout) {
+    // Detect 408 status code specifically to avoid silently catching unrelated errors.
+    if (error instanceof APIError && error.status === 408) {
+      // Do not fail unrelated workflow assertions when image upload infrastructure is unavailable.
       return null
     }
     throw error
@@ -125,14 +122,14 @@ describeWithBackend('Product Submission Workflow', () => {
     expect(result.type).toBe('product_submit')
   })
 
-  it.skip('should create a product with an uploaded image ID and persist the image reference', async () => {
-    // SKIPPED: CI preview environment has reverse proxy with aggressive body read timeout (~10-30s).
+  it.skipIf(process.env.CI || process.env.GITHUB_ACTIONS)('should create a product with an uploaded image ID and persist the image reference', async () => {
+    // SKIPPED in CI: CI preview environment has reverse proxy with aggressive body read timeout (~10-30s).
     // Local backend handles uploads fine, but CI proxy returns 408 before multipart body arrives.
     // This is infrastructure issue, not app logic. Contact preview team to increase upstream timeout.
     const sourceUrl = `https://github.com/test/create-with-upload-${Date.now()}`
     const imageId = await uploadTestImageAndGetId()
     if (!imageId) {
-      return
+      expect.fail('Image upload failed: this test requires a valid imageId to proceed')
     }
 
     const createdProduct = await APIService.createProduct({
@@ -151,14 +148,14 @@ describeWithBackend('Product Submission Workflow', () => {
     expect(fetchedProduct?.imageId).toBe(createdProduct.imageId)
   }, 30000)
 
-  it.skip('should edit a product to add an uploaded image ID and persist it', async () => {
-    // SKIPPED: CI preview environment has reverse proxy with aggressive body read timeout (~10-30s).
+  it.skipIf(process.env.CI || process.env.GITHUB_ACTIONS)('should edit a product to add an uploaded image ID and persist it', async () => {
+    // SKIPPED in CI: CI preview environment has reverse proxy with aggressive body read timeout (~10-30s).
     // Local backend handles uploads fine, but CI proxy returns 408 before multipart body arrives.
     // This is infrastructure issue, not app logic. Contact preview team to increase upstream timeout.
     const sourceUrl = `https://github.com/test/edit-to-add-upload-${Date.now()}`
     const imageId = await uploadTestImageAndGetId()
     if (!imageId) {
-      return
+      expect.fail('Image upload failed: this test requires a valid imageId to proceed')
     }
     const createdProduct = await APIService.createProduct({
       name: `Edit To Add Upload ${Date.now()}`,
