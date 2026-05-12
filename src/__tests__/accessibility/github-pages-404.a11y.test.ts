@@ -77,6 +77,8 @@ describe('GitHub Pages 404 redirect guard', () => {
   })
 
   it('falls back to the preview root for oversized redirect payloads', () => {
+    // 2,500 characters comfortably exceeds the 1,800-character redirect cap in
+    // public/404.html, so this reproduces the URI-length fallback path.
     const { replacedWith } = runRedirect('/pr-preview/416/missing/page', `?${'q'.repeat(2500)}`)
 
     expect(replacedWith).toBe('https://a11yhood.org/pr-preview/416/')
