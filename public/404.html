@@ -14,10 +14,19 @@
     // For PR preview paths (/pr-preview/N/...) keep the first 2 path
     // segments so the redirect lands on the PR preview's own index.html
     // rather than the root index.html (main site).
-    var parts = window.location.pathname.split('/');
-    var pathSegmentsToKeep = (parts[1] === 'pr-preview' && parts[2]) ? 2 : 0;
-    
     var l = window.location;
+    var parts = l.pathname.split('/');
+    var pathSegmentsToKeep = (parts[1] === 'pr-preview' && parts[2]) ? 2 : 0;
+
+    // If a missing preview root (/pr-preview/N/) is already carrying redirect
+    // payload (search starts with "?/"), reroute through the site root so the
+    // URL does not grow on repeated 404 redirects.
+    var isPrPreviewRoot = (parts[1] === 'pr-preview' && parts[2] && !parts[3]);
+    var hasRedirectPayload = l.search && l.search.charAt(1) === '/';
+    if (isPrPreviewRoot && hasRedirectPayload) {
+      pathSegmentsToKeep = 0;
+    }
+
     var basePath = l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
     var routePayload = l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/');
     var searchPayload = l.search ? l.search.slice(1) : '';
@@ -38,5 +47,9 @@
   </script>
 </head>
 <body>
+  <main>
+    <h1>Redirecting…</h1>
+    <p>If you are not redirected automatically, <a href="/">go to the home page</a>.</p>
+  </main>
 </body>
 </html>
