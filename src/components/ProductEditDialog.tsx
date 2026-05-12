@@ -252,10 +252,10 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
     try {
       // Build the API payload with the new image object contract
       const image = buildImagePayload(finalFormData.imageUrl, finalFormData.imageAlt)
-      const payloadToSend = {
+      const payloadToSend: ProductUpdate & { image?: ReturnType<typeof buildImagePayload> } = {
         ...finalFormData,
         image,
-      } as any
+      }
 
       await onSave(payloadToSend)
       setOpen(false)

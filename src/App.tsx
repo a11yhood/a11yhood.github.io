@@ -706,6 +706,7 @@ function ProductDetailPageWrapper({
   allTags: string[]
   allProductTypes?: string[]
 }) {
+  const { notify } = useNotifications()
   const { slug } = useParams()
   const [searchParams] = useSearchParams()
   void searchParams
@@ -831,6 +832,7 @@ function BlogPage({ blogPosts, blogPostsLoading, userAccount }: { blogPosts: Blo
 }
 
 function BlogPostPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userAccount: UserAccount | null }) {
+  const { notify } = useNotifications()
   const { slug } = useParams()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -1157,6 +1159,7 @@ function CollectionDetailPage({
   onDeleteCollection?: (collectionSlug: string) => void
   onEditCollection?: (collection: Collection) => void
 }) {
+  const { notify } = useNotifications()
   const { collectionSlug } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
@@ -2984,7 +2987,7 @@ function App() {
 
   const handleCreateCollectionFromSearch = async (collectionData: CollectionCreateInput) => {
     try {
-      const payload: Record<string, unknown> = {
+      const payload: Parameters<typeof APIService.createCollectionFromSearch>[0] = {
         name: collectionData.name,
         description: collectionData.description,
         isPublic: collectionData.isPublic,

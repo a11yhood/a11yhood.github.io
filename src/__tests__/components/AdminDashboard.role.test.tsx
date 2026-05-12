@@ -27,7 +27,6 @@ beforeEach(() => {
   // The dashboard now shows a requests card instead of tabs
   // and loads requests immediately on mount.
   // Return an empty list to render the empty state deterministically.
-  // @ts-expect-error: dynamic mock target
   vi.spyOn(APIService, 'getAllRequests').mockResolvedValue([])
 })
 
@@ -37,6 +36,8 @@ const baseProps = {
   onProductsUpdate: vi.fn(),
   onBlogPostsUpdate: vi.fn(),
   ravelryAuthTimestamp: 0,
+  adminVerboseLoggingEnabled: false,
+  onAdminVerboseLoggingChange: vi.fn(),
 }
 
 describe('AdminDashboard role-based tabs', () => {
@@ -81,7 +82,8 @@ describe('AdminDashboard role-based tabs', () => {
     const productScraperTitles = await screen.findAllByText('External Product Scraper')
     expect(productScraperTitles.length).toBeGreaterThan(0)
     expect(await screen.findByText('User Requests')).toBeInTheDocument()
-    expect(await screen.findByText('Blog Posts')).toBeInTheDocument()
+    const blogPostTitles = await screen.findAllByText('Blog Posts')
+    expect(blogPostTitles.length).toBeGreaterThan(0)
     expect(await screen.findByText('Authorization Settings')).toBeInTheDocument()
     // Legacy tabs are removed
     expect(screen.queryByRole('tab', { name: 'Users & Stats' })).toBeNull()
