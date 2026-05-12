@@ -4,7 +4,7 @@
  * - a valid `lang` attribute on <html>
  * - a <title> element in <head>
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 
@@ -13,6 +13,17 @@ const root = resolve(__dirname, '../../../')
 
 function readHtml(relativePath: string): string {
   return readFileSync(resolve(root, relativePath), 'utf-8')
+}
+
+const nonEmptyTitlePattern = /<title>\s*[^<\s][^<]*<\/title>/i
+
+function readInlineScript(relativePath: string): string {
+  const html = readHtml(relativePath)
+  const scriptMatch = html.match(/<script>\s*([\s\S]*?)\s*<\/script>/i)
+  if (!scriptMatch?.[1]) {
+    throw new Error(`No inline <script> found in ${relativePath}`)
+  }
+  return scriptMatch[1]
 }
 
 describe('html-has-lang – static HTML documents', () => {
@@ -31,24 +42,52 @@ describe('html-has-lang – static HTML documents', () => {
 describe('document-title – static HTML documents', () => {
   it('index.html has a non-empty <title>', () => {
     const html = readHtml('index.html')
-    expect(html).toMatch(/<title>\s*[^<\s][^<]*<\/title>/i)
+    expect(html).toMatch(nonEmptyTitlePattern)
   })
 
   it('public/404.html has a non-empty <title>', () => {
     const html = readHtml('public/404.html')
-    expect(html).toMatch(/<title>\s*[^<\s][^<]*<\/title>/i)
+    expect(html).toMatch(nonEmptyTitlePattern)
   })
 })
 
 describe('SPA redirect loop safeguards', () => {
-  it('index.html normalizes malformed route/query redirect payloads', () => {
-    const html = readHtml('index.html')
-    expect(html).toContain("if (route.charAt(0) === '/')")
-    expect(html).toContain("if (query.charAt(0) === '/')")
+  it('index.html normalizes malformed slash-prefixed route/query payloads', () => {
+    const script = readInlineScript('index.html')
+    const replaceState = vi.fn()
+    const windowMock = {
+      location: {
+        search: '?/%2Fprofile&%2Floop',
+        pathname: '/pr-preview/42/',
+        hash: '',
+      },
+      history: {
+        replaceState,
+      },
+    }
+
+    new Function('window', script)(windowMock)
+
+    expect(replaceState).toHaveBeenCalledWith(null, null, '/pr-preview/42/profile')
   })
 
-  it('public/404.html drops malformed slash-prefixed search payloads', () => {
-    const html = readHtml('public/404.html')
-    expect(html).toContain("if (searchPayload.charAt(0) === '/')")
+  it('public/404.html drops malformed slash-prefixed search payloads before redirect', () => {
+    const script = readInlineScript('public/404.html')
+    const replace = vi.fn()
+    const locationMock = {
+      pathname: '/pr-preview/42/post',
+      search: '?/%2F%252Fgrow',
+      hash: '',
+      protocol: 'https:',
+      hostname: 'a11yhood.org',
+      port: '',
+      href: 'https://a11yhood.org/pr-preview/42/post?/%2F%252Fgrow',
+      replace,
+    }
+    const windowMock = { location: locationMock }
+
+    new Function('window', script)(windowMock)
+
+    expect(replace).toHaveBeenCalledWith('https://a11yhood.org/pr-preview/42/?/post')
   })
 })
