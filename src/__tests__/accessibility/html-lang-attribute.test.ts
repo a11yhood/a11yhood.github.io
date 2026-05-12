@@ -39,6 +39,10 @@ describe('html-has-lang – static HTML documents', () => {
     expect(mainMatches).toHaveLength(1)
   })
 
+  it('readInlineScript throws when no script is present', () => {
+    expect(() => readInlineScript('<html><body>No script</body></html>')).toThrow('Inline script not found')
+  })
+
   it('public/404.html drops malformed redirect query payloads', () => {
     const html = readHtml('public/404.html')
     const script = readInlineScript(html)
@@ -57,7 +61,7 @@ describe('html-has-lang – static HTML documents', () => {
       },
     }
 
-    vm.runInNewContext(script, { window: { location } })
+    vm.runInNewContext(script, { window: { location } }, { timeout: 1000 })
 
     expect(replaced).toBe('https://a11yhood.org/pr-preview/428/?/non-existent-page')
   })
