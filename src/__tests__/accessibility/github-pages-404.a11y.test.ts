@@ -57,9 +57,12 @@ function runRedirect(pathname: string, search = '') {
 describe('GitHub Pages 404 shell accessibility', () => {
   it('contains exactly one main landmark', () => {
     const document = new DOMParser().parseFromString(html, 'text/html')
+    const redirectLink = document.querySelector<HTMLAnchorElement>('#redirect-link')
 
     expect(document.querySelectorAll('main')).toHaveLength(1)
     expect(document.querySelector('main h1')?.textContent).toMatch(/redirecting to a11yhood/i)
+    expect(redirectLink?.textContent).toMatch(/continue to a11yhood/i)
+    expect(redirectLink?.getAttribute('href')).toBe('/')
   })
 })
 
