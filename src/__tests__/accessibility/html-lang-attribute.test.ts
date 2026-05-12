@@ -16,7 +16,7 @@ function readHtml(relativePath: string): string {
   return readFileSync(resolve(root, relativePath), 'utf-8')
 }
 
-const titleWithContentPattern = /<title>\s*[^<\s][^<]*<\/title>/i
+const nonEmptyTitlePattern = /<title>\s*[^<\s][^<]*<\/title>/i
 
 function readInlineScript(relativePath: string): string {
   const html = readHtml(relativePath)
@@ -43,12 +43,12 @@ describe('html-has-lang – static HTML documents', () => {
 describe('document-title – static HTML documents', () => {
   it('index.html has a non-empty <title>', () => {
     const html = readHtml('index.html')
-    expect(html).toMatch(titleWithContentPattern)
+    expect(html).toMatch(nonEmptyTitlePattern)
   })
 
   it('public/404.html has a non-empty <title>', () => {
     const html = readHtml('public/404.html')
-    expect(html).toMatch(titleWithContentPattern)
+    expect(html).toMatch(nonEmptyTitlePattern)
   })
 })
 

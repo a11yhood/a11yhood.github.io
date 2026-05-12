@@ -31,10 +31,10 @@
 
           // Leading '/' in route/query indicates malformed redirect data
           // (e.g. '?/%2Ffoo&%2F...'); normalize to prevent URL growth loops.
-          if (route.charAt(0) === '/') {
+          if (route.startsWith('/')) {
             route = route.replace(/^\/+/, '');
           }
-          if (query.charAt(0) === '/') {
+          if (query.startsWith('/')) {
             query = '';
           }
 
