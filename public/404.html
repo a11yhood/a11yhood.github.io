@@ -49,6 +49,8 @@
     var l = window.location;
     var basePath = l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
     var redirectLink = document.getElementById('redirect-link');
+    // Stay well below common 2 KB URI limits so the fallback does not trigger
+    // server-generated "URI Too Long" error pages before the SPA can load.
     var maxRedirectPathLength = 1800;
 
     if (redirectLink) {
@@ -64,6 +66,8 @@
 
     // Guard against self-redirect loops (e.g. /pr-preview/331/?/%2F%26...)
     // and oversized redirect payloads that can trigger "URI Too Long" responses.
+    // A search string starting with "?/" indicates the redirect payload is
+    // already present in the URL and should collapse back to the base path.
     // In those cases, fall back to the canonical base path for the site/preview.
     if (target === l.href || l.search.indexOf('?/') === 0 || redirectPath.length > maxRedirectPathLength) {
       target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
