@@ -25,4 +25,9 @@ describe('html-has-lang – static HTML documents', () => {
     const html = readHtml('public/404.html')
     expect(html).toMatch(/<html[^>]+lang\s*=\s*["'][a-zA-Z][a-zA-Z-]*["']/)
   })
+
+  it('public/404.html has a level-one heading', () => {
+    const html = readHtml('public/404.html')
+    expect(html).toMatch(/<h1[^>]*>[\s\S]*<\/h1>/i)
+  })
 })

@@ -29,6 +29,12 @@
           var query = decodePayload(q.slice(1).join('&'));
           var basePath = l.pathname.replace(/\/$/, '');
 
+          // A route starting with '/' indicates malformed redirect data
+          // (e.g. '?/%2F...'); drop it to prevent URL growth loops.
+          if (route.charAt(0) === '/') {
+            route = '';
+          }
+
           // A query string starting with '/' indicates malformed redirect data
           // (e.g. '?/some-route&%2F...'); drop it to prevent URL growth loops.
           if (query.charAt(0) === '/') {
