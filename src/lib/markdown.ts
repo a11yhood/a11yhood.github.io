@@ -1,4 +1,5 @@
 import { marked, type RendererObject } from 'marked'
+import DOMPurify from 'dompurify'
 import { resolveApiImageUrl } from './api'
 
 function resolveMarkdownImageUrl(href: string | null): string {
@@ -121,7 +122,9 @@ marked.use({ renderer })
 
 export function renderMarkdown(markdown: string): string {
   try {
-    return marked.parse(markdown, { async: false }) as string
+    const rawHtml = marked.parse(markdown, { async: false }) as string
+    // Blog/content markdown can be user-authored; sanitize before dangerouslySetInnerHTML.
+    return DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } })
   } catch (error) {
     console.error('Error rendering markdown:', error)
     return `<p class="text-destructive">Error rendering content</p>`

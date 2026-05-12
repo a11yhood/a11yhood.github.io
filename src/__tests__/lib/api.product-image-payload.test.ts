@@ -62,6 +62,25 @@ describe('APIService product image payload normalization', () => {
     })
   })
 
+  it('does not serialize relative non-API image paths as URL payloads', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(productResponse), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    )
+
+    await APIService.updateProduct('product-1', {
+      imageUrl: '/images/local-path.png',
+      imageAlt: 'Local path image',
+    })
+
+    const requestInit = fetchSpy.mock.calls[0]?.[1] as RequestInit
+    const body = JSON.parse(String(requestInit.body))
+
+    expect(body.image).toBeUndefined()
+  })
+
   it('keeps image.url payload when creating a product', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify(productResponse), {

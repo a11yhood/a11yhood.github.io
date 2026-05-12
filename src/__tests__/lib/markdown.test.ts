@@ -29,4 +29,18 @@ describe('renderMarkdown', () => {
 
     expect(html).toContain('src="https://cdn.example.test/image-123.png"')
   })
+
+  it('sanitizes raw HTML in markdown output to prevent XSS', () => {
+    const html = renderMarkdown('<script>alert("xss")</script><img src="x" onerror="alert(1)" />')
+
+    expect(html).not.toContain('<script')
+    expect(html).not.toContain('onerror=')
+  })
+
+  it('sanitizes javascript: links in markdown output', () => {
+    const html = renderMarkdown('[click me](javascript:alert("xss"))')
+
+    expect(html).not.toContain('javascript:')
+    expect(html).not.toContain('alert("xss")')
+  })
 })

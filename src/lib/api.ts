@@ -596,27 +596,20 @@ function buildImagePayloadFromUrl(imageUrl: string, imageAlt?: string): ProductI
     return imageAlt ? { id: decodeURIComponent(relativeMatch[1]), alt: imageAlt } : { id: decodeURIComponent(relativeMatch[1]) }
   }
 
-  let parsed: URL
   try {
-    parsed = new URL(imageUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+    const parsed = new URL(imageUrl)
     const match = parsed.pathname.match(/^\/api\/images\/([^/?#]+)$/)
     if (match?.[1]) {
       return imageAlt ? { id: decodeURIComponent(match[1]), alt: imageAlt } : { id: decodeURIComponent(match[1]) }
     }
-  } catch {
-    const normalizedHttpUrl = normalizeHttpImageUrl(imageUrl)
-    if (normalizedHttpUrl) {
-      return imageAlt ? { url: normalizedHttpUrl, alt: imageAlt } : { url: normalizedHttpUrl }
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return imageAlt ? { url: parsed.toString(), alt: imageAlt } : { url: parsed.toString() }
     }
 
     return undefined
+  } catch {
+    return undefined
   }
-
-  if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-    return imageAlt ? { url: parsed.toString(), alt: imageAlt } : { url: parsed.toString() }
-  }
-
-  return undefined
 }
 
 function buildProductImagePayload(input: {
