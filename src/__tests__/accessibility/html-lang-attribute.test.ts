@@ -25,4 +25,17 @@ describe('html-has-lang – static HTML documents', () => {
     const html = readHtml('public/404.html')
     expect(html).toMatch(/<html[^>]+lang\s*=\s*["'][a-zA-Z][a-zA-Z-]*["']/)
   })
+
+  it('public/404.html contains a main landmark fallback', () => {
+    const html = readHtml('public/404.html')
+    expect(html).toMatch(/<main[\s>]/)
+    expect(html).toMatch(/<h1[^>]*>\s*Redirecting/)
+  })
+
+  it('public/404.html caps redirect growth for malformed payload URLs', () => {
+    const html = readHtml('public/404.html')
+    expect(html).toContain('hasRedirectPayload')
+    expect(html).toContain('maxTargetLength')
+    expect(html).toContain('target.length > maxTargetLength')
+  })
 })
