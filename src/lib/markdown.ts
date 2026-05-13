@@ -5,7 +5,7 @@ import { resolveApiImageUrl } from './api'
 function resolveMarkdownImageUrl(href: string | null): string {
   const effectiveHref = href?.trim() || ''
   if (!effectiveHref) {
-    // Avoid emitting src="" which can re-request the current document.
+    // Avoid emitting <img src="">, which can cause a request to the current document.
     return 'data:,'
   }
 
