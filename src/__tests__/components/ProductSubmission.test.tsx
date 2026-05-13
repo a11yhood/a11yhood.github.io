@@ -411,7 +411,7 @@ describe('ProductSubmission', () => {
         type: 'Software',
         source: 'github',
         sourceUrl: 'https://github.com/test/test-repo',
-        image: 'test-image-id',
+        imageId: 'test-image-id',
         tags: ['accessibility', 'testing', 'github'],
       }
 
@@ -467,7 +467,7 @@ describe('ProductSubmission', () => {
           type: 'Software',
           source: 'github',
           sourceUrl: 'https://github.com/test/image-id-product',
-          image: '123e4567-e89b-12d3-a456-426614174999',
+          imageId: '123e4567-e89b-12d3-a456-426614174999',
           tags: ['accessibility'],
         } as any,
         source: 'scraped',

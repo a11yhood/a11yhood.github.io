@@ -10,6 +10,23 @@ import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 import { APIService } from '@/lib/api'
 import { Product } from '@/lib/types'
 
+/** OAuth flow log entry — tracks redirect, auth URL generation, and errors. */
+type RavelryFlowLog = {
+  step?: string
+  timestamp?: number
+  redirectUri?: string
+  authUrl?: string
+  error?: string
+}
+
+/** Token save attempt log — tracks success status and error details. */
+type SaveLog = {
+  success?: boolean
+  message?: string
+  status?: number
+  error?: string
+}
+
 type RavelrySettingsProps = {
   onAuthComplete?: () => void
   products?: Product[]
@@ -29,9 +46,33 @@ export function RavelrySettings({ onAuthComplete, products: _products = [], onPr
   const [clientSecret, setClientSecret] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [hasCredentials, setHasCredentials] = useState(false)
-  const [oauthFlowLog, setOauthFlowLog] = useState<unknown>(null)
-  const [saveLog, setSaveLog] = useState<unknown>(null)
+  const [oauthFlowLog, setOauthFlowLog] = useState<RavelryFlowLog | null>(null)
+  const [saveLog, setSaveLog] = useState<SaveLog | null>(null)
   const [showDiagnostics, setShowDiagnostics] = useState(false)
+
+  /** Safe JSON parse for flow log, returns null if parsing fails. */
+  const parseFlowLog = (json: string): RavelryFlowLog | null => {
+    try {
+      const parsed = JSON.parse(json)
+      return (
+        parsed && typeof parsed === 'object' && 'timestamp' in parsed
+          ? (parsed as RavelryFlowLog)
+          : null
+      )
+    } catch {
+      return null
+    }
+  }
+
+  /** Safe JSON parse for save log, returns null if parsing fails. */
+  const parseSaveLog = (json: string): SaveLog | null => {
+    try {
+      const parsed = JSON.parse(json)
+      return parsed && typeof parsed === 'object' ? (parsed as SaveLog) : null
+    } catch {
+      return null
+    }
+  }
 
   const getRedirectUri = () => {
     return `${window.location.origin}/admin`
@@ -58,10 +99,10 @@ export function RavelrySettings({ onAuthComplete, products: _products = [], onPr
         }
         
         const flowLogStr = localStorage.getItem('ravelry-oauth-flow-log')
-        setOauthFlowLog(flowLogStr ? JSON.parse(flowLogStr) : null)
+        setOauthFlowLog(flowLogStr ? parseFlowLog(flowLogStr) : null)
         
         const saveLogStr = localStorage.getItem('ravelry-oauth-save-log')
-        setSaveLog(saveLogStr ? JSON.parse(saveLogStr) : null)
+        setSaveLog(saveLogStr ? parseSaveLog(saveLogStr) : null)
       } catch (error) {
         console.error('Failed to check authorization:', error)
       } finally {
