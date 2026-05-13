@@ -44,6 +44,7 @@ export function AdminUsersStats() {
   const [sortBy, setSortBy] = useState<'contributions' | 'recent' | 'joined'>('contributions')
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadUsers()
   }, [])
 

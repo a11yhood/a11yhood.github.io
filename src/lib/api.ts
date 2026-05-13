@@ -16,7 +16,7 @@ import { toIsoTimestamp } from './utils'
 export function getApiBaseUrl(
   configuredUrl?: string,
   locationOrigin?: string,
-  locationProtocol?: string
+  _locationProtocol?: string
 ) {
   const configuredBaseUrl = configuredUrl ?? import.meta.env.VITE_API_URL ?? ''
 
@@ -42,14 +42,14 @@ export function resolveApiImageUrl(
   imageUrl: string,
   configuredUrl?: string,
   locationOrigin?: string,
-  locationProtocol?: string
+  _locationProtocol?: string
 ): string {
   const trimmed = imageUrl.trim()
   if (!trimmed.startsWith('/api/images/')) {
     return trimmed
   }
 
-  const base = getApiBaseUrl(configuredUrl, locationOrigin, locationProtocol)
+  const base = getApiBaseUrl(configuredUrl, locationOrigin, _locationProtocol)
   if (!base) {
     return trimmed
   }
@@ -114,15 +114,21 @@ export function setAuthTokenGetter(getter: () => Promise<string | null>) {
   getAuthToken = getter
 }
 
+export function getAuthTokenGetter(): (() => Promise<string | null>) | null {
+  return getAuthToken
+}
+
 /**
  * Convert snake_case API responses to camelCase for frontend consumption.
  * Recursively handles nested objects and arrays.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toCamelCase(obj: any): any {
   if (obj === null || obj === undefined) return obj
   if (Array.isArray(obj)) return obj.map(toCamelCase)
   if (typeof obj !== 'object') return obj
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result: any = {}
   for (const [key, value] of Object.entries(obj)) {
     const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
@@ -135,11 +141,13 @@ function toCamelCase(obj: any): any {
  * Convert camelCase request bodies to snake_case for backend compatibility.
  * Backend expects snake_case field names in all API contracts.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toSnakeCase(obj: any): any {
   if (obj === null || obj === undefined) return obj
   if (Array.isArray(obj)) return obj.map(toSnakeCase)
   if (typeof obj !== 'object') return obj
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result: any = {}
   for (const [key, value] of Object.entries(obj)) {
     const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
@@ -157,50 +165,31 @@ function normalizeProductImageReference<T>(value: T): T {
     return value
   }
 
-  const record = value as Record<string, unknown>
-  const imageRecord = record.image && typeof record.image === 'object'
-    ? (record.image as Record<string, unknown>)
-    : undefined
+  const record = value as Record<string, unknown> & {
+    id?: unknown
+    slug?: unknown
+    imageId?: unknown
+    imageUrl?: unknown
+    imageAlt?: unknown
+  }
 
-  const maybeImageId = record.imageId ?? imageRecord?.id
+  const imageId = typeof record.imageId === 'string' ? record.imageId.trim() : ''
   const imageUrl = typeof record.imageUrl === 'string' ? record.imageUrl.trim() : ''
-  const nestedImageUrl = typeof imageRecord?.url === 'string' ? imageRecord.url.trim() : ''
-  const nestedImageAlt = typeof imageRecord?.alt === 'string' ? imageRecord.alt.trim() : ''
   const resolvedImageUrl = imageUrl ? resolveApiImageUrl(imageUrl) : ''
-  const resolvedNestedImageUrl = nestedImageUrl ? resolveApiImageUrl(nestedImageUrl) : ''
 
   const hasProductIdentity = 'id' in record || 'slug' in record
-  const hasImageReferenceFields = maybeImageId !== undefined || !!nestedImageUrl || imageUrl.startsWith('data:image/')
-
   const hasStaleDataUrl = imageUrl.startsWith('data:image/')
   const shouldReplaceImageUrl = !imageUrl || hasStaleDataUrl
 
-  if (hasProductIdentity && hasImageReferenceFields && shouldReplaceImageUrl) {
-    if (typeof maybeImageId === 'string' && maybeImageId.trim()) {
-      record.imageUrl = resolveApiImageUrl(`/api/images/${encodeURIComponent(maybeImageId.trim())}`)
-    } else if (resolvedNestedImageUrl) {
-      record.imageUrl = resolvedNestedImageUrl
-      if (nestedImageAlt) {
-        record.imageAlt = nestedImageAlt
-      }
-    } else if (hasStaleDataUrl) {
-      // New contract: stale data URLs should never be treated as persistent product image references.
-      delete record.imageUrl
-    }
+  if (hasProductIdentity && imageId && shouldReplaceImageUrl) {
+    record.imageUrl = resolveApiImageUrl(`/api/images/${encodeURIComponent(imageId)}`)
+  } else if (hasStaleDataUrl) {
+    // Stale upload previews should never be persisted as product image references.
+    delete record.imageUrl
   }
 
   if (resolvedImageUrl && resolvedImageUrl !== imageUrl) {
     record.imageUrl = resolvedImageUrl
-  }
-
-  if (record.imageId === undefined) {
-    if (typeof maybeImageId === 'string' && maybeImageId.trim()) {
-      record.imageId = maybeImageId.trim()
-    }
-  }
-
-  if ((record.imageAlt === undefined || record.imageAlt === null || record.imageAlt === '') && nestedImageAlt) {
-    record.imageAlt = nestedImageAlt
   }
 
   for (const [key, child] of Object.entries(record)) {
@@ -216,7 +205,7 @@ class APIError extends Error {
   constructor(
     message: string,
     public status: number,
-    public data?: any
+    public data?: unknown
   ) {
     super(message)
     this.name = 'APIError'
@@ -347,7 +336,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
   })
   
   if (!response.ok) {
-    let errorData: any = { message: response.statusText }
+    let errorData: { detail?: string; message?: string } = { message: response.statusText }
 
     if (contentType.includes('application/json')) {
       errorData = await response.json().catch(() => ({ message: response.statusText }))
@@ -391,9 +380,9 @@ async function handleResponse<T>(response: Response): Promise<T> {
       hasImageUrl: 'image_url' in data,
       hasImageId: 'image_id' in data,
       hasImageAlt: 'image_alt' in data,
-      imageUrl: (data as any).image_url,
-      imageId: (data as any).image_id,
-      imageAlt: (data as any).image_alt,
+      imageUrl: (data as { image_url?: string; image_id?: string; image_alt?: string }).image_url,
+      imageId: (data as { image_url?: string; image_id?: string; image_alt?: string }).image_id,
+      imageAlt: (data as { image_url?: string; image_id?: string; image_alt?: string }).image_alt,
       rawData: data
     })
   }
@@ -420,7 +409,7 @@ async function request<T>(
   
   // Extract and log query parameters for debugging
   if (endpoint.includes('?')) {
-    const [path, queryString] = endpoint.split('?')
+    const [_path, queryString] = endpoint.split('?')
     const params = new URLSearchParams(queryString)
     logger.debug('[API] Query parameters:', Object.fromEntries(params.entries()))
   }
@@ -553,7 +542,7 @@ function normalizeUploadedImageReference(value: unknown): string | null {
   return normalizeUploadedImageId(trimmed)
 }
 
-type ProductImagePayload = { id: string; alt?: string }
+type ProductImagePayload = { id: string; alt?: string } | { url: string; alt?: string }
 
 function normalizeImageAlt(value: unknown): string | undefined {
   if (typeof value !== 'string') {
@@ -575,16 +564,19 @@ function buildImagePayloadFromUrl(imageUrl: string, imageAlt?: string): ProductI
   }
 
   try {
-    const parsed = new URL(imageUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+    const parsed = new URL(imageUrl)
     const match = parsed.pathname.match(/^\/api\/images\/([^/?#]+)$/)
     if (match?.[1]) {
       return imageAlt ? { id: decodeURIComponent(match[1]), alt: imageAlt } : { id: decodeURIComponent(match[1]) }
     }
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return imageAlt ? { url: parsed.toString(), alt: imageAlt } : { url: parsed.toString() }
+    }
+
+    return undefined
   } catch {
     return undefined
   }
-
-  return undefined
 }
 
 function buildProductImagePayload(input: {
@@ -599,11 +591,16 @@ function buildProductImagePayload(input: {
   const imageAlt = normalizeImageAlt(input.imageAlt)
 
   if (input.image && typeof input.image === 'object') {
-    const imageObj = input.image as { id?: unknown; alt?: unknown }
+    const imageObj = input.image as { id?: unknown; url?: unknown; alt?: unknown }
     if (typeof imageObj.id === 'string' && imageObj.id.trim()) {
       const alt = normalizeImageAlt(imageObj.alt) ?? imageAlt
       const id = imageObj.id.trim()
       return alt ? { id, alt } : { id }
+    }
+
+    if (typeof imageObj.url === 'string' && imageObj.url.trim()) {
+      const alt = normalizeImageAlt(imageObj.alt) ?? imageAlt
+      return buildImagePayloadFromUrl(imageObj.url.trim(), alt)
     }
   }
 
@@ -643,6 +640,10 @@ export class APIService {
   static setAuthTokenGetter(getter: () => Promise<string | null>) {
     setAuthTokenGetter(getter)
   }
+
+  static getAuthTokenGetter(): (() => Promise<string | null>) | null {
+    return getAuthTokenGetter()
+  }
   
   // Get API base URL for constructing full URLs
   static getBaseUrl(): string {
@@ -653,7 +654,7 @@ export class APIService {
   static async getCurrentUser(): Promise<UserAccount | null> {
     try {
       return await request<UserAccount>('/users/me')
-    } catch (error) {
+    } catch {
       return null
     }
   }
@@ -665,54 +666,148 @@ export class APIService {
     })
   }
 
-  static async uploadImage(file: File, crop?: ImageUploadCrop): Promise<string> {
+  static async uploadImage(file: File | Blob, crop?: ImageUploadCrop): Promise<string> {
     const base = getApiBaseUrl()
     const url = `${base}/api/images/upload`
     const token = getAuthToken ? await getAuthToken() : null
-    const formData = new FormData()
-    const controller = new AbortController()
     const timeoutMs = 30000
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
-    formData.append('file', file)
+    const fileLike = file as Blob & { name?: string; type?: string }
+    // Strip ASCII control characters (including CR/LF) from header-interpolated values
+    // to prevent multipart header injection / request smuggling.
+    // eslint-disable-next-line no-control-regex
+    const stripControls = (v: string) => v.replace(/[\x00-\x1f\x7f]/g, '')
+    const fileName = stripControls(
+      typeof fileLike.name === 'string' && fileLike.name.trim()
+        ? fileLike.name.trim()
+        : 'upload.bin'
+    ) || 'upload.bin'
+    const fileType = stripControls(
+      typeof fileLike.type === 'string' && fileLike.type.trim()
+        ? fileLike.type.trim()
+        : 'application/octet-stream'
+    ) || 'application/octet-stream'
 
+    // Build the multipart/form-data body as a Blob composed from small Uint8Array header
+    // chunks and the original file reference — no full file copy into memory.
+    //
+    // Why not FormData: jsdom's FormData is incompatible with Node/undici's multipart
+    // serializer; the file part arrives empty at the backend. Sending a raw Blob body
+    // (with an explicit Content-Type header) is handled correctly by every fetch runtime.
+    const enc = new TextEncoder()
+    const boundary = `----a11yhoodBoundary${Math.random().toString(16).slice(2)}`
+    // esc: strip control characters then escape backslashes and quotes for quoted-string
+    // header parameters, so injected CR/LF cannot break the multipart structure.
+    const esc = (v: string) => stripControls(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+
+    const textPart = (name: string, value: string): Uint8Array =>
+      enc.encode(`--${boundary}\r\nContent-Disposition: form-data; name="${esc(name)}"\r\n\r\n${value}\r\n`)
+
+    // For real Blob/File inputs the file is included by reference (no copy).
+    // Duck-typed objects (not instanceof Blob) fall back to arrayBuffer() — this only
+    // occurs in test code that synthesises a blob-like for the security injection tests.
+    const fileBody: BlobPart = file instanceof Blob
+      ? file
+      : new Uint8Array(await (file as { arrayBuffer(): Promise<ArrayBuffer> }).arrayBuffer())
+
+    const parts: BlobPart[] = [
+      enc.encode(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${esc('file')}"; filename="${esc(fileName)}"\r\nContent-Type: ${fileType}\r\n\r\n`
+      ),
+      fileBody,
+      enc.encode('\r\n'),
+    ]
     if (crop) {
-      formData.append('crop_x', String(crop.x))
-      formData.append('crop_y', String(crop.y))
-      formData.append('crop_width', String(crop.width))
-      formData.append('crop_height', String(crop.height))
+      parts.push(textPart('crop_x', String(crop.x)))
+      parts.push(textPart('crop_y', String(crop.y)))
+      parts.push(textPart('crop_width', String(crop.width)))
+      parts.push(textPart('crop_height', String(crop.height)))
     }
+    parts.push(enc.encode(`--${boundary}--\r\n`))
+    const multipartBody = new Blob(parts)
+    const contentType = `multipart/form-data; boundary=${boundary}`
 
     logger.debug('[API.uploadImage] Starting upload:', {
       url,
       hasToken: !!token,
-      fileName: file.name,
-      fileType: file.type,
+      fileName,
+      fileType,
       fileSize: file.size,
       hasCrop: !!crop,
     })
 
+    const upload = async (withSignal: boolean) => {
+      const headers = {
+        'Content-Type': contentType,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(token ? { 'X-Forwarded-Authorization': token } : {}),
+      }
+
+      if (withSignal) {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+        try {
+          return await fetch(url, {
+            method: 'POST',
+            body: multipartBody,
+            signal: controller.signal,
+            headers,
+          })
+        } finally {
+          clearTimeout(timeoutId)
+        }
+      }
+
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+      const timeoutPromise = new Promise<Response>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new APIError('Image upload timed out after 30 seconds. Please try again.', 408))
+        }, timeoutMs)
+      })
+
+      try {
+        return await Promise.race([
+          fetch(url, {
+            method: 'POST',
+            body: multipartBody,
+            headers,
+          }),
+          timeoutPromise,
+        ])
+      } finally {
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+        }
+      }
+    }
+
+    const parseUploadError = async (res: Response): Promise<{ detail?: string; message?: string }> => {
+      const ct = res.headers.get('content-type') || ''
+      if (ct.includes('application/json')) {
+        return await res.json().catch(() => ({ message: res.statusText }))
+      }
+      const errorText = await res.text().catch(() => '')
+      return { message: errorText?.trim() || res.statusText }
+    }
+
     let response: Response
     try {
-      response = await fetch(url, {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(token ? { 'X-Forwarded-Authorization': token } : {}),
-        },
-      })
+      response = await upload(true)
     } catch (error) {
-      clearTimeout(timeoutId)
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        logger.error('[API.uploadImage] Upload timed out after 30s')
-        throw new APIError('Image upload timed out after 30 seconds. Please try again.', 408)
+      const message = String((error as Error)?.message || error)
+      const signalMismatch = error instanceof TypeError && message.includes('Expected signal')
+      if (signalMismatch) {
+        // Some test/runtime combinations provide an AbortSignal implementation that
+        // fetch rejects; retry without signal but still enforce timeout via Promise.race.
+        response = await upload(false)
+      } else {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          logger.error('[API.uploadImage] Upload timed out after 30s')
+          throw new APIError('Image upload timed out after 30 seconds. Please try again.', 408)
+        }
+        logger.error('[API.uploadImage] Upload request failed before response:', error)
+        throw error
       }
-      logger.error('[API.uploadImage] Upload request failed before response:', error)
-      throw error
-    } finally {
-      clearTimeout(timeoutId)
     }
 
     logger.debug('[API.uploadImage] Upload response received:', {
@@ -723,16 +818,7 @@ export class APIService {
     })
 
     if (!response.ok) {
-      let errorData: any = { message: response.statusText }
-      const contentType = response.headers.get('content-type') || ''
-
-      if (contentType.includes('application/json')) {
-        errorData = await response.json().catch(() => ({ message: response.statusText }))
-      } else {
-        const errorText = await response.text().catch(() => '')
-        errorData = { message: errorText?.trim() || response.statusText }
-      }
-
+      const errorData: { detail?: string; message?: string } = await parseUploadError(response)
       throw new APIError(
         errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`,
         response.status,
@@ -740,8 +826,8 @@ export class APIService {
       )
     }
 
-    const contentType = response.headers.get('content-type') || ''
-    if (contentType.includes('application/json')) {
+    const responseContentType = response.headers.get('content-type') || ''
+    if (responseContentType.includes('application/json')) {
       const data = await response.json()
 
       const objectData = data && typeof data === 'object'
@@ -921,7 +1007,7 @@ export class APIService {
   }> {
     try {
       return await request(`/users/${encodeURIComponent(username)}/stats`)
-    } catch (error) {
+    } catch {
       // Return empty stats if endpoint doesn't exist yet
       return {
         productsSubmitted: 0,
@@ -1146,7 +1232,7 @@ export class APIService {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }))
-      const errorMessage = (errorData as any).detail || (errorData as any).message || `HTTP ${response.status}: ${response.statusText}`
+      const errorMessage = (errorData as { detail?: string; message?: string }).detail || (errorData as { detail?: string; message?: string }).message || `HTTP ${response.status}: ${response.statusText}`
       throw new APIError(errorMessage, response.status, errorData)
     }
 
@@ -1167,8 +1253,8 @@ export class APIService {
 
     try {
       return await load(!!controller)
-    } catch (err: any) {
-      const message = String(err?.message || err)
+    } catch (err) {
+      const message = String((err as { message?: string })?.message || err)
       const signalMismatch = err instanceof TypeError && message.includes('Expected signal')
 
       // Some test environments use a different AbortSignal implementation; retry without it
@@ -1288,8 +1374,8 @@ export class APIService {
         productSlug,
         endpoint,
         error: error instanceof Error ? error.message : String(error),
-        errorStatus: (error as any)?.status,
-        errorData: (error as any)?.data,
+        errorStatus: (error as { status?: number; data?: unknown })?.status,
+        errorData: (error as { status?: number; data?: unknown })?.data,
         fullError: error
       })
       throw error
@@ -1557,7 +1643,7 @@ export class APIService {
     })
   }
 
-  static async saveOAuthToken(platform: string, tokenData: any): Promise<{ message: string }> {
+  static async saveOAuthToken(platform: string, tokenData: Record<string, string | undefined>): Promise<{ message: string }> {
     return request(`/scrapers/oauth/${platform}/save-token`, {
       method: 'POST',
       body: JSON.stringify(tokenData),
@@ -1570,6 +1656,7 @@ export class APIService {
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static async getOAuthConfig(platform: string): Promise<any> {
     return request(`/scrapers/oauth/${platform}/config`)
   }
@@ -1583,6 +1670,7 @@ export class APIService {
       accessToken?: string
       refreshToken?: string
     }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     return request(`/scrapers/oauth-configs/${platform}`, {
       method: 'PUT',
@@ -1590,6 +1678,7 @@ export class APIService {
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static async completeOAuthCallback(platform: string, code: string): Promise<any> {
     return request(`/scrapers/oauth/${platform}/callback?code=${encodeURIComponent(code)}`, {
       method: 'POST',
@@ -1772,7 +1861,7 @@ export class APIService {
   static async getUserRequests(username: string): Promise<UserRequest[]> {
     try {
       return await request<UserRequest[]>(`/users/${encodeURIComponent(username)}/requests`)
-    } catch (error) {
+    } catch {
       // Return empty array if endpoint doesn't exist yet
       return []
     }
@@ -1803,21 +1892,21 @@ export class APIService {
     })
   }
 
-  static async approveRequest(requestId: string, reviewerId: string, note?: string): Promise<UserRequest | null> {
+  static async approveRequest(requestId: string, _reviewerId: string, _note?: string): Promise<UserRequest | null> {
     return request<UserRequest | null>(`/requests/${requestId}`, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'approved' }),
     })
   }
 
-  static async rejectRequest(requestId: string, reviewerId: string, note?: string): Promise<UserRequest | null> {
+  static async rejectRequest(requestId: string, _reviewerId: string, _note?: string): Promise<UserRequest | null> {
     return request<UserRequest | null>(`/requests/${requestId}`, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'rejected' }),
     })
   }
 
-  static async withdrawRequest(requestId: string, userId: string): Promise<{ success: boolean }> {
+  static async withdrawRequest(requestId: string, _userId: string): Promise<{ success: boolean }> {
     try {
       await request<void>(`/requests/${requestId}`, {
         method: 'DELETE',

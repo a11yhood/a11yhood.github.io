@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge'
 import { ProductImageManager, type ProductImageManagerRef } from './ProductImageManager'
 import { ProductCard } from './ProductCard'
 import { useNotifications } from '@/contexts/NotificationContext'
-import { APIService, extractInternalImageIdFromReference } from '@/lib/api'
+import { APIService, extractInternalImageIdFromReference, resolveApiImageUrl } from '@/lib/api'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faUniversalAccess } from '@fortawesome/free-solid-svg-icons'
 
@@ -109,54 +109,17 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
   const [isScrapingUrl, setIsScrapingUrl] = useState(false)
   const [urlToCheck, setUrlToCheck] = useState('')
 
-  const resolveScrapedImageReference = (primaryImageUrl: unknown, imageReference: unknown): string | undefined => {
-    const tryAsAbsoluteUrl = (value: unknown) => {
-      if (typeof value !== 'string') return undefined
-      const trimmed = value.trim()
-      if (!trimmed) return undefined
-      try {
-        const parsed = new URL(trimmed)
-        return parsed.toString()
-      } catch {
-        return undefined
-      }
-    }
-
-    const imageUrlFromPrimary = tryAsAbsoluteUrl(primaryImageUrl)
-    if (imageUrlFromPrimary) {
-      return imageUrlFromPrimary
-    }
-
-    const imageUrlFromReference = tryAsAbsoluteUrl(imageReference)
-    if (imageUrlFromReference) {
-      return imageUrlFromReference
-    }
-
-    const referenceId = (() => {
-      if (typeof imageReference === 'string') {
-        const trimmed = imageReference.trim()
-        if (trimmed) {
-          return trimmed
-        }
-      }
-
-      return undefined
-    })()
-
-    if (!referenceId) {
+  const resolveScrapedImageReference = (imageId: unknown): string | undefined => {
+    if (typeof imageId !== 'string') {
       return undefined
     }
 
-    const base = APIService.getBaseUrl().replace(/\/$/, '')
-    if (base) {
-      return `${base}/api/images/${encodeURIComponent(referenceId)}`
+    const normalizedId = imageId.trim()
+    if (!normalizedId) {
+      return undefined
     }
 
-    if (typeof window !== 'undefined') {
-      return `${window.location.origin}/api/images/${encodeURIComponent(referenceId)}`
-    }
-
-    return `/api/images/${encodeURIComponent(referenceId)}`
+    return resolveApiImageUrl(`/api/images/${encodeURIComponent(normalizedId)}`)
   }
 
   // Expose close method to parent via ref
@@ -242,7 +205,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
       const scrapeResult = await APIService.loadUrl(normalized)
       
       if (scrapeResult.success && scrapeResult.product) {
-        const p = scrapeResult.product as any
+        const p = scrapeResult.product as Partial<Product>
         
         // Product was scraped - pre-fill form with scraped data
         setSourceUrl(normalized)
@@ -250,7 +213,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
         if (p.description) setDescription(p.description)
         if (p.type) setType(p.type)
         if (p.tags) setTags(p.tags)
-        const scrapedImageUrl = resolveScrapedImageReference(p.imageUrl, p.image)
+        const scrapedImageUrl = resolveScrapedImageReference(p.imageId)
         if (scrapedImageUrl) {
           setImageUrl(scrapedImageUrl)
           if (p.imageAlt) setImageAlt(p.imageAlt)
@@ -451,7 +414,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
       imageManagerRef.current?.submitPendingImage()
     }
     
-    const productData: any = {
+    const productData = {
       name: name.trim(),
       type: type.trim(),
       sourceUrl: sourceUrl.trim() || undefined,
@@ -467,7 +430,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
       stars: normalizedStars,
     }
 
-    onSubmit(productData)
+    onSubmit(productData as Omit<Product, 'id' | 'createdAt'>)
     setOpen(false)
     resetForm()
   }

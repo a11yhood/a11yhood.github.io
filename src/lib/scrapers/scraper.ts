@@ -7,16 +7,16 @@
 export abstract class PlatformScraper {
   protected source: string
 
-  constructor(source: string, requestsPerMinute: number = 30) {
+  constructor(source: string, _requestsPerMinute: number = 30) {
     this.source = source
     console.warn('[PlatformScraper] DEPRECATED: Use backend API /api/scrapers/trigger instead')
   }
 
-  async scrape(): Promise<any[]> {
+  async scrape(): Promise<unknown[]> {
     throw new Error('PlatformScraper is deprecated. Use backend API instead.')
   }
 
-  setTestMode(enabled: boolean, limit: number = 5): void {
+  setTestMode(enabled: boolean, _limit: number = 5): void {
     console.warn('[PlatformScraper] Test mode not supported on frontend scrapers')
   }
 }

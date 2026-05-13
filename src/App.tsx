@@ -2403,8 +2403,7 @@ function App() {
       }
     }
 
-    handleRavelryOAuth()
-  }, [authLoading, authUser])
+  }, [authLoading, authUser, notify])
 
   // Load collections for all users (public collections always, user collections on /collections pages)
   useEffect(() => {
@@ -2567,12 +2566,13 @@ function App() {
       // Stats are computed dynamically from database, no need to increment
       // APIService.incrementUserStats(user.id, 'discussionsParticipated')
       if (user?.id && newDiscussion.productId) {
+        const discussionActivityMetadata = parentId ? { parentId } : undefined
         APIService.logUserActivity({
           userId: user.id,
           type: 'discussion',
           productId: newDiscussion.productId,
           timestamp: new Date().toISOString(),
-          metadata: { parentId },
+          metadata: discussionActivityMetadata,
         }).catch(err => console.warn('Failed to log discussion activity:', err))
       }
       

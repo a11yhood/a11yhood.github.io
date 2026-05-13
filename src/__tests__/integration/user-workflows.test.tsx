@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from 'vite
 import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { APIService, setAuthTokenGetter, APIError } from '@/lib/api'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { APIService, setAuthTokenGetter, getAuthTokenGetter, APIError } from '@/lib/api'
 import { ProductEditors } from '@/components/ProductEditors'
 import { ProductCard } from '@/components/ProductCard'
 import * as types from '@/lib/types'
@@ -29,12 +31,23 @@ let testProductId: string
 let authToken: string
 let testUsername = DEV_USERS.user.username
 
-const TEST_IMAGE_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4//8/AwAI/AL+XhNnAAAAAElFTkSuQmCC'
+const TEST_IMAGE_PATH = resolve(process.cwd(), 'src/assets/images/ahood-small.png')
 
 async function uploadTestImageAndGetId(): Promise<string | null> {
-  const response = await fetch(TEST_IMAGE_DATA_URL)
-  const blob = await response.blob()
-  const file = new File([blob], 'integration-test.png', { type: 'image/png' })
+  const bytes = readFileSync(TEST_IMAGE_PATH)
+  const file = new File([bytes], 'integration-test.png', { type: 'image/png' })
+
+  if (file.size === 0) {
+    throw new Error('Generated integration test image is empty')
+  }
+
+  // Capture the current getter so we can restore it exactly after the upload,
+  // preserving any later mutations to `authToken` rather than snapshotting the value.
+  const previousGetter = getAuthTokenGetter()
+  // File upload is limited in UI to elevated roles; use moderator for this integration path.
+  const uploadAuthToken = getDevToken(DEV_USERS.moderator.role)
+  setAuthTokenGetter(async () => uploadAuthToken)
+
   try {
     const imageReference = await APIService.uploadImage(file)
     const match = imageReference.match(/^\/api\/images\/([^/?#]+)$/)
@@ -50,6 +63,8 @@ async function uploadTestImageAndGetId(): Promise<string | null> {
       return null
     }
     throw error
+  } finally {
+    setAuthTokenGetter(previousGetter ?? (async () => null))
   }
 }
 

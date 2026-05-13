@@ -5,6 +5,9 @@
 
 import { APIService } from '../api'
 
+/** Shape of errors thrown by APIService — only the fields we actually read. */
+type ApiErrorLike = { status?: number; message?: string; data?: unknown }
+
 export interface OAuth2Config {
   clientId: string
   clientSecret: string
@@ -45,12 +48,12 @@ async function getConfig(): Promise<OAuth2Config | null> {
       if (parsed.accessToken) {
         try {
           await APIService.getOAuthConfig('ravelry')
-        } catch (error: any) {
+        } catch (error) {
           // If backend is temporarily unavailable or auth/session is still warming up,
           // keep using local config so callback handling and re-auth continue to work.
           console.warn('[Ravelry OAuth] Backend config check failed, using local config:', {
-            status: error?.status,
-            message: error?.message,
+            status: (error as ApiErrorLike)?.status,
+            message: (error as ApiErrorLike)?.message,
           })
           return parsed
         }
@@ -67,7 +70,7 @@ async function getConfig(): Promise<OAuth2Config | null> {
       }
     } catch (error) {
       // Ignore if not found; treat as no config
-      if ((error as any)?.status === 404) return null
+      if ((error as ApiErrorLike)?.status === 404) return null
       throw error
     }
 
@@ -112,11 +115,11 @@ async function saveConfig(config: OAuth2Config): Promise<void> {
         }
   
         await APIService.upsertOAuthConfig('ravelry', upsertPayload)
-      } catch (error: any) {
+      } catch (error) {
           // Best-effort: do not block token persistence or local usage
           console.warn('[Ravelry OAuth] Failed to upsert backend OAuth config, continuing with local config only:', {
-            status: error?.status,
-            message: error?.message,
+            status: (error as ApiErrorLike)?.status,
+            message: (error as ApiErrorLike)?.message,
           })
         }
       }
@@ -126,7 +129,7 @@ async function saveConfig(config: OAuth2Config): Promise<void> {
       // Add a small delay to ensure auth is ready (session may be initializing)
       await new Promise(resolve => setTimeout(resolve, 500))
       
-      let lastError: any;
+      let lastError: unknown;
       // Retry once if authorization fails (session might not be ready yet)
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
@@ -153,20 +156,21 @@ async function saveConfig(config: OAuth2Config): Promise<void> {
             response,
           }))
           return
-        } catch (error: any) {
+        } catch (error) {
           lastError = error
+          const apiError = error as ApiErrorLike
           const errorLog = {
             timestamp: Date.now(),
             attempt,
             success: false,
             error: error instanceof Error ? error.message : String(error),
-            status: error?.status,
-            data: error?.data,
+            status: apiError?.status,
+            data: apiError?.data,
           }
           console.error(`[Ravelry OAuth] Save attempt ${attempt} failed:`, errorLog)
           localStorage.setItem(SAVE_LOG_KEY, JSON.stringify(errorLog))
           
-          if (error?.status === 401 && attempt === 1) {
+          if (apiError?.status === 401 && attempt === 1) {
             console.warn('[Ravelry OAuth] Authorization failed on attempt 1, waiting and retrying...')
             await new Promise(resolve => setTimeout(resolve, 1000))
             continue
@@ -191,9 +195,9 @@ async function clearConfig(): Promise<void> {
     // Delete token from backend database
     try {
       await APIService.disconnectOAuth('ravelry')
-    } catch (error: any) {
+    } catch (error) {
       // If backend already has no config (e.g., after DB reset), ignore 404
-      if (error?.status !== 404) {
+      if ((error as ApiErrorLike)?.status !== 404) {
         throw error
       }
     }
@@ -319,9 +323,9 @@ async function exchangeCodeForToken(
   } catch (error) {
     console.error('[Ravelry OAuth] Exception during token exchange:', error)
 
-    const apiError = error as any
+    const apiError = error as ApiErrorLike
     const status = apiError?.status
-    const message = apiError?.message || (error instanceof Error ? error.message : String(error))
+    const message = (apiError?.message as string | undefined) || (error instanceof Error ? error.message : String(error))
     const hint = status === 404
       ? 'Backend missing /scrapers/oauth/{platform}/callback endpoint'
       : undefined

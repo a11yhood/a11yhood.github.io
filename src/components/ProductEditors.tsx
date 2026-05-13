@@ -38,16 +38,19 @@ export function ProductEditors({
 
   useEffect(() => {
     if (!isBrowser) return
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadEditors()
   }, [productId])
 
   useEffect(() => {
     if (!isBrowser) return
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     checkExistingRequest()
   }, [productId, username, userAccount])
 
   useEffect(() => {
     if (!isBrowser) return
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     if (autoOpenRequestForm && !isEditor && !hasExistingRequest) {
       setShowRequestForm(true)
     }

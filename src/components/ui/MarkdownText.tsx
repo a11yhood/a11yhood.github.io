@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
+import { resolveApiImageUrl } from '@/lib/api'
 
 type MarkdownTextProps = {
   text?: string | null
@@ -24,6 +25,25 @@ export function MarkdownText({ text, className }: MarkdownTextProps) {
     container.querySelectorAll('a').forEach((a) => {
       a.setAttribute('target', '_blank')
       a.setAttribute('rel', 'noopener noreferrer')
+    })
+    container.querySelectorAll('img').forEach((img) => {
+      const src = img.getAttribute('src')
+      const trimmedSrc = src?.trim() || ''
+      if (!trimmedSrc) {
+        const altText = img.getAttribute('alt')?.trim() || ''
+        if (!altText) {
+          // Decorative empty-src images should be dropped entirely.
+          img.remove()
+          return
+        }
+
+        // Keep meaningful content available to assistive tech and sighted users.
+        const fallback = document.createElement('span')
+        fallback.textContent = `[Image: ${altText}]`
+        img.replaceWith(fallback)
+        return
+      }
+      img.setAttribute('src', resolveApiImageUrl(trimmedSrc))
     })
     return container.innerHTML
   }, [text])

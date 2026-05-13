@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Link as LinkIcon, Trash, Prohibit, CheckCircle } from '@phosphor-icons/react'
+import { Link as LinkIcon, Trash, Prohibit, CheckCircle } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -19,7 +18,6 @@ import { CollapsibleCard } from './CollapsibleCard'
 import { Product, ProductUpdate, Rating, Discussion, UserData, Collection, CollectionCreateInput, UserAccount } from '@/lib/types'
 import { APIService, resolveApiImageUrl } from '@/lib/api'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faUniversalAccess } from '@fortawesome/free-solid-svg-icons'
 import { formatSourceLabel, getSourceIcon, calculateAverageRating, getCanonicalHost, formatRelativeTime } from '@/lib/utils'
 import MarkdownText from '@/components/ui/MarkdownText'
 
@@ -74,7 +72,6 @@ export function ProductDetail({
   autoOpenEdit,
   autoOpenOwnershipRequest,
 }: ProductDetailProps) {
-  const navigate = useNavigate()
   const [imageError, setImageError] = useState(false)
   const [imageLooksInvisible, setImageLooksInvisible] = useState(false)
   const [localCollections, setLocalCollections] = useState<Collection[]>(userCollections)
@@ -126,21 +123,20 @@ export function ProductDetail({
   // Load collections on mount and whenever user state changes
   useEffect(() => {
     collectionLoadStartedRef.current = false
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadCollections()
   }, [user])
 
-  // Refresh collections when add-to-collection dialog opens or closes
   useEffect(() => {
     if (user) {
       if (showAddToCollectionDialog && !prevShowAddToCollectionDialogRef.current) {
-        // Dialog is opening - refresh to get latest data
         loadCollections()
       } else if (!showAddToCollectionDialog && prevShowAddToCollectionDialogRef.current) {
-        // Dialog is closing - refresh to reflect any changes made
         loadCollections()
       }
     }
     prevShowAddToCollectionDialogRef.current = showAddToCollectionDialog
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAddToCollectionDialog, user])
 
   useEffect(() => {
@@ -212,7 +208,7 @@ export function ProductDetail({
     setBanReason('')
   }
 
-  const updatedTs = (product as any).source_last_updated ?? (product as any).sourceLastUpdated
+  const updatedTs = product.source_last_updated ?? product.sourceLastUpdated
   const updatedText = updatedTs ? formatRelativeTime(updatedTs) : ''
 
   const sourceIcon = getSourceIcon(product.source)

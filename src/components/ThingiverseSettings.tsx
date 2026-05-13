@@ -8,14 +8,15 @@ import { CheckCircle, XCircle, Info, CircleNotch } from '@phosphor-icons/react'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { ThingiverseOAuthManager } from '@/lib/scrapers/thingiverse'
 import { APIService } from '@/lib/api'
+import { Product } from '@/lib/types'
 
 type ThingiverseSettingsProps = {
   onAuthComplete?: () => void
-  products?: any[]
-  onProductsUpdate?: (products: any[]) => void
+  products?: Product[]
+  onProductsUpdate?: (products: Product[]) => void
 }
 
-export function ThingiverseSettings({ onAuthComplete, products = [], onProductsUpdate }: ThingiverseSettingsProps) {
+export function ThingiverseSettings({ onAuthComplete, products: _products = [], onProductsUpdate }: ThingiverseSettingsProps) {
   const { notify } = useNotifications()
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [appName, setAppName] = useState<string>('')

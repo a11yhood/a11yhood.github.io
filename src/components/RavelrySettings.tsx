@@ -4,19 +4,37 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CheckCircle, XCircle, Info, Copy, Play, CircleNotch } from '@phosphor-icons/react'
+import { CheckCircle, XCircle, Info, Copy, CircleNotch } from '@phosphor-icons/react'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 import { APIService } from '@/lib/api'
+import { Product } from '@/lib/types'
+
+/** OAuth flow log entry — tracks redirect, auth URL generation, and errors. */
+type RavelryFlowLog = {
+  step?: string
+  timestamp?: number
+  redirectUri?: string
+  authUrl?: string
+  error?: string
+}
+
+/** Token save attempt log — tracks success status and error details. */
+type SaveLog = {
+  success?: boolean
+  message?: string
+  status?: number
+  error?: string
+}
 
 type RavelrySettingsProps = {
   onAuthComplete?: () => void
-  products?: any[]
-  onProductsUpdate?: (products: any[]) => void
+  products?: Product[]
+  onProductsUpdate?: (products: Product[]) => void
   ravelryAuthTimestamp?: number
 }
 
-export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdate, ravelryAuthTimestamp }: RavelrySettingsProps) {
+export function RavelrySettings({ onAuthComplete, products: _products = [], onProductsUpdate, ravelryAuthTimestamp }: RavelrySettingsProps) {
   const { notify } = useNotifications()
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [username, setUsername] = useState<string>('')
@@ -28,9 +46,33 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
   const [clientSecret, setClientSecret] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [hasCredentials, setHasCredentials] = useState(false)
-  const [oauthFlowLog, setOauthFlowLog] = useState<any>(null)
-  const [saveLog, setSaveLog] = useState<any>(null)
+  const [oauthFlowLog, setOauthFlowLog] = useState<RavelryFlowLog | null>(null)
+  const [saveLog, setSaveLog] = useState<SaveLog | null>(null)
   const [showDiagnostics, setShowDiagnostics] = useState(false)
+
+  /** Safe JSON parse for flow log, returns null if parsing fails. */
+  const parseFlowLog = (json: string): RavelryFlowLog | null => {
+    try {
+      const parsed = JSON.parse(json)
+      return (
+        parsed && typeof parsed === 'object' && 'timestamp' in parsed
+          ? (parsed as RavelryFlowLog)
+          : null
+      )
+    } catch {
+      return null
+    }
+  }
+
+  /** Safe JSON parse for save log, returns null if parsing fails. */
+  const parseSaveLog = (json: string): SaveLog | null => {
+    try {
+      const parsed = JSON.parse(json)
+      return parsed && typeof parsed === 'object' ? (parsed as SaveLog) : null
+    } catch {
+      return null
+    }
+  }
 
   const getRedirectUri = () => {
     return `${window.location.origin}/admin`
@@ -57,10 +99,10 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
         }
         
         const flowLogStr = localStorage.getItem('ravelry-oauth-flow-log')
-        setOauthFlowLog(flowLogStr ? JSON.parse(flowLogStr) : null)
+        setOauthFlowLog(flowLogStr ? parseFlowLog(flowLogStr) : null)
         
         const saveLogStr = localStorage.getItem('ravelry-oauth-save-log')
-        setSaveLog(saveLogStr ? JSON.parse(saveLogStr) : null)
+        setSaveLog(saveLogStr ? parseSaveLog(saveLogStr) : null)
       } catch (error) {
         console.error('Failed to check authorization:', error)
       } finally {

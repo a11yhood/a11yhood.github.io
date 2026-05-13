@@ -104,12 +104,17 @@ describe('APIService.uploadImage', () => {
     ).resolves.toBe('/api/images/123e4567-e89b-12d3-a456-426614174666')
 
     const [, requestInit] = fetchSpy.mock.calls[0] ?? []
-    const formData = requestInit?.body as FormData
+    // Body is now a Blob composed from header/file/footer chunks — decode via arrayBuffer().
+    const bodyText = new TextDecoder().decode(await (requestInit?.body as Blob).arrayBuffer())
 
-    expect(formData.get('crop_x')).toBe('1')
-    expect(formData.get('crop_y')).toBe('2')
-    expect(formData.get('crop_width')).toBe('3')
-    expect(formData.get('crop_height')).toBe('4')
+    expect(bodyText).toContain('name="crop_x"')
+    expect(bodyText).toContain('\r\n1\r\n')
+    expect(bodyText).toContain('name="crop_y"')
+    expect(bodyText).toContain('\r\n2\r\n')
+    expect(bodyText).toContain('name="crop_width"')
+    expect(bodyText).toContain('\r\n3\r\n')
+    expect(bodyText).toContain('name="crop_height"')
+    expect(bodyText).toContain('\r\n4\r\n')
   })
 
   it('throws APIError for successful JSON responses with unexpected payload shape', async () => {
@@ -123,5 +128,58 @@ describe('APIService.uploadImage', () => {
     await expect(
       APIService.uploadImage(new File(['image-bytes'], 'image.png', { type: 'image/png' }))
     ).rejects.toBeInstanceOf(APIError)
+  })
+
+  it('strips CR/LF and control characters from fileName to prevent header injection', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('safe-id', {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+      })
+    )
+
+    // Filename containing CR, LF and other control chars that would break multipart headers.
+    const injectedName = 'evil\r\nX-Injected: header\r\n.png'
+    await APIService.uploadImage(new File(['bytes'], injectedName, { type: 'image/png' }))
+
+    const [, requestInit] = fetchSpy.mock.calls[0] ?? []
+    const bodyText = new TextDecoder().decode(await (requestInit?.body as Blob).arrayBuffer())
+
+    expect(bodyText).not.toContain('\r\nX-Injected')
+    expect(bodyText).not.toMatch(/filename="[^"]*\r/)
+    expect(bodyText).not.toMatch(/filename="[^"]*\n/)
+    // Sanitised filename is present without the injected portion.
+    expect(bodyText).toContain('filename="evil')
+  })
+
+  it('strips CR/LF and control characters from fileType to prevent header injection', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('safe-id', {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+      })
+    )
+
+    const injectedType = 'image/png\r\nX-Injected: header'
+    // Both File and Blob constructors normalize the type per spec (strips chars outside
+    // U+0020–U+007E). The real attack surface is a duck-typed object whose .type has not
+    // been normalized — e.g. a custom Blob-like coming from an untrusted source.
+    const blobLike = {
+      type: injectedType,
+      size: 5,
+      arrayBuffer: () => Promise.resolve(new TextEncoder().encode('bytes').buffer as ArrayBuffer),
+    } as unknown as Blob
+    await APIService.uploadImage(blobLike)
+
+    const [, requestInit] = fetchSpy.mock.calls[0] ?? []
+    const bodyText = new TextDecoder().decode(await (requestInit?.body as Blob).arrayBuffer())
+
+    // After stripping CR/LF the remaining text ('image/pngX-Injected: header') is
+    // harmless — it is just garbage inside the Content-Type token, NOT a separate header.
+    // The critical invariant is that no bare CR/LF precede the injected text.
+    expect(bodyText).not.toContain('\r\nX-Injected')
+    expect(bodyText).not.toContain('\nX-Injected')
+    // Sanitised type starts correctly.
+    expect(bodyText).toContain('Content-Type: image/png')
   })
 })
