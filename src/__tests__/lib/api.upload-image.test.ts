@@ -104,12 +104,18 @@ describe('APIService.uploadImage', () => {
     ).resolves.toBe('/api/images/123e4567-e89b-12d3-a456-426614174666')
 
     const [, requestInit] = fetchSpy.mock.calls[0] ?? []
-    const formData = requestInit?.body as FormData
+    // The body is now a raw Uint8Array multipart payload — decode it and check fields.
+    const bodyBytes = requestInit?.body as Uint8Array
+    const bodyText = new TextDecoder().decode(bodyBytes)
 
-    expect(formData.get('crop_x')).toBe('1')
-    expect(formData.get('crop_y')).toBe('2')
-    expect(formData.get('crop_width')).toBe('3')
-    expect(formData.get('crop_height')).toBe('4')
+    expect(bodyText).toContain('name="crop_x"')
+    expect(bodyText).toContain('\r\n1\r\n')
+    expect(bodyText).toContain('name="crop_y"')
+    expect(bodyText).toContain('\r\n2\r\n')
+    expect(bodyText).toContain('name="crop_width"')
+    expect(bodyText).toContain('\r\n3\r\n')
+    expect(bodyText).toContain('name="crop_height"')
+    expect(bodyText).toContain('\r\n4\r\n')
   })
 
   it('throws APIError for successful JSON responses with unexpected payload shape', async () => {

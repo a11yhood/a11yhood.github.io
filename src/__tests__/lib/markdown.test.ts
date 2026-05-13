@@ -30,6 +30,12 @@ describe('renderMarkdown', () => {
     expect(html).toContain('src="https://cdn.example.test/image-123.png"')
   })
 
+  it('falls back to a harmless data URL when markdown image href is empty/whitespace', () => {
+    const html = renderMarkdown('![Alt text](   )')
+
+    expect(html).toContain('src="data:,"')
+  })
+
   it('sanitizes raw HTML in markdown output to prevent XSS', () => {
     const html = renderMarkdown('<script>alert("xss")</script><img src="x" onerror="alert(1)" />')
 

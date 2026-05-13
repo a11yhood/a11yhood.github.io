@@ -28,4 +28,17 @@ describe('MarkdownText', () => {
       'https://cdn.example.test/image-123.png'
     )
   })
+
+  it('removes decorative images with empty markdown sources', () => {
+    const { container } = render(<MarkdownText text="![]()" />)
+
+    const image = container.querySelector('img')
+    expect(image).toBeNull()
+  })
+
+  it('replaces meaningful empty-src images with text fallback', () => {
+    render(<MarkdownText text="![Diagram of flow]()" />)
+
+    expect(screen.getByText('[Image: Diagram of flow]')).toBeInTheDocument()
+  })
 })

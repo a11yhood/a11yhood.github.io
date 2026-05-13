@@ -3,11 +3,13 @@ import DOMPurify from 'dompurify'
 import { resolveApiImageUrl } from './api'
 
 function resolveMarkdownImageUrl(href: string | null): string {
-  if (!href) {
-    return ''
+  const effectiveHref = href?.trim() || ''
+  if (!effectiveHref) {
+    // Avoid emitting src="" which can re-request the current document.
+    return 'data:,'
   }
 
-  return resolveApiImageUrl(href)
+  return resolveApiImageUrl(effectiveHref)
 }
 
 marked.setOptions({

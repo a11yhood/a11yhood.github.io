@@ -564,28 +564,6 @@ function normalizeImageAlt(value: unknown): string | undefined {
   return trimmed || undefined
 }
 
-function normalizeHttpImageUrl(value: unknown): string | undefined {
-  if (typeof value !== 'string') {
-    return undefined
-  }
-
-  const trimmed = value.trim()
-  if (!trimmed) {
-    return undefined
-  }
-
-  try {
-    const parsed = new URL(trimmed)
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      return parsed.toString()
-    }
-  } catch {
-    return undefined
-  }
-
-  return undefined
-}
-
 function buildImagePayloadFromUrl(imageUrl: string, imageAlt?: string): ProductImagePayload | undefined {
   if (imageUrl.startsWith('data:image/')) {
     return undefined
@@ -695,52 +673,115 @@ export class APIService {
     })
   }
 
-  static async uploadImage(file: File, crop?: ImageUploadCrop): Promise<string> {
+  static async uploadImage(file: File | Blob, crop?: ImageUploadCrop): Promise<string> {
     const base = getApiBaseUrl()
     const url = `${base}/api/images/upload`
     const token = getAuthToken ? await getAuthToken() : null
-    const formData = new FormData()
     const controller = new AbortController()
     const timeoutMs = 30000
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
-    formData.append('file', file)
+    const fileLike = file as Blob & { name?: string; type?: string }
+    const fileName = typeof fileLike.name === 'string' && fileLike.name.trim()
+      ? fileLike.name.trim()
+      : 'upload.bin'
+    const fileType = typeof fileLike.type === 'string' && fileLike.type.trim()
+      ? fileLike.type.trim()
+      : 'application/octet-stream'
 
-    if (crop) {
-      formData.append('crop_x', String(crop.x))
-      formData.append('crop_y', String(crop.y))
-      formData.append('crop_width', String(crop.width))
-      formData.append('crop_height', String(crop.height))
+    // Read file bytes once.
+    const fileBytes = new Uint8Array(await file.arrayBuffer())
+
+    // Build the multipart/form-data body as raw bytes (Uint8Array) rather than
+    // relying on FormData. jsdom's FormData is incompatible with Node/undici's
+    // multipart serializer: the file part arrives empty at the backend.
+    // A Uint8Array body is handled correctly by every fetch implementation.
+    const enc = new TextEncoder()
+    const boundary = `----a11yhoodBoundary${Math.random().toString(16).slice(2)}`
+    const esc = (v: string) => v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+
+    const textPart = (name: string, value: string): Uint8Array =>
+      enc.encode(`--${boundary}\r\nContent-Disposition: form-data; name="${esc(name)}"\r\n\r\n${value}\r\n`)
+
+    const filePart = (name: string): Uint8Array => {
+      const header = enc.encode(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${esc(name)}"; filename="${esc(fileName)}"\r\nContent-Type: ${fileType}\r\n\r\n`
+      )
+      const footer = enc.encode('\r\n')
+      const out = new Uint8Array(header.length + fileBytes.length + footer.length)
+      out.set(header, 0)
+      out.set(fileBytes, header.length)
+      out.set(footer, header.length + fileBytes.length)
+      return out
     }
+
+    const concatParts = (...chunks: Uint8Array[]): Uint8Array => {
+      const total = chunks.reduce((n, c) => n + c.length, 0)
+      const out = new Uint8Array(total)
+      let offset = 0
+      for (const chunk of chunks) { out.set(chunk, offset); offset += chunk.length }
+      return out
+    }
+
+    const bodyParts: Uint8Array[] = [filePart('file')]
+    if (crop) {
+      bodyParts.push(textPart('crop_x', String(crop.x)))
+      bodyParts.push(textPart('crop_y', String(crop.y)))
+      bodyParts.push(textPart('crop_width', String(crop.width)))
+      bodyParts.push(textPart('crop_height', String(crop.height)))
+    }
+    bodyParts.push(enc.encode(`--${boundary}--\r\n`))
+    const multipartBody = concatParts(...bodyParts)
+    const contentType = `multipart/form-data; boundary=${boundary}`
 
     logger.debug('[API.uploadImage] Starting upload:', {
       url,
       hasToken: !!token,
-      fileName: file.name,
-      fileType: file.type,
-      fileSize: file.size,
+      fileName,
+      fileType,
+      fileSize: fileBytes.length,
       hasCrop: !!crop,
     })
 
+    const upload = async (withSignal: boolean) => fetch(url, {
+      method: 'POST',
+      body: multipartBody,
+      ...(withSignal ? { signal: controller.signal } : {}),
+      headers: {
+        'Content-Type': contentType,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(token ? { 'X-Forwarded-Authorization': token } : {}),
+      },
+    })
+
+    const parseUploadError = async (res: Response) => {
+      const ct = res.headers.get('content-type') || ''
+      if (ct.includes('application/json')) {
+        return await res.json().catch(() => ({ message: res.statusText }))
+      }
+      const errorText = await res.text().catch(() => '')
+      return { message: errorText?.trim() || res.statusText }
+    }
+
     let response: Response
     try {
-      response = await fetch(url, {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(token ? { 'X-Forwarded-Authorization': token } : {}),
-        },
-      })
+      response = await upload(true)
     } catch (error) {
-      clearTimeout(timeoutId)
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        logger.error('[API.uploadImage] Upload timed out after 30s')
-        throw new APIError('Image upload timed out after 30 seconds. Please try again.', 408)
+      const message = String((error as Error)?.message || error)
+      const signalMismatch = error instanceof TypeError && message.includes('Expected signal')
+      if (signalMismatch) {
+        // Some test/runtime combinations provide an AbortSignal implementation that
+        // fetch rejects; retry without signal so upload behavior still works.
+        response = await upload(false)
+      } else {
+        clearTimeout(timeoutId)
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          logger.error('[API.uploadImage] Upload timed out after 30s')
+          throw new APIError('Image upload timed out after 30 seconds. Please try again.', 408)
+        }
+        logger.error('[API.uploadImage] Upload request failed before response:', error)
+        throw error
       }
-      logger.error('[API.uploadImage] Upload request failed before response:', error)
-      throw error
     } finally {
       clearTimeout(timeoutId)
     }
@@ -753,16 +794,7 @@ export class APIService {
     })
 
     if (!response.ok) {
-      let errorData: any = { message: response.statusText }
-      const contentType = response.headers.get('content-type') || ''
-
-      if (contentType.includes('application/json')) {
-        errorData = await response.json().catch(() => ({ message: response.statusText }))
-      } else {
-        const errorText = await response.text().catch(() => '')
-        errorData = { message: errorText?.trim() || response.statusText }
-      }
-
+      const errorData: any = await parseUploadError(response)
       throw new APIError(
         errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`,
         response.status,
@@ -770,8 +802,8 @@ export class APIService {
       )
     }
 
-    const contentType = response.headers.get('content-type') || ''
-    if (contentType.includes('application/json')) {
+    const responseContentType = response.headers.get('content-type') || ''
+    if (responseContentType.includes('application/json')) {
       const data = await response.json()
 
       const objectData = data && typeof data === 'object'
