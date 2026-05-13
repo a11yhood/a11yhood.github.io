@@ -36,6 +36,11 @@ cmd = "npm run test:run:reduced"
 depends-on = ["install-dev"]
 
 [tasks.test]
+description = "run the reduced Vitest suite"
+cmd = "npm run test:run:reduced"
+depends-on = ["install-dev"]
+
+[tasks.test-full]
 description = "run the full Vitest suite"
 cmd = "npm run test:run"
 depends-on = ["install-dev"]
