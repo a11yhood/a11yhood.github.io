@@ -114,6 +114,10 @@ export function setAuthTokenGetter(getter: () => Promise<string | null>) {
   getAuthToken = getter
 }
 
+export function getAuthTokenGetter(): (() => Promise<string | null>) | null {
+  return getAuthToken
+}
+
 /**
  * Convert snake_case API responses to camelCase for frontend consumption.
  * Recursively handles nested objects and arrays.
@@ -651,6 +655,10 @@ export class APIService {
   static setAuthTokenGetter(getter: () => Promise<string | null>) {
     setAuthTokenGetter(getter)
   }
+
+  static getAuthTokenGetter(): (() => Promise<string | null>) | null {
+    return getAuthTokenGetter()
+  }
   
   // Get API base URL for constructing full URLs
   static getBaseUrl(): string {
@@ -680,56 +688,57 @@ export class APIService {
     const timeoutMs = 30000
 
     const fileLike = file as Blob & { name?: string; type?: string }
-    const fileName = typeof fileLike.name === 'string' && fileLike.name.trim()
-      ? fileLike.name.trim()
-      : 'upload.bin'
-    const fileType = typeof fileLike.type === 'string' && fileLike.type.trim()
-      ? fileLike.type.trim()
-      : 'application/octet-stream'
+    // Strip ASCII control characters (including CR/LF) from header-interpolated values
+    // to prevent multipart header injection / request smuggling.
+    const stripControls = (v: string) => v.replace(/[\x00-\x1f\x7f]/g, '')
+    const fileName = stripControls(
+      typeof fileLike.name === 'string' && fileLike.name.trim()
+        ? fileLike.name.trim()
+        : 'upload.bin'
+    ) || 'upload.bin'
+    const fileType = stripControls(
+      typeof fileLike.type === 'string' && fileLike.type.trim()
+        ? fileLike.type.trim()
+        : 'application/octet-stream'
+    ) || 'application/octet-stream'
 
-    // Read file bytes once.
-    const fileBytes = new Uint8Array(await file.arrayBuffer())
-
-    // Build the multipart/form-data body as raw bytes (Uint8Array) rather than
-    // relying on FormData. jsdom's FormData is incompatible with Node/undici's
-    // multipart serializer: the file part arrives empty at the backend.
-    // A Uint8Array body is handled correctly by every fetch implementation.
+    // Build the multipart/form-data body as a Blob composed from small Uint8Array header
+    // chunks and the original file reference — no full file copy into memory.
+    //
+    // Why not FormData: jsdom's FormData is incompatible with Node/undici's multipart
+    // serializer; the file part arrives empty at the backend. Sending a raw Blob body
+    // (with an explicit Content-Type header) is handled correctly by every fetch runtime.
     const enc = new TextEncoder()
     const boundary = `----a11yhoodBoundary${Math.random().toString(16).slice(2)}`
-    const esc = (v: string) => v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    // esc: strip control characters then escape backslashes and quotes for quoted-string
+    // header parameters, so injected CR/LF cannot break the multipart structure.
+    const esc = (v: string) => stripControls(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 
     const textPart = (name: string, value: string): Uint8Array =>
       enc.encode(`--${boundary}\r\nContent-Disposition: form-data; name="${esc(name)}"\r\n\r\n${value}\r\n`)
 
-    const filePart = (name: string): Uint8Array => {
-      const header = enc.encode(
-        `--${boundary}\r\nContent-Disposition: form-data; name="${esc(name)}"; filename="${esc(fileName)}"\r\nContent-Type: ${fileType}\r\n\r\n`
-      )
-      const footer = enc.encode('\r\n')
-      const out = new Uint8Array(header.length + fileBytes.length + footer.length)
-      out.set(header, 0)
-      out.set(fileBytes, header.length)
-      out.set(footer, header.length + fileBytes.length)
-      return out
-    }
+    // For real Blob/File inputs the file is included by reference (no copy).
+    // Duck-typed objects (not instanceof Blob) fall back to arrayBuffer() — this only
+    // occurs in test code that synthesises a blob-like for the security injection tests.
+    const fileBody: BlobPart = file instanceof Blob
+      ? file
+      : new Uint8Array(await (file as { arrayBuffer(): Promise<ArrayBuffer> }).arrayBuffer())
 
-    const concatParts = (...chunks: Uint8Array[]): Uint8Array => {
-      const total = chunks.reduce((n, c) => n + c.length, 0)
-      const out = new Uint8Array(total)
-      let offset = 0
-      for (const chunk of chunks) { out.set(chunk, offset); offset += chunk.length }
-      return out
-    }
-
-    const bodyParts: Uint8Array[] = [filePart('file')]
+    const parts: BlobPart[] = [
+      enc.encode(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${esc('file')}"; filename="${esc(fileName)}"\r\nContent-Type: ${fileType}\r\n\r\n`
+      ),
+      fileBody,
+      enc.encode('\r\n'),
+    ]
     if (crop) {
-      bodyParts.push(textPart('crop_x', String(crop.x)))
-      bodyParts.push(textPart('crop_y', String(crop.y)))
-      bodyParts.push(textPart('crop_width', String(crop.width)))
-      bodyParts.push(textPart('crop_height', String(crop.height)))
+      parts.push(textPart('crop_x', String(crop.x)))
+      parts.push(textPart('crop_y', String(crop.y)))
+      parts.push(textPart('crop_width', String(crop.width)))
+      parts.push(textPart('crop_height', String(crop.height)))
     }
-    bodyParts.push(enc.encode(`--${boundary}--\r\n`))
-    const multipartBody = concatParts(...bodyParts)
+    parts.push(enc.encode(`--${boundary}--\r\n`))
+    const multipartBody = new Blob(parts)
     const contentType = `multipart/form-data; boundary=${boundary}`
 
     logger.debug('[API.uploadImage] Starting upload:', {
@@ -737,7 +746,7 @@ export class APIService {
       hasToken: !!token,
       fileName,
       fileType,
-      fileSize: fileBytes.length,
+      fileSize: file.size,
       hasCrop: !!crop,
     })
 

@@ -4,7 +4,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { APIService, setAuthTokenGetter, APIError } from '@/lib/api'
+import { APIService, setAuthTokenGetter, getAuthTokenGetter, APIError } from '@/lib/api'
 import { ProductEditors } from '@/components/ProductEditors'
 import { ProductCard } from '@/components/ProductCard'
 import * as types from '@/lib/types'
@@ -41,7 +41,9 @@ async function uploadTestImageAndGetId(): Promise<string | null> {
     throw new Error('Generated integration test image is empty')
   }
 
-  const previousAuthToken = authToken
+  // Capture the current getter so we can restore it exactly after the upload,
+  // preserving any later mutations to `authToken` rather than snapshotting the value.
+  const previousGetter = getAuthTokenGetter()
   // File upload is limited in UI to elevated roles; use moderator for this integration path.
   const uploadAuthToken = getDevToken(DEV_USERS.moderator.role)
   setAuthTokenGetter(async () => uploadAuthToken)
@@ -62,7 +64,9 @@ async function uploadTestImageAndGetId(): Promise<string | null> {
     }
     throw error
   } finally {
-    setAuthTokenGetter(async () => previousAuthToken)
+    if (previousGetter) {
+      setAuthTokenGetter(previousGetter)
+    }
   }
 }
 
