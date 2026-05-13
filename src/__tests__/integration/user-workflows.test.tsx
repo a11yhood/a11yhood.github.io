@@ -64,9 +64,7 @@ async function uploadTestImageAndGetId(): Promise<string | null> {
     }
     throw error
   } finally {
-    if (previousGetter) {
-      setAuthTokenGetter(previousGetter)
-    }
+    setAuthTokenGetter(previousGetter ?? (async () => null))
   }
 }
 
