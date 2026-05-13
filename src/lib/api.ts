@@ -677,9 +677,7 @@ export class APIService {
     const base = getApiBaseUrl()
     const url = `${base}/api/images/upload`
     const token = getAuthToken ? await getAuthToken() : null
-    const controller = new AbortController()
     const timeoutMs = 30000
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
     const fileLike = file as Blob & { name?: string; type?: string }
     const fileName = typeof fileLike.name === 'string' && fileLike.name.trim()
@@ -743,16 +741,50 @@ export class APIService {
       hasCrop: !!crop,
     })
 
-    const upload = async (withSignal: boolean) => fetch(url, {
-      method: 'POST',
-      body: multipartBody,
-      ...(withSignal ? { signal: controller.signal } : {}),
-      headers: {
+    const upload = async (withSignal: boolean) => {
+      const headers = {
         'Content-Type': contentType,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(token ? { 'X-Forwarded-Authorization': token } : {}),
-      },
-    })
+      }
+
+      if (withSignal) {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+        try {
+          return await fetch(url, {
+            method: 'POST',
+            body: multipartBody,
+            signal: controller.signal,
+            headers,
+          })
+        } finally {
+          clearTimeout(timeoutId)
+        }
+      }
+
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+      const timeoutPromise = new Promise<Response>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new APIError('Image upload timed out after 30 seconds. Please try again.', 408))
+        }, timeoutMs)
+      })
+
+      try {
+        return await Promise.race([
+          fetch(url, {
+            method: 'POST',
+            body: multipartBody,
+            headers,
+          }),
+          timeoutPromise,
+        ])
+      } finally {
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+        }
+      }
+    }
 
     const parseUploadError = async (res: Response) => {
       const ct = res.headers.get('content-type') || ''
@@ -771,10 +803,9 @@ export class APIService {
       const signalMismatch = error instanceof TypeError && message.includes('Expected signal')
       if (signalMismatch) {
         // Some test/runtime combinations provide an AbortSignal implementation that
-        // fetch rejects; retry without signal so upload behavior still works.
+        // fetch rejects; retry without signal but still enforce timeout via Promise.race.
         response = await upload(false)
       } else {
-        clearTimeout(timeoutId)
         if (error instanceof DOMException && error.name === 'AbortError') {
           logger.error('[API.uploadImage] Upload timed out after 30s')
           throw new APIError('Image upload timed out after 30 seconds. Please try again.', 408)
@@ -782,8 +813,6 @@ export class APIService {
         logger.error('[API.uploadImage] Upload request failed before response:', error)
         throw error
       }
-    } finally {
-      clearTimeout(timeoutId)
     }
 
     logger.debug('[API.uploadImage] Upload response received:', {
