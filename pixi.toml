@@ -73,6 +73,11 @@ description = "start frontend dev server connected to local backend (default por
 cmd = "npm run dev"
 depends-on = ["install-dev"]
 
+[tasks.lint]
+description = "run ESLint across all source files"
+cmd = "npm run lint"
+depends-on = ["install-dev"]
+
 [dependencies]
 # ruby = ">=3.4.8,<4"
 # make = ">=4.4.1,<5"

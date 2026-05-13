@@ -4,19 +4,20 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CheckCircle, XCircle, Info, Copy, Play, CircleNotch } from '@phosphor-icons/react'
+import { CheckCircle, XCircle, Info, Copy, CircleNotch } from '@phosphor-icons/react'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 import { APIService } from '@/lib/api'
+import { Product } from '@/lib/types'
 
 type RavelrySettingsProps = {
   onAuthComplete?: () => void
-  products?: any[]
-  onProductsUpdate?: (products: any[]) => void
+  products?: Product[]
+  onProductsUpdate?: (products: Product[]) => void
   ravelryAuthTimestamp?: number
 }
 
-export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdate, ravelryAuthTimestamp }: RavelrySettingsProps) {
+export function RavelrySettings({ onAuthComplete, products: _products = [], onProductsUpdate, ravelryAuthTimestamp }: RavelrySettingsProps) {
   const { notify } = useNotifications()
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [username, setUsername] = useState<string>('')
@@ -28,8 +29,8 @@ export function RavelrySettings({ onAuthComplete, products = [], onProductsUpdat
   const [clientSecret, setClientSecret] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [hasCredentials, setHasCredentials] = useState(false)
-  const [oauthFlowLog, setOauthFlowLog] = useState<any>(null)
-  const [saveLog, setSaveLog] = useState<any>(null)
+  const [oauthFlowLog, setOauthFlowLog] = useState<unknown>(null)
+  const [saveLog, setSaveLog] = useState<unknown>(null)
   const [showDiagnostics, setShowDiagnostics] = useState(false)
 
   const getRedirectUri = () => {

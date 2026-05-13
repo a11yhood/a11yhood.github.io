@@ -84,7 +84,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
 
     window.addEventListener('unsupported-domain', handleUnsupportedDomain)
     return () => window.removeEventListener('unsupported-domain', handleUnsupportedDomain)
-  }, [user?.id])
+  }, [user?.id, notify])
 
   return (
     <header className="border-b border-border bg-card sticky top-0 z-50 shadow-sm h-[60px]">

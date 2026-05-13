@@ -16,7 +16,7 @@ import { toIsoTimestamp } from './utils'
 export function getApiBaseUrl(
   configuredUrl?: string,
   locationOrigin?: string,
-  locationProtocol?: string
+  _locationProtocol?: string
 ) {
   const configuredBaseUrl = configuredUrl ?? import.meta.env.VITE_API_URL ?? ''
 
@@ -42,14 +42,14 @@ export function resolveApiImageUrl(
   imageUrl: string,
   configuredUrl?: string,
   locationOrigin?: string,
-  locationProtocol?: string
+  _locationProtocol?: string
 ): string {
   const trimmed = imageUrl.trim()
   if (!trimmed.startsWith('/api/images/')) {
     return trimmed
   }
 
-  const base = getApiBaseUrl(configuredUrl, locationOrigin, locationProtocol)
+  const base = getApiBaseUrl(configuredUrl, locationOrigin, _locationProtocol)
   if (!base) {
     return trimmed
   }
@@ -395,9 +395,9 @@ async function handleResponse<T>(response: Response): Promise<T> {
       hasImageUrl: 'image_url' in data,
       hasImageId: 'image_id' in data,
       hasImageAlt: 'image_alt' in data,
-      imageUrl: (data as any).image_url,
-      imageId: (data as any).image_id,
-      imageAlt: (data as any).image_alt,
+      imageUrl: (data as { image_url?: string; image_id?: string; image_alt?: string }).image_url,
+      imageId: (data as { image_url?: string; image_id?: string; image_alt?: string }).image_id,
+      imageAlt: (data as { image_url?: string; image_id?: string; image_alt?: string }).image_alt,
       rawData: data
     })
   }
@@ -424,7 +424,7 @@ async function request<T>(
   
   // Extract and log query parameters for debugging
   if (endpoint.includes('?')) {
-    const [path, queryString] = endpoint.split('?')
+    const [_path, queryString] = endpoint.split('?')
     const params = new URLSearchParams(queryString)
     logger.debug('[API] Query parameters:', Object.fromEntries(params.entries()))
   }
@@ -690,6 +690,7 @@ export class APIService {
     const fileLike = file as Blob & { name?: string; type?: string }
     // Strip ASCII control characters (including CR/LF) from header-interpolated values
     // to prevent multipart header injection / request smuggling.
+    // eslint-disable-next-line no-control-regex
     const stripControls = (v: string) => v.replace(/[\x00-\x1f\x7f]/g, '')
     const fileName = stripControls(
       typeof fileLike.name === 'string' && fileLike.name.trim()
@@ -795,7 +796,7 @@ export class APIService {
       }
     }
 
-    const parseUploadError = async (res: Response) => {
+    const parseUploadError = async (res: Response): Promise<{ detail?: string; message?: string }> => {
       const ct = res.headers.get('content-type') || ''
       if (ct.includes('application/json')) {
         return await res.json().catch(() => ({ message: res.statusText }))
@@ -832,7 +833,7 @@ export class APIService {
     })
 
     if (!response.ok) {
-      const errorData: any = await parseUploadError(response)
+      const errorData: { detail?: string; message?: string } = await parseUploadError(response)
       throw new APIError(
         errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`,
         response.status,
@@ -1246,7 +1247,7 @@ export class APIService {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }))
-      const errorMessage = (errorData as any).detail || (errorData as any).message || `HTTP ${response.status}: ${response.statusText}`
+      const errorMessage = (errorData as { detail?: string; message?: string }).detail || (errorData as { detail?: string; message?: string }).message || `HTTP ${response.status}: ${response.statusText}`
       throw new APIError(errorMessage, response.status, errorData)
     }
 
@@ -1267,8 +1268,8 @@ export class APIService {
 
     try {
       return await load(!!controller)
-    } catch (err: any) {
-      const message = String(err?.message || err)
+    } catch (err) {
+      const message = String((err as { message?: string })?.message || err)
       const signalMismatch = err instanceof TypeError && message.includes('Expected signal')
 
       // Some test environments use a different AbortSignal implementation; retry without it
@@ -1903,21 +1904,21 @@ export class APIService {
     })
   }
 
-  static async approveRequest(requestId: string, reviewerId: string, note?: string): Promise<UserRequest | null> {
+  static async approveRequest(requestId: string, _reviewerId: string, _note?: string): Promise<UserRequest | null> {
     return request<UserRequest | null>(`/requests/${requestId}`, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'approved' }),
     })
   }
 
-  static async rejectRequest(requestId: string, reviewerId: string, note?: string): Promise<UserRequest | null> {
+  static async rejectRequest(requestId: string, _reviewerId: string, _note?: string): Promise<UserRequest | null> {
     return request<UserRequest | null>(`/requests/${requestId}`, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'rejected' }),
     })
   }
 
-  static async withdrawRequest(requestId: string, userId: string): Promise<{ success: boolean }> {
+  static async withdrawRequest(requestId: string, _userId: string): Promise<{ success: boolean }> {
     try {
       await request<void>(`/requests/${requestId}`, {
         method: 'DELETE',

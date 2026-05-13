@@ -39,11 +39,8 @@ export function BlogManager({ onCreateNew, onEditPost, userAccount, onPostsUpdat
       setPosts(allPosts)
     } catch (error) {
       console.error('Failed to load posts:', error)
-      notify.error('Failed to load blog posts')
-    } finally {
-      setLoading(false)
     }
-  }, [])
+  }, [notify])
 
   useEffect(() => {
     loadPosts()

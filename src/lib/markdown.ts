@@ -59,7 +59,7 @@ const renderer: Partial<RendererObject> = {
     return `<li class="ml-4">${text}</li>`
   },
 
-  code({ text, lang }) {
+  code({ text, lang: _lang }) {
     return `<pre class="bg-muted p-4 rounded-lg overflow-x-auto mb-4"><code class="text-sm font-mono">${escapeHtml(text)}</code></pre>`
   },
 

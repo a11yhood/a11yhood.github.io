@@ -18,7 +18,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Product } from '@/lib/types'
 import { APIService } from '@/lib/api'
@@ -50,7 +49,7 @@ type ScraperDebugInfo = {
 export function ScraperManager({ products, onProductsUpdate, role = 'user', currentUserId }: ScraperManagerProps) {
   const { notify } = useNotifications()
   const [scraping, setScraping] = useState(false)
-  const [lastScrape, setLastScrape] = useState<number | null>(null)
+  const [lastScrape, _setLastScrape] = useState<number | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [editForm, setEditForm] = useState<Partial<Product>>({})
   const [deleteSourceDialog, setDeleteSourceDialog] = useState(false)
@@ -704,7 +703,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
               </p>
             ) : (
               <div className="space-y-3">
-                {debugInfo.map((info, idx) => (
+                {debugInfo.map((info) => (
                   <div 
                     key={info.source} 
                     className="border rounded-lg overflow-hidden"

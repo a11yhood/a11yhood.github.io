@@ -32,6 +32,7 @@ export type ProductImageManagerRef = {
  *   -> https://raw.githubusercontent.com/owner/repo/sha/path/img.png
  * Returns the original URL unchanged if it is not a recognised GitHub blob URL.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function normalizeImageUrl(url: string): string {
   try {
     const parsed = new URL(url)
@@ -59,6 +60,7 @@ type CropRect = {
   height: number
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function calculateCropRect(imageWidth: number, imageHeight: number, xPercent: number, yPercent: number): CropRect {
   const imageAspectRatio = imageWidth / imageHeight
 
@@ -94,6 +96,7 @@ export function calculateCropRect(imageWidth: number, imageHeight: number, xPerc
   }
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function getCropPreviewSize(imageWidth: number, imageHeight: number) {
   const scale = Math.min(
     MAX_CROP_PREVIEW_WIDTH / imageWidth,
@@ -336,7 +339,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
     } catch {
       notify.error('Please enter a valid URL')
     }
-  }, [urlInput, altText, onImageChange])
+  }, [urlInput, altText, onImageChange, notify])
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
