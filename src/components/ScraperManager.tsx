@@ -28,6 +28,9 @@ import { useNotifications } from '@/contexts/NotificationContext'
 import { formatSourceLabel } from '@/lib/utils'
 import MarkdownText from '@/components/ui/MarkdownText'
 
+/** Shape of errors thrown by APIService — only the fields we actually probe. */
+type ApiErrorLike = { status?: number; data?: unknown; message?: unknown }
+
 type ScraperManagerProps = {
   products: Product[]
   onProductsUpdate: (products: Product[]) => void
@@ -43,7 +46,7 @@ type ScraperDebugInfo = {
   duration?: number
   startTime?: number
   endTime?: number
-  productsData?: any[]
+  productsData?: Product[]
 }
 
 export function ScraperManager({ products, onProductsUpdate, role = 'user', currentUserId }: ScraperManagerProps) {
@@ -422,7 +425,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
     setLoadingSearchTerms(true)
     try {
       const response = await APIService.getScraperSearchTerms(platform)
-      const terms = (response as any).searchTerms ?? (response as any).search_terms ?? []
+      const terms = response.searchTerms
       const list = Array.isArray(terms) ? terms : []
       if (platform === 'github') setGithubSearchTerms(list)
       if (platform === 'thingiverse') setThingiverseSearchTerms(list)
@@ -459,8 +462,9 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
       setNewSearchTerm('')
       notify.success('Search term added')
     } catch (error) {
-      const status = (error as any)?.status
-      const detail = (error as any)?.data || (error as any)?.message || error
+      const apiError = error as ApiErrorLike
+      const status = apiError?.status
+      const detail = apiError?.data ?? apiError?.message ?? error
       const message = typeof detail === 'string' ? detail : JSON.stringify(detail)
       console.error('Failed to add search term:', { platform: activePlatform, error })
       notify.error(`Failed to add search term${status ? ` (HTTP ${status})` : ''}: ${message}`)
@@ -477,7 +481,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
     
     try {
       const response = await APIService.updateScraperSearchTerms(activePlatform, updatedTerms)
-      const terms = (response as any).searchTerms ?? (response as any).search_terms ?? []
+      const terms = response.searchTerms
       const list = Array.isArray(terms) ? terms : []
       if (activePlatform === 'github') setGithubSearchTerms(list)
       if (activePlatform === 'thingiverse') setThingiverseSearchTerms(list)

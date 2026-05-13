@@ -82,9 +82,9 @@ export function RequestSourceDialog({ open, onOpenChange, domain, url, userId: _
           ].filter(Boolean).join('\n')
         )
         await navigator.clipboard.writeText(requestMessage)
-      } catch {
+      } catch (clipboardError) {
         // Clipboard access can fail in restricted/browser contexts.
-        console.debug("Clipboard write failed", error);
+        console.debug("Clipboard write failed", clipboardError);
       }
 
       notify.success('Request submitted for review. Moderators will see it shortly.')

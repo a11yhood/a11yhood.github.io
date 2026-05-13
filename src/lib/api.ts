@@ -122,11 +122,13 @@ export function getAuthTokenGetter(): (() => Promise<string | null>) | null {
  * Convert snake_case API responses to camelCase for frontend consumption.
  * Recursively handles nested objects and arrays.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toCamelCase(obj: any): any {
   if (obj === null || obj === undefined) return obj
   if (Array.isArray(obj)) return obj.map(toCamelCase)
   if (typeof obj !== 'object') return obj
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result: any = {}
   for (const [key, value] of Object.entries(obj)) {
     const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
@@ -139,11 +141,13 @@ function toCamelCase(obj: any): any {
  * Convert camelCase request bodies to snake_case for backend compatibility.
  * Backend expects snake_case field names in all API contracts.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toSnakeCase(obj: any): any {
   if (obj === null || obj === undefined) return obj
   if (Array.isArray(obj)) return obj.map(toSnakeCase)
   if (typeof obj !== 'object') return obj
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result: any = {}
   for (const [key, value] of Object.entries(obj)) {
     const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
@@ -161,50 +165,31 @@ function normalizeProductImageReference<T>(value: T): T {
     return value
   }
 
-  const record = value as Record<string, unknown>
-  const imageRecord = record.image && typeof record.image === 'object'
-    ? (record.image as Record<string, unknown>)
-    : undefined
+  const record = value as Record<string, unknown> & {
+    id?: unknown
+    slug?: unknown
+    imageId?: unknown
+    imageUrl?: unknown
+    imageAlt?: unknown
+  }
 
-  const maybeImageId = record.imageId ?? imageRecord?.id
+  const imageId = typeof record.imageId === 'string' ? record.imageId.trim() : ''
   const imageUrl = typeof record.imageUrl === 'string' ? record.imageUrl.trim() : ''
-  const nestedImageUrl = typeof imageRecord?.url === 'string' ? imageRecord.url.trim() : ''
-  const nestedImageAlt = typeof imageRecord?.alt === 'string' ? imageRecord.alt.trim() : ''
   const resolvedImageUrl = imageUrl ? resolveApiImageUrl(imageUrl) : ''
-  const resolvedNestedImageUrl = nestedImageUrl ? resolveApiImageUrl(nestedImageUrl) : ''
 
   const hasProductIdentity = 'id' in record || 'slug' in record
-  const hasImageReferenceFields = maybeImageId !== undefined || !!nestedImageUrl || imageUrl.startsWith('data:image/')
-
   const hasStaleDataUrl = imageUrl.startsWith('data:image/')
   const shouldReplaceImageUrl = !imageUrl || hasStaleDataUrl
 
-  if (hasProductIdentity && hasImageReferenceFields && shouldReplaceImageUrl) {
-    if (typeof maybeImageId === 'string' && maybeImageId.trim()) {
-      record.imageUrl = resolveApiImageUrl(`/api/images/${encodeURIComponent(maybeImageId.trim())}`)
-    } else if (resolvedNestedImageUrl) {
-      record.imageUrl = resolvedNestedImageUrl
-      if (nestedImageAlt) {
-        record.imageAlt = nestedImageAlt
-      }
-    } else if (hasStaleDataUrl) {
-      // New contract: stale data URLs should never be treated as persistent product image references.
-      delete record.imageUrl
-    }
+  if (hasProductIdentity && imageId && shouldReplaceImageUrl) {
+    record.imageUrl = resolveApiImageUrl(`/api/images/${encodeURIComponent(imageId)}`)
+  } else if (hasStaleDataUrl) {
+    // Stale upload previews should never be persisted as product image references.
+    delete record.imageUrl
   }
 
   if (resolvedImageUrl && resolvedImageUrl !== imageUrl) {
     record.imageUrl = resolvedImageUrl
-  }
-
-  if (record.imageId === undefined) {
-    if (typeof maybeImageId === 'string' && maybeImageId.trim()) {
-      record.imageId = maybeImageId.trim()
-    }
-  }
-
-  if ((record.imageAlt === undefined || record.imageAlt === null || record.imageAlt === '') && nestedImageAlt) {
-    record.imageAlt = nestedImageAlt
   }
 
   for (const [key, child] of Object.entries(record)) {
@@ -220,7 +205,7 @@ class APIError extends Error {
   constructor(
     message: string,
     public status: number,
-    public data?: any
+    public data?: unknown
   ) {
     super(message)
     this.name = 'APIError'
@@ -351,7 +336,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
   })
   
   if (!response.ok) {
-    let errorData: any = { message: response.statusText }
+    let errorData: { detail?: string; message?: string } = { message: response.statusText }
 
     if (contentType.includes('application/json')) {
       errorData = await response.json().catch(() => ({ message: response.statusText }))
@@ -669,7 +654,7 @@ export class APIService {
   static async getCurrentUser(): Promise<UserAccount | null> {
     try {
       return await request<UserAccount>('/users/me')
-    } catch (error) {
+    } catch {
       return null
     }
   }
@@ -1022,7 +1007,7 @@ export class APIService {
   }> {
     try {
       return await request(`/users/${encodeURIComponent(username)}/stats`)
-    } catch (error) {
+    } catch {
       // Return empty stats if endpoint doesn't exist yet
       return {
         productsSubmitted: 0,
@@ -1389,8 +1374,8 @@ export class APIService {
         productSlug,
         endpoint,
         error: error instanceof Error ? error.message : String(error),
-        errorStatus: (error as any)?.status,
-        errorData: (error as any)?.data,
+        errorStatus: (error as { status?: number; data?: unknown })?.status,
+        errorData: (error as { status?: number; data?: unknown })?.data,
         fullError: error
       })
       throw error
@@ -1658,7 +1643,7 @@ export class APIService {
     })
   }
 
-  static async saveOAuthToken(platform: string, tokenData: any): Promise<{ message: string }> {
+  static async saveOAuthToken(platform: string, tokenData: Record<string, string | undefined>): Promise<{ message: string }> {
     return request(`/scrapers/oauth/${platform}/save-token`, {
       method: 'POST',
       body: JSON.stringify(tokenData),
@@ -1671,6 +1656,7 @@ export class APIService {
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static async getOAuthConfig(platform: string): Promise<any> {
     return request(`/scrapers/oauth/${platform}/config`)
   }
@@ -1684,6 +1670,7 @@ export class APIService {
       accessToken?: string
       refreshToken?: string
     }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     return request(`/scrapers/oauth-configs/${platform}`, {
       method: 'PUT',
@@ -1691,6 +1678,7 @@ export class APIService {
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static async completeOAuthCallback(platform: string, code: string): Promise<any> {
     return request(`/scrapers/oauth/${platform}/callback?code=${encodeURIComponent(code)}`, {
       method: 'POST',
@@ -1873,7 +1861,7 @@ export class APIService {
   static async getUserRequests(username: string): Promise<UserRequest[]> {
     try {
       return await request<UserRequest[]>(`/users/${encodeURIComponent(username)}/requests`)
-    } catch (error) {
+    } catch {
       // Return empty array if endpoint doesn't exist yet
       return []
     }

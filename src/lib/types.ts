@@ -94,6 +94,26 @@ export type UserData = {
   avatarUrl?: string
 }
 
+export type UserPreferences = {
+  productCardColumns?: 1 | 3
+}
+
+export type ProductSubmitActivityMetadata = {
+  action?: 'create' | 'edit'
+}
+
+export type RatingActivityMetadata = {
+  rating?: number
+}
+
+export type DiscussionActivityMetadata = {
+  parentId?: string
+}
+
+export type TagActivityMetadata = {
+  tag?: string
+}
+
 export type UserAccount = {
   id: string
   username?: string
@@ -104,23 +124,23 @@ export type UserAccount = {
   bio?: string
   location?: string
   website?: string
-  preferences?: Record<string, any>
+  preferences?: UserPreferences
   createdAt?: string | number
   joinedAt?: string
   lastActive?: string
 }
 
-export type UserPreferences = {
-  productCardColumns?: 1 | 3
-}
-
-export type UserActivity = {
+type UserActivityBase = {
   userId: string
-  type: 'product_submit' | 'rating' | 'discussion' | 'tag'
   productId?: string
   timestamp: string
-  metadata?: Record<string, any>
 }
+
+export type UserActivity =
+  | (UserActivityBase & { type: 'product_submit'; metadata?: ProductSubmitActivityMetadata })
+  | (UserActivityBase & { type: 'rating'; metadata?: RatingActivityMetadata })
+  | (UserActivityBase & { type: 'discussion'; metadata?: DiscussionActivityMetadata })
+  | (UserActivityBase & { type: 'tag'; metadata?: TagActivityMetadata })
 
 export type ScrapingLog = {
   id: string
