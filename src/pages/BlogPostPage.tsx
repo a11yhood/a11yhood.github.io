@@ -4,9 +4,10 @@ import { BlogPostDetail } from '@/components/BlogPostDetail'
 import { BlogPostEditor } from '@/components/BlogPostEditor'
 import { BlogPost, UserAccount } from '@/lib/types'
 import { APIService } from '@/lib/api'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 
 export function BlogPostPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userAccount: UserAccount | null }) {
+    const { notify } = useNotifications()
     const { slug } = useParams()
     const navigate = useNavigate()
     const [searchParams, setSearchParams] = useSearchParams()
@@ -29,13 +30,13 @@ export function BlogPostPage({ blogPosts, userAccount }: { blogPosts: BlogPost[]
     const handleSave = async (updatedPost: BlogPost) => {
         try {
             await APIService.updateBlogPost(post.id, updatedPost)
-            toast.success('Blog post updated successfully')
+            notify.success('Blog post updated successfully')
             // Remove edit mode from URL
             setSearchParams({})
             // Reload blog posts
             window.location.reload()
         } catch (error) {
-            toast.error('Failed to update blog post')
+            notify.error('Failed to update blog post')
             console.error('Update error:', error)
         }
     }

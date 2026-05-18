@@ -200,11 +200,14 @@ export function CollectionsPage({
                     )}
                 </>
             ) : (
-                <div className="mb-6 flex items-center justify-between">
+                <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                        <h1 className="text-3xl font-bold">Collections</h1>
+                        <Button variant="outline" onClick={() => navigate('/')}>
+                            ← Back to Products
+                        </Button>
+                    </div>
                     <p className="text-lg text-muted-foreground">Log in to create your own collection</p>
-                    <Button variant="outline" onClick={() => navigate('/')}>
-                        ← Back to Products
-                    </Button>
                 </div>
             )}
 

@@ -44,7 +44,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 
 console.log('✓ [App.tsx] All imports loaded')
 
-type ApiErrorLike = {
+export type ApiErrorLike = {
   status?: number
   message?: string
   data?: {
@@ -2004,6 +2004,7 @@ function App() {
     </div>
   )
 }
+
 
 export default App
 

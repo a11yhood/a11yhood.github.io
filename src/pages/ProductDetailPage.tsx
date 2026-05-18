@@ -3,10 +3,11 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { ProductDetail } from '@/components/ProductDetail'
 import { APIService } from '@/lib/api'
-import { Collection, CollectionCreateInput, Discussion, Product, ProductUpdate, Rating, UserAccount, UserData } from '@/lib/types'
-import { toast } from 'sonner'
+import { Collection, CollectionCreateInput, Discussion, Product, Rating, UserAccount, UserData } from '@/lib/types'
+import { ApiErrorLike } from '@/App'
+import { useNotifications } from '@/contexts/NotificationContext'
 
-function ProductDetailPage({
+export function ProductDetailPage({
     products,
     ratings,
     discussions,
@@ -41,7 +42,7 @@ function ProductDetailPage({
     onRemoveFromCollection: (collectionSlug: string) => Promise<void>
     onCreateCollection: (data: CollectionCreateInput) => void
     onDelete: (productId: string) => void
-    onEdit: (product: ProductUpdate) => void
+    onEdit: (product: Product) => void
     onToggleBan: (product: Product, reason?: string) => void
     onEditDiscussion: (id: string, content: string) => Promise<void> | void
     onDeleteDiscussion: (id: string) => Promise<void> | void
@@ -77,7 +78,12 @@ function ProductDetailPage({
                 const fetchedProduct = await APIService.getProductBySlug(productSlug)
                 setProduct(fetchedProduct ? { ...fetchedProduct, slug: fetchedProduct.slug ?? productSlug } : null)
             } catch (error) {
-                console.error('Failed to fetch product:', error)
+                const status = (error as ApiErrorLike | undefined)?.status
+                // 404 is expected when the URL slug is stale or invalid.
+                // Treat it as a normal "not found" state without noisy error logging.
+                if (status !== 404) {
+                    console.error('Failed to fetch product:', error)
+                }
                 setProduct(null)
             } finally {
                 setLoading(false)
@@ -168,7 +174,7 @@ export function ProductDetailPageWrapper({
     onCollectionsChange: (collections: Collection[] | ((current: Collection[]) => Collection[])) => void
     onCreateCollection: (data: CollectionCreateInput) => void
     onDelete: (productId: string) => void
-    onEdit: (product: ProductUpdate) => void
+    onEdit: (product: Product) => void
     onToggleBan: (product: Product, reason?: string) => void
     onEditDiscussion: (id: string, content: string) => Promise<void> | void
     onDeleteDiscussion: (id: string) => Promise<void> | void
@@ -176,6 +182,7 @@ export function ProductDetailPageWrapper({
     allTags: string[]
     allProductTypes?: string[]
 }) {
+    const { notify } = useNotifications()
     const { slug } = useParams()
     const [searchParams] = useSearchParams()
     void searchParams
@@ -219,7 +226,7 @@ export function ProductDetailPageWrapper({
         const updated = await APIService.addProductToCollection(collectionSlug, slug)
         if (updated) {
             onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
-            toast.success('Added to collection')
+            notify.success('Added to collection')
         }
     }
 
@@ -228,7 +235,7 @@ export function ProductDetailPageWrapper({
         const updated = await APIService.removeProductFromCollection(collectionSlug, slug)
         if (updated) {
             onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
-            toast.success('Removed from collection')
+            notify.success('Removed from collection')
         }
     }
 

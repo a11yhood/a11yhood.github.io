@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { CollectionDetail } from '@/components/CollectionDetail'
 import { Collection, Product, Rating, UserAccount, UserData } from '@/lib/types'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { APIService } from '@/lib/api'
 
 export function CollectionDetailPage({
@@ -27,6 +27,7 @@ export function CollectionDetailPage({
     onDeleteCollection?: (collectionSlug: string) => void
     onEditCollection?: (collection: Collection) => void
 }) {
+    const { notify } = useNotifications()
     const { collectionSlug } = useParams()
     const navigate = useNavigate()
     const location = useLocation()
@@ -112,10 +113,10 @@ export function CollectionDetailPage({
                         }
                         // Update fallback state for direct-link views
                         setExternalCollection(updated)
-                        toast.success(`Collection is now ${nextPublic ? 'public' : 'private'}`)
+                        notify.success(`Collection is now ${nextPublic ? 'public' : 'private'}`)
                     }
                 } catch {
-                    toast.error('Failed to update collection visibility')
+                    notify.error('Failed to update collection visibility')
                 }
             }}
         />
