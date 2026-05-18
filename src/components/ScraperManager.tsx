@@ -18,7 +18,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Product } from '@/lib/types'
 import { APIService } from '@/lib/api'
@@ -28,6 +27,9 @@ import { Download, CircleNotch, Pencil, Trash, Play, Clock, Check, Bug, CheckCir
 import { useNotifications } from '@/contexts/NotificationContext'
 import { formatSourceLabel } from '@/lib/utils'
 import MarkdownText from '@/components/ui/MarkdownText'
+
+/** Shape of errors thrown by APIService — only the fields we actually probe. */
+type ApiErrorLike = { status?: number; data?: unknown; message?: unknown }
 
 type ScraperManagerProps = {
   products: Product[]
@@ -44,13 +46,13 @@ type ScraperDebugInfo = {
   duration?: number
   startTime?: number
   endTime?: number
-  productsData?: any[]
+  productsData?: Product[]
 }
 
 export function ScraperManager({ products, onProductsUpdate, role = 'user', currentUserId }: ScraperManagerProps) {
   const { notify } = useNotifications()
   const [scraping, setScraping] = useState(false)
-  const [lastScrape, setLastScrape] = useState<number | null>(null)
+  const [lastScrape, _setLastScrape] = useState<number | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [editForm, setEditForm] = useState<Partial<Product>>({})
   const [deleteSourceDialog, setDeleteSourceDialog] = useState(false)
@@ -423,7 +425,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
     setLoadingSearchTerms(true)
     try {
       const response = await APIService.getScraperSearchTerms(platform)
-      const terms = (response as any).searchTerms ?? (response as any).search_terms ?? []
+      const terms = response.searchTerms
       const list = Array.isArray(terms) ? terms : []
       if (platform === 'github') setGithubSearchTerms(list)
       if (platform === 'thingiverse') setThingiverseSearchTerms(list)
@@ -460,8 +462,9 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
       setNewSearchTerm('')
       notify.success('Search term added')
     } catch (error) {
-      const status = (error as any)?.status
-      const detail = (error as any)?.data || (error as any)?.message || error
+      const apiError = error as ApiErrorLike
+      const status = apiError?.status
+      const detail = apiError?.data ?? apiError?.message ?? error
       const message = typeof detail === 'string' ? detail : JSON.stringify(detail)
       console.error('Failed to add search term:', { platform: activePlatform, error })
       notify.error(`Failed to add search term${status ? ` (HTTP ${status})` : ''}: ${message}`)
@@ -478,7 +481,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
     
     try {
       const response = await APIService.updateScraperSearchTerms(activePlatform, updatedTerms)
-      const terms = (response as any).searchTerms ?? (response as any).search_terms ?? []
+      const terms = response.searchTerms
       const list = Array.isArray(terms) ? terms : []
       if (activePlatform === 'github') setGithubSearchTerms(list)
       if (activePlatform === 'thingiverse') setThingiverseSearchTerms(list)
@@ -704,7 +707,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
               </p>
             ) : (
               <div className="space-y-3">
-                {debugInfo.map((info, idx) => (
+                {debugInfo.map((info) => (
                   <div 
                     key={info.source} 
                     className="border rounded-lg overflow-hidden"

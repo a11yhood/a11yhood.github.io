@@ -158,9 +158,14 @@ describe('ProductSubmission Accessibility Tests', () => {
       expect(screen.getByLabelText(/Image URL/i)).toBeInTheDocument()
     })
 
-    it('should only allow image URLs (no file upload)', () => {
-      const fileInputs = document.querySelectorAll('input[type="file"]')
-      expect(fileInputs.length).toBe(0)
+    it('should provide an accessible image file upload control limited to image files', () => {
+      const uploadButton = screen.getByRole('button', { name: /upload image file/i })
+      expect(uploadButton).toBeInTheDocument()
+
+      const fileInput = screen.getByLabelText(/upload image file/i) as HTMLInputElement
+      expect(fileInput).toBeInTheDocument()
+      expect(fileInput).toHaveAttribute('type', 'file')
+      expect(fileInput).toHaveAttribute('accept', 'image/*')
     })
   })
 

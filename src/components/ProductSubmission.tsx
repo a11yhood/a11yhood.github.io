@@ -22,10 +22,10 @@ import {
 import { Plus, X, MagnifyingGlass } from '@phosphor-icons/react'
 import { Product, UserData } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
-import { ProductImageManager } from './ProductImageManager'
+import { ProductImageManager, type ProductImageManagerRef } from './ProductImageManager'
 import { ProductCard } from './ProductCard'
 import { useNotifications } from '@/contexts/NotificationContext'
-import { APIService } from '@/lib/api'
+import { APIService, extractInternalImageIdFromReference, resolveApiImageUrl } from '@/lib/api'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faUniversalAccess } from '@fortawesome/free-solid-svg-icons'
 
@@ -33,13 +33,54 @@ type ProductSubmissionProps = {
   user: UserData | null
   onSubmit: (product: Omit<Product, 'id' | 'createdAt'>) => void
   onRequestOwnership?: (productSlug: string) => void
+  canUploadFile?: boolean
 }
 
 export interface ProductSubmissionRef {
   close: () => void
 }
 
-export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmissionProps>(function ProductSubmission({ user, onSubmit, onRequestOwnership }, ref) {
+/**
+ * Extract image ID from /api/images/{id} references for ID-only API payloads.
+ * Returns undefined when no image ID reference is available.
+ */
+function buildImagePayload(
+  imageUrl: string | null | undefined,
+  imageAlt: string | null | undefined
+): { id: string; alt?: string } | { url: string; alt?: string } | undefined {
+  if (!imageUrl) {
+    return undefined
+  }
+
+  // Existing internal image references can be ID-based only when the URL is relative
+  // or when the absolute URL matches the configured backend origin.
+  const imageIdFromReference = extractInternalImageIdFromReference(imageUrl)
+
+  if (imageIdFromReference) {
+    const alt = imageAlt?.trim()
+    return alt ? { id: imageIdFromReference, alt } : { id: imageIdFromReference }
+  }
+
+  // Data URLs from file uploads: send to backend so it can store the image and assign an ID.
+  if (imageUrl.startsWith('data:image/')) {
+    const alt = imageAlt?.trim() || ''
+    return alt ? { url: imageUrl, alt } : { url: imageUrl }
+  }
+
+  try {
+    const parsed = new URL(imageUrl)
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      const alt = imageAlt?.trim() || ''
+      return alt ? { url: parsed.toString(), alt } : { url: parsed.toString() }
+    }
+  } catch {
+    // Invalid URL for payload conversion
+  }
+
+  return undefined
+}
+
+export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmissionProps>(function ProductSubmission({ user, onSubmit, onRequestOwnership, canUploadFile = true }, ref) {
   const { notify } = useNotifications()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
@@ -60,12 +101,26 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
   const [errors, setErrors] = useState<Record<string, string>>({})
   const errorSummaryRef = useRef<HTMLDivElement>(null)
   const [validationAttempted, setValidationAttempted] = useState(false)
+  const imageManagerRef = useRef<ProductImageManagerRef>(null)
   
   // New state for URL lookup flow
   const [urlCheckState, setUrlCheckState] = useState<'initial' | 'checking' | 'exists' | 'form'>('initial')
   const [existingProduct, setExistingProduct] = useState<Product | null>(null)
   const [isScrapingUrl, setIsScrapingUrl] = useState(false)
   const [urlToCheck, setUrlToCheck] = useState('')
+
+  const resolveScrapedImageReference = (imageId: unknown): string | undefined => {
+    if (typeof imageId !== 'string') {
+      return undefined
+    }
+
+    const normalizedId = imageId.trim()
+    if (!normalizedId) {
+      return undefined
+    }
+
+    return resolveApiImageUrl(`/api/images/${encodeURIComponent(normalizedId)}`)
+  }
 
   // Expose close method to parent via ref
   useImperativeHandle(ref, () => ({
@@ -150,7 +205,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
       const scrapeResult = await APIService.loadUrl(normalized)
       
       if (scrapeResult.success && scrapeResult.product) {
-        const p = scrapeResult.product as any
+        const p = scrapeResult.product as Partial<Product>
         
         // Product was scraped - pre-fill form with scraped data
         setSourceUrl(normalized)
@@ -158,8 +213,9 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
         if (p.description) setDescription(p.description)
         if (p.type) setType(p.type)
         if (p.tags) setTags(p.tags)
-        if (p.imageUrl || p.image) {
-          setImageUrl(p.imageUrl || p.image)
+        const scrapedImageUrl = resolveScrapedImageReference(p.imageId)
+        if (scrapedImageUrl) {
+          setImageUrl(scrapedImageUrl)
           if (p.imageAlt) setImageAlt(p.imageAlt)
         }
         if (p.sourceLastUpdated || p.source_last_updated) setSourceLastUpdated(p.sourceLastUpdated || p.source_last_updated)
@@ -260,13 +316,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
       newErrors.sourceUrl = 'Please enter a valid URL'
     }
 
-    if (imageUrl && !imageAlt?.trim()) {
-      newErrors.imageAlt = 'Alt text is required when an image is provided'
-    }
-
-    if (imageUrl && imageAlt && imageAlt.trim() && imageAlt.trim().length < 10) {
-      newErrors.imageAlt = 'Alt text should be at least 10 characters'
-    }
+    // image.alt is optional in the new contract; backend may fall back to stored/default alt.
 
     setErrors(newErrors)
     if (Object.keys(newErrors).length > 0) {
@@ -330,6 +380,24 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
       return
     }
 
+    if (imageManagerRef.current?.isProcessingImage()) {
+      notify.info('Image is still uploading. Please wait a moment and try again.')
+      return
+    }
+
+    let finalImageData: { url: string | null | undefined; alt: string | null | undefined } = {
+      url: imageUrl,
+      alt: imageManagerRef.current?.getCommittedAltText() ?? imageAlt,
+    }
+
+    const pendingImage = imageManagerRef.current?.getPendingImageData()
+    if (pendingImage) {
+      finalImageData = {
+        url: pendingImage.url,
+        alt: pendingImage.alt,
+      }
+    }
+
     const normalizedLastUpdated = (() => {
       if (!sourceLastUpdated) return undefined
       if (typeof sourceLastUpdated === 'number') return sourceLastUpdated
@@ -339,7 +407,14 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
     const normalizedRating = typeof sourceRating === 'number' ? sourceRating : undefined
     const normalizedRatingCount = typeof sourceRatingCount === 'number' ? sourceRatingCount : undefined
     const normalizedStars = typeof stars === 'number' ? stars : undefined
-    const productData: Omit<Product, 'id' | 'createdAt'> = {
+    
+    const image = buildImagePayload(finalImageData.url, finalImageData.alt)
+
+    if (pendingImage) {
+      imageManagerRef.current?.submitPendingImage()
+    }
+    
+    const productData = {
       name: name.trim(),
       type: type.trim(),
       sourceUrl: sourceUrl.trim() || undefined,
@@ -347,8 +422,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
       source: source || 'user-submitted',
       description: description.trim(),
       tags,
-      imageUrl: imageUrl || undefined,
-      imageAlt: imageAlt?.trim() || undefined,
+      image,
       origin: 'user-submitted',
       sourceLastUpdated: normalizedLastUpdated,
       sourceRating: normalizedRating,
@@ -356,7 +430,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
       stars: normalizedStars,
     }
 
-    onSubmit(productData)
+    onSubmit(productData as Omit<Product, 'id' | 'createdAt'>)
     setOpen(false)
     resetForm()
   }
@@ -730,8 +804,10 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
               <div className="space-y-2">
                 <Label>Product Image</Label>
                 <ProductImageManager
+                  ref={imageManagerRef}
                   imageUrl={imageUrl}
                   imageAlt={imageAlt}
+                  canUploadFile={canUploadFile}
                   onImageChange={handleImageChange}
                   imageAltError={errors.imageAlt}
                 />

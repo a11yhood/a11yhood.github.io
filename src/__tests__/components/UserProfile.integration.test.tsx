@@ -76,7 +76,6 @@ async function createOwnedProduct(): Promise<void> {
     name: `Managed Product ${Date.now()}`,
     type: getValidProductType('user-submitted'),
     source: 'user-submitted',
-    category: 'Software',
     sourceUrl: `https://github.com/test/user-profile-${Date.now()}`,
     editorIds: [userAccount.id],
   })
@@ -89,7 +88,6 @@ async function createOwnedProduct(): Promise<void> {
     description: product.description ?? '',
     tags: product.tags ?? [],
     createdAt: product.createdAt ? new Date(product.createdAt).getTime() : Date.now(),
-    updatedAt: product.updatedAt ? new Date(product.updatedAt).getTime() : Date.now(),
     sourceUrl: product.sourceUrl,
     editorIds: product.editorIds ?? [],
   }

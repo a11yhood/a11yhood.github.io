@@ -89,9 +89,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   // Clear all pending timers when the provider unmounts to avoid state updates
   // on an unmounted component (common in tests and future refactors).
   useEffect(() => {
+    const currentTimers = timers.current
     return () => {
-      timers.current.forEach((timer) => clearTimeout(timer))
-      timers.current.clear()
+      currentTimers.forEach((timer) => clearTimeout(timer))
+      currentTimers.clear()
     }
   }, [])
 
@@ -119,6 +120,7 @@ const NOOP_CONTEXT: NotificationContextValue = {
   dismiss: (_id: string) => {},
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useNotifications(): NotificationContextValue {
   const ctx = useContext(NotificationContext)
   // Return a no-op implementation outside the provider so isolated unit tests

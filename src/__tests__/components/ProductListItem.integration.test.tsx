@@ -19,7 +19,6 @@ describeWithBackend('ProductListItem - Integration', () => {
       name: `ProductListItem Integration ${Date.now()}`,
       type: getValidProductType('user-submitted'),
       source: 'user-submitted',
-      category: 'Software',
       sourceUrl: `https://github.com/test/product-list-item-${Date.now()}`,
       description: 'Integration fixture for ProductListItem rendering',
       tags: ['integration'],

@@ -31,7 +31,7 @@ type RequestSourceDialogProps = {
  * @param onOpenChange - Callback when dialog open state changes
  * @param domain - The domain being requested
  */
-export function RequestSourceDialog({ open, onOpenChange, domain, url, userId, userName, userAvatarUrl }: RequestSourceDialogProps) {
+export function RequestSourceDialog({ open, onOpenChange, domain, url, userId: _userId, userName: _userName, userAvatarUrl: _userAvatarUrl }: RequestSourceDialogProps) {
   const { notify } = useNotifications()
   const [reason, setReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -66,7 +66,7 @@ export function RequestSourceDialog({ open, onOpenChange, domain, url, userId, u
         ].filter(Boolean).join('\n')
       }
 
-      await APIService.createUserRequest(requestBody as any)
+      await APIService.createUserRequest(requestBody as Parameters<typeof APIService.createUserRequest>[0])
 
       // Also copy to clipboard as a convenience fallback for sharing
       try {
@@ -82,7 +82,10 @@ export function RequestSourceDialog({ open, onOpenChange, domain, url, userId, u
           ].filter(Boolean).join('\n')
         )
         await navigator.clipboard.writeText(requestMessage)
-      } catch {}
+      } catch (clipboardError) {
+        // Clipboard access can fail in restricted/browser contexts.
+        console.debug("Clipboard write failed", clipboardError);
+      }
 
       notify.success('Request submitted for review. Moderators will see it shortly.')
 

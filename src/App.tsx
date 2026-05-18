@@ -602,7 +602,12 @@ function ProductDetailPage({
         const fetchedProduct = await APIService.getProductBySlug(productSlug)
         setProduct(fetchedProduct ? { ...fetchedProduct, slug: fetchedProduct.slug ?? productSlug } : null)
       } catch (error) {
-        console.error('Failed to fetch product:', error)
+        const status = (error as ApiErrorLike | undefined)?.status
+        // 404 is expected when the URL slug is stale or invalid.
+        // Treat it as a normal "not found" state without noisy error logging.
+        if (status !== 404) {
+          console.error('Failed to fetch product:', error)
+        }
         setProduct(null)
       } finally {
         setLoading(false)
@@ -701,6 +706,7 @@ function ProductDetailPageWrapper({
   allTags: string[]
   allProductTypes?: string[]
 }) {
+  const { notify } = useNotifications()
   const { slug } = useParams()
   const [searchParams] = useSearchParams()
   void searchParams
@@ -826,6 +832,7 @@ function BlogPage({ blogPosts, blogPostsLoading, userAccount }: { blogPosts: Blo
 }
 
 function BlogPostPage({ blogPosts, userAccount }: { blogPosts: BlogPost[], userAccount: UserAccount | null }) {
+  const { notify } = useNotifications()
   const { slug } = useParams()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -1152,6 +1159,7 @@ function CollectionDetailPage({
   onDeleteCollection?: (collectionSlug: string) => void
   onEditCollection?: (collection: Collection) => void
 }) {
+  const { notify } = useNotifications()
   const { collectionSlug } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
@@ -2395,8 +2403,7 @@ function App() {
       }
     }
 
-    handleRavelryOAuth()
-  }, [authLoading, authUser])
+  }, [authLoading, authUser, notify])
 
   // Load collections for all users (public collections always, user collections on /collections pages)
   useEffect(() => {
@@ -2559,12 +2566,13 @@ function App() {
       // Stats are computed dynamically from database, no need to increment
       // APIService.incrementUserStats(user.id, 'discussionsParticipated')
       if (user?.id && newDiscussion.productId) {
+        const discussionActivityMetadata = parentId ? { parentId } : undefined
         APIService.logUserActivity({
           userId: user.id,
           type: 'discussion',
           productId: newDiscussion.productId,
           timestamp: new Date().toISOString(),
-          metadata: { parentId },
+          metadata: discussionActivityMetadata,
         }).catch(err => console.warn('Failed to log discussion activity:', err))
       }
       
@@ -2856,19 +2864,27 @@ function App() {
         hasImageAlt: savedProduct?.imageAlt
       })
       
-      // Use the saved product from backend if available; otherwise normalise null
-      // image fields back to undefined to keep Product state consistent.
-      const productToUse: Product = savedProduct || {
+      // Prefer server state; some backends return 204 for PATCH, so refetch.
+      const refetchedProduct = !savedProduct
+        ? await APIService.getProduct(updatedProduct.slug || updatedProduct.id)
+        : null
+
+      // Use saved/refetched product when available; otherwise fall back to local draft.
+      const productToUse: Product = savedProduct || refetchedProduct || {
         ...updatedProduct,
         imageUrl: updatedProduct.imageUrl ?? undefined,
         imageAlt: updatedProduct.imageAlt ?? undefined,
       }
       
-      setProducts((currentProducts) =>
-        (currentProducts || []).map(p =>
+      setProducts((currentProducts) => {
+        const current = currentProducts || []
+        const next = current.map((p) =>
           p.slug === productToUse.slug || p.id === productToUse.id ? productToUse : p
         )
-      )
+
+        const exists = current.some((p) => p.slug === productToUse.slug || p.id === productToUse.id)
+        return exists ? next : [productToUse, ...next]
+      })
       
       if (user?.id && updatedProduct.id) {
         try {
@@ -2971,7 +2987,7 @@ function App() {
 
   const handleCreateCollectionFromSearch = async (collectionData: CollectionCreateInput) => {
     try {
-      const payload: Record<string, unknown> = {
+      const payload: Parameters<typeof APIService.createCollectionFromSearch>[0] = {
         name: collectionData.name,
         description: collectionData.description,
         isPublic: collectionData.isPublic,
