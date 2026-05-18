@@ -1,6 +1,5 @@
 import { memo, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { StarRating } from './StarRating'
 import { Product, Rating, UserData, Collection } from '@/lib/types'
 import { cn, formatSourceLabel, getSourceIcon, calculateAverageRating, formatRelativeTime } from '@/lib/utils'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -26,21 +25,14 @@ type ProductListItemProps = {
   onDelete?: (productId: string) => void
 }
 
-export const ProductListItem = memo(function ProductListItem({ product, ratings, collections, selectedTags = [], href, onNavigate, onTagClick, user, onRate, showBannedBadge, canModerate, onToggleBan, onDelete }: ProductListItemProps) {
+export const ProductListItem = memo(function ProductListItem({ product, ratings, collections, selectedTags = [], href, onNavigate, onTagClick, user: _user, showBannedBadge, canModerate, onToggleBan, onDelete }: ProductListItemProps) {
   const [imageError, setImageError] = useState(false)
   const productRatings = useMemo(() => ratings.filter((r) => r.productId === product.id), [ratings, product.id])
   const averageRating = useMemo(() => calculateAverageRating(product.sourceRating, productRatings, product.id), [product.sourceRating, productRatings, product.id])
-  const userRating = useMemo(() => user ? productRatings.find((r) => r.userId === user.id)?.rating : undefined, [user, productRatings])
   const productCollections = useMemo(
     () => collections ? collections.filter((c) => product.slug && (c.productSlugs ?? []).includes(product.slug)) : [],
     [collections, product.slug]
   )
-
-  const handleRate = (rating: number) => {
-    if (onRate) {
-      onRate(product.id, rating)
-    }
-  }
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -61,7 +53,7 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
 
   const sourceIcon = getSourceIcon(product.source)
   const sourceLabel = formatSourceLabel(product.source)
-  const updatedTs = (product as any).source_last_updated ?? (product as any).sourceLastUpdated
+  const updatedTs = product.source_last_updated ?? product.sourceLastUpdated
   const updatedText = updatedTs ? formatRelativeTime(updatedTs) : ''
   const shouldShowImage = !!product.imageUrl && !imageError
 
@@ -127,7 +119,7 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    handleStarClick(e as any)
+                    handleStarClick(e as unknown as React.MouseEvent)
                   }
                 }}
               >

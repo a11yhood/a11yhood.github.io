@@ -24,6 +24,7 @@ import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 // API adapter disabled - using real backend API now
 // import '@/lib/api-adapter'
 import { useAuth } from '@/contexts/AuthContext'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { AppHeader } from '@/components/AppHeader'
 import { AppFooter } from '@/components/AppFooter'
 import { DevRoleSwitcher } from '@/components/DevRoleSwitcher'
@@ -1005,7 +1006,7 @@ function App() {
         console.error('[App OAuth] ✗ OAuth error in callback:', errorParam)
         const errorDesc = urlParams.get('error_description')
         console.error('[App OAuth] ✗ Error description:', errorDesc)
-
+        
         showPageError(`OAuth Error: ${errorParam}${errorDesc ? ` - ${errorDesc}` : ''}`)
         window.history.replaceState({}, document.title, '/admin')
         oauthProcessedRef.current = true
@@ -1040,7 +1041,7 @@ function App() {
             console.error('[App OAuth] ✗ State validation failed!')
             console.error('[App OAuth]   - Received state:', state || 'MISSING')
             console.error('[App OAuth]   - Expected state:', savedState || 'MISSING')
-
+            
             showPageError('OAuth state validation failed. Please try again.')
             localStorage.removeItem('ravelry-oauth-config-state')
             return
@@ -1229,7 +1230,7 @@ function App() {
       } catch (refetchError) {
         console.warn('[handleRate] Failed to refetch ratings (non-critical):', refetchError)
       }
-
+      
       notify.success('Rating saved')
     } catch (error) {
       console.error('Failed to save rating:', error)
@@ -1267,7 +1268,7 @@ function App() {
           metadata: discussionActivityMetadata,
         }).catch(err => console.warn('Failed to log discussion activity:', err))
       }
-
+      
       notify.success(parentId ? 'Reply posted' : 'Discussion started')
     } catch (error) {
       console.error('Failed to post discussion:', error)
@@ -1395,7 +1396,7 @@ function App() {
               metadata: { tag: normalizedTag },
             }).catch(err => console.warn('Failed to log tag activity:', err))
           }
-
+          
           notify.success('Tag added successfully')
         } else {
           // API did not throw but also did not return an updated product; treat as failure.
@@ -1528,7 +1529,7 @@ function App() {
           return d.productId !== productSlug && maybeWithProductSlug.productSlug !== productSlug
         })
       )
-
+      
       notify.success('Product deleted successfully')
     } catch (error) {
       console.error('[App] Failed to delete product:', error)
@@ -1555,7 +1556,7 @@ function App() {
         hasImageUrl: savedProduct?.imageUrl,
         hasImageAlt: savedProduct?.imageAlt
       })
-
+      
       // Prefer server state; some backends return 204 for PATCH, so refetch.
       const refetchedProduct = !savedProduct
         ? await APIService.getProduct(updatedProduct.slug || updatedProduct.id)
@@ -1567,7 +1568,7 @@ function App() {
         imageUrl: updatedProduct.imageUrl ?? undefined,
         imageAlt: updatedProduct.imageAlt ?? undefined,
       }
-
+      
       setProducts((currentProducts) => {
         const current = currentProducts || []
         const next = current.map((p) =>
@@ -1577,7 +1578,7 @@ function App() {
         const exists = current.some((p) => p.slug === productToUse.slug || p.id === productToUse.id)
         return exists ? next : [productToUse, ...next]
       })
-
+      
       if (user?.id && updatedProduct.id) {
         try {
           await APIService.logUserActivity({
@@ -1591,7 +1592,7 @@ function App() {
           console.warn('Failed to log activity (non-critical):', activityError)
         }
       }
-
+      
       notify.success('Product updated successfully')
     } catch (error) {
       console.error('Failed to update product:', error)

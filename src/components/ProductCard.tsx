@@ -64,7 +64,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
   )
 
   // Support both snake_case and camelCase from API
-  const updatedTs = (product as any).source_last_updated ?? (product as any).sourceLastUpdated
+  const updatedTs = product.source_last_updated ?? product.sourceLastUpdated
   const updatedText = updatedTs ? formatRelativeTime(updatedTs) : ''
 
   const handleDelete = (e: React.MouseEvent) => {

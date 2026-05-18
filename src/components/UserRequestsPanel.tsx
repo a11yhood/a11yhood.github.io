@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { UserRequest, UserData, UserAccount } from '@/lib/types'
 import { APIService } from '@/lib/api'
-import { Clock, CheckCircle, XCircle, FolderOpen } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { FolderOpen } from '@phosphor-icons/react'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { RequestCard } from './RequestCard'
 
 type UserRequestsPanelProps = {
@@ -18,11 +17,12 @@ type UserRequestsPanelProps = {
   onNavigateToProduct?: (productId: string) => void
 }
 
-export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: UserRequestsPanelProps) {
+export function UserRequestsPanel({ user, userAccount, onNavigateToProduct: _onNavigateToProduct }: UserRequestsPanelProps) {
+  const { notify } = useNotifications()
   const [requests, setRequests] = useState<UserRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [showRequestDialog, setShowRequestDialog] = useState(false)
-  const [requestType, setRequestType] = useState<'moderator' | 'admin'>('moderator')
+  const [requestType] = useState<'moderator' | 'admin'>('moderator')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [withdrawingRequestId, setWithdrawingRequestId] = useState<string | null>(null)
@@ -43,7 +43,7 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
     setLoading(true)
     try {
       const userRequests = await APIService.getMyRequests()
-      setRequests(userRequests)
+      setRequests(Array.isArray(userRequests) ? userRequests : [])
     } catch (error) {
       console.error('Failed to load requests:', error)
     } finally {
@@ -54,7 +54,7 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
 
   const handleSubmitRequest = async () => {
     if (!message.trim()) {
-      toast.error(`Please provide a message explaining why you want to become ${requestType === 'moderator' ? 'a moderator' : 'an admin'}`)
+      notify.error(`Please provide a message explaining why you want to become ${requestType === 'moderator' ? 'a moderator' : 'an admin'}`)
       return
     }
 
@@ -68,15 +68,15 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
         message: message.trim(),
       })
       
-      toast.success('Your request has been submitted to the admins')
+      notify.success('Your request has been submitted to the admins')
       setShowRequestDialog(false)
       setMessage('')
       await loadRequests()
     } catch (error) {
       if (error instanceof Error) {
-        toast.error(error.message)
+        notify.error(error.message)
       } else {
-        toast.error('Failed to submit request')
+        notify.error('Failed to submit request')
       }
     } finally {
       setSubmitting(false)
@@ -90,16 +90,16 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
       const result = await APIService.withdrawRequest(withdrawingRequestId, user.id)
       
       if (result.success) {
-        toast.success('Request withdrawn successfully')
+        notify.success('Request withdrawn successfully')
         await loadRequests()
       } else {
-        toast.error('Failed to withdraw request')
+        notify.error('Failed to withdraw request')
       }
     } catch (error) {
       if (error instanceof Error) {
-        toast.error(error.message)
+        notify.error(error.message)
       } else {
-        toast.error('Failed to withdraw request')
+        notify.error('Failed to withdraw request')
       }
     } finally {
       setShowWithdrawDialog(false)
@@ -107,65 +107,13 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
     }
   }
 
-  const hasPendingModeratorRequest = requests.some(
-    r => r.type === 'moderator' && r.status === 'pending'
-  )
-
-  const hasPendingAdminRequest = requests.some(
-    r => r.type === 'admin' && r.status === 'pending'
-  )
-
-  const moderatorRequests = requests.filter(r => r.type === 'moderator' || r.type === 'admin')
   const productEditorRequests = requests.filter(r => r.type === 'product-ownership')
-
-  // Users can request editor status (if not already editor or admin)
-  const canRequestModerator = userRole === 'user' && !hasPendingModeratorRequest
-  // Editors can request admin status (if not already admin)
-  const canRequestAdmin = userRole === 'moderator' && !hasPendingAdminRequest
-  // Admins cannot request anything - they're already at the top level
-  const canShowRequestButton = canRequestModerator || canRequestAdmin
-
-  const getStatusBadge = (status: UserRequest['status']) => {
-    switch (status) {
-      case 'pending':
-        return (
-          <Badge variant="secondary" className="flex items-center gap-1">
-            <Clock size={14} />
-            Pending
-          </Badge>
-        )
-      case 'approved':
-        return (
-          <Badge className="flex items-center gap-1 bg-green-600 hover:bg-green-700">
-            <CheckCircle size={14} />
-            Approved
-          </Badge>
-        )
-      case 'rejected':
-        return (
-          <Badge variant="destructive" className="flex items-center gap-1">
-            <XCircle size={14} />
-            Rejected
-          </Badge>
-        )
-    }
-  }
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle as="h2" className="flex items-center gap-2">
             <FolderOpen size={24} />
             Product editor requests
           </CardTitle>

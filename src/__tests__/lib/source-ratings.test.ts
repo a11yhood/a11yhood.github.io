@@ -40,7 +40,6 @@ describe('Source Rating Calculations', () => {
           description: 'Test',
           tags: ['test'],
           createdAt: Date.now(),
-          origin: 'scraped-github',
           sourceRating: 4.5,
           sourceRatingCount: 100,
         },
@@ -63,7 +62,6 @@ describe('Source Rating Calculations', () => {
           description: 'Test',
           tags: ['test'],
           createdAt: Date.now(),
-          origin: 'user-submitted',
         },
       ]
 
@@ -87,7 +85,6 @@ describe('Source Rating Calculations', () => {
           description: 'Test',
           tags: ['test'],
           createdAt: Date.now(),
-          origin: 'scraped-thingiverse',
           sourceRating: 4.0,
           sourceRatingCount: 50,
         },
@@ -115,7 +112,6 @@ describe('Source Rating Calculations', () => {
           description: 'Test',
           tags: ['test'],
           createdAt: Date.now(),
-          origin: 'user-submitted',
         },
       ]
 
@@ -136,7 +132,6 @@ describe('Source Rating Calculations', () => {
           description: 'Test',
           tags: ['test'],
           createdAt: Date.now(),
-          origin: 'scraped-ravelry',
           sourceRating: 3.8,
           sourceRatingCount: 15,
         },
@@ -164,7 +159,6 @@ describe('Source Rating Calculations', () => {
         description: 'Test',
         tags: ['test'],
         createdAt: Date.now(),
-        origin: 'scraped-github',
         sourceRating: 5.0,
         sourceRatingCount: 5000,
       }
@@ -192,7 +186,6 @@ describe('Source Rating Calculations', () => {
           description: 'Test',
           tags: ['test'],
           createdAt: Date.now(),
-          origin: 'scraped-github',
           sourceRating: expectedRating,
           sourceRatingCount: stars,
         }
@@ -211,7 +204,6 @@ describe('Source Rating Calculations', () => {
         description: 'Test',
         tags: ['test'],
         createdAt: Date.now(),
-        origin: 'scraped-github',
         sourceRating: 1.0,
         sourceRatingCount: 3,
       }
@@ -229,7 +221,6 @@ describe('Source Rating Calculations', () => {
         description: 'Test',
         tags: ['test'],
         createdAt: Date.now(),
-        origin: 'scraped-github',
         sourceRating: undefined,
         sourceRatingCount: 0,
       }
@@ -249,7 +240,6 @@ describe('Source Rating Calculations', () => {
         description: 'Test',
         tags: ['test'],
         createdAt: Date.now(),
-        origin: 'scraped-thingiverse',
         sourceRating: 4.5,
         sourceRatingCount: 23,
       }
@@ -269,7 +259,6 @@ describe('Source Rating Calculations', () => {
         description: 'Test',
         tags: ['test'],
         createdAt: Date.now(),
-        origin: 'scraped-github',
         sourceRating: 4.0,
         sourceRatingCount: 1500,
       }
@@ -295,7 +284,6 @@ describe('Source Rating Calculations', () => {
           description: 'Test',
           tags: ['test'],
           createdAt: Date.now(),
-          origin: 'scraped-github',
           sourceRating: 4.5,
           // sourceRatingCount is undefined
         },
@@ -318,7 +306,6 @@ describe('Source Rating Calculations', () => {
           description: 'Test',
           tags: ['test'],
           createdAt: Date.now(),
-          origin: 'scraped-github',
           // sourceRating is undefined
           sourceRatingCount: 100,
         },
@@ -341,7 +328,6 @@ describe('Source Rating Calculations', () => {
           description: 'Test',
           tags: ['test'],
           createdAt: Date.now(),
-          origin: 'scraped-github',
           sourceRating: 5.0,
           sourceRatingCount: 1000,
         },
@@ -368,7 +354,6 @@ describe('Source Rating Calculations', () => {
           description: 'Test',
           tags: ['test'],
           createdAt: Date.now(),
-          origin: 'scraped-thingiverse',
           sourceRating: 3.5,
           sourceRatingCount: 40,
         },
@@ -400,7 +385,6 @@ describe('Source Rating Calculations', () => {
           description: 'Test',
           tags: ['test'],
           createdAt: Date.now(),
-          origin: 'scraped-github',
           sourceRating: 4.5,
           sourceRatingCount: 100,
         },
@@ -413,7 +397,6 @@ describe('Source Rating Calculations', () => {
           description: 'Test',
           tags: ['test'],
           createdAt: Date.now(),
-          origin: 'scraped-github',
           sourceRating: 2.5,
           sourceRatingCount: 50,
         },
@@ -442,7 +425,6 @@ describe('Source Rating Calculations', () => {
           description: 'Test',
           tags: ['test'],
           createdAt: Date.now(),
-          origin: 'scraped-thingiverse',
           sourceRating: 3.0,
           sourceRatingCount: 30,
         },

@@ -25,6 +25,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: |
@@ -33,6 +34,6 @@ jobs:
 
       - name: Run full test suite (including backend tests)
         env:
-          CI: 'false'
           TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
-        run: npm run test:run
+          VITEST_DEV_DB_RESET_MODE: always
+        run: npm run test:run:full

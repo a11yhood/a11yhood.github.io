@@ -6,14 +6,14 @@ on:
   # verifying the build is ready for production.
   push:
     tags:
-      - 'v*'
+      - "v*"
   # Allow manual re-deploys (e.g. after environment config changes).
   workflow_dispatch:
 
 permissions:
-  contents: write   # Needed to commit updated production build to gh-pages branch
-  pages: write      # Needed to publish the assembled site to GitHub Pages
-  id-token: write   # Required by actions/deploy-pages
+  contents: write # Needed to commit updated production build to gh-pages branch
+  pages: write # Needed to publish the assembled site to GitHub Pages
+  id-token: write # Required by actions/deploy-pages
 
 concurrency:
   group: "pages"
@@ -29,18 +29,64 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: |
           npm ci
           npm install --no-save @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu
 
+      - name: Validate Supabase URL/key pairing
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          node -e "
+            const url = (process.env.VITE_SUPABASE_URL || '').trim();
+            const key = (process.env.VITE_SUPABASE_ANON_KEY || '').trim();
+            if (!url || !key) {
+              console.error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');
+              process.exit(1);
+            }
+
+            const normalizedUrl = url.replace(/\/$/, '');
+
+            // Validate via a real auth endpoint so both JWT and non-JWT key
+            // formats are supported (Supabase may issue either format).
+            const endpoint = normalizedUrl + '/auth/v1/settings';
+
+            fetch(endpoint, {
+              headers: {
+                apikey: key,
+                Authorization: 'Bearer ' + key,
+              },
+            }).then(async (res) => {
+              if (!res.ok) {
+                const body = await res.text().catch(() => '');
+                console.error('Supabase URL/key validation failed.');
+                console.error('Endpoint:', endpoint);
+                console.error('Status:', res.status, res.statusText);
+                console.error('Body:', body.slice(0, 500));
+                process.exit(1);
+              }
+              console.log('Supabase URL/key pair looks consistent.');
+            }).catch((err) => {
+              console.error('Supabase URL/key validation request failed:', err);
+              process.exit(1);
+            });
+          "
+
       - name: Run tests
         env:
-          CI: true
-        run: npm run test:run
+          TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
+          VITEST_DEV_DB_RESET_MODE: always
+        run: npm run test:run:full
+
+      - name: Set app version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo "VITE_APP_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
 
       - name: Build for GitHub Pages
         env:
@@ -49,7 +95,7 @@ jobs:
           VITE_LOG_LEVEL: ${{ secrets.VITE_LOG_LEVEL }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        run: npm run build:ghpages
+        run: npm run build:ghpages:ci
 
       - name: Upload production build artifact
         uses: actions/upload-artifact@v5
@@ -140,8 +186,12 @@ jobs:
       - name: Upload assembled site as Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/pages-artifact
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
+#

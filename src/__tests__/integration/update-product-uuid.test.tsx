@@ -39,10 +39,8 @@ describe('updateProduct UUID enforcement', () => {
     sourceUrl: 'https://example.com/product',
     description: 'Original description that is long enough',
     tags: ['grip', 'utensil'],
-    ownerIds: [DEV_USERS.admin.id],
     editorIds: [DEV_USERS.admin.id],
     createdAt: Date.now(),
-    origin: 'user-submitted',
   }
 
   const adminAccount: UserAccount = {

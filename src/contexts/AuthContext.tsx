@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { APIService } from '@/lib/api';
 import { getDevUser, getDevToken } from '@/lib/dev-users';
@@ -39,14 +39,60 @@ function ProductionAuthProvider({ children }: { children: ReactNode }) {
       try {
         const { supabase } = await import('@/lib/supabase');
 
+        const parseHashOAuthTokens = () => {
+          if (typeof window === 'undefined') return null;
+          const hash = window.location.hash.startsWith('#') ? window.location.hash.substring(1) : window.location.hash;
+          if (!hash) return null;
+          const params = new URLSearchParams(hash);
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+          if (!accessToken || !refreshToken) return null;
+          return { accessToken, refreshToken };
+        };
+
         // Register token getter for API calls
         APIService.setAuthTokenGetter(async () => {
           const { data: { session: freshSession } } = await supabase.auth.getSession();
           return freshSession?.access_token ?? null;
         });
 
-        // Initial session
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        // Initial session (getSession handles standard callback parsing).
+        let { data: { session: initialSession } } = await supabase.auth.getSession();
+
+        // Gate hash-token fallback to the expected auth callback route only.
+        // Accepting hash tokens on arbitrary pages would allow session-fixation
+        // attacks via crafted links containing valid tokens.
+        const isOnAuthCallbackPath =
+          typeof window !== 'undefined' &&
+          (window.location.pathname === '/auth/callback' ||
+            window.location.pathname.endsWith('/auth/callback'));
+
+        // Fallback for hash-based implicit callbacks that arrive before the session is persisted.
+        if (!initialSession && isOnAuthCallbackPath) {
+          const hashTokens = parseHashOAuthTokens();
+          if (hashTokens) {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: hashTokens.accessToken,
+              refresh_token: hashTokens.refreshToken,
+            });
+
+            if (error) {
+              if (error.message?.includes('Unregistered API key')) {
+                console.error(
+                  '[ProductionAuthProvider] Supabase API key is not valid for this project. Update VITE_SUPABASE_ANON_KEY in .env.local from Supabase Dashboard > Settings > API.'
+                );
+              }
+              console.error('[ProductionAuthProvider] Failed to set session from OAuth hash:', error);
+            } else {
+              initialSession = data.session;
+            }
+
+            // Always clear hash tokens to prevent repeated processing loops on reload.
+            const cleanUrl = `${window.location.pathname}${window.location.search}`;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+        }
+
         if (!unsubscribed) {
           setSession(initialSession);
           setUser(initialSession?.user ?? null);
@@ -63,6 +109,11 @@ function ProductionAuthProvider({ children }: { children: ReactNode }) {
 
         cleanup = () => subscription.unsubscribe();
       } catch (error) {
+        if (error instanceof Error && error.message.includes('Unregistered API key')) {
+          console.error(
+            '[ProductionAuthProvider] Supabase API key is unregistered. Update VITE_SUPABASE_ANON_KEY in .env.local with a valid key for VITE_SUPABASE_URL.'
+          );
+        }
         console.error('[ProductionAuthProvider] Failed to initialize Supabase auth:', error);
         if (!unsubscribed) setLoading(false);
       }
@@ -129,46 +180,54 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
   const defaultUser = storedUser || import.meta.env.VITE_DEV_USER || 'admin';
   const devUserFixture = getDevUser(defaultUser);
 
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(false);
+  // getAccessToken is a pure function of devUserFixture — define it before any hooks
+  // so we can register it synchronously with the API service during render.
+  const getAccessToken = async (): Promise<string | null> => {
+    // Return dev token in format backend expects: dev-token-<role>
+    const token = getDevToken(devUserFixture.role);
+    console.log('[DevAuthProvider] getAccessToken called, returning:', token);
+    return token;
+  };
 
-  // Convert dev user fixture to Supabase User format
-  useEffect(() => {
-    const supabaseUser: User = {
-      id: devUserFixture.id,
-      aud: 'authenticated',
-      email: devUserFixture.email,
-      email_confirmed_at: new Date().toISOString(),
-      phone: '',
-      confirmed_at: new Date().toISOString(),
-      last_sign_in_at: new Date().toISOString(),
-      app_metadata: { role: devUserFixture.role },
-      user_metadata: { username: devUserFixture.username },
-      identities: [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      is_anonymous: false,
-    };
-    setUser(supabaseUser);
-    
-    // Create session after user is set
-    const mockSession: Session = {
-      access_token: 'dev-token',
-      token_type: 'bearer',
-      expires_in: 3600,
-      expires_at: Date.now() / 1000 + 3600,
-      refresh_token: 'dev-refresh-token',
-      user: supabaseUser,
-    };
-    setSession(mockSession);
-  }, [devUserFixture]);
-
-  // Register token getter with APIService once on load
-  useEffect(() => {
-    console.log('[DevAuthProvider] Registering token getter for user:', devUserFixture.id);
+  // Register the token getter synchronously during the first render (guarded by ref)
+  // rather than inside a useEffect. useEffect fires AFTER child effects, so registering
+  // there causes a race: child components fire their effects (making authenticated API
+  // calls) before the token getter is available, producing spurious 401 errors.
+  const tokenGetterRegistered = useRef(false);
+  if (!tokenGetterRegistered.current) {
+    tokenGetterRegistered.current = true;
     APIService.setAuthTokenGetter(getAccessToken);
-  }, []);
+  }
+
+  // Build dev auth state synchronously so App effects don't see a transient null user.
+  // Construct once and share between user state and session.user to avoid drift.
+  const supabaseUser: User = {
+    id: devUserFixture.id,
+    aud: 'authenticated',
+    email: devUserFixture.email,
+    email_confirmed_at: new Date().toISOString(),
+    phone: '',
+    confirmed_at: new Date().toISOString(),
+    last_sign_in_at: new Date().toISOString(),
+    app_metadata: { role: devUserFixture.role },
+    user_metadata: { username: devUserFixture.username },
+    identities: [],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    is_anonymous: false,
+  };
+  const [user] = useState<User | null>(() => supabaseUser);
+  const [session] = useState<Session | null>(() => ({
+    // Match the token returned by getAccessToken() so auth headers are consistent.
+    access_token: getDevToken(devUserFixture.role),
+    token_type: 'bearer',
+    expires_in: 3600,
+    // Supabase session timestamps are seconds-based integers.
+    expires_at: Math.floor(Date.now() / 1000) + 3600,
+    refresh_token: 'dev-refresh-token',
+    user: supabaseUser,
+  }));
+  const loading = false;
 
   const signIn = async () => {
     // No-op in dev mode
@@ -176,13 +235,6 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     // No-op in dev mode
-  };
-
-  const getAccessToken = async (): Promise<string | null> => {
-    // Return dev token in format backend expects: dev-token-<role>
-    const token = getDevToken(devUserFixture.role);
-    console.log('[DevAuthProvider] getAccessToken called, returning:', token);
-    return token;
   };
 
   const value = {
@@ -197,6 +249,7 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

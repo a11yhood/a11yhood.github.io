@@ -1,5 +1,5 @@
 import { BlogPost } from '@/lib/types'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from '@phosphor-icons/react'
@@ -76,7 +76,7 @@ export function BlogPostDetail({ post, onBack, onEdit }: BlogPostDetailProps) {
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h1 className="text-4xl font-bold">{post.title}</h1>
+                <CardTitle as="h1" className="text-4xl font-bold">{post.title}</CardTitle>
                 {post.featured && (
                   <div className="mt-2">
                     <Badge className="bg-yellow-50 text-yellow-950 dark:bg-yellow-950/40 dark:text-yellow-50">

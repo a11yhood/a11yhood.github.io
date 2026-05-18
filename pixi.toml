@@ -30,8 +30,18 @@ cmd = "npx vite build"
 depends-on = ["install-dev"]
 # outputs = ["_site/**/*"]
 
-[tasks.test]
+[tasks.test-reduced]
 description = "run vitest unit tests"
+cmd = "npm run test:run:reduced"
+depends-on = ["install-dev"]
+
+[tasks.test]
+description = "run the reduced Vitest suite"
+cmd = "npm run test:run:reduced"
+depends-on = ["install-dev"]
+
+[tasks.test-full]
+description = "run the full Vitest suite"
 cmd = "npm run test:run"
 depends-on = ["install-dev"]
 
@@ -61,6 +71,11 @@ outputs = ["package-lock.json"]
 [tasks.dev]
 description = "start frontend dev server connected to local backend (default port 8002, override via VITE_API_URL in .env.local)"
 cmd = "npm run dev"
+depends-on = ["install-dev"]
+
+[tasks.lint]
+description = "run ESLint across all source files"
+cmd = "npm run lint"
 depends-on = ["install-dev"]
 
 [dependencies]

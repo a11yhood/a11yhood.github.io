@@ -16,6 +16,7 @@ import App from './App.tsx'
 
 import { ErrorFallback } from './ErrorFallback.tsx'
 import { AuthProvider } from './contexts/AuthContext.tsx'
+import { NotificationProvider } from './contexts/NotificationContext.tsx'
 
 import "./styles/main.css"
 
@@ -34,9 +35,11 @@ console.debug('🎨 [main.tsx] Rendering app...')
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary FallbackComponent={ErrorFallback}>
     <BrowserRouter basename={import.meta.env.BASE_URL}>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <NotificationProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </NotificationProvider>
     </BrowserRouter>
   </ErrorBoundary>
 )

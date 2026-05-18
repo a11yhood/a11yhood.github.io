@@ -3,6 +3,23 @@ import { DEV_USERS, getDevToken } from '../lib/dev-users'
 /** Milliseconds to wait for backend health check before considering it unavailable. */
 const HEALTH_CHECK_TIMEOUT_MS = 3000
 
+type NormalizeBackendBase = (rawUrl: string) => string
+ const testGlobals = globalThis as typeof globalThis & {
+   __NORMALIZE_BACKEND_BASE__?: NormalizeBackendBase
+ }
+
+type DevDbResetMode = 'always' | 'never' | 'auto'
+
+const normalizeBackendBase: NormalizeBackendBase =
+   testGlobals.__NORMALIZE_BACKEND_BASE__ ??
+   ((rawUrl: string) => {
+     const trimmed = rawUrl.replace(/\/$/, '')
+     // CI secrets sometimes store an API base URL; tests expect service root.
+     return trimmed.replace(/\/api$/i, '')
+   })
+ testGlobals.__NORMALIZE_BACKEND_BASE__ = normalizeBackendBase
+
+
 function shouldResetDevDbForRun(argv: string[]): boolean {
   if (process.env.VITEST_SKIP_DEV_DB_RESET === '1') {
     return false
@@ -11,10 +28,40 @@ function shouldResetDevDbForRun(argv: string[]): boolean {
   // Ignore the first entries (node + vitest binary path)
   const args = argv.slice(2).map(arg => arg.replace(/\\/g, '/').replace(/\/$/, ''))
 
+  // Options that consume the following token as their value.
+  // Important: npm scripts usually invoke Vitest as
+  // `vitest run --config vitest.config.ts`; without skipping `--config`'s
+  // value, we incorrectly treat the config path as a test target and skip reset.
+  const optionFlagsWithValue = new Set([
+    '--config',
+    '-c',
+    '--root',
+    '--dir',
+    '--reporter',
+    '--outputFile',
+    '--testNamePattern',
+    '--project',
+    '--pool',
+  ])
+
+  const positionalArgs: string[] = []
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+
+    if (optionFlagsWithValue.has(arg)) {
+      i += 1
+      continue
+    }
+
+    if (arg.startsWith('-')) {
+      continue
+    }
+
+    positionalArgs.push(arg)
+  }
+
   // If no test-file/directory arguments are passed, this is a full suite run — always reset.
-  const testPathArgs = args.filter(
-    arg => !arg.startsWith('--') && !arg.startsWith('-') && arg !== 'run'
-  )
+  const testPathArgs = positionalArgs.filter(arg => arg !== 'run')
   if (testPathArgs.length === 0) {
     return true
   }
@@ -32,6 +79,14 @@ function shouldResetDevDbForRun(argv: string[]): boolean {
   })
 }
 
+function resolveDevDbResetMode(raw: string | undefined): DevDbResetMode {
+  const normalized = (raw || '').trim().toLowerCase()
+  if (normalized === 'always' || normalized === 'never' || normalized === 'auto') {
+    return normalized
+  }
+  return 'auto'
+}
+
 /**
  * Vitest global setup — runs once in the main process before any workers start.
  *
@@ -43,11 +98,11 @@ function shouldResetDevDbForRun(argv: string[]): boolean {
  * helpers/with-backend.ts, which skips the suite when the flag is false.
  */
 export async function setup() {
-  const backendBase = (
+  const backendBase = normalizeBackendBase((
     process.env.TEST_BACKEND_URL ||
     process.env.VITE_API_URL ||
     'http://localhost:8002'
-  ).replace(/\/$/, '')
+  ))
 
   // Local HTTPS backends often use self-signed certs in dev.
   // Relax TLS verification only when targeting localhost.
@@ -56,20 +111,32 @@ export async function setup() {
   }
 
   let backendAvailable = false
-  const healthUrl = `${backendBase}/health`
-  try {
+  const healthUrls = [`${backendBase}/health`, `${backendBase}/api/health`]
+  for (const healthUrl of healthUrls) {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS)
-    const res = await fetch(healthUrl, { signal: controller.signal })
-    clearTimeout(timeout)
-    backendAvailable = res.ok
-  } catch {
-    // backend not reachable — backendAvailable stays false
+
+    try {
+      const res = await fetch(healthUrl, { signal: controller.signal })
+      if (res.ok) {
+        backendAvailable = true
+        break
+      }
+    } catch {
+      // backend not reachable at this path — try next health path
+    } finally {
+      clearTimeout(timeout)
+    }
   }
 
   process.env.VITEST_BACKEND_AVAILABLE = backendAvailable ? '1' : '0'
 
-  if (backendAvailable && shouldResetDevDbForRun(process.argv)) {
+  const resetMode = resolveDevDbResetMode(process.env.VITEST_DEV_DB_RESET_MODE)
+  const shouldReset =
+    resetMode === 'always' ||
+    (resetMode === 'auto' && shouldResetDevDbForRun(process.argv))
+
+  if (backendAvailable && shouldReset) {
     const adminToken = getDevToken(DEV_USERS.admin.role)
     const resetRes = await fetch(`${backendBase}/api/dev/reset`, {
       method: 'POST',

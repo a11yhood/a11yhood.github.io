@@ -14,7 +14,7 @@ import { MagnifyingGlass, ArrowRight } from '@phosphor-icons/react'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
 
 const RANDOM_PRODUCT_COUNT = 5
-const NEWS_POST_LIMIT = 10
+const BLOG_POST_LIMIT = 10
 const EXCERPT_MAX_LENGTH = 200
 
 type HomePageProps = {
@@ -28,17 +28,14 @@ type HomePageProps = {
 export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRate }: HomePageProps) {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
-  const normalizedProducts = Array.isArray(products) ? products : []
-  const normalizedBlogPosts = Array.isArray(blogPosts) ? blogPosts : []
 
   const randomProducts = useMemo(() => {
-    if (normalizedProducts.length === 0) {
+    const normalized = Array.isArray(products) ? products : []
+    if (normalized.length === 0) {
       return Array.from({ length: RANDOM_PRODUCT_COUNT }, () => null)
     }
-
-    const selected = selectFeaturedRandomProducts(normalizedProducts, RANDOM_PRODUCT_COUNT)
-    return selected
-  }, [normalizedProducts])
+    return selectFeaturedRandomProducts(normalized, RANDOM_PRODUCT_COUNT)
+  }, [products])
 
   const visibleRandomProducts = useMemo(
     () => randomProducts.filter((product): product is Product => product !== null),
@@ -46,15 +43,16 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
   )
 
   const recentBlogPosts = useMemo(() => {
-    return normalizedBlogPosts
+    const normalized = Array.isArray(blogPosts) ? blogPosts : []
+    return normalized
       .filter(post => post.published)
       .sort((a, b) => {
         const dateA = a.publishDate || a.publishedAt || a.createdAt
         const dateB = b.publishDate || b.publishedAt || b.createdAt
         return Date.parse(dateB) - Date.parse(dateA)
       })
-      .slice(0, NEWS_POST_LIMIT)
-  }, [normalizedBlogPosts])
+      .slice(0, BLOG_POST_LIMIT)
+  }, [blogPosts])
 
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -70,7 +68,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
     return text.slice(0, maxLength).trim() + '...'
   }
 
-  const renderNewsContent = () => {
+  const renderBlogContent = () => {
     if (blogPostsLoading) {
       return (
         <Card>
@@ -118,7 +116,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
                 )}
                 <CardHeader>
                   <div className="flex items-start justify-between gap-4">
-                    <CardTitle className="text-xl">{post.title}</CardTitle>
+                    <CardTitle as="h2" className="text-xl">{post.title}</CardTitle>
                     <time className="text-sm text-muted-foreground whitespace-nowrap">
                       {displayDate.toLocaleDateString('en-US', {
                         year: 'numeric',
@@ -172,7 +170,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
         {/* Site Mission */}
         <Card>
           <CardHeader>
-            <h1 className="text-2xl sm:text-3xl font-semibold leading-tight">Welcome to a11yhood</h1>
+            <CardTitle as="h1" className="text-2xl sm:text-3xl font-semibold leading-tight">Welcome to a11yhood</CardTitle>
             <CardDescription className="text-base sm:text-lg leading-relaxed text-foreground/90">
               A place to learn about and share open source accessibility technology.
             </CardDescription>
@@ -208,7 +206,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
       >
         <Card>
           <CardHeader>
-            <CardTitle>Quick Search</CardTitle>
+            <CardTitle as="h2">Quick Search</CardTitle>
             <CardDescription>Find accessibility solutions</CardDescription>
           </CardHeader>
           <CardContent>
@@ -236,11 +234,11 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
       </aside>
 
       <section
-        data-testid="homepage-news-section"
+        data-testid="homepage-blog-section"
         className="lg:col-start-4 lg:col-span-7 lg:row-start-2"
       >
-        <h2 className="text-2xl font-bold sm:text-3xl mb-4">News</h2>
-        {renderNewsContent()}
+        <h2 className="text-2xl font-bold sm:text-3xl mb-4">Blog</h2>
+        {renderBlogContent()}
       </section>
 
       <section

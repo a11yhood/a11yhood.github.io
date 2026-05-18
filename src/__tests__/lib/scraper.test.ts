@@ -8,11 +8,29 @@ const BACKEND_URL = (globalThis as any).__TEST_BACKEND_BASE__
 let backendProducts: Product[] = []
 
 async function fetchBackendProducts(limit = 10): Promise<void> {
-  const resp = await fetch(`${BACKEND_URL}/api/products?limit=${limit}`)
-  if (!resp.ok) {
-    throw new Error(`Backend unreachable at ${BACKEND_URL} (status ${resp.status})`)
+  let lastError: Error | null = null
+  let raw: unknown
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const resp = await fetch(`${BACKEND_URL}/api/products?limit=${limit}`)
+      if (!resp.ok) {
+        throw new Error(`Backend unreachable at ${BACKEND_URL} (status ${resp.status})`)
+      }
+      raw = await resp.json()
+      break
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+      if (attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)))
+      }
+    }
   }
-  const raw = await resp.json()
+
+  if (!raw) {
+    throw lastError ?? new Error(`Backend unreachable at ${BACKEND_URL}`)
+  }
+
   if (!Array.isArray(raw) || raw.length === 0) {
     throw new Error('Backend returned no products; seed test data before running scraper tests')
   }
@@ -44,7 +62,7 @@ function requireProducts(): Product[] {
 describeWithBackend('ScraperService', () => {
   beforeAll(async () => {
     await fetchBackendProducts()
-  })
+  }, 60000)
 
   beforeEach(() => {
     vi.clearAllMocks()

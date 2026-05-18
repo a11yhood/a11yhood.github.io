@@ -1,23 +1,25 @@
 {
     "name": "a11yhood",
     "private": true,
-    "version": "0.1.3",
     "type": "module",
     "scripts": {
         "dev": "vite",
         "kill": "fuser -k 5000/tcp",
-        "build": "CI=true npm run test:run && tsc -b --noCheck && vite build",
+        "build": "CI=true npm run test:run:reduced && tsc -b --noCheck && vite build",
         "lint": "eslint .",
         "optimize": "vite optimize",
         "preview": "vite preview",
         "test": "vitest",
         "test:ui": "vitest --ui",
-        "test:run": "vitest run",
+        "test:run": "vitest run --config vitest.config.ts",
+        "test:run:full": "vitest run --config vitest.config.ts",
+        "test:run:reduced": "vitest run --config vitest.config.reduced.ts",
         "test:integration": "vitest run src/__tests__/integration --reporter=verbose",
         "test:a11y": "vitest run src/__tests__/accessibility",
         "test:a11y:integration": "vitest run src/__tests__/a11y-integration",
         "test:coverage": "vitest run --coverage",
-        "build:ghpages": "VITE_BASE_URL=/ npm run build"
+        "build:ghpages": "VITE_BASE_URL=/ npm run build",
+        "build:ghpages:ci": "VITE_BASE_URL=/ tsc -b --noCheck && vite build"
     },
     "dependencies": {
         "@fortawesome/fontawesome-svg-core": "^7.1.0",

@@ -5,17 +5,19 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, XCircle, Info, CircleNotch } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { ThingiverseOAuthManager } from '@/lib/scrapers/thingiverse'
 import { APIService } from '@/lib/api'
+import { Product } from '@/lib/types'
 
 type ThingiverseSettingsProps = {
   onAuthComplete?: () => void
-  products?: any[]
-  onProductsUpdate?: (products: any[]) => void
+  products?: Product[]
+  onProductsUpdate?: (products: Product[]) => void
 }
 
-export function ThingiverseSettings({ onAuthComplete, products = [], onProductsUpdate }: ThingiverseSettingsProps) {
+export function ThingiverseSettings({ onAuthComplete, products: _products = [], onProductsUpdate }: ThingiverseSettingsProps) {
+  const { notify } = useNotifications()
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [appName, setAppName] = useState<string>('')
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
@@ -54,7 +56,7 @@ export function ThingiverseSettings({ onAuthComplete, products = [], onProductsU
   const handleRunThingiverseScraper = async () => {
     setIsScrapingAfterAuth(true)
     try {
-      toast.info('Starting Thingiverse scraper...')
+      notify.info('Starting Thingiverse scraper...')
       
       // Call backend API to trigger scraper
       await APIService.triggerScraper('thingiverse', false)
@@ -69,11 +71,11 @@ export function ThingiverseSettings({ onAuthComplete, products = [], onProductsU
       )
       
       if (thingiverseProducts.length === 0) {
-        toast.info('No models found')
+        notify.info('No models found')
         return
       }
 
-      toast.success(`Scraper started! Found ${thingiverseProducts.length} Thingiverse models`)
+      notify.success(`Scraper started! Found ${thingiverseProducts.length} Thingiverse models`)
       
       // Update product list if callback provided
       if (onProductsUpdate) {
@@ -87,7 +89,7 @@ export function ThingiverseSettings({ onAuthComplete, products = [], onProductsU
       }
     } catch (error) {
       console.error('[ThingiverseSettings] Scraper error:', error)
-      toast.error('Failed to run Thingiverse scraper')
+      notify.error('Failed to run Thingiverse scraper')
     } finally {
       setIsScrapingAfterAuth(false)
     }
@@ -95,7 +97,7 @@ export function ThingiverseSettings({ onAuthComplete, products = [], onProductsU
 
   const handleSaveCredentials = async () => {
     if (!accessToken.trim()) {
-      toast.error('Please enter your Personal Access Token')
+      notify.error('Please enter your Personal Access Token')
       return
     }
 
@@ -134,14 +136,14 @@ export function ThingiverseSettings({ onAuthComplete, products = [], onProductsU
       setShowSetupForm(false)
       setAccessToken('')
       setAppNameInput('')
-      toast.success('Personal Access Token saved successfully!')
+      notify.success('Personal Access Token saved successfully!')
     } catch (error) {
       console.error('[Thingiverse] ✗ Save credentials error:', error)
       if (error instanceof Error) {
         console.error('[Thingiverse] Error message:', error.message)
         console.error('[Thingiverse] Error stack:', error.stack)
       }
-      toast.error('Failed to save credentials. Please try again.')
+      notify.error('Failed to save credentials. Please try again.')
     } finally {
       setIsSaving(false)
     }
@@ -152,10 +154,10 @@ export function ThingiverseSettings({ onAuthComplete, products = [], onProductsU
       await ThingiverseOAuthManager.clearConfig()
       setIsAuthorized(false)
       setAppName('')
-      toast.success('Thingiverse disconnected successfully')
+      notify.success('Thingiverse disconnected successfully')
     } catch (error) {
       console.error('Disconnect error:', error)
-      toast.error('Failed to disconnect Thingiverse')
+      notify.error('Failed to disconnect Thingiverse')
     }
   }
 
@@ -163,7 +165,7 @@ export function ThingiverseSettings({ onAuthComplete, products = [], onProductsU
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Thingiverse Personal Access Token Configuration</CardTitle>
+          <CardTitle as="h2">Thingiverse Personal Access Token Configuration</CardTitle>
           <CardDescription>Loading authorization status...</CardDescription>
         </CardHeader>
       </Card>
@@ -173,7 +175,7 @@ export function ThingiverseSettings({ onAuthComplete, products = [], onProductsU
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle as="h2" className="flex items-center gap-2">
           Thingiverse Personal Access Token Configuration
           {isAuthorized && <CheckCircle size={20} className="text-green-600" weight="fill" />}
           {!isAuthorized && <XCircle size={20} className="text-muted-foreground" />}

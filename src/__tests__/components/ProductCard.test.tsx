@@ -59,7 +59,6 @@ describeWithBackend('ProductCard - API-backed', () => {
       description: productJson.description,
       tags: productJson.tags ?? [],
       createdAt: productJson.created_at ? new Date(productJson.created_at).getTime() : Date.now(),
-      origin: productJson.origin ?? 'user-submitted',
       sourceRating: productJson.source_rating ?? productJson.sourceRating,
       sourceRatingCount: productJson.source_rating_count ?? productJson.sourceRatingCount,
       stars: productJson.stars,
@@ -93,7 +92,7 @@ describeWithBackend('ProductCard - API-backed', () => {
     } else {
       ratingsFromApi = []
     }
-  })
+  }, 60000)
 
   it('should render product information', () => {
     render(<ProductCard product={productFromApi} ratings={ratingsFromApi} onClick={vi.fn()} />)

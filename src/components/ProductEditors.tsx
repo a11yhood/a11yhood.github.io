@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { UserAccount, UserRequest } from '@/lib/types'
 import { APIService } from '@/lib/api'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 
 type ProductEditorsProps = {
   productId: string
@@ -27,6 +27,7 @@ export function ProductEditors({
   onEditorsChange,
   autoOpenRequestForm,
 }: ProductEditorsProps) {
+  const { notify } = useNotifications()
   const isBrowser = typeof window !== 'undefined'
   const [editors, setEditors] = useState<UserAccount[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,16 +38,19 @@ export function ProductEditors({
 
   useEffect(() => {
     if (!isBrowser) return
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadEditors()
   }, [productId])
 
   useEffect(() => {
     if (!isBrowser) return
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     checkExistingRequest()
-  }, [productId, username])
+  }, [productId, username, userAccount])
 
   useEffect(() => {
     if (!isBrowser) return
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     if (autoOpenRequestForm && !isEditor && !hasExistingRequest) {
       setShowRequestForm(true)
     }
@@ -68,20 +72,23 @@ export function ProductEditors({
   }
 
   const checkExistingRequest = async () => {
-    if (!username) return
+    if (!username || !userAccount) return
     
     try {
-      const userRequests = (await APIService.getUserRequests(username)) || []
+      // Use /requests/me (current user's own requests) rather than /users/{username}/requests
+      // to avoid auth timing issues and use the correct endpoint for self-lookup.
+      const userRequests = (await APIService.getMyRequests('pending', 'product-ownership')) || []
       const existingRequest = userRequests.find(
-        r => r.type === 'product-ownership' && 
-            r.productId === productId && 
-            r.status === 'pending'
+        r => r.productId === productId
       )
       setHasExistingRequest(!!existingRequest)
       setPendingRequest(existingRequest || null)
     } catch (error) {
-      // Silently handle 404 for user requests endpoint (not yet implemented)
-      if (error instanceof Error && !error.message.includes('404')) {
+      // Silently handle auth/availability errors — this is optional UI state
+      if (error instanceof Error &&
+          !error.message.includes('404') &&
+          !error.message.includes('401') &&
+          !error.message.includes('No authorization')) {
         console.error('Failed to check existing request:', error)
       }
     }
@@ -93,7 +100,7 @@ export function ProductEditors({
     try {
       const userAccount = await APIService.getUserAccount(username)
       if (!userAccount) {
-        toast.error('User account not found')
+        notify.error('User account not found')
         return
       }
 
@@ -106,14 +113,14 @@ export function ProductEditors({
         productId,
       })
 
-      toast.success('Management request submitted')
+      notify.success('Management request submitted')
       setHasExistingRequest(true)
       setShowRequestForm(false)
       setRequestMessage('')
       checkExistingRequest()
     } catch (error) {
       console.error('Failed to submit editor request:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to submit request')
+      notify.error(error instanceof Error ? error.message : 'Failed to submit request')
     }
   }
 
@@ -122,12 +129,12 @@ export function ProductEditors({
 
     try {
       await APIService.withdrawRequest(pendingRequest.id, username)
-      toast.success('Request withdrawn')
+      notify.success('Request withdrawn')
       setHasExistingRequest(false)
       setPendingRequest(null)
     } catch (error) {
       console.error('Failed to withdraw request:', error)
-      toast.error('Failed to withdraw request')
+      notify.error('Failed to withdraw request')
     }
   }
 
@@ -137,12 +144,12 @@ export function ProductEditors({
 
     try {
       await APIService.removeProductOwner(productId, editorId)
-      toast.success('Manager removed')
+      notify.success('Manager removed')
       loadEditors()
       onEditorsChange?.()
     } catch (error) {
       console.error('Failed to remove manager:', error)
-      toast.error('Failed to remove manager')
+      notify.error('Failed to remove manager')
     }
   }
 

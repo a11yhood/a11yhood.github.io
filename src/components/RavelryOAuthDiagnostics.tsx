@@ -1,85 +1,174 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, XCircle, Warning, Info, ArrowRight, Copy } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
+import type { OAuth2Config } from '@/lib/scrapers/ravelry-oauth'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+
+type RavelryFlowRequestDetails = {
+  url?: string
+  redirectUri?: string
+  codeLength?: number
+  clientIdLength?: number
+  clientSecretLength?: number
+}
+
+type RavelryFlowLog = {
+  step?: string
+  timestamp?: number
+  authUrl?: string
+  redirectUri?: string
+  codeLength?: number
+  url?: string
+  status?: number
+  statusText?: string
+  errorBody?: string
+  errorJson?: JsonValue
+  requestDetails?: RavelryFlowRequestDetails
+  error?: string
+  stack?: string
+  expiresAt?: number
+  isCorsError?: boolean
+}
+
+type StoredLogEntry = {
+  key: string
+  value: JsonValue | string | null
+}
+
+function parseJsonValue(raw: string | null): JsonValue | string | null {
+  if (raw == null) {
+    return null
+  }
+
+  try {
+    return JSON.parse(raw) as JsonValue
+  } catch {
+    return raw
+  }
+}
+
+function parseFlowLog(raw: string | null): RavelryFlowLog | null {
+  const parsed = parseJsonValue(raw)
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return null
+  }
+
+  const record = parsed as Record<string, unknown>
+  const requestDetails = record.requestDetails && typeof record.requestDetails === 'object' && !Array.isArray(record.requestDetails)
+    ? (record.requestDetails as Record<string, unknown>)
+    : undefined
+
+  return {
+    step: typeof record.step === 'string' ? record.step : undefined,
+    timestamp: typeof record.timestamp === 'number' ? record.timestamp : undefined,
+    authUrl: typeof record.authUrl === 'string' ? record.authUrl : undefined,
+    redirectUri: typeof record.redirectUri === 'string' ? record.redirectUri : undefined,
+    codeLength: typeof record.codeLength === 'number' ? record.codeLength : undefined,
+    url: typeof record.url === 'string' ? record.url : undefined,
+    status: typeof record.status === 'number' ? record.status : undefined,
+    statusText: typeof record.statusText === 'string' ? record.statusText : undefined,
+    errorBody: typeof record.errorBody === 'string' ? record.errorBody : undefined,
+    errorJson: record.errorJson as JsonValue | undefined,
+    requestDetails: requestDetails
+      ? {
+          url: typeof requestDetails.url === 'string' ? requestDetails.url : undefined,
+          redirectUri: typeof requestDetails.redirectUri === 'string' ? requestDetails.redirectUri : undefined,
+          codeLength: typeof requestDetails.codeLength === 'number' ? requestDetails.codeLength : undefined,
+          clientIdLength: typeof requestDetails.clientIdLength === 'number' ? requestDetails.clientIdLength : undefined,
+          clientSecretLength: typeof requestDetails.clientSecretLength === 'number' ? requestDetails.clientSecretLength : undefined,
+        }
+      : undefined,
+    error: typeof record.error === 'string' ? record.error : undefined,
+    stack: typeof record.stack === 'string' ? record.stack : undefined,
+    expiresAt: typeof record.expiresAt === 'number' ? record.expiresAt : undefined,
+    isCorsError: typeof record.isCorsError === 'boolean' ? record.isCorsError : undefined,
+  }
+}
 
 export function RavelryOAuthDiagnostics() {
-  const [flowLog, setFlowLog] = useState<any>(null)
-  const [config, setConfig] = useState<any>(null)
-  const [allLogs, setAllLogs] = useState<Array<{ key: string; value: unknown }>>([])
+  const { notify } = useNotifications()
+  const [flowLog, setFlowLog] = useState<RavelryFlowLog | null>(null)
+  const [config, setConfig] = useState<OAuth2Config | null>(null)
+  const [allLogs, setAllLogs] = useState<StoredLogEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRetrying, setIsRetrying] = useState(false)
+  const [resetOAuthDialogOpen, setResetOAuthDialogOpen] = useState(false)
 
-  const loadDiagnostics = async () => {
+  const loadDiagnostics = useCallback(async () => {
     setIsLoading(true)
     try {
       const logStr = localStorage.getItem('ravelry-oauth-flow-log')
-      const log = logStr ? JSON.parse(logStr) : null
+      const log = parseFlowLog(logStr)
       const cfg = await RavelryOAuthManager.getConfig()
       
       setFlowLog(log)
       setConfig(cfg)
       
       // Get all ravelry-related keys from localStorage
-      const logs: Array<{ key: string; value: unknown }> = []
+      const logs: StoredLogEntry[] = []
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)
         if (key && key.includes('ravelry')) {
           const value = localStorage.getItem(key)
-          logs.push({ key, value: value ? JSON.parse(value) : value })
+          logs.push({ key, value: parseJsonValue(value) })
         }
       }
       setAllLogs(logs)
     } catch (error) {
       console.error('Failed to load diagnostics:', error)
-      toast.error('Failed to load diagnostics')
+      notify.error('Failed to load diagnostics')
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [notify])
 
   useEffect(() => {
     loadDiagnostics()
-  }, [])
+  }, [loadDiagnostics])
 
   const handleCopyToClipboard = (content: string) => {
     navigator.clipboard.writeText(content)
-    toast.success('Copied to clipboard!')
+    notify.success('Copied to clipboard!')
   }
 
   const handleClearAllLogs = async () => {
     try {
       localStorage.removeItem('ravelry-oauth-flow-log')
-      toast.success('Flow log cleared')
+      notify.success('Flow log cleared')
       loadDiagnostics()
     } catch (error) {
       console.error('Failed to clear logs:', error)
-      toast.error('Failed to clear logs')
+      notify.error('Failed to clear logs')
     }
   }
 
-  const handleResetOAuth = async () => {
-    if (!confirm('This will clear ALL Ravelry OAuth data including your access token. Are you sure?')) {
-      return
-    }
-    
+  const handleResetOAuth = () => {
+    setResetOAuthDialogOpen(true)
+  }
+
+  const handleConfirmResetOAuth = async () => {
     try {
       await RavelryOAuthManager.clearConfig()
       localStorage.removeItem('ravelry-oauth-flow-log')
-      toast.success('OAuth configuration reset')
+      notify.success('OAuth configuration reset')
       loadDiagnostics()
     } catch (error) {
       console.error('Failed to reset OAuth:', error)
-      toast.error('Failed to reset OAuth')
+      notify.error('Failed to reset OAuth')
+    } finally {
+      setResetOAuthDialogOpen(false)
     }
   }
 
   const handleTestCallback = async () => {
     try {
-      toast.info('Testing OAuth callback detection...')
+      notify.info('Testing OAuth callback detection...')
       
       const testCode = 'test-authorization-code-' + Date.now()
       const testUrl = `${window.location.origin}/admin?code=${testCode}`
@@ -98,48 +187,54 @@ export function RavelryOAuthDiagnostics() {
       window.location.href = testUrl
     } catch (error) {
       console.error('Test callback failed:', error)
-      toast.error('Failed to initiate test callback')
+      notify.error('Failed to initiate test callback')
     }
   }
 
   const handleRetryTokenExchange = async () => {
     if (!flowLog?.requestDetails) {
-      toast.error('No request details available to retry')
+      notify.error('No request details available to retry')
+      return
+    }
+
+    const retryRedirectUri = flowLog.requestDetails.redirectUri
+    if (!retryRedirectUri) {
+      notify.error('Redirect URI not found in request details. Please restart the OAuth flow.')
       return
     }
 
     if (!config?.clientId || !config?.clientSecret) {
-      toast.error('Client credentials not found')
+      notify.error('Client credentials not found')
       return
     }
 
     const lastCode = localStorage.getItem('ravelry-last-auth-code')
     if (!lastCode) {
-      toast.error('No authorization code found. Please restart the OAuth flow.')
+      notify.error('No authorization code found. Please restart the OAuth flow.')
       return
     }
 
     setIsRetrying(true)
     try {
-      toast.info('Retrying token exchange...')
+      notify.info('Retrying token exchange...')
       
       const success = await RavelryOAuthManager.exchangeCodeForToken(
         lastCode,
         config.clientId,
         config.clientSecret,
-        flowLog.requestDetails.redirectUri
+        retryRedirectUri
       )
 
       if (success) {
-        toast.success('Token exchange successful!')
+        notify.success('Token exchange successful!')
         loadDiagnostics()
       } else {
-        toast.error('Token exchange failed. Check the error details below.')
+        notify.error('Token exchange failed. Check the error details below.')
         loadDiagnostics()
       }
     } catch (error) {
       console.error('Retry failed:', error)
-      toast.error('Retry failed with an exception')
+      notify.error('Retry failed with an exception')
       loadDiagnostics()
     } finally {
       setIsRetrying(false)
@@ -150,7 +245,7 @@ export function RavelryOAuthDiagnostics() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>OAuth Flow Diagnostics</CardTitle>
+          <CardTitle as="h2">OAuth Flow Diagnostics</CardTitle>
           <CardDescription>Loading diagnostic information...</CardDescription>
         </CardHeader>
       </Card>
@@ -178,12 +273,13 @@ export function RavelryOAuthDiagnostics() {
   ]
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
+    <>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>OAuth Flow Diagnostics</CardTitle>
+              <CardTitle as="h2">OAuth Flow Diagnostics</CardTitle>
               <CardDescription>Review the OAuth authorization flow logs and current state</CardDescription>
             </div>
             <div className="flex gap-2">
@@ -590,7 +686,7 @@ export function RavelryOAuthDiagnostics() {
       {allLogs.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>All Ravelry KV Store Entries</CardTitle>
+            <CardTitle as="h2">All Ravelry KV Store Entries</CardTitle>
             <CardDescription>Raw data from the KV store for debugging</CardDescription>
           </CardHeader>
           <CardContent>
@@ -619,5 +715,23 @@ export function RavelryOAuthDiagnostics() {
         </Card>
       )}
     </div>
+
+      <AlertDialog open={resetOAuthDialogOpen} onOpenChange={setResetOAuthDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset OAuth Configuration?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear ALL Ravelry OAuth data including your access token. Are you sure?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmResetOAuth} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

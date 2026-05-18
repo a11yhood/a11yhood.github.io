@@ -29,7 +29,6 @@ describeWithBackend('ProfileEdit Accessibility Tests (Story 1.3)', () => {
 
     testAccount = {
       id: testUserId,
-      githubId: testUserId,
       username: DEV_USERS.user.username,
       role: 'user',
       displayName: DEV_USERS.user.displayName,

@@ -152,16 +152,17 @@ describe('ProductUrls mocked component tests', () => {
       expect(screen.getByText('Source code')).toBeInTheDocument()
     })
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
-
     const deleteButton = await screen.findByLabelText('Delete URL')
     await user.click(deleteButton)
+
+    const dialog = await screen.findByRole('alertdialog')
+    const confirmButton = await screen.findByRole('button', { name: /^Delete$/i })
+    expect(dialog).toBeInTheDocument()
+    await user.click(confirmButton)
 
     await waitFor(() => {
       expect(screen.queryByText('Source code')).not.toBeInTheDocument()
     })
-
-    confirmSpy.mockRestore()
   })
 
   it('should display multiple URLs', async () => {

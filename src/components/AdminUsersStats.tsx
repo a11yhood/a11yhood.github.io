@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Users, TrendUp, ChatCircle, Star, Package, Calendar, CircleNotch } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 
 type UserStats = {
   productsSubmitted: number
@@ -37,12 +37,14 @@ type UserStats = {
 type UserWithStats = UserAccount & UserStats
 
 export function AdminUsersStats() {
+  const { notify } = useNotifications()
   const navigate = useNavigate()
   const [users, setUsers] = useState<UserWithStats[]>([])
   const [loading, setLoading] = useState(true)
   const [sortBy, setSortBy] = useState<'contributions' | 'recent' | 'joined'>('contributions')
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadUsers()
   }, [])
 
@@ -63,7 +65,7 @@ export function AdminUsersStats() {
       setUsers(usersWithStats)
     } catch (error) {
       console.error('Failed to load users:', error)
-      toast.error('Failed to load users')
+      notify.error('Failed to load users')
     } finally {
       setLoading(false)
     }
@@ -73,10 +75,10 @@ export function AdminUsersStats() {
     try {
       await APIService.setUserRole(username, newRole)
       await loadUsers()
-      toast.success(`User role updated to ${newRole}`)
+      notify.success(`User role updated to ${newRole}`)
     } catch (error) {
       console.error('Failed to update user role:', error)
-      toast.error('Failed to update user role')
+      notify.error('Failed to update user role')
     }
   }
 
@@ -162,7 +164,7 @@ export function AdminUsersStats() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+              <CardTitle as="h2" className="text-sm font-medium">Total Users</CardTitle>
               <Users size={20} className="text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -175,7 +177,7 @@ export function AdminUsersStats() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Contributions</CardTitle>
+              <CardTitle as="h2" className="text-sm font-medium">Total Contributions</CardTitle>
               <TrendUp size={20} className="text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -188,7 +190,7 @@ export function AdminUsersStats() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Products Submitted</CardTitle>
+              <CardTitle as="h2" className="text-sm font-medium">Products Submitted</CardTitle>
               <Package size={20} className="text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -201,7 +203,7 @@ export function AdminUsersStats() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Ratings Given</CardTitle>
+              <CardTitle as="h2" className="text-sm font-medium">Ratings Given</CardTitle>
               <Star size={20} className="text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -214,7 +216,7 @@ export function AdminUsersStats() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Discussions</CardTitle>
+              <CardTitle as="h2" className="text-sm font-medium">Discussions</CardTitle>
               <ChatCircle size={20} className="text-muted-foreground" />
             </CardHeader>
             <CardContent>

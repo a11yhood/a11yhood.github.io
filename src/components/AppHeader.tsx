@@ -6,7 +6,7 @@ import { ProductSubmission, ProductSubmissionRef } from '@/components/ProductSub
 import { RequestSourceDialog } from '@/components/RequestSourceDialog'
 import { UserData, UserAccount } from '@/lib/types'
 import { APIService } from '@/lib/api'
-import { toast } from 'sonner'
+import { useNotifications } from '@/contexts/NotificationContext'
 import logoImage from '@/assets/images/ahood-small.png'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faLayerGroup, faNewspaper } from '@fortawesome/free-solid-svg-icons'
@@ -41,6 +41,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
   onLogout: () => void
   onProductCreated?: () => void
 }) {
+  const { notify } = useNotifications()
   const navigate = useNavigate()
   const location = useLocation()
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
@@ -63,7 +64,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
           )
           
           if (existingRequest) {
-            toast.info(
+            notify.info(
               `You already have a pending request for "${domain}". A moderator will review it soon.`
             )
             return
@@ -76,14 +77,14 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
       
       // Keep submission dialog open so users see the inline error before requesting a new source
       setRequestSource({ domain, url })
-      toast.info(
+      notify.info(
         `The domain "${domain}" is not yet in our allowed sources. Would you like to request it?`
       )
     }
 
     window.addEventListener('unsupported-domain', handleUnsupportedDomain)
     return () => window.removeEventListener('unsupported-domain', handleUnsupportedDomain)
-  }, [user?.id])
+  }, [user?.id, notify])
 
   return (
     <header className="border-b border-border bg-card sticky top-0 z-50 shadow-sm h-[60px]">
@@ -118,7 +119,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
               }`}
             >
               <FontAwesomeIcon icon={faNewspaper} className="w-[18px] h-[18px]" />
-              <span className="hidden sm:inline">News</span>
+              <span className="hidden sm:inline">Blog</span>
             </Link>
           </div>
 
@@ -155,7 +156,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
             </Link>
             {user ? (
               <div className="flex items-center gap-3">
-                <ProductSubmission ref={productSubmissionRef} user={user} onSubmit={async (productData) => {
+                <ProductSubmission ref={productSubmissionRef} user={user} canUploadFile={canAccessAdmin} onSubmit={async (productData) => {
                   try {
                     const newProduct = await APIService.createProduct({
                       ...productData,
@@ -168,9 +169,9 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                       productId: newProduct.id,
                       timestamp: new Date().toISOString(),
                     })
-                    toast.success('Product submitted successfully! You are now an editor of this product.')
+                    notify.success('Product submitted successfully! You are now an editor of this product.')
                     onProductCreated?.()
-                    navigate('/')
+                    navigate(-1)
                   } catch (error) {
                     // Check if this is an unsupported domain error
                     const errorMessage = error instanceof Error ? error.message : String(error)
@@ -181,15 +182,15 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                         try {
                           const domain = new URL(url).hostname
                           setRequestSource({ domain, url })
-                          toast.info(
+                          notify.info(
                             `The domain "${domain}" is not yet in our allowed sources. Would you like to request it?`
                           )
                         } catch {
-                          toast.error('Invalid URL format')
+                          notify.error('Invalid URL format')
                         }
                       }
                     } else {
-                      toast.error(errorMessage || 'Failed to submit product')
+                      notify.error(errorMessage || 'Failed to submit product')
                     }
                   }
                 }} />
