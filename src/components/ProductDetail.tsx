@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Link as LinkIcon, Trash, Prohibit, CheckCircle } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { StarRating } from './StarRating'
 import { DiscussionSection } from './DiscussionSection'
 import { TagManager } from './TagManager'
@@ -14,7 +16,7 @@ import { CreateCollectionDialog } from './CreateCollectionDialog'
 import { ProductEditors } from './ProductEditors'
 import { CollapsibleCard } from './CollapsibleCard'
 import { Product, ProductUpdate, Rating, Discussion, UserData, Collection, CollectionCreateInput, UserAccount } from '@/lib/types'
-import { APIService } from '@/lib/api'
+import { APIService, resolveApiImageUrl } from '@/lib/api'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { formatSourceLabel, getSourceIcon, calculateAverageRating, getCanonicalHost, formatRelativeTime } from '@/lib/utils'
 import MarkdownText from '@/components/ui/MarkdownText'
@@ -70,16 +72,30 @@ export function ProductDetail({
   autoOpenEdit,
   autoOpenOwnershipRequest,
 }: ProductDetailProps) {
-  const navigate = useNavigate()
   const [imageError, setImageError] = useState(false)
+  const [imageLooksInvisible, setImageLooksInvisible] = useState(false)
   const [localCollections, setLocalCollections] = useState<Collection[]>(userCollections)
   const collectionLoadStartedRef = useRef(false)
-  const shouldShowImage = !!product.imageUrl && !imageError
+  const resolvedImageUrl = (() => {
+    if (product.imageUrl) {
+      return product.imageUrl
+    }
+
+    const imageId = typeof product.imageId === 'string' ? product.imageId.trim() : ''
+    if (imageId) {
+      return resolveApiImageUrl(`/api/images/${encodeURIComponent(imageId)}`)
+    }
+
+    return undefined
+  })()
+  const shouldShowImage = !!resolvedImageUrl && !imageError
   const canModerate = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
   const isEditor = !!userAccount?.id && (product.editorIds?.includes(userAccount.id) || false)
   const [showAddToCollectionDialog, setShowAddToCollectionDialog] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
   const prevShowAddToCollectionDialogRef = useRef(false)
+  const [banDialogOpen, setBanDialogOpen] = useState(false)
+  const [banReason, setBanReason] = useState('')
 
   // Load collections function (extracted for reuse)
   const loadCollections = async () => {
@@ -107,22 +123,26 @@ export function ProductDetail({
   // Load collections on mount and whenever user state changes
   useEffect(() => {
     collectionLoadStartedRef.current = false
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadCollections()
   }, [user])
 
-  // Refresh collections when add-to-collection dialog opens or closes
   useEffect(() => {
     if (user) {
       if (showAddToCollectionDialog && !prevShowAddToCollectionDialogRef.current) {
-        // Dialog is opening - refresh to get latest data
         loadCollections()
       } else if (!showAddToCollectionDialog && prevShowAddToCollectionDialogRef.current) {
-        // Dialog is closing - refresh to reflect any changes made
         loadCollections()
       }
     }
     prevShowAddToCollectionDialogRef.current = showAddToCollectionDialog
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAddToCollectionDialog, user])
+
+  useEffect(() => {
+    setImageError(false)
+    setImageLooksInvisible(false)
+  }, [resolvedImageUrl])
 
   console.log('[ProductDetail] Filtering ratings:', {
     productId: product.id,
@@ -177,11 +197,18 @@ export function ProductDetail({
       return
     }
 
-    const reason = window.prompt('Provide a reason for banning this product (optional):', product.bannedReason || '')
-    onToggleBan(product, reason?.trim() || undefined)
+    setBanReason(product.bannedReason || '')
+    setBanDialogOpen(true)
   }
 
-  const updatedTs = (product as any).source_last_updated ?? (product as any).sourceLastUpdated
+  const handleConfirmBan = () => {
+    if (!onToggleBan) return
+    onToggleBan(product, banReason.trim() || undefined)
+    setBanDialogOpen(false)
+    setBanReason('')
+  }
+
+  const updatedTs = product.source_last_updated ?? product.sourceLastUpdated
   const updatedText = updatedTs ? formatRelativeTime(updatedTs) : ''
 
   const sourceIcon = getSourceIcon(product.source)
@@ -264,12 +291,24 @@ export function ProductDetail({
         <div className="lg:col-span-2">
           <div className="mb-6">
             {shouldShowImage ? (
-              <img
-                src={product.imageUrl}
-                alt={product.imageAlt || `${product.name} product image`}
-                className="float-left mr-4 mb-3 sm:mr-6 sm:mb-4 rounded-lg max-w-[300px] w-full h-auto"
-                onError={() => setImageError(true)}
-              />
+              <div className="float-left mr-4 mb-3 sm:mr-6 sm:mb-4 max-w-[300px] w-full">
+                <img
+                  src={resolvedImageUrl}
+                  alt={product.imageAlt || `${product.name} product image`}
+                  className="rounded-lg w-full h-auto"
+                  onLoad={(event) => {
+                    const target = event.currentTarget
+                    // Tiny assets (e.g. 1x1 transparent PNGs) render as "nothing" to users.
+                    setImageLooksInvisible(target.naturalWidth <= 2 && target.naturalHeight <= 2)
+                  }}
+                  onError={() => setImageError(true)}
+                />
+                {imageLooksInvisible && (
+                  <p className="mt-2 text-xs text-muted-foreground" role="status" aria-live="polite">
+                    Image loaded, but the file is very small and may look blank.
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="float-left mr-4 mb-3 sm:mr-6 sm:mb-4 rounded-lg max-w-[300px] w-full h-auto min-h-[180px] bg-muted text-muted-foreground flex items-center justify-center text-sm">
                 <span aria-hidden="true">Image unavailable</span>
@@ -422,6 +461,31 @@ export function ProductDetail({
           username={user.username}
         />
       )}
+
+      <Dialog open={banDialogOpen} onOpenChange={setBanDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ban Product</DialogTitle>
+            <DialogDescription>
+              Provide an optional reason for banning this product. Leave blank if no reason is needed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Label htmlFor="ban-reason">Reason (optional)</Label>
+            <Input
+              id="ban-reason"
+              value={banReason}
+              onChange={(e) => setBanReason(e.target.value)}
+              placeholder="Reason for banning..."
+              className="mt-1"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBanDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleConfirmBan}>Ban Product</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
