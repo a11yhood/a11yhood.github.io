@@ -1,4 +1,4 @@
-import { expect, it, beforeAll } from 'vitest'
+import { expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import * as http from 'node:http'
