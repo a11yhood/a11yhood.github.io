@@ -140,21 +140,24 @@ describe('SPA redirect – URI-length guard', () => {
 })
 
 describe('SPA redirect – self-redirect loop guard', () => {
-  it('falls back to base path when computed target equals current href', () => {
-    // Simulate a URL that is already the redirect target (loop condition)
-    const searchThatLooksLikeRedirect = '?/products'
-    const href = 'https://example.github.io/' + searchThatLooksLikeRedirect
+  it('falls back to canonical base path when computed target equals current href', () => {
+    // Construct a location where the first computed target is exactly `href`
+    // so the loop-guard branch (`target === loc.href`) is guaranteed to run.
+    const href = 'https://example.github.io/?/products'
     const loc = {
       protocol: 'https:',
       hostname: 'example.github.io',
       port: '',
-      pathname: '/',
-      search: searchThatLooksLikeRedirect,
+      pathname: '/products',
+      search: '',
       hash: '',
       href,
     }
+
     const target = computeRedirectTarget(loc)
-    // Should NOT redirect to itself
+
+    // Guard should force a canonical base-path redirect, never redirect-to-self.
+    expect(target).toBe('https://example.github.io/')
     expect(target).not.toBe(href)
   })
 })

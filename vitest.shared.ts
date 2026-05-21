@@ -13,6 +13,7 @@ export const REDUCED_TEST_INCLUDE = [
   '**/__tests__/lib/api.timestamp-validation.test.ts',
   '**/__tests__/lib/source-ratings.test.ts',
   '**/__tests__/lib/normalize-image-url.test.ts',
+  '**/__tests__/lib/spa-redirect.test.ts',
   '**/__tests__/components/MarkdownText.test.tsx',
   '**/__tests__/components/PublicProfile.test.tsx',
   '**/__tests__/components/UserProfile.website.test.tsx',
