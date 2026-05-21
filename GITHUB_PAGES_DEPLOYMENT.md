@@ -119,9 +119,10 @@ preview-specific secrets only:
 - `VITE_SUPABASE_URL_PREVIEW`
 - `VITE_SUPABASE_ANON_KEY_PREVIEW`
 
-Preview builds run with `VITE_DEV_MODE=true` for preview auth behavior, but any
-embedded Supabase client settings must still point to the isolated preview
-Supabase project rather than production.
+Preview builds must not enable `VITE_DEV_MODE`; they should use the preview
+Supabase project and preview backend with the same auth flow as production.
+Do not send dev auth signals such as `X-Dev-Role` or `dev-token-*` from PR
+previews.
 ---
 
 ## Repository settings required
