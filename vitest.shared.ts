@@ -30,6 +30,7 @@ export const REDUCED_TEST_INCLUDE = [
   '**/__tests__/accessibility/html-lang-attribute.test.ts',
   '**/__tests__/accessibility/ErrorFallback.a11y.test.tsx',
   '**/__tests__/accessibility/ProductSubmission.a11y.test.tsx',
+  '**/__tests__/accessibility/NotFoundPage.a11y.test.tsx',
 ]
 
 export function createVitestConfig(mode: string, include?: string[]) {
