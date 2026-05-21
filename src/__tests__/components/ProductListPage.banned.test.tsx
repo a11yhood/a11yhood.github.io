@@ -40,10 +40,15 @@ const emptyCollections: Collection[] = []
 const emptyPosts: BlogPost[] = []
 
 function renderPage({ canViewBanned, includeBanned, onIncludeBannedChange, user, userAccount }: Props) {
+  const visibleProducts =
+    canViewBanned && includeBanned
+      ? baseProducts
+      : baseProducts.filter((product) => !product.banned)
+
   return render(
     <MemoryRouter>
       <ProductListPage
-        products={baseProducts}
+        products={visibleProducts}
         ratings={emptyRatings}
         user={user ?? null}
         userAccount={userAccount ?? null}
@@ -57,7 +62,7 @@ function renderPage({ canViewBanned, includeBanned, onIncludeBannedChange, user,
         allProductTypes={[]}
         popularTags={[]}
         filteredTags={[]}
-        totalProductCount={baseProducts.length}
+        totalProductCount={visibleProducts.length}
         currentPage={1}
         onPageChange={vi.fn()}
         pageSize={50}
