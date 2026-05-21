@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { ProductListPage } from '@/App'
+import { ProductListPage } from '@/pages/ProductListPage'
 import type { Product, Rating, Collection, BlogPost, UserAccount, UserData } from '@/lib/types'
 
 type Props = {
@@ -48,16 +48,32 @@ function renderPage({ canViewBanned, includeBanned, onIncludeBannedChange, user,
         user={user ?? null}
         userAccount={userAccount ?? null}
         canViewBanned={canViewBanned}
+        canModerate={canViewBanned}
         includeBanned={includeBanned}
         onIncludeBannedChange={onIncludeBannedChange}
         collections={emptyCollections}
         blogPosts={emptyPosts}
+        allProductSources={[]}
+        allProductTypes={[]}
+        popularTags={[]}
+        filteredTags={[]}
+        totalProductCount={baseProducts.length}
+        currentPage={1}
+        onPageChange={vi.fn()}
+        pageSize={50}
+        onPageSizeChange={vi.fn()}
         onRate={vi.fn()}
         onDeleteProduct={vi.fn()}
+        onToggleBan={vi.fn()}
         onCreateCollection={vi.fn()}
         onOpenCreateCollection={vi.fn()}
         searchQuery=""
         onSearchChange={vi.fn()}
+        searchInputValue=""
+        onSearchInputChange={vi.fn()}
+        onSearchInputBlur={vi.fn()}
+        onSearchInputKeyDown={vi.fn()}
+        isSearching={false}
         selectedTypes={[]}
         onTypeToggle={vi.fn()}
         selectedTags={[]}
@@ -66,6 +82,11 @@ function renderPage({ canViewBanned, includeBanned, onIncludeBannedChange, user,
         onSourceToggle={vi.fn()}
         minRating={0}
         onMinRatingChange={vi.fn()}
+        updatedSince={null}
+        onUpdatedSinceChange={vi.fn()}
+        sortBy="rating"
+        sortOrder="desc"
+        onSortChange={vi.fn()}
         onClearFilters={vi.fn()}
       />
     </MemoryRouter>
