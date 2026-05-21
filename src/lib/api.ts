@@ -433,6 +433,22 @@ async function request<T>(
   
   logger.debug('[API] Making request:', { endpoint, hasTokenGetter: !!getAuthToken, hasToken: !!token, omitAuth, shouldSendAuth })
 
+  const method = (options.method || 'GET').toUpperCase()
+
+  const hasHeader = (headers: HeadersInit | undefined, headerName: string): boolean => {
+    if (!headers) return false
+
+    if (headers instanceof Headers) {
+      return headers.has(headerName)
+    }
+
+    if (Array.isArray(headers)) {
+      return headers.some(([name]) => name.toLowerCase() === headerName.toLowerCase())
+    }
+
+    return Object.keys(headers).some((name) => name.toLowerCase() === headerName.toLowerCase())
+  }
+
   // Convert body to snake_case if present
   const processedOptions = { ...options }
   let payloadPreview: string | null = null
@@ -465,26 +481,33 @@ async function request<T>(
       const bodyAsString = typeof processedOptions.body === 'string' ? processedOptions.body : payloadPreview
       const parsedBody = bodyAsString ? JSON.parse(bodyAsString) : null
       logger.debug(`[API] ${endpoint} - Final JSON being sent:`, parsedBody)
-      const method = (options.method || 'GET').toUpperCase()
       if (endpoint.startsWith('/collections') && (method === 'POST' || method === 'PUT')) {
         logger.debug(`[API] ${method} ${endpoint} payload: ${JSON.stringify(parsedBody)}`)
       }
     } catch {
       logger.debug(`[API] ${endpoint} - Final payload being sent:`, processedOptions.body)
-      const method = (options.method || 'GET').toUpperCase()
       if (endpoint.startsWith('/collections') && (method === 'POST' || method === 'PUT')) {
         logger.debug(`[API] ${method} ${endpoint} payload: ${String(processedOptions.body)}`)
       }
     }
   }
 
+  const hasRequestBody =
+    processedOptions.body !== undefined &&
+    processedOptions.body !== null &&
+    method !== 'GET' &&
+    method !== 'HEAD'
+  const hasExplicitContentType = hasHeader(options.headers, 'Content-Type')
+  const isBrowserRuntime = typeof window !== 'undefined' && typeof document !== 'undefined'
+
   const response = await fetch(url, {
     ...processedOptions,
     headers: {
-      'Content-Type': 'application/json',
+      ...(hasRequestBody && !hasExplicitContentType ? { 'Content-Type': 'application/json' } : {}),
       ...(shouldSendAuth ? { 'Authorization': `Bearer ${token}` } : {}),
-      // Fallback header for proxies that may drop Authorization
-      ...(shouldSendAuth ? { 'X-Forwarded-Authorization': token } : {}),
+      // For browser requests this extra header forces stricter CORS preflights.
+      // Keep it for non-browser runtimes where some proxies may drop Authorization.
+      ...(shouldSendAuth && !isBrowserRuntime ? { 'X-Forwarded-Authorization': token } : {}),
       ...options.headers,
     },
   })
@@ -492,7 +515,6 @@ async function request<T>(
   
   const endTime = performance.now()
   const duration = endTime - startTime
-  const method = (options.method || 'GET').toUpperCase()
   // Only log timing; never include payload in production logs to avoid leaking sensitive data
   logger.debug(`[API] ${method} ${endpoint}: ${duration.toFixed(1)}ms`)
   
@@ -688,44 +710,32 @@ export class APIService {
         : 'application/octet-stream'
     ) || 'application/octet-stream'
 
-    // Build the multipart/form-data body as a Blob composed from small Uint8Array header
-    // chunks and the original file reference — no full file copy into memory.
-    //
-    // Why not FormData: jsdom's FormData is incompatible with Node/undici's multipart
-    // serializer; the file part arrives empty at the backend. Sending a raw Blob body
-    // (with an explicit Content-Type header) is handled correctly by every fetch runtime.
-    const enc = new TextEncoder()
-    const boundary = `----a11yhoodBoundary${Math.random().toString(16).slice(2)}`
-    // esc: strip control characters then escape backslashes and quotes for quoted-string
-    // header parameters, so injected CR/LF cannot break the multipart structure.
-    const esc = (v: string) => stripControls(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    const normalizeBlob = async (): Promise<Blob> => {
+      if (file instanceof Blob) {
+        if (file.type === fileType) {
+          return file
+        }
 
-    const textPart = (name: string, value: string): Uint8Array =>
-      enc.encode(`--${boundary}\r\nContent-Disposition: form-data; name="${esc(name)}"\r\n\r\n${value}\r\n`)
+        // If sanitization changed the type, re-wrap with the sanitized MIME value.
+        return new Blob([await file.arrayBuffer()], { type: fileType })
+      }
 
-    // For real Blob/File inputs the file is included by reference (no copy).
-    // Duck-typed objects (not instanceof Blob) fall back to arrayBuffer() — this only
-    // occurs in test code that synthesises a blob-like for the security injection tests.
-    const fileBody: BlobPart = file instanceof Blob
-      ? file
-      : new Uint8Array(await (file as { arrayBuffer(): Promise<ArrayBuffer> }).arrayBuffer())
-
-    const parts: BlobPart[] = [
-      enc.encode(
-        `--${boundary}\r\nContent-Disposition: form-data; name="${esc('file')}"; filename="${esc(fileName)}"\r\nContent-Type: ${fileType}\r\n\r\n`
-      ),
-      fileBody,
-      enc.encode('\r\n'),
-    ]
-    if (crop) {
-      parts.push(textPart('crop_x', String(crop.x)))
-      parts.push(textPart('crop_y', String(crop.y)))
-      parts.push(textPart('crop_width', String(crop.width)))
-      parts.push(textPart('crop_height', String(crop.height)))
+      return new Blob([
+        new Uint8Array(await (file as { arrayBuffer(): Promise<ArrayBuffer> }).arrayBuffer()),
+      ], { type: fileType })
     }
-    parts.push(enc.encode(`--${boundary}--\r\n`))
-    const multipartBody = new Blob(parts)
-    const contentType = `multipart/form-data; boundary=${boundary}`
+
+    const uploadBlob = await normalizeBlob()
+
+    // Prefer standard FormData so backend frameworks can parse multipart reliably.
+    const formData = new FormData()
+    formData.append('file', uploadBlob, fileName)
+    if (crop) {
+      formData.append('crop_x', String(crop.x))
+      formData.append('crop_y', String(crop.y))
+      formData.append('crop_width', String(crop.width))
+      formData.append('crop_height', String(crop.height))
+    }
 
     logger.debug('[API.uploadImage] Starting upload:', {
       url,
@@ -737,8 +747,7 @@ export class APIService {
     })
 
     const upload = async (withSignal: boolean) => {
-      const headers = {
-        'Content-Type': contentType,
+      const headers: Record<string, string> = {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(token ? { 'X-Forwarded-Authorization': token } : {}),
       }
@@ -749,7 +758,7 @@ export class APIService {
         try {
           return await fetch(url, {
             method: 'POST',
-            body: multipartBody,
+            body: formData,
             signal: controller.signal,
             headers,
           })
@@ -769,7 +778,7 @@ export class APIService {
         return await Promise.race([
           fetch(url, {
             method: 'POST',
-            body: multipartBody,
+            body: formData,
             headers,
           }),
           timeoutPromise,
@@ -790,25 +799,29 @@ export class APIService {
       return { message: errorText?.trim() || res.statusText }
     }
 
-    let response: Response
-    try {
-      response = await upload(true)
-    } catch (error) {
-      const message = String((error as Error)?.message || error)
-      const signalMismatch = error instanceof TypeError && message.includes('Expected signal')
-      if (signalMismatch) {
-        // Some test/runtime combinations provide an AbortSignal implementation that
-        // fetch rejects; retry without signal but still enforce timeout via Promise.race.
-        response = await upload(false)
-      } else {
+    const uploadWithSignalHandling = async () => {
+      try {
+        return await upload(true)
+      } catch (error) {
+        const message = String((error as Error)?.message || error)
+        const signalMismatch = message.includes('Expected signal')
+        if (signalMismatch) {
+          // Some test/runtime combinations provide an AbortSignal implementation that
+          // fetch rejects; retry without signal but still enforce timeout via Promise.race.
+          return await upload(false)
+        }
+
         if (error instanceof DOMException && error.name === 'AbortError') {
           logger.error('[API.uploadImage] Upload timed out after 30s')
           throw new APIError('Image upload timed out after 30 seconds. Please try again.', 408)
         }
+
         logger.error('[API.uploadImage] Upload request failed before response:', error)
         throw error
       }
     }
+
+    const response = await uploadWithSignalHandling()
 
     logger.debug('[API.uploadImage] Upload response received:', {
       status: response.status,
@@ -818,7 +831,7 @@ export class APIService {
     })
 
     if (!response.ok) {
-      const errorData: { detail?: string; message?: string } = await parseUploadError(response)
+      const errorData = await parseUploadError(response)
       throw new APIError(
         errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`,
         response.status,

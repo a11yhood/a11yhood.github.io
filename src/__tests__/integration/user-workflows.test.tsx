@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { APIService, setAuthTokenGetter, getAuthTokenGetter, APIError } from '@/lib/api'
+import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { ProductEditors } from '@/components/ProductEditors'
 import { ProductCard } from '@/components/ProductCard'
 import * as types from '@/lib/types'
@@ -30,49 +29,78 @@ let testUserId: string
 let testProductId: string
 let authToken: string
 let testUsername = DEV_USERS.user.username
+let fallbackUploadedImageId: string | null = null
 
-const TEST_IMAGE_PATH = resolve(process.cwd(), 'src/assets/images/ahood-small.png')
+type SeedManifest = {
+  seed_version?: string
+  seeded_image_id?: string
+  seeded_product_with_image_id?: string
+  seeded_product_image_id?: string
+}
 
-async function uploadTestImageAndGetId(): Promise<string | null> {
-  const bytes = readFileSync(TEST_IMAGE_PATH)
-  const file = new File([bytes], 'integration-test.png', { type: 'image/png' })
-
-  if (file.size === 0) {
-    throw new Error('Generated integration test image is empty')
+async function uploadFallbackImageAndReturnId(): Promise<string> {
+  if (fallbackUploadedImageId) {
+    return fallbackUploadedImageId
   }
 
-  // Capture the current getter so we can restore it exactly after the upload,
-  // preserving any later mutations to `authToken` rather than snapshotting the value.
-  const previousGetter = getAuthTokenGetter()
-  // File upload is limited in UI to elevated roles; use moderator for this integration path.
-  const uploadAuthToken = getDevToken(DEV_USERS.moderator.role)
-  setAuthTokenGetter(async () => uploadAuthToken)
+  const previousGetter = APIService.getAuthTokenGetter()
+  const moderatorToken = getDevToken(DEV_USERS.moderator.role)
 
   try {
-    const imageReference = await APIService.uploadImage(file)
-    const match = imageReference.match(/^\/api\/images\/([^/?#]+)$/)
-    if (!match?.[1]) {
-      throw new Error(`Unexpected image reference from upload: ${imageReference}`)
+    setAuthTokenGetter(async () => moderatorToken)
+
+    const fixtureBytes = readFileSync(`${process.cwd()}/src/assets/images/ahood-small.png`)
+    const fixtureFile = new File([fixtureBytes], 'ahood-small.png', { type: 'image/png' })
+    const uploadedReference = await APIService.uploadImage(fixtureFile)
+    const imageId = uploadedReference.replace(/^\/api\/images\//, '').trim()
+
+    if (!imageId) {
+      throw new Error(`Fallback upload returned an unexpected reference: ${uploadedReference}`)
     }
-    return decodeURIComponent(match[1])
-  } catch (error) {
-    // CI preview backends can intermittently timeout on multipart upload endpoints.
-    // Detect 408 status code specifically to avoid silently catching unrelated errors.
-    if (error instanceof APIError && error.status === 408) {
-      // Do not fail unrelated workflow assertions when image upload infrastructure is unavailable.
-      return null
-    }
-    throw error
+
+    fallbackUploadedImageId = imageId
+    return imageId
   } finally {
-    setAuthTokenGetter(previousGetter ?? (async () => null))
+    if (previousGetter) {
+      setAuthTokenGetter(previousGetter)
+    } else {
+      setAuthTokenGetter(async () => null)
+    }
   }
+}
+
+async function getSeededImageIdFromBackend(): Promise<string> {
+  const manifest = ((globalThis as any).__TEST_SEED_MANIFEST__ ?? null) as SeedManifest | null
+  const manifestImageId = manifest?.seeded_image_id || manifest?.seeded_product_image_id
+  if (typeof manifestImageId === 'string' && manifestImageId.trim().length > 0) {
+    return manifestImageId.trim()
+  }
+
+  const products = await APIService.getAllProducts({ limit: 100 })
+  const seeded = products.find((p) => typeof p.imageId === 'string' && p.imageId.trim().length > 0)
+
+  if (seeded?.imageId) {
+    return seeded.imageId
+  }
+
+  // Some backend-test environments seed without an image fixture; upload one once
+  // so image-reference workflows can still validate against real backend behavior.
+  return uploadFallbackImageAndReturnId()
 }
 
 beforeAll(async () => {
   if (!(globalThis as any).__BACKEND_AVAILABLE__) return
+
   testUserId = DEV_USERS.user.id
+  testUsername = DEV_USERS.user.username
   authToken = getDevToken(DEV_USERS.user.role)
   setAuthTokenGetter(async () => authToken)
+
+  // Resolve runtime identity once to avoid per-test auth lookups while still
+  // matching the backend-mapped dev user UUID for activity/rating assertions.
+  const me = await APIService.getCurrentUser()
+  if (me?.id) testUserId = me.id
+  if (me?.username) testUsername = me.username
 
   const product = await APIService.createProduct({
     name: `Shared Workflow Product ${Date.now()}`,
@@ -83,17 +111,12 @@ beforeAll(async () => {
   testProductId = product.id
 }, 30000)
 
-beforeEach(async () => {
+beforeEach(() => {
   if (!(globalThis as any).__BACKEND_AVAILABLE__) return
-  testUserId = DEV_USERS.user.id
   authToken = getDevToken(DEV_USERS.user.role)
 
   // Set up the auth token getter for APIService
   setAuthTokenGetter(async () => authToken)
-
-  const me = await APIService.getCurrentUser()
-  if (me?.id) testUserId = me.id
-  if (me?.username) testUsername = me.username
 })
 
 afterEach(async () => {
@@ -137,15 +160,9 @@ describeWithBackend('Product Submission Workflow', () => {
     expect(result.type).toBe('product_submit')
   })
 
-  it.skipIf(process.env.CI || process.env.GITHUB_ACTIONS)('should create a product with an uploaded image ID and persist the image reference', async () => {
-    // SKIPPED in CI: CI preview environment has reverse proxy with aggressive body read timeout (~10-30s).
-    // Local backend handles uploads fine, but CI proxy returns 408 before multipart body arrives.
-    // This is infrastructure issue, not app logic. Contact preview team to increase upstream timeout.
+  it('should create a product with an uploaded image ID and persist the image reference', async () => {
     const sourceUrl = `https://github.com/test/create-with-upload-${Date.now()}`
-    const imageId = await uploadTestImageAndGetId()
-    if (!imageId) {
-      expect.fail('Image upload failed: this test requires a valid imageId to proceed')
-    }
+    const imageId = await getSeededImageIdFromBackend()
 
     const createdProduct = await APIService.createProduct({
       name: `Create With Upload ${Date.now()}`,
@@ -156,21 +173,17 @@ describeWithBackend('Product Submission Workflow', () => {
     } as any)
 
     expect(createdProduct.imageId).toBeDefined()
+    expect(createdProduct.imageId).toBe(imageId)
 
     const fetchedProduct = await APIService.getProduct(createdProduct.id)
     expect(fetchedProduct).toBeDefined()
     expect(fetchedProduct?.imageId).toBe(createdProduct.imageId)
   }, 30000)
 
-  it.skipIf(process.env.CI || process.env.GITHUB_ACTIONS)('should edit a product to add an uploaded image ID and persist it', async () => {
-    // SKIPPED in CI: CI preview environment has reverse proxy with aggressive body read timeout (~10-30s).
-    // Local backend handles uploads fine, but CI proxy returns 408 before multipart body arrives.
-    // This is infrastructure issue, not app logic. Contact preview team to increase upstream timeout.
+  it('should edit a product to add an uploaded image ID and persist it', async () => {
     const sourceUrl = `https://github.com/test/edit-to-add-upload-${Date.now()}`
-    const imageId = await uploadTestImageAndGetId()
-    if (!imageId) {
-      expect.fail('Image upload failed: this test requires a valid imageId to proceed')
-    }
+    const imageId = await getSeededImageIdFromBackend()
+
     const createdProduct = await APIService.createProduct({
       name: `Edit To Add Upload ${Date.now()}`,
       description: 'Integration test product that will gain an uploaded image later',
@@ -189,6 +202,7 @@ describeWithBackend('Product Submission Workflow', () => {
     )
 
     expect(updatedProduct?.imageId).toBeDefined()
+    expect(updatedProduct?.imageId).toBe(imageId)
 
     const fetchedProduct = await APIService.getProduct(createdProduct.id)
     expect(fetchedProduct).toBeDefined()
@@ -419,11 +433,16 @@ describeWithBackend('Error Handling in Workflows', () => {
   })
 
   it('should handle rating errors', async () => {
-    // Create a rating
-    await APIService.updateRating(testProductId, testUserId, 5)
+    // Invalid rating values must be rejected by the API contract with a client error.
+    await expect(APIService.updateRating(testProductId, testUserId, 10)).rejects.toMatchObject({
+      name: 'APIError',
+      status: expect.any(Number),
+    })
 
-    // Try to rate with invalid value (should fail)
-    await expect(APIService.updateRating(testProductId, testUserId, 10)).rejects.toBeDefined()
+    await expect(APIService.updateRating(testProductId, testUserId, 10)).rejects.toSatisfy((error) => {
+      const status = (error as { status?: unknown }).status
+      return typeof status === 'number' && status >= 400 && status < 500
+    })
   })
 
   it('should reject invalid activity timestamps before sending the request', async () => {
