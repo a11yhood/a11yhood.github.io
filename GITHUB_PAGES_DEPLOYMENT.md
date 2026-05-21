@@ -76,7 +76,12 @@ runs automatically against the live site.
 
 ## PR previews
 
-Every pull request automatically gets a full preview of the site at
+PR preview publishing is currently disabled for security hardening.
+The [PR Preview](.github/workflows/pr-preview.yml) workflow still runs lint,
+tests, and build checks on pull requests, but it does not publish
+`pr-preview/<PR#>/` content to `gh-pages`.
+
+When preview publishing is re-enabled, pull requests are deployed at
 `https://a11yhood.org/pr-preview/<PR#>/`.
 
 The [PR Preview](.github/workflows/pr-preview.yml) workflow:
@@ -119,9 +124,10 @@ preview-specific secrets only:
 - `VITE_SUPABASE_URL_PREVIEW`
 - `VITE_SUPABASE_ANON_KEY_PREVIEW`
 
-Preview builds run with `VITE_DEV_MODE=true` for preview auth behavior, but any
-embedded Supabase client settings must still point to the isolated preview
-Supabase project rather than production.
+Preview builds must not enable `VITE_DEV_MODE`; they should use the preview
+Supabase project and preview backend with the same auth flow as production.
+Do not send dev auth signals such as `X-Dev-Role` or `dev-token-*` from PR
+previews.
 ---
 
 ## Repository settings required
