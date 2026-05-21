@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { CheckCircle, X, FloppyDisk, Eye, Image as ImageIcon, Trash, UserPlus } from '@phosphor-icons/react'
 import { useNotifications } from '@/contexts/NotificationContext'
+import { BLOG_HEADER_IMAGE_UPLOAD_BYTES, BLOG_HEADER_IMAGE_UPLOAD_MB } from '@/lib/imageUpload'
 import { renderMarkdown } from '@/lib/markdown'
 import { toIsoTimestamp } from '@/lib/utils'
 
@@ -116,9 +117,9 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
       return
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      notify.error('Image must be less than 5MB')
+    // Validate file size
+    if (file.size > BLOG_HEADER_IMAGE_UPLOAD_BYTES) {
+      notify.error(`Image must be less than ${BLOG_HEADER_IMAGE_UPLOAD_MB}MB`)
       return
     }
 
@@ -510,7 +511,7 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
           <div className="border-t pt-4">
             <Label htmlFor="header-image-upload">Header Image</Label>
             <p id="header-image-help" className="text-sm text-muted-foreground mb-3">
-              Displayed at the top of your blog post (max 5MB)
+              Displayed at the top of your blog post (max {BLOG_HEADER_IMAGE_UPLOAD_MB}MB)
             </p>
             
             {headerImage && (

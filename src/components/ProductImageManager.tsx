@@ -6,6 +6,7 @@ import { Slider } from '@/components/ui/slider'
 import { Link as LinkIcon, Trash } from '@phosphor-icons/react'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { APIService, resolveApiImageUrl } from '@/lib/api'
+import { DEFAULT_IMAGE_UPLOAD_BYTES, DEFAULT_IMAGE_UPLOAD_MB } from '@/lib/imageUpload'
 import { logger } from '@/lib/logger'
 
 type ProductImageManagerProps = {
@@ -260,8 +261,8 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
       input.value = ''
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      notify.error('Image must be less than 5MB')
+    if (file.size > DEFAULT_IMAGE_UPLOAD_BYTES) {
+      notify.error(`Image must be less than ${DEFAULT_IMAGE_UPLOAD_MB}MB`)
       input.value = ''
       return
     }
@@ -675,7 +676,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
                   >
                     {isUploadingImage ? 'Uploading Image…' : 'Upload Image File'}
                   </Button>
-                  <p className="text-xs text-muted-foreground mt-1">Upload an image from your device (max 5MB)</p>
+                  <p className="text-xs text-muted-foreground mt-1">Upload an image from your device (max {DEFAULT_IMAGE_UPLOAD_MB}MB)</p>
                 </div>
               </>
             )}
