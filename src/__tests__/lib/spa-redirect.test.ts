@@ -62,6 +62,40 @@ function computeRedirectTarget(loc: {
   return target
 }
 
+/**
+ * Mirrors the initial redirect computation before loop/length guards.
+ * Used in tests to deterministically prove that an input exceeds the 6000-char limit.
+ */
+function computeInitialRedirectTarget(loc: {
+  protocol: string
+  hostname: string
+  port: string
+  pathname: string
+  search: string
+  hash: string
+}): string {
+  const parts = loc.pathname.split('/')
+  const pathSegmentsToKeep = parts[1] === 'pr-preview' && parts[2] ? 2 : 0
+
+  const basePath =
+    loc.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/'
+  const routePayload = loc.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/')
+  const searchPayload = loc.search ? loc.search.slice(1) : ''
+  const encodedRoute = encodeURIComponent(routePayload)
+  const encodedSearch = encodeURIComponent(searchPayload)
+  const redirectPath =
+    basePath + '?/' + encodedRoute + (searchPayload ? '&' + encodedSearch : '')
+
+  return (
+    loc.protocol +
+    '//' +
+    loc.hostname +
+    (loc.port ? ':' + loc.port : '') +
+    redirectPath +
+    loc.hash
+  )
+}
+
 // Helper to build a minimal location object
 function makeLocation(pathname: string, search = '', hash = ''): Parameters<typeof computeRedirectTarget>[0] {
   const href = 'https://example.github.io' + pathname + search + hash
@@ -105,10 +139,24 @@ describe('SPA redirect – PR preview paths', () => {
 
 describe('SPA redirect – URI-length guard', () => {
   it('drops query string when redirect URL would exceed 6000 characters', () => {
-    // Build a URL whose search params would push the redirect over the limit
-    const longTag = 'a'.repeat(100)
-    const manyParams = Array.from({ length: 80 }, (_, i) => `tag=${longTag}${i}`).join('&')
-    const loc = makeLocation('/products', '?' + manyParams)
+    // Deterministically build an oversized query payload until the pre-guard target
+    // exceeds the 6000-char threshold.
+    const params: string[] = []
+    let manyParams = ''
+    let initialTarget = ''
+
+    for (let i = 0; i < 2000; i++) {
+      params.push(`tag=${'x'.repeat(40)}${i}`)
+      manyParams = params.join('&')
+      initialTarget = computeInitialRedirectTarget(makeLocation('/products', `?${manyParams}`))
+      if (initialTarget.length > 6000) {
+        break
+      }
+    }
+
+    expect(initialTarget.length).toBeGreaterThan(6000)
+
+    const loc = makeLocation('/products', `?${manyParams}`)
 
     const target = computeRedirectTarget(loc)
 
