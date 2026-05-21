@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -28,12 +29,44 @@ let testUserId: string
 let testProductId: string
 let authToken: string
 let testUsername = DEV_USERS.user.username
+let fallbackUploadedImageId: string | null = null
 
 type SeedManifest = {
   seed_version?: string
   seeded_image_id?: string
   seeded_product_with_image_id?: string
   seeded_product_image_id?: string
+}
+
+async function uploadFallbackImageAndReturnId(): Promise<string> {
+  if (fallbackUploadedImageId) {
+    return fallbackUploadedImageId
+  }
+
+  const previousGetter = APIService.getAuthTokenGetter()
+  const moderatorToken = getDevToken(DEV_USERS.moderator.role)
+
+  try {
+    setAuthTokenGetter(async () => moderatorToken)
+
+    const fixtureBytes = readFileSync(`${process.cwd()}/src/assets/images/ahood-small.png`)
+    const fixtureFile = new File([fixtureBytes], 'ahood-small.png', { type: 'image/png' })
+    const uploadedReference = await APIService.uploadImage(fixtureFile)
+    const imageId = uploadedReference.replace(/^\/api\/images\//, '').trim()
+
+    if (!imageId) {
+      throw new Error(`Fallback upload returned an unexpected reference: ${uploadedReference}`)
+    }
+
+    fallbackUploadedImageId = imageId
+    return imageId
+  } finally {
+    if (previousGetter) {
+      setAuthTokenGetter(previousGetter)
+    } else {
+      setAuthTokenGetter(async () => null)
+    }
+  }
 }
 
 async function getSeededImageIdFromBackend(): Promise<string> {
@@ -50,7 +83,9 @@ async function getSeededImageIdFromBackend(): Promise<string> {
     return seeded.imageId
   }
 
-  throw new Error('No seeded imageId available. Expected __TEST_SEED_MANIFEST__.seeded_image_id or at least one product with imageId after reset.')
+  // Some backend-test environments seed without an image fixture; upload one once
+  // so image-reference workflows can still validate against real backend behavior.
+  return uploadFallbackImageAndReturnId()
 }
 
 beforeAll(async () => {
@@ -397,14 +432,17 @@ describeWithBackend('Error Handling in Workflows', () => {
     await expect(APIService.createProduct(invalidProductData as any)).rejects.toBeDefined()
   })
 
-  it("should handle rating errors", async () => {
-    // Try to rate with invalid value (should fail)
-    // Using a different user or an invalid value that backend should reject
-    // The current failure is a 403 Forbidden on the first call,
-    // suggesting either mismatch in IDs or something else.
-    // We will wrap the first call in a try/catch if we want it to be tolerant,
-    // or just test the failure directly.
-    await expect(APIService.updateRating(testProductId, testUserId, 10)).rejects.toThrow();
+  it('should handle rating errors', async () => {
+    // Invalid rating values must be rejected by the API contract with a client error.
+    await expect(APIService.updateRating(testProductId, testUserId, 10)).rejects.toMatchObject({
+      name: 'APIError',
+      status: expect.any(Number),
+    })
+
+    await expect(APIService.updateRating(testProductId, testUserId, 10)).rejects.toSatisfy((error) => {
+      const status = (error as { status?: unknown }).status
+      return typeof status === 'number' && status >= 400 && status < 500
+    })
   })
 
   it('should reject invalid activity timestamps before sending the request', async () => {

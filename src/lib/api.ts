@@ -737,34 +737,6 @@ export class APIService {
       formData.append('crop_height', String(crop.height))
     }
 
-    // Keep legacy raw multipart support as a fallback for runtimes where FormData
-    // serialization is incompatible.
-    const enc = new TextEncoder()
-    const boundary = `----a11yhoodBoundary${Math.random().toString(16).slice(2)}`
-    // esc: strip control characters then escape backslashes and quotes for quoted-string
-    // header parameters, so injected CR/LF cannot break the multipart structure.
-    const esc = (v: string) => stripControls(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-
-    const textPart = (name: string, value: string): Uint8Array =>
-      enc.encode(`--${boundary}\r\nContent-Disposition: form-data; name="${esc(name)}"\r\n\r\n${value}\r\n`)
-
-    const parts: BlobPart[] = [
-      enc.encode(
-        `--${boundary}\r\nContent-Disposition: form-data; name="${esc('file')}"; filename="${esc(fileName)}"\r\nContent-Type: ${fileType}\r\n\r\n`
-      ),
-      uploadBlob,
-      enc.encode('\r\n'),
-    ]
-    if (crop) {
-      parts.push(textPart('crop_x', String(crop.x)))
-      parts.push(textPart('crop_y', String(crop.y)))
-      parts.push(textPart('crop_width', String(crop.width)))
-      parts.push(textPart('crop_height', String(crop.height)))
-    }
-    parts.push(enc.encode(`--${boundary}--\r\n`))
-    const multipartBody = new Blob(parts)
-    const contentType = `multipart/form-data; boundary=${boundary}`
-
     logger.debug('[API.uploadImage] Starting upload:', {
       url,
       hasToken: !!token,
@@ -774,17 +746,10 @@ export class APIService {
       hasCrop: !!crop,
     })
 
-    const upload = async (withSignal: boolean, strategy: 'form-data' | 'raw-multipart') => {
+    const upload = async (withSignal: boolean) => {
       const headers: Record<string, string> = {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(token ? { 'X-Forwarded-Authorization': token } : {}),
-      }
-      const body = strategy === 'form-data' ? formData : multipartBody
-      
-      // Set Content-Type for raw multipart. For FormData, let the runtime set it,
-      // but some Node.js/jsdom environments may need explicit boundary info.
-      if (strategy === 'raw-multipart') {
-        headers['Content-Type'] = contentType
       }
 
       if (withSignal) {
@@ -793,7 +758,7 @@ export class APIService {
         try {
           return await fetch(url, {
             method: 'POST',
-            body,
+            body: formData,
             signal: controller.signal,
             headers,
           })
@@ -813,7 +778,7 @@ export class APIService {
         return await Promise.race([
           fetch(url, {
             method: 'POST',
-            body,
+            body: formData,
             headers,
           }),
           timeoutPromise,
@@ -834,25 +799,16 @@ export class APIService {
       return { message: errorText?.trim() || res.statusText }
     }
 
-    const shouldFallbackToRawMultipart = (errorData: { detail?: string; message?: string }, _status: number) => {
-      const message = `${errorData.detail || ''} ${errorData.message || ''}`.toLowerCase()
-      return (
-        message.includes('error parsing the body') ||
-        message.includes('parse the body') ||
-        (message.includes('body.file') && message.includes('field required'))
-      )
-    }
-
-    const uploadWithSignalHandling = async (strategy: 'form-data' | 'raw-multipart') => {
+    const uploadWithSignalHandling = async () => {
       try {
-        return await upload(true, strategy)
+        return await upload(true)
       } catch (error) {
         const message = String((error as Error)?.message || error)
         const signalMismatch = message.includes('Expected signal')
         if (signalMismatch) {
           // Some test/runtime combinations provide an AbortSignal implementation that
           // fetch rejects; retry without signal but still enforce timeout via Promise.race.
-          return await upload(false, strategy)
+          return await upload(false)
         }
 
         if (error instanceof DOMException && error.name === 'AbortError') {
@@ -865,15 +821,7 @@ export class APIService {
       }
     }
 
-    let response: Response
-    
-    // Detect jsdom/test environment: prefer raw-multipart since jsdom's FormData
-    // serialization may not be compatible with some backends.
-    const isTestEnvironment = typeof window !== 'undefined' && typeof document === 'object' && 
-      (document as any).__jsdom !== undefined
-    const initialStrategy = isTestEnvironment ? 'raw-multipart' : 'form-data'
-    
-    response = await uploadWithSignalHandling(initialStrategy)
+    const response = await uploadWithSignalHandling()
 
     logger.debug('[API.uploadImage] Upload response received:', {
       status: response.status,
@@ -882,22 +830,8 @@ export class APIService {
       contentType: response.headers.get('content-type') || '',
     })
 
-    let uploadErrorData: { detail?: string; message?: string } | null = null
-
     if (!response.ok) {
-      uploadErrorData = await parseUploadError(response)
-
-      // If initial strategy failed with parse error, try the other strategy
-      const alternativeStrategy = initialStrategy === 'form-data' ? 'raw-multipart' : 'form-data'
-      if (shouldFallbackToRawMultipart(uploadErrorData, response.status)) {
-        logger.warn(`[API.uploadImage] Retrying upload with ${alternativeStrategy} fallback after parse error`)
-        response = await uploadWithSignalHandling(alternativeStrategy)
-        uploadErrorData = null
-      }
-    }
-
-    if (!response.ok) {
-      const errorData = uploadErrorData ?? await parseUploadError(response)
+      const errorData = await parseUploadError(response)
       throw new APIError(
         errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`,
         response.status,
