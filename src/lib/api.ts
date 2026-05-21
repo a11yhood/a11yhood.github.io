@@ -433,6 +433,22 @@ async function request<T>(
   
   logger.debug('[API] Making request:', { endpoint, hasTokenGetter: !!getAuthToken, hasToken: !!token, omitAuth, shouldSendAuth })
 
+  const method = (options.method || 'GET').toUpperCase()
+
+  const hasHeader = (headers: HeadersInit | undefined, headerName: string): boolean => {
+    if (!headers) return false
+
+    if (headers instanceof Headers) {
+      return headers.has(headerName)
+    }
+
+    if (Array.isArray(headers)) {
+      return headers.some(([name]) => name.toLowerCase() === headerName.toLowerCase())
+    }
+
+    return Object.keys(headers).some((name) => name.toLowerCase() === headerName.toLowerCase())
+  }
+
   // Convert body to snake_case if present
   const processedOptions = { ...options }
   let payloadPreview: string | null = null
@@ -465,26 +481,33 @@ async function request<T>(
       const bodyAsString = typeof processedOptions.body === 'string' ? processedOptions.body : payloadPreview
       const parsedBody = bodyAsString ? JSON.parse(bodyAsString) : null
       logger.debug(`[API] ${endpoint} - Final JSON being sent:`, parsedBody)
-      const method = (options.method || 'GET').toUpperCase()
       if (endpoint.startsWith('/collections') && (method === 'POST' || method === 'PUT')) {
         logger.debug(`[API] ${method} ${endpoint} payload: ${JSON.stringify(parsedBody)}`)
       }
     } catch {
       logger.debug(`[API] ${endpoint} - Final payload being sent:`, processedOptions.body)
-      const method = (options.method || 'GET').toUpperCase()
       if (endpoint.startsWith('/collections') && (method === 'POST' || method === 'PUT')) {
         logger.debug(`[API] ${method} ${endpoint} payload: ${String(processedOptions.body)}`)
       }
     }
   }
 
+  const hasRequestBody =
+    processedOptions.body !== undefined &&
+    processedOptions.body !== null &&
+    method !== 'GET' &&
+    method !== 'HEAD'
+  const hasExplicitContentType = hasHeader(options.headers, 'Content-Type')
+  const isBrowserRuntime = typeof window !== 'undefined' && typeof document !== 'undefined'
+
   const response = await fetch(url, {
     ...processedOptions,
     headers: {
-      'Content-Type': 'application/json',
+      ...(hasRequestBody && !hasExplicitContentType ? { 'Content-Type': 'application/json' } : {}),
       ...(shouldSendAuth ? { 'Authorization': `Bearer ${token}` } : {}),
-      // Fallback header for proxies that may drop Authorization
-      ...(shouldSendAuth ? { 'X-Forwarded-Authorization': token } : {}),
+      // For browser requests this extra header forces stricter CORS preflights.
+      // Keep it for non-browser runtimes where some proxies may drop Authorization.
+      ...(shouldSendAuth && !isBrowserRuntime ? { 'X-Forwarded-Authorization': token } : {}),
       ...options.headers,
     },
   })
@@ -492,7 +515,6 @@ async function request<T>(
   
   const endTime = performance.now()
   const duration = endTime - startTime
-  const method = (options.method || 'GET').toUpperCase()
   // Only log timing; never include payload in production logs to avoid leaking sensitive data
   logger.debug(`[API] ${method} ${endpoint}: ${duration.toFixed(1)}ms`)
   
