@@ -1,38 +1,122 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, XCircle, Warning, Info, ArrowRight, Copy } from '@phosphor-icons/react'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
+import type { OAuth2Config } from '@/lib/scrapers/ravelry-oauth'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+
+type RavelryFlowRequestDetails = {
+  url?: string
+  redirectUri?: string
+  codeLength?: number
+  clientIdLength?: number
+  clientSecretLength?: number
+}
+
+type RavelryFlowLog = {
+  step?: string
+  timestamp?: number
+  authUrl?: string
+  redirectUri?: string
+  codeLength?: number
+  url?: string
+  status?: number
+  statusText?: string
+  errorBody?: string
+  errorJson?: JsonValue
+  requestDetails?: RavelryFlowRequestDetails
+  error?: string
+  stack?: string
+  expiresAt?: number
+  isCorsError?: boolean
+}
+
+type StoredLogEntry = {
+  key: string
+  value: JsonValue | string | null
+}
+
+function parseJsonValue(raw: string | null): JsonValue | string | null {
+  if (raw == null) {
+    return null
+  }
+
+  try {
+    return JSON.parse(raw) as JsonValue
+  } catch {
+    return raw
+  }
+}
+
+function parseFlowLog(raw: string | null): RavelryFlowLog | null {
+  const parsed = parseJsonValue(raw)
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return null
+  }
+
+  const record = parsed as Record<string, unknown>
+  const requestDetails = record.requestDetails && typeof record.requestDetails === 'object' && !Array.isArray(record.requestDetails)
+    ? (record.requestDetails as Record<string, unknown>)
+    : undefined
+
+  return {
+    step: typeof record.step === 'string' ? record.step : undefined,
+    timestamp: typeof record.timestamp === 'number' ? record.timestamp : undefined,
+    authUrl: typeof record.authUrl === 'string' ? record.authUrl : undefined,
+    redirectUri: typeof record.redirectUri === 'string' ? record.redirectUri : undefined,
+    codeLength: typeof record.codeLength === 'number' ? record.codeLength : undefined,
+    url: typeof record.url === 'string' ? record.url : undefined,
+    status: typeof record.status === 'number' ? record.status : undefined,
+    statusText: typeof record.statusText === 'string' ? record.statusText : undefined,
+    errorBody: typeof record.errorBody === 'string' ? record.errorBody : undefined,
+    errorJson: record.errorJson as JsonValue | undefined,
+    requestDetails: requestDetails
+      ? {
+          url: typeof requestDetails.url === 'string' ? requestDetails.url : undefined,
+          redirectUri: typeof requestDetails.redirectUri === 'string' ? requestDetails.redirectUri : undefined,
+          codeLength: typeof requestDetails.codeLength === 'number' ? requestDetails.codeLength : undefined,
+          clientIdLength: typeof requestDetails.clientIdLength === 'number' ? requestDetails.clientIdLength : undefined,
+          clientSecretLength: typeof requestDetails.clientSecretLength === 'number' ? requestDetails.clientSecretLength : undefined,
+        }
+      : undefined,
+    error: typeof record.error === 'string' ? record.error : undefined,
+    stack: typeof record.stack === 'string' ? record.stack : undefined,
+    expiresAt: typeof record.expiresAt === 'number' ? record.expiresAt : undefined,
+    isCorsError: typeof record.isCorsError === 'boolean' ? record.isCorsError : undefined,
+  }
+}
 
 export function RavelryOAuthDiagnostics() {
   const { notify } = useNotifications()
-  const [flowLog, setFlowLog] = useState<any>(null)
-  const [config, setConfig] = useState<any>(null)
-  const [allLogs, setAllLogs] = useState<Array<{ key: string; value: unknown }>>([])
+  const [flowLog, setFlowLog] = useState<RavelryFlowLog | null>(null)
+  const [config, setConfig] = useState<OAuth2Config | null>(null)
+  const [allLogs, setAllLogs] = useState<StoredLogEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRetrying, setIsRetrying] = useState(false)
   const [resetOAuthDialogOpen, setResetOAuthDialogOpen] = useState(false)
 
-  const loadDiagnostics = async () => {
+  const loadDiagnostics = useCallback(async () => {
     setIsLoading(true)
     try {
       const logStr = localStorage.getItem('ravelry-oauth-flow-log')
-      const log = logStr ? JSON.parse(logStr) : null
+      const log = parseFlowLog(logStr)
       const cfg = await RavelryOAuthManager.getConfig()
       
       setFlowLog(log)
       setConfig(cfg)
       
       // Get all ravelry-related keys from localStorage
-      const logs: Array<{ key: string; value: unknown }> = []
+      const logs: StoredLogEntry[] = []
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)
         if (key && key.includes('ravelry')) {
           const value = localStorage.getItem(key)
-          logs.push({ key, value: value ? JSON.parse(value) : value })
+          logs.push({ key, value: parseJsonValue(value) })
         }
       }
       setAllLogs(logs)
@@ -42,11 +126,11 @@ export function RavelryOAuthDiagnostics() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [notify])
 
   useEffect(() => {
     loadDiagnostics()
-  }, [])
+  }, [loadDiagnostics])
 
   const handleCopyToClipboard = (content: string) => {
     navigator.clipboard.writeText(content)
@@ -113,6 +197,12 @@ export function RavelryOAuthDiagnostics() {
       return
     }
 
+    const retryRedirectUri = flowLog.requestDetails.redirectUri
+    if (!retryRedirectUri) {
+      notify.error('Redirect URI not found in request details. Please restart the OAuth flow.')
+      return
+    }
+
     if (!config?.clientId || !config?.clientSecret) {
       notify.error('Client credentials not found')
       return
@@ -132,7 +222,7 @@ export function RavelryOAuthDiagnostics() {
         lastCode,
         config.clientId,
         config.clientSecret,
-        flowLog.requestDetails.redirectUri
+        retryRedirectUri
       )
 
       if (success) {

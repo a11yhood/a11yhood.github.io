@@ -36,7 +36,7 @@ export function FeaturedBlogCarousel({
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Featured News</h2>
+        <h2 className="text-xl font-semibold">Featured Posts</h2>
         {posts.length > 1 && (
           <div className="flex items-center gap-2">
             <Button

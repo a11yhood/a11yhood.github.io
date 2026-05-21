@@ -47,7 +47,7 @@ export abstract class OAuth2PlatformScraper extends PlatformScraper {
     try {
       const configStr = localStorage.getItem(this.configKey)
       return configStr ? JSON.parse(configStr) : null
-    } catch (error: any) {
+    } catch (error) {
       console.error(`[${this.source}] Error retrieving OAuth config:`, error)
       return null
     }

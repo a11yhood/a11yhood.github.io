@@ -55,8 +55,26 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
   const [imageUrlDialogOpen, setImageUrlDialogOpen] = useState(false)
   const [imageUrlInput, setImageUrlInput] = useState('')
   const [imageAltInput, setImageAltInput] = useState('')
+  const [headerImageUrlInput, setHeaderImageUrlInput] = useState('')
 
   // Backend now normalizes images; `headerImage` should be an http(s) URL or data URL already
+
+  const handleSetHeaderImageFromUrl = () => {
+    const url = headerImageUrlInput.trim()
+    if (!url) return
+    try {
+      const parsed = new URL(url)
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        notify.error('Please provide an http/https image URL')
+        return
+      }
+      setHeaderImage(url)
+      setHeaderImageUrlInput('')
+      notify.success('Header image URL set')
+    } catch {
+      notify.error('Please provide a valid image URL')
+    }
+  }
 
   // Generate URL-friendly slug from title
   const generateSlug = (text: string) => {
@@ -537,6 +555,36 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
               <ImageIcon className="w-4 h-4 mr-2" />
               {headerImage ? 'Change Header Image' : 'Upload Header Image'}
             </Button>
+
+            <div className="flex items-center gap-2 my-3">
+              <hr className="flex-1 border-border" />
+              <span className="text-xs text-muted-foreground">or</span>
+              <hr className="flex-1 border-border" />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="header-image-url">Set by URL</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="header-image-url"
+                  name="headerImageUrl"
+                  type="url"
+                  autoComplete="off"
+                  placeholder="https://example.com/image.jpg"
+                  value={headerImageUrlInput}
+                  onChange={(e) => setHeaderImageUrlInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSetHeaderImageFromUrl() } }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSetHeaderImageFromUrl}
+                  disabled={!headerImageUrlInput.trim()}
+                >
+                  Set
+                </Button>
+              </div>
+            </div>
 
             {headerImage && (
               <div className="mt-3">

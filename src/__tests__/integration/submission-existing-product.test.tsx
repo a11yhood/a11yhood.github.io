@@ -39,8 +39,6 @@ describeWithBackend('ProductSubmission (existing product via backend)', () => {
       description: 'An integration test product with sufficient description content',
       type: 'Software',
       sourceUrl: uniqueUrl,
-      imageUrl: 'https://example.com/image.png',
-      origin: 'user-submitted',
       tags: ['integration'],
     } as any)
   }, 30000)

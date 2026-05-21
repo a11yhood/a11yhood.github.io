@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { UserRequest, UserData, UserAccount } from '@/lib/types'
 import { APIService } from '@/lib/api'
-import { Clock, CheckCircle, XCircle, FolderOpen } from '@phosphor-icons/react'
+import { FolderOpen } from '@phosphor-icons/react'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { RequestCard } from './RequestCard'
 
@@ -18,12 +17,12 @@ type UserRequestsPanelProps = {
   onNavigateToProduct?: (productId: string) => void
 }
 
-export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: UserRequestsPanelProps) {
+export function UserRequestsPanel({ user, userAccount, onNavigateToProduct: _onNavigateToProduct }: UserRequestsPanelProps) {
   const { notify } = useNotifications()
   const [requests, setRequests] = useState<UserRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [showRequestDialog, setShowRequestDialog] = useState(false)
-  const [requestType, setRequestType] = useState<'moderator' | 'admin'>('moderator')
+  const [requestType] = useState<'moderator' | 'admin'>('moderator')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [withdrawingRequestId, setWithdrawingRequestId] = useState<string | null>(null)
@@ -108,59 +107,7 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct }: Us
     }
   }
 
-  const hasPendingModeratorRequest = requests.some(
-    r => r.type === 'moderator' && r.status === 'pending'
-  )
-
-  const hasPendingAdminRequest = requests.some(
-    r => r.type === 'admin' && r.status === 'pending'
-  )
-
-  const moderatorRequests = requests.filter(r => r.type === 'moderator' || r.type === 'admin')
   const productEditorRequests = requests.filter(r => r.type === 'product-ownership')
-
-  // Users can request editor status (if not already editor or admin)
-  const canRequestModerator = userRole === 'user' && !hasPendingModeratorRequest
-  // Editors can request admin status (if not already admin)
-  const canRequestAdmin = userRole === 'moderator' && !hasPendingAdminRequest
-  // Admins cannot request anything - they're already at the top level
-  const canShowRequestButton = canRequestModerator || canRequestAdmin
-
-  const getStatusBadge = (status: UserRequest['status']) => {
-    switch (status) {
-      case 'pending':
-        return (
-          <Badge variant="secondary" className="flex items-center gap-1">
-            <Clock size={14} />
-            Pending
-          </Badge>
-        )
-      case 'approved':
-        return (
-          <Badge className="flex items-center gap-1 bg-green-600 hover:bg-green-700">
-            <CheckCircle size={14} />
-            Approved
-          </Badge>
-        )
-      case 'rejected':
-        return (
-          <Badge variant="destructive" className="flex items-center gap-1">
-            <XCircle size={14} />
-            Rejected
-          </Badge>
-        )
-    }
-  }
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
 
   return (
     <div className="space-y-6">

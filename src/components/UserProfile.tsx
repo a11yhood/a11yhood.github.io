@@ -62,7 +62,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
       setStats(userStats)
     }
     loadStats()
-  }, [userAccount.id])
+  }, [userAccount.id, userAccount.username])
 
   useEffect(() => {
     const loadOwnedProducts = async () => {
@@ -80,7 +80,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
     }
 
     loadOwnedProducts()
-  }, [userAccount.id])
+  }, [userAccount.id, userAccount.username])
 
   useEffect(() => {
     const loadBlogPosts = async () => {

@@ -21,7 +21,6 @@ describeWithBackend('ProductDetail - Integration', () => {
       name: `ProductDetail Integration ${Date.now()}`,
       type: getValidProductType('user-submitted'),
       source: 'user-submitted',
-      category: 'Software',
       sourceUrl: `https://github.com/test/product-detail-${Date.now()}`,
       description: 'Integration fixture for ProductDetail rendering',
       tags: ['integration'],

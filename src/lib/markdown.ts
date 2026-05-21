@@ -1,4 +1,16 @@
 import { marked, type RendererObject } from 'marked'
+import DOMPurify from 'dompurify'
+import { resolveApiImageUrl } from './api'
+
+function resolveMarkdownImageUrl(href: string | null): string {
+  const effectiveHref = href?.trim() || ''
+  if (!effectiveHref) {
+    // Avoid emitting <img src="">, which can cause a request to the current document.
+    return 'data:,'
+  }
+
+  return resolveApiImageUrl(effectiveHref)
+}
 
 marked.setOptions({
   gfm: true,
@@ -47,7 +59,7 @@ const renderer: Partial<RendererObject> = {
     return `<li class="ml-4">${text}</li>`
   },
 
-  code({ text, lang }) {
+  code({ text, lang: _lang }) {
     return `<pre class="bg-muted p-4 rounded-lg overflow-x-auto mb-4"><code class="text-sm font-mono">${escapeHtml(text)}</code></pre>`
   },
 
@@ -61,8 +73,9 @@ const renderer: Partial<RendererObject> = {
   },
 
   image({ href, title, text }) {
+    const resolvedHref = resolveMarkdownImageUrl(href)
     const titleAttr = title ? ` title="${title}"` : ''
-    return `<img src="${href}" alt="${text || ''}" class="max-w-full h-auto rounded-lg my-4"${titleAttr} />`
+    return `<img src="${resolvedHref}" alt="${text || ''}" class="max-w-full h-auto rounded-lg my-4"${titleAttr} />`
   },
 
   strong({ tokens }) {
@@ -111,7 +124,9 @@ marked.use({ renderer })
 
 export function renderMarkdown(markdown: string): string {
   try {
-    return marked.parse(markdown, { async: false }) as string
+    const rawHtml = marked.parse(markdown, { async: false }) as string
+    // Blog/content markdown can be user-authored; sanitize before dangerouslySetInnerHTML.
+    return DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } })
   } catch (error) {
     console.error('Error rendering markdown:', error)
     return `<p class="text-destructive">Error rendering content</p>`

@@ -24,7 +24,6 @@ describeWithBackend('Updated timestamp integration (backend)', () => {
       name: `Updated Timestamp Integration ${Date.now()}`,
       type: getValidProductType('user-submitted'),
       source: 'user-submitted',
-      category: 'Software',
       sourceUrl: `https://github.com/test/updated-timestamp-${Date.now()}`,
       description: 'Integration fixture with deterministic updated timestamp',
       tags: ['integration', 'updated'],
