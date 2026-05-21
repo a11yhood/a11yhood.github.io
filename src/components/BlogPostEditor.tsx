@@ -119,7 +119,7 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
 
     // Validate file size
     if (file.size > BLOG_HEADER_IMAGE_UPLOAD_BYTES) {
-      notify.error(`Image must be less than ${BLOG_HEADER_IMAGE_UPLOAD_MB}MB`)
+      notify.error(`Image must be at most ${BLOG_HEADER_IMAGE_UPLOAD_MB}MB`)
       return
     }
 
