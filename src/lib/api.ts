@@ -16,16 +16,16 @@ import { toIsoTimestamp } from './utils'
 export function getApiBaseUrl(
   configuredUrl?: string,
   locationOrigin?: string,
-  locationProtocol?: string
+  _locationProtocol?: string
 ) {
   const configuredBaseUrl = configuredUrl ?? import.meta.env.VITE_API_URL ?? ''
 
   const origin = locationOrigin ?? (typeof window !== 'undefined' ? window.location.origin : '')
 
-  // For https localhost frontend talking to http localhost backend, fall back to relative paths
-  // so the Vite proxy can avoid mixed-content/CORS. Only do this for runtime (when locationOrigin
-  // is not explicitly supplied, e.g., tests pass locationOrigin and should keep the configured base).
-  if (!locationOrigin && configuredBaseUrl.startsWith('http://localhost') && origin.startsWith('https://localhost')) {
+  // For localhost frontend talking to a localhost backend on a different port, fall back to
+  // relative paths so the Vite proxy handles the request (avoids CORS and mixed-content).
+  // Only do this for runtime (tests pass locationOrigin explicitly and keep the configured base).
+  if (!locationOrigin && /^https?:\/\/localhost(:\d+)?/.test(configuredBaseUrl) && /^https?:\/\/localhost(:\d+)?/.test(origin)) {
     return ''
   }
 
@@ -38,6 +38,72 @@ export function getApiBaseUrl(
   return configuredBaseUrl
 }
 
+export function resolveApiImageUrl(
+  imageUrl: string,
+  configuredUrl?: string,
+  locationOrigin?: string,
+  _locationProtocol?: string
+): string {
+  const trimmed = imageUrl.trim()
+  if (!trimmed.startsWith('/api/images/')) {
+    return trimmed
+  }
+
+  const base = getApiBaseUrl(configuredUrl, locationOrigin, _locationProtocol)
+  if (!base) {
+    return trimmed
+  }
+
+  return `${base.replace(/\/$/, '')}${trimmed}`
+}
+
+export function extractInternalImageIdFromReference(
+  imageUrl: string,
+  configuredUrl?: string,
+  locationOrigin?: string,
+  locationProtocol?: string
+): string | undefined {
+  const trimmed = imageUrl.trim()
+  if (!trimmed) {
+    return undefined
+  }
+
+  const relativeMatch = trimmed.match(/^\/api\/images\/([^/?#]+)$/)
+  if (relativeMatch?.[1]) {
+    return decodeURIComponent(relativeMatch[1])
+  }
+
+  let parsed: URL
+  try {
+    parsed = new URL(trimmed)
+  } catch {
+    return undefined
+  }
+
+  const absoluteMatch = parsed.pathname.match(/^\/api\/images\/([^/?#]+)$/)
+  if (!absoluteMatch?.[1]) {
+    return undefined
+  }
+
+  const base = getApiBaseUrl(configuredUrl, locationOrigin, locationProtocol).trim()
+  if (!base) {
+    return undefined
+  }
+
+  let backendOrigin: string
+  try {
+    backendOrigin = new URL(base).origin
+  } catch {
+    return undefined
+  }
+
+  if (parsed.origin !== backendOrigin) {
+    return undefined
+  }
+
+  return decodeURIComponent(absoluteMatch[1])
+}
+
 // Token getter function set by AuthContext on app load.
 // In dev mode: returns dev-token-<role> (e.g., dev-token-admin)
 // In prod mode: returns Supabase session access token
@@ -48,15 +114,21 @@ export function setAuthTokenGetter(getter: () => Promise<string | null>) {
   getAuthToken = getter
 }
 
+export function getAuthTokenGetter(): (() => Promise<string | null>) | null {
+  return getAuthToken
+}
+
 /**
  * Convert snake_case API responses to camelCase for frontend consumption.
  * Recursively handles nested objects and arrays.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toCamelCase(obj: any): any {
   if (obj === null || obj === undefined) return obj
   if (Array.isArray(obj)) return obj.map(toCamelCase)
   if (typeof obj !== 'object') return obj
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result: any = {}
   for (const [key, value] of Object.entries(obj)) {
     const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
@@ -69,11 +141,13 @@ function toCamelCase(obj: any): any {
  * Convert camelCase request bodies to snake_case for backend compatibility.
  * Backend expects snake_case field names in all API contracts.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toSnakeCase(obj: any): any {
   if (obj === null || obj === undefined) return obj
   if (Array.isArray(obj)) return obj.map(toSnakeCase)
   if (typeof obj !== 'object') return obj
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result: any = {}
   for (const [key, value] of Object.entries(obj)) {
     const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
@@ -82,11 +156,56 @@ function toSnakeCase(obj: any): any {
   return result
 }
 
+function normalizeProductImageReference<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeProductImageReference(item)) as T
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value
+  }
+
+  const record = value as Record<string, unknown> & {
+    id?: unknown
+    slug?: unknown
+    imageId?: unknown
+    imageUrl?: unknown
+    imageAlt?: unknown
+  }
+
+  const imageId = typeof record.imageId === 'string' ? record.imageId.trim() : ''
+  const imageUrl = typeof record.imageUrl === 'string' ? record.imageUrl.trim() : ''
+  const resolvedImageUrl = imageUrl ? resolveApiImageUrl(imageUrl) : ''
+
+  const hasProductIdentity = 'id' in record || 'slug' in record
+  const hasStaleDataUrl = imageUrl.startsWith('data:image/')
+  const shouldReplaceImageUrl = !imageUrl || hasStaleDataUrl
+
+  if (hasProductIdentity && imageId && shouldReplaceImageUrl) {
+    record.imageUrl = resolveApiImageUrl(`/api/images/${encodeURIComponent(imageId)}`)
+  } else if (hasStaleDataUrl) {
+    // Stale upload previews should never be persisted as product image references.
+    delete record.imageUrl
+  }
+
+  if (resolvedImageUrl && resolvedImageUrl !== imageUrl) {
+    record.imageUrl = resolvedImageUrl
+  }
+
+  for (const [key, child] of Object.entries(record)) {
+    if (child && typeof child === 'object') {
+      record[key] = normalizeProductImageReference(child)
+    }
+  }
+
+  return record as T
+}
+
 class APIError extends Error {
   constructor(
     message: string,
     public status: number,
-    public data?: any
+    public data?: unknown
   ) {
     super(message)
     this.name = 'APIError'
@@ -217,7 +336,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
   })
   
   if (!response.ok) {
-    let errorData: any = { message: response.statusText }
+    let errorData: { detail?: string; message?: string } = { message: response.statusText }
 
     if (contentType.includes('application/json')) {
       errorData = await response.json().catch(() => ({ message: response.statusText }))
@@ -259,14 +378,17 @@ async function handleResponse<T>(response: Response): Promise<T> {
     logger.debug('[API.handleResponse] 🖼️ Product update response:', {
       url: response.url,
       hasImageUrl: 'image_url' in data,
+      hasImageId: 'image_id' in data,
       hasImageAlt: 'image_alt' in data,
-      imageUrl: (data as any).image_url,
-      imageAlt: (data as any).image_alt,
+      imageUrl: (data as { image_url?: string; image_id?: string; image_alt?: string }).image_url,
+      imageId: (data as { image_url?: string; image_id?: string; image_alt?: string }).image_id,
+      imageAlt: (data as { image_url?: string; image_id?: string; image_alt?: string }).image_alt,
       rawData: data
     })
   }
-  
-  return toCamelCase(data) as T
+
+  const camel = toCamelCase(data)
+  return normalizeProductImageReference(camel) as T
 }
 
 async function request<T>(
@@ -287,7 +409,7 @@ async function request<T>(
   
   // Extract and log query parameters for debugging
   if (endpoint.includes('?')) {
-    const [path, queryString] = endpoint.split('?')
+    const [_path, queryString] = endpoint.split('?')
     const params = new URLSearchParams(queryString)
     logger.debug('[API] Query parameters:', Object.fromEntries(params.entries()))
   }
@@ -311,6 +433,22 @@ async function request<T>(
   
   logger.debug('[API] Making request:', { endpoint, hasTokenGetter: !!getAuthToken, hasToken: !!token, omitAuth, shouldSendAuth })
 
+  const method = (options.method || 'GET').toUpperCase()
+
+  const hasHeader = (headers: HeadersInit | undefined, headerName: string): boolean => {
+    if (!headers) return false
+
+    if (headers instanceof Headers) {
+      return headers.has(headerName)
+    }
+
+    if (Array.isArray(headers)) {
+      return headers.some(([name]) => name.toLowerCase() === headerName.toLowerCase())
+    }
+
+    return Object.keys(headers).some((name) => name.toLowerCase() === headerName.toLowerCase())
+  }
+
   // Convert body to snake_case if present
   const processedOptions = { ...options }
   let payloadPreview: string | null = null
@@ -321,11 +459,11 @@ async function request<T>(
       logger.debug('[API] Body conversion - camelCase:', bodyObj)
       logger.debug('[API] Body conversion - snake_case:', snakeCaseBody)
       
-      // Special logging for image fields
-      if (endpoint.includes('/products/') && (bodyObj.imageUrl !== undefined || bodyObj.imageAlt !== undefined)) {
+      // Special logging for product image payloads
+      if (endpoint.includes('/products/') && (bodyObj.image !== undefined || bodyObj.imageUrl !== undefined || bodyObj.imageAlt !== undefined)) {
         logger.debug('[API] 🖼️ Image fields in update:', {
-          camelCase: { imageUrl: bodyObj.imageUrl, imageAlt: bodyObj.imageAlt },
-          snakeCase: { image_url: snakeCaseBody.image_url, image_alt: snakeCaseBody.image_alt }
+          camelCase: { image: bodyObj.image, imageUrl: bodyObj.imageUrl, imageAlt: bodyObj.imageAlt },
+          snakeCase: { image: snakeCaseBody.image, image_url: snakeCaseBody.image_url, image_alt: snakeCaseBody.image_alt }
         })
       }
       
@@ -343,26 +481,33 @@ async function request<T>(
       const bodyAsString = typeof processedOptions.body === 'string' ? processedOptions.body : payloadPreview
       const parsedBody = bodyAsString ? JSON.parse(bodyAsString) : null
       logger.debug(`[API] ${endpoint} - Final JSON being sent:`, parsedBody)
-      const method = (options.method || 'GET').toUpperCase()
       if (endpoint.startsWith('/collections') && (method === 'POST' || method === 'PUT')) {
         logger.debug(`[API] ${method} ${endpoint} payload: ${JSON.stringify(parsedBody)}`)
       }
     } catch {
       logger.debug(`[API] ${endpoint} - Final payload being sent:`, processedOptions.body)
-      const method = (options.method || 'GET').toUpperCase()
       if (endpoint.startsWith('/collections') && (method === 'POST' || method === 'PUT')) {
         logger.debug(`[API] ${method} ${endpoint} payload: ${String(processedOptions.body)}`)
       }
     }
   }
 
+  const hasRequestBody =
+    processedOptions.body !== undefined &&
+    processedOptions.body !== null &&
+    method !== 'GET' &&
+    method !== 'HEAD'
+  const hasExplicitContentType = hasHeader(options.headers, 'Content-Type')
+  const isBrowserRuntime = typeof window !== 'undefined' && typeof document !== 'undefined'
+
   const response = await fetch(url, {
     ...processedOptions,
     headers: {
-      'Content-Type': 'application/json',
+      ...(hasRequestBody && !hasExplicitContentType ? { 'Content-Type': 'application/json' } : {}),
       ...(shouldSendAuth ? { 'Authorization': `Bearer ${token}` } : {}),
-      // Fallback header for proxies that may drop Authorization
-      ...(shouldSendAuth ? { 'X-Forwarded-Authorization': token } : {}),
+      // For browser requests this extra header forces stricter CORS preflights.
+      // Keep it for non-browser runtimes where some proxies may drop Authorization.
+      ...(shouldSendAuth && !isBrowserRuntime ? { 'X-Forwarded-Authorization': token } : {}),
       ...options.headers,
     },
   })
@@ -370,11 +515,128 @@ async function request<T>(
   
   const endTime = performance.now()
   const duration = endTime - startTime
-  const method = (options.method || 'GET').toUpperCase()
   // Only log timing; never include payload in production logs to avoid leaking sensitive data
   logger.debug(`[API] ${method} ${endpoint}: ${duration.toFixed(1)}ms`)
   
   return result
+}
+
+type ImageUploadCrop = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+function normalizeUploadedImageId(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim()) {
+    return `/api/images/${encodeURIComponent(value.trim())}`
+  }
+
+  return null
+}
+
+function normalizeUploadedImageReference(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return null
+  }
+
+  const relativeMatch = trimmed.match(/^\/api\/images\/([^/?#]+)$/)
+  if (relativeMatch?.[1]) {
+    return `/api/images/${encodeURIComponent(decodeURIComponent(relativeMatch[1]))}`
+  }
+
+  try {
+    const parsed = new URL(trimmed)
+    const absoluteMatch = parsed.pathname.match(/^\/api\/images\/([^/?#]+)$/)
+    if (absoluteMatch?.[1]) {
+      return `/api/images/${encodeURIComponent(decodeURIComponent(absoluteMatch[1]))}`
+    }
+  } catch {
+    // Not an absolute URL; fall back to treating as raw image ID.
+  }
+
+  return normalizeUploadedImageId(trimmed)
+}
+
+type ProductImagePayload = { id: string; alt?: string } | { url: string; alt?: string }
+
+function normalizeImageAlt(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+
+  const trimmed = value.trim()
+  return trimmed || undefined
+}
+
+function buildImagePayloadFromUrl(imageUrl: string, imageAlt?: string): ProductImagePayload | undefined {
+  if (imageUrl.startsWith('data:image/')) {
+    return undefined
+  }
+
+  const relativeMatch = imageUrl.match(/^\/api\/images\/([^/?#]+)$/)
+  if (relativeMatch?.[1]) {
+    return imageAlt ? { id: decodeURIComponent(relativeMatch[1]), alt: imageAlt } : { id: decodeURIComponent(relativeMatch[1]) }
+  }
+
+  try {
+    const parsed = new URL(imageUrl)
+    const match = parsed.pathname.match(/^\/api\/images\/([^/?#]+)$/)
+    if (match?.[1]) {
+      return imageAlt ? { id: decodeURIComponent(match[1]), alt: imageAlt } : { id: decodeURIComponent(match[1]) }
+    }
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return imageAlt ? { url: parsed.toString(), alt: imageAlt } : { url: parsed.toString() }
+    }
+
+    return undefined
+  } catch {
+    return undefined
+  }
+}
+
+function buildProductImagePayload(input: {
+  image?: unknown
+  imageUrl?: unknown
+  imageAlt?: unknown
+}): ProductImagePayload | null | undefined {
+  if (input.image === null) {
+    return null
+  }
+
+  const imageAlt = normalizeImageAlt(input.imageAlt)
+
+  if (input.image && typeof input.image === 'object') {
+    const imageObj = input.image as { id?: unknown; url?: unknown; alt?: unknown }
+    if (typeof imageObj.id === 'string' && imageObj.id.trim()) {
+      const alt = normalizeImageAlt(imageObj.alt) ?? imageAlt
+      const id = imageObj.id.trim()
+      return alt ? { id, alt } : { id }
+    }
+
+    if (typeof imageObj.url === 'string' && imageObj.url.trim()) {
+      const alt = normalizeImageAlt(imageObj.alt) ?? imageAlt
+      return buildImagePayloadFromUrl(imageObj.url.trim(), alt)
+    }
+  }
+
+  const imageUrl = typeof input.imageUrl === 'string' ? input.imageUrl.trim() : input.imageUrl
+
+  if (imageUrl === null) {
+    return null
+  }
+
+  if (typeof imageUrl !== 'string' || !imageUrl) {
+    return undefined
+  }
+
+  return buildImagePayloadFromUrl(imageUrl, imageAlt)
 }
 
 export class APIService {
@@ -400,6 +662,10 @@ export class APIService {
   static setAuthTokenGetter(getter: () => Promise<string | null>) {
     setAuthTokenGetter(getter)
   }
+
+  static getAuthTokenGetter(): (() => Promise<string | null>) | null {
+    return getAuthTokenGetter()
+  }
   
   // Get API base URL for constructing full URLs
   static getBaseUrl(): string {
@@ -410,7 +676,7 @@ export class APIService {
   static async getCurrentUser(): Promise<UserAccount | null> {
     try {
       return await request<UserAccount>('/users/me')
-    } catch (error) {
+    } catch {
       return null
     }
   }
@@ -420,6 +686,199 @@ export class APIService {
     await request('/auth/signout', {
       method: 'POST',
     })
+  }
+
+  static async uploadImage(file: File | Blob, crop?: ImageUploadCrop): Promise<string> {
+    const base = getApiBaseUrl()
+    const url = `${base}/api/images/upload`
+    const token = getAuthToken ? await getAuthToken() : null
+    const timeoutMs = 30000
+
+    const fileLike = file as Blob & { name?: string; type?: string }
+    // Strip ASCII control characters (including CR/LF) from header-interpolated values
+    // to prevent multipart header injection / request smuggling.
+    // eslint-disable-next-line no-control-regex
+    const stripControls = (v: string) => v.replace(/[\x00-\x1f\x7f]/g, '')
+    const fileName = stripControls(
+      typeof fileLike.name === 'string' && fileLike.name.trim()
+        ? fileLike.name.trim()
+        : 'upload.bin'
+    ) || 'upload.bin'
+    const fileType = stripControls(
+      typeof fileLike.type === 'string' && fileLike.type.trim()
+        ? fileLike.type.trim()
+        : 'application/octet-stream'
+    ) || 'application/octet-stream'
+
+    const normalizeBlob = async (): Promise<Blob> => {
+      if (file instanceof Blob) {
+        if (file.type === fileType) {
+          return file
+        }
+
+        // If sanitization changed the type, re-wrap with the sanitized MIME value.
+        return new Blob([await file.arrayBuffer()], { type: fileType })
+      }
+
+      return new Blob([
+        new Uint8Array(await (file as { arrayBuffer(): Promise<ArrayBuffer> }).arrayBuffer()),
+      ], { type: fileType })
+    }
+
+    const uploadBlob = await normalizeBlob()
+
+    // Prefer standard FormData so backend frameworks can parse multipart reliably.
+    const formData = new FormData()
+    formData.append('file', uploadBlob, fileName)
+    if (crop) {
+      formData.append('crop_x', String(crop.x))
+      formData.append('crop_y', String(crop.y))
+      formData.append('crop_width', String(crop.width))
+      formData.append('crop_height', String(crop.height))
+    }
+
+    logger.debug('[API.uploadImage] Starting upload:', {
+      url,
+      hasToken: !!token,
+      fileName,
+      fileType,
+      fileSize: file.size,
+      hasCrop: !!crop,
+    })
+
+    const upload = async (withSignal: boolean) => {
+      const headers: Record<string, string> = {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(token ? { 'X-Forwarded-Authorization': token } : {}),
+      }
+
+      if (withSignal) {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+        try {
+          return await fetch(url, {
+            method: 'POST',
+            body: formData,
+            signal: controller.signal,
+            headers,
+          })
+        } finally {
+          clearTimeout(timeoutId)
+        }
+      }
+
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+      const timeoutPromise = new Promise<Response>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new APIError('Image upload timed out after 30 seconds. Please try again.', 408))
+        }, timeoutMs)
+      })
+
+      try {
+        return await Promise.race([
+          fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers,
+          }),
+          timeoutPromise,
+        ])
+      } finally {
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+        }
+      }
+    }
+
+    const parseUploadError = async (res: Response): Promise<{ detail?: string; message?: string }> => {
+      const ct = res.headers.get('content-type') || ''
+      if (ct.includes('application/json')) {
+        return await res.json().catch(() => ({ message: res.statusText }))
+      }
+      const errorText = await res.text().catch(() => '')
+      return { message: errorText?.trim() || res.statusText }
+    }
+
+    const uploadWithSignalHandling = async () => {
+      try {
+        return await upload(true)
+      } catch (error) {
+        const message = String((error as Error)?.message || error)
+        const signalMismatch = message.includes('Expected signal')
+        if (signalMismatch) {
+          // Some test/runtime combinations provide an AbortSignal implementation that
+          // fetch rejects; retry without signal but still enforce timeout via Promise.race.
+          return await upload(false)
+        }
+
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          logger.error('[API.uploadImage] Upload timed out after 30s')
+          throw new APIError('Image upload timed out after 30 seconds. Please try again.', 408)
+        }
+
+        logger.error('[API.uploadImage] Upload request failed before response:', error)
+        throw error
+      }
+    }
+
+    const response = await uploadWithSignalHandling()
+
+    logger.debug('[API.uploadImage] Upload response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      contentType: response.headers.get('content-type') || '',
+    })
+
+    if (!response.ok) {
+      const errorData = await parseUploadError(response)
+      throw new APIError(
+        errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`,
+        response.status,
+        errorData
+      )
+    }
+
+    const responseContentType = response.headers.get('content-type') || ''
+    if (responseContentType.includes('application/json')) {
+      const data = await response.json()
+
+      const objectData = data && typeof data === 'object'
+        ? (data as Record<string, unknown>)
+        : null
+
+      const candidates: unknown[] = [
+        data,
+        objectData?.id,
+        objectData?.image_id,
+        objectData?.url,
+        objectData?.image_url,
+        objectData?.path,
+      ]
+
+      for (const candidate of candidates) {
+        const normalized = normalizeUploadedImageReference(candidate)
+        if (normalized) {
+          return normalized
+        }
+      }
+
+      logger.error('[API.uploadImage] Unexpected JSON upload payload shape:', data)
+
+      throw new APIError('Image upload succeeded but returned an unexpected payload.', 500, data)
+    }
+
+    const rawBody = (await response.text()).trim()
+    if (!rawBody) {
+      throw new APIError('Image upload succeeded but returned an empty response.', 500)
+    }
+
+    const normalizedReference = normalizeUploadedImageReference(rawBody)
+    if (normalizedReference) {
+      return normalizedReference
+    }
+
+    throw new APIError('Image upload succeeded but returned an unexpected payload.', 500, rawBody)
   }
   
   // Get user account by internal user ID (Supabase UUID)
@@ -505,8 +964,31 @@ export class APIService {
   }
 
   private static validateBlogPostResponse(post: BlogPost, context: string): BlogPost {
+    const headerImageFromPost = typeof post.headerImage === 'string' ? post.headerImage.trim() : ''
+    const rawPost = post as BlogPost & { headerImageId?: unknown; headerImageUrl?: unknown }
+    const headerImageFromUrlField = typeof rawPost.headerImageUrl === 'string' ? rawPost.headerImageUrl.trim() : ''
+    const headerImageId = typeof rawPost.headerImageId === 'string' ? rawPost.headerImageId.trim() : ''
+
+    let normalizedHeaderImage = headerImageFromPost || headerImageFromUrlField
+    if (!normalizedHeaderImage && headerImageId) {
+      normalizedHeaderImage = `/api/images/${encodeURIComponent(headerImageId)}`
+    }
+
+    if (normalizedHeaderImage) {
+      try {
+        const normalizedReference = normalizeUploadedImageReference(normalizedHeaderImage)
+        if (normalizedReference) {
+          normalizedHeaderImage = normalizedReference
+        }
+      } catch {
+        // Keep the trimmed original value when server-provided percent-encoding is malformed.
+      }
+      normalizedHeaderImage = resolveApiImageUrl(normalizedHeaderImage)
+    }
+
     return {
       ...post,
+      headerImage: normalizedHeaderImage || undefined,
       createdAt: assertIsoTimestamp(post.createdAt, 'createdAt', context),
       updatedAt: assertIsoTimestamp(post.updatedAt, 'updatedAt', context),
       publishDate: post.publishDate == null ? undefined : assertIsoTimestamp(post.publishDate, 'publishDate', context),
@@ -538,7 +1020,7 @@ export class APIService {
   }> {
     try {
       return await request(`/users/${encodeURIComponent(username)}/stats`)
-    } catch (error) {
+    } catch {
       // Return empty stats if endpoint doesn't exist yet
       return {
         productsSubmitted: 0,
@@ -763,7 +1245,7 @@ export class APIService {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }))
-      const errorMessage = (errorData as any).detail || (errorData as any).message || `HTTP ${response.status}: ${response.statusText}`
+      const errorMessage = (errorData as { detail?: string; message?: string }).detail || (errorData as { detail?: string; message?: string }).message || `HTTP ${response.status}: ${response.statusText}`
       throw new APIError(errorMessage, response.status, errorData)
     }
 
@@ -784,8 +1266,8 @@ export class APIService {
 
     try {
       return await load(!!controller)
-    } catch (err: any) {
-      const message = String(err?.message || err)
+    } catch (err) {
+      const message = String((err as { message?: string })?.message || err)
       const signalMismatch = err instanceof TypeError && message.includes('Expected signal')
 
       // Some test environments use a different AbortSignal implementation; retry without it
@@ -800,29 +1282,55 @@ export class APIService {
   }
 
   static async createProduct(product: Omit<Product, 'id' | 'createdAt'>): Promise<Product> {
+    const productWithImageInput = product as Omit<Product, 'id' | 'createdAt'> & {
+      image?: unknown
+      imageUrl?: unknown
+      imageAlt?: unknown
+    }
+    const image = buildProductImagePayload({
+      image: productWithImageInput.image,
+      imageUrl: productWithImageInput.imageUrl,
+      imageAlt: productWithImageInput.imageAlt,
+    })
+
+    const createPayload: Record<string, unknown> = {
+      ...product,
+      image,
+    }
+
+    // Image contract: send nested image object.
+    delete createPayload.imageId
+    delete createPayload.imageUrl
+    delete createPayload.imageAlt
+
     return request<Product>('/products', {
       method: 'POST',
-      body: JSON.stringify(product),
+      body: JSON.stringify(createPayload),
     })
   }
 
   static async updateProduct(
     productId: string,
-    updates: Partial<ProductUpdate>,
+    updates: Partial<ProductUpdate> & { image?: unknown },
     editorId?: string
   ): Promise<Product | null> {
     logger.debug('[API.updateProduct] Raw updates received:', updates)
     logger.debug('[API.updateProduct] EditorId:', editorId)
     
-    // Extract only editable fields that match backend's ProductUpdate schema
-    const editableUpdates: Partial<ProductUpdate & { editorId?: string }> = {
+    const image = buildProductImagePayload({
+      image: updates.image,
+      imageUrl: updates.imageUrl,
+      imageAlt: updates.imageAlt,
+    })
+
+    // Extract only editable fields for backend update schema.
+    const editableUpdates: Partial<ProductUpdate & { editorId?: string; image?: ProductImagePayload | null }> = {
       name: updates.name,
       description: updates.description,
       source: updates.source,
       sourceUrl: updates.sourceUrl,
       type: updates.type,
-      imageUrl: updates.imageUrl,
-      imageAlt: updates.imageAlt,
+      image,
       tags: updates.tags,
     }
     
@@ -842,10 +1350,8 @@ export class APIService {
     
     logger.debug('[API.updateProduct] Filtered editable updates (camelCase):', editableUpdates)
     logger.debug('[API.updateProduct] Image fields being sent:', {
-      imageUrl: editableUpdates.imageUrl,
-      imageAlt: editableUpdates.imageAlt,
-      hasImageUrl: 'imageUrl' in editableUpdates,
-      hasImageAlt: 'imageAlt' in editableUpdates
+      image: editableUpdates.image,
+      hasImage: 'image' in editableUpdates,
     })
     logger.debug('[API.updateProduct] Target endpoint:', `/products/${productId}`)
     
@@ -881,8 +1387,8 @@ export class APIService {
         productSlug,
         endpoint,
         error: error instanceof Error ? error.message : String(error),
-        errorStatus: (error as any)?.status,
-        errorData: (error as any)?.data,
+        errorStatus: (error as { status?: number; data?: unknown })?.status,
+        errorData: (error as { status?: number; data?: unknown })?.data,
         fullError: error
       })
       throw error
@@ -1150,7 +1656,7 @@ export class APIService {
     })
   }
 
-  static async saveOAuthToken(platform: string, tokenData: any): Promise<{ message: string }> {
+  static async saveOAuthToken(platform: string, tokenData: Record<string, string | undefined>): Promise<{ message: string }> {
     return request(`/scrapers/oauth/${platform}/save-token`, {
       method: 'POST',
       body: JSON.stringify(tokenData),
@@ -1163,6 +1669,7 @@ export class APIService {
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static async getOAuthConfig(platform: string): Promise<any> {
     return request(`/scrapers/oauth/${platform}/config`)
   }
@@ -1176,6 +1683,7 @@ export class APIService {
       accessToken?: string
       refreshToken?: string
     }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     return request(`/scrapers/oauth-configs/${platform}`, {
       method: 'PUT',
@@ -1183,6 +1691,7 @@ export class APIService {
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static async completeOAuthCallback(platform: string, code: string): Promise<any> {
     return request(`/scrapers/oauth/${platform}/callback?code=${encodeURIComponent(code)}`, {
       method: 'POST',
@@ -1365,7 +1874,7 @@ export class APIService {
   static async getUserRequests(username: string): Promise<UserRequest[]> {
     try {
       return await request<UserRequest[]>(`/users/${encodeURIComponent(username)}/requests`)
-    } catch (error) {
+    } catch {
       // Return empty array if endpoint doesn't exist yet
       return []
     }
@@ -1396,21 +1905,21 @@ export class APIService {
     })
   }
 
-  static async approveRequest(requestId: string, reviewerId: string, note?: string): Promise<UserRequest | null> {
+  static async approveRequest(requestId: string, _reviewerId: string, _note?: string): Promise<UserRequest | null> {
     return request<UserRequest | null>(`/requests/${requestId}`, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'approved' }),
     })
   }
 
-  static async rejectRequest(requestId: string, reviewerId: string, note?: string): Promise<UserRequest | null> {
+  static async rejectRequest(requestId: string, _reviewerId: string, _note?: string): Promise<UserRequest | null> {
     return request<UserRequest | null>(`/requests/${requestId}`, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'rejected' }),
     })
   }
 
-  static async withdrawRequest(requestId: string, userId: string): Promise<{ success: boolean }> {
+  static async withdrawRequest(requestId: string, _userId: string): Promise<{ success: boolean }> {
     try {
       await request<void>(`/requests/${requestId}`, {
         method: 'DELETE',

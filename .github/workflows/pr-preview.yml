@@ -24,6 +24,7 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
+          cache-dependency-path: package-lock.json
       - name: Install dependencies
         run: npm ci
       - name: Run lint
@@ -44,7 +45,6 @@ jobs:
         env:
           # PR previews must use isolated preview services, never production.
           VITE_API_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
-          VITE_DEV_MODE: "true"
           VITE_ENV: development
           VITE_LOG_LEVEL: debug
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL_PREVIEW }}

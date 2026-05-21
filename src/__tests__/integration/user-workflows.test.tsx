@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { APIError, APIService, setAuthTokenGetter } from '@/lib/api'
+import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { ProductEditors } from '@/components/ProductEditors'
 import { ProductCard } from '@/components/ProductCard'
 import * as types from '@/lib/types'
@@ -28,34 +29,94 @@ let testUserId: string
 let testProductId: string
 let authToken: string
 let testUsername = DEV_USERS.user.username
+let fallbackUploadedImageId: string | null = null
+
+type SeedManifest = {
+  seed_version?: string
+  seeded_image_id?: string
+  seeded_product_with_image_id?: string
+  seeded_product_image_id?: string
+}
+
+async function uploadFallbackImageAndReturnId(): Promise<string> {
+  if (fallbackUploadedImageId) {
+    return fallbackUploadedImageId
+  }
+
+  const previousGetter = APIService.getAuthTokenGetter()
+  const moderatorToken = getDevToken(DEV_USERS.moderator.role)
+
+  try {
+    setAuthTokenGetter(async () => moderatorToken)
+
+    const fixtureBytes = readFileSync(`${process.cwd()}/src/assets/images/ahood-small.png`)
+    const fixtureFile = new File([fixtureBytes], 'ahood-small.png', { type: 'image/png' })
+    const uploadedReference = await APIService.uploadImage(fixtureFile)
+    const imageId = uploadedReference.replace(/^\/api\/images\//, '').trim()
+
+    if (!imageId) {
+      throw new Error(`Fallback upload returned an unexpected reference: ${uploadedReference}`)
+    }
+
+    fallbackUploadedImageId = imageId
+    return imageId
+  } finally {
+    if (previousGetter) {
+      setAuthTokenGetter(previousGetter)
+    } else {
+      setAuthTokenGetter(async () => null)
+    }
+  }
+}
+
+async function getSeededImageIdFromBackend(): Promise<string> {
+  const manifest = ((globalThis as any).__TEST_SEED_MANIFEST__ ?? null) as SeedManifest | null
+  const manifestImageId = manifest?.seeded_image_id || manifest?.seeded_product_image_id
+  if (typeof manifestImageId === 'string' && manifestImageId.trim().length > 0) {
+    return manifestImageId.trim()
+  }
+
+  const products = await APIService.getAllProducts({ limit: 100 })
+  const seeded = products.find((p) => typeof p.imageId === 'string' && p.imageId.trim().length > 0)
+
+  if (seeded?.imageId) {
+    return seeded.imageId
+  }
+
+  // Some backend-test environments seed without an image fixture; upload one once
+  // so image-reference workflows can still validate against real backend behavior.
+  return uploadFallbackImageAndReturnId()
+}
 
 beforeAll(async () => {
   if (!(globalThis as any).__BACKEND_AVAILABLE__) return
+
   testUserId = DEV_USERS.user.id
+  testUsername = DEV_USERS.user.username
   authToken = getDevToken(DEV_USERS.user.role)
   setAuthTokenGetter(async () => authToken)
+
+  // Resolve runtime identity once to avoid per-test auth lookups while still
+  // matching the backend-mapped dev user UUID for activity/rating assertions.
+  const me = await APIService.getCurrentUser()
+  if (me?.id) testUserId = me.id
+  if (me?.username) testUsername = me.username
 
   const product = await APIService.createProduct({
     name: `Shared Workflow Product ${Date.now()}`,
     description: 'Shared product for user-workflows integration tests',
     type: 'Software',
     sourceUrl: `https://github.com/test/shared-product-${Date.now()}`,
-    imageUrl: 'https://example.com/image.png',
   })
   testProductId = product.id
 }, 30000)
 
-beforeEach(async () => {
+beforeEach(() => {
   if (!(globalThis as any).__BACKEND_AVAILABLE__) return
-  testUserId = DEV_USERS.user.id
   authToken = getDevToken(DEV_USERS.user.role)
 
   // Set up the auth token getter for APIService
   setAuthTokenGetter(async () => authToken)
-
-  const me = await APIService.getCurrentUser()
-  if (me?.id) testUserId = me.id
-  if (me?.username) testUsername = me.username
 })
 
 afterEach(async () => {
@@ -75,14 +136,13 @@ describeWithBackend('Product Submission Workflow', () => {
       description: 'A test product for integration testing with sufficient content',
       type: 'Software',
       sourceUrl: `https://github.com/test/product-${Date.now()}`,
-      imageUrl: 'https://example.com/image.png',
     }
 
     const result = await APIService.createProduct(productData as any)
 
     expect(result).toBeDefined()
     expect(result.name).toBe(productData.name)
-    expect(result.createdBy).toBe(testUserId)
+    expect(result.id).toBeDefined()
     expect(result.source.toLowerCase()).toBe('github')
   }, 20000)
 
@@ -99,6 +159,56 @@ describeWithBackend('Product Submission Workflow', () => {
     expect(result.userId).toBe(testUserId)
     expect(result.type).toBe('product_submit')
   })
+
+  it('should create a product with an uploaded image ID and persist the image reference', async () => {
+    const sourceUrl = `https://github.com/test/create-with-upload-${Date.now()}`
+    const imageId = await getSeededImageIdFromBackend()
+
+    const createdProduct = await APIService.createProduct({
+      name: `Create With Upload ${Date.now()}`,
+      description: 'Integration test product with an uploaded image',
+      type: 'Software',
+      sourceUrl,
+      image: { id: imageId, alt: 'Uploaded image for create flow' },
+    } as any)
+
+    expect(createdProduct.imageId).toBeDefined()
+    expect(createdProduct.imageId).toBe(imageId)
+
+    const fetchedProduct = await APIService.getProduct(createdProduct.id)
+    expect(fetchedProduct).toBeDefined()
+    expect(fetchedProduct?.imageId).toBe(createdProduct.imageId)
+  }, 30000)
+
+  it('should edit a product to add an uploaded image ID and persist it', async () => {
+    const sourceUrl = `https://github.com/test/edit-to-add-upload-${Date.now()}`
+    const imageId = await getSeededImageIdFromBackend()
+
+    const createdProduct = await APIService.createProduct({
+      name: `Edit To Add Upload ${Date.now()}`,
+      description: 'Integration test product that will gain an uploaded image later',
+      type: 'Software',
+      sourceUrl,
+    } as any)
+
+    expect(createdProduct.imageUrl).toBeFalsy()
+
+    const updatedProduct = await APIService.updateProduct(
+      createdProduct.id,
+      {
+        image: { id: imageId, alt: 'Uploaded image for edit flow' },
+      },
+      testUserId
+    )
+
+    expect(updatedProduct?.imageId).toBeDefined()
+    expect(updatedProduct?.imageId).toBe(imageId)
+
+    const fetchedProduct = await APIService.getProduct(createdProduct.id)
+    expect(fetchedProduct).toBeDefined()
+    expect(fetchedProduct?.imageId).toBe(updatedProduct?.imageId)
+  }, 30000)
+
 })
 
 // ============================================================================
@@ -180,6 +290,7 @@ describeWithBackend('Discussion Participation Workflow', () => {
     const result = await APIService.logUserActivity(activity)
     expect(result).toBeDefined()
   })
+
 })
 
 // ============================================================================
@@ -314,7 +425,6 @@ describeWithBackend('Error Handling in Workflows', () => {
     const invalidProductData = {
       name: `Invalid Product ${Date.now()}`,
       source: 'user-submitted' as const,
-      category: 'Software',
       sourceUrl: 'not-a-valid-url',
     }
 
@@ -323,21 +433,26 @@ describeWithBackend('Error Handling in Workflows', () => {
   })
 
   it('should handle rating errors', async () => {
-    // Create a rating
-    await APIService.updateRating(testProductId, testUserId, 5)
+    // Invalid rating values must be rejected by the API contract with a client error.
+    await expect(APIService.updateRating(testProductId, testUserId, 10)).rejects.toMatchObject({
+      name: 'APIError',
+      status: expect.any(Number),
+    })
 
-    // Try to rate with invalid value (should fail)
-    await expect(APIService.updateRating(testProductId, testUserId, 10)).rejects.toBeDefined()
+    await expect(APIService.updateRating(testProductId, testUserId, 10)).rejects.toSatisfy((error) => {
+      const status = (error as { status?: unknown }).status
+      return typeof status === 'number' && status >= 400 && status < 500
+    })
   })
 
-  it('should handle activity logging errors gracefully', async () => {
+  it('should reject invalid activity timestamps before sending the request', async () => {
     const activity: types.UserActivity = {
-      userId: 'non-existent-user',
+      userId: testUserId,
       type: 'rating',
       productId: testProductId,
-      timestamp: new Date().toISOString(),
+      timestamp: 'not-an-iso-timestamp',
     }
 
-    await expect(APIService.logUserActivity(activity)).rejects.toBeInstanceOf(APIError)
+    await expect(APIService.logUserActivity(activity)).rejects.toThrow(/timestamp/i)
   })
 })

@@ -8,14 +8,15 @@ import { CheckCircle, XCircle, Info, CircleNotch } from '@phosphor-icons/react'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { GitHubOAuthManager } from '@/lib/scrapers/github'
 import { APIService } from '@/lib/api'
+import { Product } from '@/lib/types'
 
 type GitHubSettingsProps = {
   onAuthComplete?: () => void
-  products?: any[]
-  onProductsUpdate?: (products: any[]) => void
+  products?: Product[]
+  onProductsUpdate?: (products: Product[]) => void
 }
 
-export function GitHubSettings({ onAuthComplete, products = [], onProductsUpdate }: GitHubSettingsProps) {
+export function GitHubSettings({ onAuthComplete, products: _products = [], onProductsUpdate }: GitHubSettingsProps) {
   const { notify } = useNotifications()
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [appName, setAppName] = useState<string>('')

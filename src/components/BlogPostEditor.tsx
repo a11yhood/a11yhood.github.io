@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { CheckCircle, X, FloppyDisk, Eye, Image as ImageIcon, Trash, UserPlus } from '@phosphor-icons/react'
 import { useNotifications } from '@/contexts/NotificationContext'
+import { BLOG_HEADER_IMAGE_UPLOAD_BYTES, BLOG_HEADER_IMAGE_UPLOAD_MB } from '@/lib/imageUpload'
 import { renderMarkdown } from '@/lib/markdown'
 import { toIsoTimestamp } from '@/lib/utils'
 
@@ -55,8 +56,26 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
   const [imageUrlDialogOpen, setImageUrlDialogOpen] = useState(false)
   const [imageUrlInput, setImageUrlInput] = useState('')
   const [imageAltInput, setImageAltInput] = useState('')
+  const [headerImageUrlInput, setHeaderImageUrlInput] = useState('')
 
   // Backend now normalizes images; `headerImage` should be an http(s) URL or data URL already
+
+  const handleSetHeaderImageFromUrl = () => {
+    const url = headerImageUrlInput.trim()
+    if (!url) return
+    try {
+      const parsed = new URL(url)
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        notify.error('Please provide an http/https image URL')
+        return
+      }
+      setHeaderImage(url)
+      setHeaderImageUrlInput('')
+      notify.success('Header image URL set')
+    } catch {
+      notify.error('Please provide a valid image URL')
+    }
+  }
 
   // Generate URL-friendly slug from title
   const generateSlug = (text: string) => {
@@ -98,9 +117,9 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
       return
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      notify.error('Image must be less than 5MB')
+    // Validate file size
+    if (file.size > BLOG_HEADER_IMAGE_UPLOAD_BYTES) {
+      notify.error(`Image must be at most ${BLOG_HEADER_IMAGE_UPLOAD_MB}MB`)
       return
     }
 
@@ -492,7 +511,7 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
           <div className="border-t pt-4">
             <Label htmlFor="header-image-upload">Header Image</Label>
             <p id="header-image-help" className="text-sm text-muted-foreground mb-3">
-              Displayed at the top of your blog post (max 5MB)
+              Displayed at the top of your blog post (max {BLOG_HEADER_IMAGE_UPLOAD_MB}MB)
             </p>
             
             {headerImage && (
@@ -537,6 +556,36 @@ export function BlogPostEditor({ post, authorName, authorId, onSave, onCancel }:
               <ImageIcon className="w-4 h-4 mr-2" />
               {headerImage ? 'Change Header Image' : 'Upload Header Image'}
             </Button>
+
+            <div className="flex items-center gap-2 my-3">
+              <hr className="flex-1 border-border" />
+              <span className="text-xs text-muted-foreground">or</span>
+              <hr className="flex-1 border-border" />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="header-image-url">Set by URL</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="header-image-url"
+                  name="headerImageUrl"
+                  type="url"
+                  autoComplete="off"
+                  placeholder="https://example.com/image.jpg"
+                  value={headerImageUrlInput}
+                  onChange={(e) => setHeaderImageUrlInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSetHeaderImageFromUrl() } }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSetHeaderImageFromUrl}
+                  disabled={!headerImageUrlInput.trim()}
+                >
+                  Set
+                </Button>
+              </div>
+            </div>
 
             {headerImage && (
               <div className="mt-3">

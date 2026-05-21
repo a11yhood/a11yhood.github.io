@@ -18,8 +18,20 @@ function withApiProxy(target: string) {
       changeOrigin: true,
       secure: false,
       // Forward all headers (Authorization and others) to backend
-      configure: (proxy: any, _options: any) => {
-        proxy.on('proxyReq', (proxyReq: any, req: any, _res: any) => {
+      configure: (
+        proxy: {
+          on: (
+            event: 'proxyReq',
+            handler: (
+              proxyReq: { setHeader: (key: string, value: string) => void; removeHeader: (key: string) => void },
+              req: { headers: Record<string, string | string[] | undefined>; url?: string; method?: string },
+              _res: unknown,
+            ) => void,
+          ) => void
+        },
+        _options: unknown,
+      ) => {
+        proxy.on('proxyReq', (proxyReq, req, _res) => {
           const headers = req.headers
           const isUserAccountRead = req.url?.startsWith('/api/users/') && !req.url?.startsWith('/api/users/me') && req.method?.toUpperCase() === 'GET'
 
@@ -27,7 +39,8 @@ function withApiProxy(target: string) {
           for (const [key, value] of Object.entries(headers)) {
             if (typeof value !== 'undefined') {
               try {
-                proxyReq.setHeader(key, value as any)
+                const normalizedValue = Array.isArray(value) ? value.join(', ') : value
+                proxyReq.setHeader(key, normalizedValue)
               } catch {
                 // ignore headers that http-proxy disallows setting
               }
@@ -46,9 +59,13 @@ function withApiProxy(target: string) {
           if (!isUserAccountRead && !hasAuth && typeof forwarded !== 'undefined') {
             try {
               const val = Array.isArray(forwarded) ? forwarded[0] : forwarded
-              const finalVal = val?.startsWith('Bearer ') ? val : `Bearer ${val}`
-              proxyReq.setHeader('Authorization', finalVal)
-            } catch {}
+              if (typeof val === 'string' && val.length > 0) {
+                const finalVal = val.startsWith('Bearer ') ? val : `Bearer ${val}`
+                proxyReq.setHeader('Authorization', finalVal)
+              }
+            } catch {
+              // Ignore header recovery failures for forwarded auth.
+            }
           }
         })
       }

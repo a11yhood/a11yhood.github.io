@@ -33,6 +33,6 @@ describe('CollectionsPage – level-one heading (page-has-heading-one)', () => {
     const { container } = renderAtPath('/collections')
 
     const results = await runA11yScan(container)
-    expect(results).toHaveNoViolations()
+    expect(results.violations).toHaveLength(0)
   })
 })

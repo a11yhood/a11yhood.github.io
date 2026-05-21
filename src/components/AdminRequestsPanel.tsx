@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Card } from '@/components/ui/card'
 import { CollapsibleCard } from '@/components/CollapsibleCard'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -11,10 +8,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { UserRequest, Product, UserAccount } from '@/lib/types'
 import { APIService } from '@/lib/api'
-import { ShieldCheck, Clock, CheckCircle, XCircle, User as UserIcon, Package, Trash } from '@phosphor-icons/react'
+import { ShieldCheck } from '@phosphor-icons/react'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { RequestCard } from './RequestCard'
-import { Link } from 'react-router-dom'
 
 type AdminRequestsPanelProps = {
   adminId: string
@@ -94,29 +90,18 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
     }
 
     try {
-      console.log('handleReviewRequest called with:', { requestId: request.id, action })
-      
       const freshRequests = await APIService.getAllRequests()
-      console.log('Fresh requests loaded:', freshRequests.length)
-      
       const freshRequest = freshRequests.find(r => r.id === request.id)
-      console.log('Fresh request found:', freshRequest ? 'Yes' : 'No')
-      
       if (!freshRequest) {
-        console.error('Request not found in fresh list. Request ID:', request.id)
-        console.error('Available request IDs:', freshRequests.map(r => r.id))
         notify.error('Request no longer exists. The list has been refreshed.')
         await loadRequests()
         return
       }
-      
       if (freshRequest.status !== 'pending') {
         notify.error(`This request has already been ${freshRequest.status}`)
         await loadRequests()
         return
       }
-      
-      console.log('Setting reviewingRequest with ID:', freshRequest.id)
       setReviewingRequest(freshRequest)
       setReviewAction(action)
       setReviewNote('')
@@ -127,16 +112,11 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
   }
 
   const handleSubmitReview = async () => {
-    if (!reviewingRequest || !reviewAction) {
-      console.error('Missing reviewingRequest or reviewAction')
-      return
-    }
-
+    if (!reviewingRequest || !reviewAction) return
     if (!canManageRoleRequests && (reviewingRequest.type === 'admin' || reviewingRequest.type === 'moderator')) {
       notify.error('Only admins can review role change requests')
       return
     }
-    
     if (!adminId) {
       notify.error('Admin ID not available. Please refresh the page.')
       return
@@ -144,26 +124,16 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
 
     setSubmitting(true)
     try {
-      console.log('=== SUBMITTING REVIEW ===')
-      console.log('Initial Request ID:', reviewingRequest.id)
-      
       const freshRequests = await APIService.getAllRequests()
-      console.log('Loaded fresh requests:', freshRequests.length)
-      
       const stillExists = freshRequests.find(r => r.id === reviewingRequest.id)
-      console.log('Request still exists:', stillExists ? 'Yes' : 'No')
-      
       if (!stillExists) {
-        console.error('Request disappeared before submission')
         notify.error('Request no longer exists. Please refresh.')
         setReviewingRequest(null)
         setReviewAction(null)
         await loadRequests()
         return
       }
-      
       if (stillExists.status !== 'pending') {
-        console.error('Request status changed to:', stillExists.status)
         notify.error(`This request has already been ${stillExists.status}`)
         setReviewingRequest(null)
         setReviewAction(null)
@@ -171,37 +141,22 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
         return
       }
 
-      console.log('Sending review to API with:', {
-        requestId: stillExists.id,
-        action: reviewAction,
-        reviewerNote: reviewNote,
-        reviewerId: adminId,
-      })
-      
       const result = reviewAction === 'approve'
         ? await APIService.approveRequest(stillExists.id, adminId, reviewNote)
         : await APIService.rejectRequest(stillExists.id, adminId, reviewNote)
-      
-      console.log('API response:', result)
-      
+
       if (result) {
-        console.log('Request processed successfully, reloading...')
         notify.success(`Request ${reviewAction}d successfully`)
         setReviewingRequest(null)
         setReviewAction(null)
         setReviewNote('')
         await loadRequests()
-        console.log('=== REVIEW COMPLETE ===')
       } else {
-        console.error('API returned null/falsy response')
         notify.error('Failed to process request')
       }
     } catch (error) {
-      console.error('=== ERROR PROCESSING REQUEST ===')
-      console.error('Error:', error)
+      console.error('Error processing request:', error)
       if (error instanceof Error) {
-        console.error('Error message:', error.message)
-        console.error('Error stack:', error.stack)
         notify.error(`Failed: ${error.message}`)
       } else {
         notify.error('Failed to process request')
@@ -210,8 +165,6 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
       setSubmitting(false)
     }
   }
-
-
 
   const handleDeleteRequest = (request: UserRequest) => {
     setRequestToDelete(request)
@@ -239,66 +192,6 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
       setDeleteDialogOpen(false)
       setRequestToDelete(null)
     }
-  }
-
-  const getStatusBadge = (status: UserRequest['status']) => {
-    switch (status) {
-      case 'pending':
-        return (
-          <Badge variant="secondary" className="flex items-center gap-1">
-            <Clock size={14} />
-            Pending
-          </Badge>
-        )
-      case 'approved':
-        return (
-          <Badge className="flex items-center gap-1 bg-green-600 hover:bg-green-700">
-            <CheckCircle size={14} />
-            Approved
-          </Badge>
-        )
-      case 'rejected':
-        return (
-          <Badge variant="destructive" className="flex items-center gap-1">
-            <XCircle size={14} />
-            Rejected
-          </Badge>
-        )
-    }
-  }
-
-  const renderRoleBadge = (userId?: string) => {
-    if (!userId) return null
-    const role = userLookup[userId]?.role
-    if (!role || role === 'unknown') return null
-
-    const variant: 'default' | 'secondary' | 'outline' =
-      role === 'admin' ? 'default' : role === 'moderator' ? 'secondary' : 'outline'
-    const label = role === 'admin' ? 'Admin' : role === 'moderator' ? 'Moderator' : 'User'
-
-    return (
-      <Badge variant={variant} className="capitalize">
-        {label}
-      </Badge>
-    )
-  }
-
-  const renderUserIdLine = (userId?: string) => {
-    if (!userId) return null
-    const name = userLookup[userId]?.name
-    return (
-      <p className="text-xs text-muted-foreground font-mono">User ID: {userId}{name ? ` (${name})` : ''}</p>
-    )
-  }
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
   }
 
   const pendingRequests = allRequests.filter(r => r.status === 'pending')
