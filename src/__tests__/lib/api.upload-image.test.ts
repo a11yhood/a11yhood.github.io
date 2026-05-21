@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { APIError, APIService } from '@/lib/api'
 
+function isFormDataBody(body: unknown): body is FormData {
+  return typeof FormData !== 'undefined' && body instanceof FormData
+}
+
+function isBlobBody(body: unknown): body is Blob {
+  return typeof Blob !== 'undefined' && body instanceof Blob
+}
+
 describe('APIService.uploadImage', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -104,17 +112,25 @@ describe('APIService.uploadImage', () => {
     ).resolves.toBe('/api/images/123e4567-e89b-12d3-a456-426614174666')
 
     const [, requestInit] = fetchSpy.mock.calls[0] ?? []
-    // Body is now a Blob composed from header/file/footer chunks — decode via arrayBuffer().
-    const bodyText = new TextDecoder().decode(await (requestInit?.body as Blob).arrayBuffer())
+    const body = requestInit?.body
 
-    expect(bodyText).toContain('name="crop_x"')
-    expect(bodyText).toContain('\r\n1\r\n')
-    expect(bodyText).toContain('name="crop_y"')
-    expect(bodyText).toContain('\r\n2\r\n')
-    expect(bodyText).toContain('name="crop_width"')
-    expect(bodyText).toContain('\r\n3\r\n')
-    expect(bodyText).toContain('name="crop_height"')
-    expect(bodyText).toContain('\r\n4\r\n')
+    if (isFormDataBody(body)) {
+      expect(body.get('crop_x')).toBe('1')
+      expect(body.get('crop_y')).toBe('2')
+      expect(body.get('crop_width')).toBe('3')
+      expect(body.get('crop_height')).toBe('4')
+    } else {
+      const bodyText = new TextDecoder().decode(await (body as Blob).arrayBuffer())
+
+      expect(bodyText).toContain('name="crop_x"')
+      expect(bodyText).toContain('\r\n1\r\n')
+      expect(bodyText).toContain('name="crop_y"')
+      expect(bodyText).toContain('\r\n2\r\n')
+      expect(bodyText).toContain('name="crop_width"')
+      expect(bodyText).toContain('\r\n3\r\n')
+      expect(bodyText).toContain('name="crop_height"')
+      expect(bodyText).toContain('\r\n4\r\n')
+    }
   })
 
   it('throws APIError for successful JSON responses with unexpected payload shape', async () => {
@@ -143,13 +159,25 @@ describe('APIService.uploadImage', () => {
     await APIService.uploadImage(new File(['bytes'], injectedName, { type: 'image/png' }))
 
     const [, requestInit] = fetchSpy.mock.calls[0] ?? []
-    const bodyText = new TextDecoder().decode(await (requestInit?.body as Blob).arrayBuffer())
+    const body = requestInit?.body
 
-    expect(bodyText).not.toContain('\r\nX-Injected')
-    expect(bodyText).not.toMatch(/filename="[^"]*\r/)
-    expect(bodyText).not.toMatch(/filename="[^"]*\n/)
-    // Sanitised filename is present without the injected portion.
-    expect(bodyText).toContain('filename="evil')
+    if (isFormDataBody(body)) {
+      const uploaded = body.get('file')
+      expect(uploaded).toBeTruthy()
+      expect(uploaded instanceof File).toBe(true)
+      const uploadedFile = uploaded as File
+      expect(uploadedFile.name).not.toContain('\r')
+      expect(uploadedFile.name).not.toContain('\n')
+      expect(uploadedFile.name).toContain('evil')
+    } else {
+      const bodyText = new TextDecoder().decode(await (body as Blob).arrayBuffer())
+
+      expect(bodyText).not.toContain('\r\nX-Injected')
+      expect(bodyText).not.toMatch(/filename="[^"]*\r/)
+      expect(bodyText).not.toMatch(/filename="[^"]*\n/)
+      // Sanitised filename is present without the injected portion.
+      expect(bodyText).toContain('filename="evil')
+    }
   })
 
   it('strips CR/LF and control characters from fileType to prevent header injection', async () => {
@@ -172,14 +200,26 @@ describe('APIService.uploadImage', () => {
     await APIService.uploadImage(blobLike)
 
     const [, requestInit] = fetchSpy.mock.calls[0] ?? []
-    const bodyText = new TextDecoder().decode(await (requestInit?.body as Blob).arrayBuffer())
+    const body = requestInit?.body
 
-    // After stripping CR/LF the remaining text ('image/pngX-Injected: header') is
-    // harmless — it is just garbage inside the Content-Type token, NOT a separate header.
-    // The critical invariant is that no bare CR/LF precede the injected text.
-    expect(bodyText).not.toContain('\r\nX-Injected')
-    expect(bodyText).not.toContain('\nX-Injected')
-    // Sanitised type starts correctly.
-    expect(bodyText).toContain('Content-Type: image/png')
+    if (isFormDataBody(body)) {
+      const uploaded = body.get('file')
+      expect(uploaded).toBeTruthy()
+      expect(uploaded instanceof File || uploaded instanceof Blob).toBe(true)
+      const uploadedBlob = uploaded as Blob
+      expect(uploadedBlob.type).not.toContain('\r')
+      expect(uploadedBlob.type).not.toContain('\n')
+      expect(uploadedBlob.type).toContain('image/png')
+    } else {
+      const bodyText = new TextDecoder().decode(await (body as Blob).arrayBuffer())
+
+      // After stripping CR/LF the remaining text ('image/pngX-Injected: header') is
+      // harmless — it is just garbage inside the Content-Type token, NOT a separate header.
+      // The critical invariant is that no bare CR/LF precede the injected text.
+      expect(bodyText).not.toContain('\r\nX-Injected')
+      expect(bodyText).not.toContain('\nX-Injected')
+      // Sanitised type starts correctly.
+      expect(bodyText).toContain('Content-Type: image/png')
+    }
   })
 })

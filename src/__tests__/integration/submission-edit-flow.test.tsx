@@ -7,7 +7,6 @@ import { APIService, setAuthTokenGetter } from '@/lib/api'
 import type { Product, UserData } from '@/lib/types'
 import { toast } from 'sonner'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
-import { runAllSeeds } from '../fixtures/test-seeds'
 
 vi.mock('sonner', () => ({
   toast: {
@@ -27,7 +26,6 @@ describeWithBackend('Submission Dialog Edit Flow', () => {
   let testProductUrl: string
 
   beforeAll(async () => {
-    await runAllSeeds()
     setAuthTokenGetter(async () => getDevToken(DEV_USERS.user.role))
     const ownerAuth = await APIService.getCurrentUser()
     ownerUser = {

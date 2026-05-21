@@ -1,8 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 
-/** The concrete type returned by createClient (default generics). */
-type AppSupabaseClient = ReturnType<typeof createClient>;
-
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
@@ -20,7 +17,7 @@ function normalizeBasePath(basePath: string | undefined): string {
   return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`;
 }
 
-export const supabase: AppSupabaseClient = hasSupabaseConfig
+export const supabase = hasSupabaseConfig
   ? createClient(supabaseUrl!, supabaseAnonKey!, {
       auth: {
         autoRefreshToken: true,
@@ -32,12 +29,11 @@ export const supabase: AppSupabaseClient = hasSupabaseConfig
       auth: {
         getUser: async () => missingSupabaseConfigError(),
         getSession: async () => missingSupabaseConfigError(),
-        setSession: async () => missingSupabaseConfigError(),
         signInWithOAuth: async () => missingSupabaseConfigError(),
         signOut: async () => missingSupabaseConfigError(),
         onAuthStateChange: () => missingSupabaseConfigError(),
       },
-    } as AppSupabaseClient);
+    } as any);
 
 // Helper to get current user
 export const getCurrentUser = async () => {

@@ -10,6 +10,15 @@ type NormalizeBackendBase = (rawUrl: string) => string
 
 type DevDbResetMode = 'always' | 'never' | 'auto'
 
+type SeedManifest = {
+  seed_version?: string
+  seeded_image_id?: string
+  seeded_product_with_image_id?: string
+  seeded_product_image_id?: string
+  seeded_product_visible?: boolean
+  seeded_user_id?: string
+}
+
 const normalizeBackendBase: NormalizeBackendBase =
    testGlobals.__NORMALIZE_BACKEND_BASE__ ??
    ((rawUrl: string) => {
@@ -136,6 +145,9 @@ export async function setup() {
     resetMode === 'always' ||
     (resetMode === 'auto' && shouldResetDevDbForRun(process.argv))
 
+  let seedManifest: SeedManifest | null = null
+  let seedVersion: string | undefined
+
   if (backendAvailable && shouldReset) {
     const adminToken = getDevToken(DEV_USERS.admin.role)
     const resetRes = await fetch(`${backendBase}/api/dev/reset`, {
@@ -151,6 +163,41 @@ export async function setup() {
         `Failed to reset dev database before integration-capable test run: ${resetRes.status} ${resetRes.statusText} ${details}`
       )
     }
+
+    const resetPayload = await resetRes.json().catch(() => null) as {
+      seed_version?: string
+      seed_manifest?: SeedManifest
+    } | null
+
+    seedManifest = resetPayload?.seed_manifest ?? null
+    seedVersion = resetPayload?.seed_version ?? seedManifest?.seed_version
+
+  }
+
+  if (backendAvailable && !seedManifest) {
+    const adminToken = getDevToken(DEV_USERS.admin.role)
+    const manifestRes = await fetch(`${backendBase}/api/test/seed-manifest`, {
+      headers: {
+        Authorization: `Bearer ${adminToken}`,
+      },
+    }).catch(() => null)
+
+    if (manifestRes?.ok) {
+      seedManifest = await manifestRes.json().catch(() => null)
+      seedVersion = seedManifest?.seed_version
+    }
+  }
+
+  if (seedManifest) {
+    process.env.VITEST_SEED_MANIFEST_JSON = JSON.stringify(seedManifest)
+  } else {
+    delete process.env.VITEST_SEED_MANIFEST_JSON
+  }
+
+  if (seedVersion) {
+    process.env.VITEST_SEED_VERSION = seedVersion
+  } else {
+    delete process.env.VITEST_SEED_VERSION
   }
 
   if (!backendAvailable) {
