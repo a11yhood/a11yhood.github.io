@@ -1,7 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
-/** The concrete type returned by createClient (default generics). */
-type AppSupabaseClient = ReturnType<typeof createClient>;
+type SupabaseAuthSurface = Pick<
+  ReturnType<typeof createClient>['auth'],
+  'getUser' | 'getSession' | 'setSession' | 'signInWithOAuth' | 'signOut' | 'onAuthStateChange'
+>;
+
+type AppSupabaseClient = {
+  auth: SupabaseAuthSurface;
+};
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -20,24 +26,32 @@ function normalizeBasePath(basePath: string | undefined): string {
   return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`;
 }
 
+function createConfiguredSupabaseClient(): AppSupabaseClient {
+  return createClient(supabaseUrl!, supabaseAnonKey!, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,  // Enable persistence so session survives OAuth redirects
+      detectSessionInUrl: true,
+    },
+  });
+}
+
+function createMissingConfigSupabaseClient(): AppSupabaseClient {
+  const auth: AppSupabaseClient['auth'] = {
+    getUser: async () => missingSupabaseConfigError(),
+    getSession: async () => missingSupabaseConfigError(),
+    setSession: async () => missingSupabaseConfigError(),
+    signInWithOAuth: async () => missingSupabaseConfigError(),
+    signOut: async () => missingSupabaseConfigError(),
+    onAuthStateChange: () => missingSupabaseConfigError(),
+  };
+
+  return { auth };
+}
+
 export const supabase: AppSupabaseClient = hasSupabaseConfig
-  ? createClient(supabaseUrl!, supabaseAnonKey!, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,  // Enable persistence so session survives OAuth redirects
-        detectSessionInUrl: true,
-      },
-    })
-  : ({
-      auth: {
-        getUser: async () => missingSupabaseConfigError(),
-        getSession: async () => missingSupabaseConfigError(),
-        setSession: async () => missingSupabaseConfigError(),
-        signInWithOAuth: async () => missingSupabaseConfigError(),
-        signOut: async () => missingSupabaseConfigError(),
-        onAuthStateChange: () => missingSupabaseConfigError(),
-      },
-    } as AppSupabaseClient);
+  ? createConfiguredSupabaseClient()
+  : createMissingConfigSupabaseClient();
 
 // Helper to get current user
 export const getCurrentUser = async () => {

@@ -6,12 +6,15 @@ import type { Product } from '@/lib/types'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 import { getValidProductType } from '../testData'
+import { runAllSeeds } from '../fixtures/test-seeds'
 
 let product: Product
 const API_BASE = (globalThis as any).__TEST_API_BASE__
 
 describeWithBackend('ProductListItem - Integration', () => {
   beforeAll(async () => {
+    await runAllSeeds()
+
     const adminToken = getDevToken(DEV_USERS.admin.id)
     setAuthTokenGetter(async () => adminToken)
 

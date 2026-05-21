@@ -28,6 +28,19 @@ const resolvedBackendBase = normalizeBackendBase(
 ;(globalThis as any).__TEST_BACKEND_BASE__ = resolvedBackendBase
 ;(globalThis as any).__TEST_API_BASE__ = `${resolvedBackendBase}/api`
 
+const seedManifestJson = process.env.VITEST_SEED_MANIFEST_JSON
+let parsedSeedManifest: unknown = null
+if (seedManifestJson) {
+  try {
+    parsedSeedManifest = JSON.parse(seedManifestJson)
+  } catch {
+    parsedSeedManifest = null
+  }
+}
+
+;(globalThis as any).__TEST_SEED_MANIFEST__ = parsedSeedManifest
+;(globalThis as any).__TEST_SEED_VERSION__ = process.env.VITEST_SEED_VERSION || null
+
 // Local HTTPS test backends may use self-signed certs.
 // Relax TLS verification only when targeting localhost.
 if (/^https:\/\/localhost(?::\d+)?$/i.test(resolvedBackendBase)) {

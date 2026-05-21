@@ -8,14 +8,28 @@
  */
 
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
+import { normalizeBackendBase } from '../helpers/helpers'
 
-const API_BASE = (globalThis as any).__TEST_API_BASE__
+function getApiBase(): string {
+  const testBase = (globalThis as any).__TEST_API_BASE__ as string | undefined
+  if (testBase) {
+    return testBase
+  }
+
+  const backendBase = normalizeBackendBase(
+    process.env.TEST_BACKEND_URL || process.env.VITE_API_URL || 'http://localhost:8002'
+  )
+
+  return `${backendBase}/api`
+}
 
 /**
  * Ensure dev users exist in the database.
  * Creates missing users from the DEV_USERS fixtures.
  */
 export async function seedDevUsers(): Promise<void> {
+  const API_BASE = getApiBase()
+
   for (const [_key, user] of Object.entries(DEV_USERS)) {
     try {
       // Try to create or update the user with role
@@ -45,6 +59,7 @@ export async function seedDevUsers(): Promise<void> {
  * These are required for product URL validation.
  */
 export async function seedSupportedSources(): Promise<void> {
+  const API_BASE = getApiBase()
   const sources = [
     {
       name: 'GitHub',
@@ -73,26 +88,6 @@ export async function seedSupportedSources(): Promise<void> {
 
   for (const source of sources) {
     try {
-      // Check if source already exists
-      const checkRes = await fetch(`${API_BASE}/supported-sources`, {
-        headers: {
-          'Authorization': `Bearer ${adminToken}`,
-        },
-      })
-
-      if (checkRes.ok) {
-        const existingSources = await checkRes.json()
-        const sourceExists = existingSources.some(
-          (s: any) => s.domain === source.domain
-        )
-
-        if (sourceExists) {
-          console.log(`Source ${source.name} already exists`)
-          continue
-        }
-      }
-
-      // Create source if it doesn't exist
       const createRes = await fetch(`${API_BASE}/supported-sources`, {
         method: 'POST',
         headers: {
@@ -102,13 +97,20 @@ export async function seedSupportedSources(): Promise<void> {
         body: JSON.stringify(source),
       })
 
-      if (!createRes.ok) {
-        console.warn(
-          `Failed to seed source ${source.name}: ${createRes.status}`
-        )
-      } else {
+      if (createRes.ok) {
         console.log(`Seeded source ${source.name}`)
+        continue
       }
+
+      if (createRes.status === 409) {
+        console.log(`Source ${source.name} already exists`)
+        continue
+      }
+
+      const details = await createRes.text().catch(() => '')
+      console.warn(
+        `Failed to seed source ${source.name}: ${createRes.status} ${details}`
+      )
     } catch (err) {
       console.warn(`Error seeding source ${source.name}:`, err)
     }

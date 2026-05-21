@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
 import { Link as LinkIcon, Trash } from '@phosphor-icons/react'
 import { useNotifications } from '@/contexts/NotificationContext'
-import { APIService } from '@/lib/api'
+import { APIService, resolveApiImageUrl } from '@/lib/api'
 import { logger } from '@/lib/logger'
 
 type ProductImageManagerProps = {
@@ -174,8 +174,20 @@ function toEditableInputUrl(referenceUrl: string | undefined) {
     return ''
   }
 
-  if (referenceUrl.startsWith('/api/images/') && typeof window !== 'undefined') {
-    return `${window.location.origin}${referenceUrl}`
+  if (referenceUrl.startsWith('/api/images/')) {
+    return resolveApiImageUrl(referenceUrl)
+  }
+
+  return referenceUrl
+}
+
+function toRuntimeImageUrl(referenceUrl: string | undefined) {
+  if (!referenceUrl) {
+    return undefined
+  }
+
+  if (referenceUrl.startsWith('/api/images/')) {
+    return resolveApiImageUrl(referenceUrl)
   }
 
   return referenceUrl
@@ -298,7 +310,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
     let cancelled = false
     setCropSourceDimensions(null)
 
-    loadImageDimensions(cropSourceUrl)
+    loadImageDimensions(toRuntimeImageUrl(cropSourceUrl) || cropSourceUrl)
       .then((dimensions) => {
         if (!cancelled) {
           setCropSourceDimensions(dimensions)
@@ -495,7 +507,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
 
     setIsApplyingCrop(true)
     try {
-      const imageFile = await sourceUrlToFile(cropSourceUrl)
+      const imageFile = await sourceUrlToFile(toRuntimeImageUrl(cropSourceUrl) || cropSourceUrl)
       const croppedImageUrl = await APIService.uploadImage(imageFile, cropRect)
       setPreviewUrl(croppedImageUrl)
       setCropSourceUrl(croppedImageUrl)
@@ -512,6 +524,8 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
   }
 
   const currentImageReference = (previewUrl ?? cropSourceUrl ?? urlInput.trim()) || undefined
+  const runtimePreviewUrl = toRuntimeImageUrl(previewUrl)
+  const runtimeCropSourceUrl = toRuntimeImageUrl(cropSourceUrl)
   const currentImageId = currentImageReference ? parseImageIdFromUrl(currentImageReference) : undefined
 
   return (
@@ -528,7 +542,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
                 aria-label="Edit image URL and alt text"
               >
                 <img
-                  src={previewUrl}
+                  src={runtimePreviewUrl}
                   alt={altText || 'Product preview'}
                   className="w-full h-full object-cover"
                 />
@@ -717,7 +731,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
                     onPointerLeave={handleCropPointerEnd}
                 >
                   <img
-                    src={cropSourceUrl}
+                    src={runtimeCropSourceUrl}
                     alt=""
                     aria-hidden="true"
                       className="h-full w-full touch-none select-none"

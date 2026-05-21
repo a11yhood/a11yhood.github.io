@@ -170,8 +170,8 @@ export function ProductDetail({
   const ratingSummary = hasUserRatings
     ? `${productRatings.length} user${productRatings.length === 1 ? '' : 's'} rated`
     : hasSourceRatings
-    ? `${product.sourceRatingCount} ${product.sourceRatingCount === 1 ? 'rating' : 'ratings'} on ${formatSourceLabel(product.source) || product.source}`
-    : 'No ratings yet'
+      ? `${product.sourceRatingCount} ${product.sourceRatingCount === 1 ? 'rating' : 'ratings'} on ${formatSourceLabel(product.source) || product.source}`
+      : 'No ratings yet'
 
   const handleDelete = () => {
     const targetId = product.slug || product.id
@@ -417,7 +417,7 @@ export function ProductDetail({
               username={user?.username || null}
               isEditor={!!user && (product.editorIds?.includes(user.id) || false)}
               userAccount={userAccount}
-              onEditorsChange={() => {}}
+              onEditorsChange={() => { }}
               autoOpenRequestForm={autoOpenOwnershipRequest}
             />
           </CollapsibleCard>
