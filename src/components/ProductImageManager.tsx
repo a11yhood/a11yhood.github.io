@@ -262,7 +262,7 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
       return
     }
     if (file.size > DEFAULT_IMAGE_UPLOAD_BYTES) {
-      notify.error(`Image must be less than ${DEFAULT_IMAGE_UPLOAD_MB}MB`)
+      notify.error(`Image must be at most ${DEFAULT_IMAGE_UPLOAD_MB}MB`)
       input.value = ''
       return
     }
