@@ -217,7 +217,6 @@ function DiscussionItem({
               autoFocus
               rows={3}
               className="resize-none mb-2"
-              aria-label="Reply content"
             />
             <div className="flex gap-2">
               <Button
