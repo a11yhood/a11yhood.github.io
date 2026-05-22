@@ -239,6 +239,22 @@ export function ProductDetailPageWrapper({
         }
     }
 
+    const handleEditDiscussionLocal = async (id: string, content: string) => {
+        let previous: Discussion | undefined
+        setLocalDiscussions((current) => {
+            previous = current.find((d) => d.id === id)
+            const editedAt = Date.now()
+            return current.map((d) => (d.id === id ? { ...d, content, editedAt } : d))
+        })
+
+        try {
+            await onEditDiscussion(id, content)
+        } catch (error) {
+            setLocalDiscussions((current) => current.map((d) => (d.id === id && previous ? previous : d)))
+            throw error
+        }
+    }
+
     return (
         <ProductDetailPage
             products={products}
@@ -256,7 +272,7 @@ export function ProductDetailPageWrapper({
             onDelete={onDelete}
             onEdit={onEdit}
             onToggleBan={onToggleBan}
-            onEditDiscussion={onEditDiscussion}
+            onEditDiscussion={handleEditDiscussionLocal}
             onDeleteDiscussion={onDeleteDiscussion}
             onToggleBlockDiscussion={onToggleBlockDiscussion}
             allTags={allTags}

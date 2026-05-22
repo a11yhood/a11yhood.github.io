@@ -157,8 +157,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
         </div>
       ) : (
         <div className="w-full h-[200px] bg-muted flex items-center justify-center text-xs text-muted-foreground">
-          <span aria-hidden="true">Image unavailable</span>
-          <span className="sr-only">No image available</span>
+          <span>Image unavailable</span>
         </div>
       )}
 
@@ -191,13 +190,11 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
             </div>
           </div>
 
-          <h4 className="sr-only">Description</h4>
           <MarkdownText
             text={product.description}
             className="text-sm text-muted-foreground line-clamp-2"
           />
 
-          <h4 className="sr-only">Tags</h4>
           {product.tags && product.tags.length > 0 && (
             <ul className="flex flex-wrap gap-2">
               {Array.from(new Set(product.tags)).slice(0, 10).map((tag) => {

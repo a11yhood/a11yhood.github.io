@@ -43,7 +43,6 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { AlertBanner } from '@/components/AlertBanner'
 // API adapter disabled - using real backend API now
 // import '@/lib/api-adapter'
-import { useNotifications } from '@/contexts/NotificationContext'
 import { Switch } from '@/components/ui/switch'
 
 console.log('✓ [App.tsx] All imports loaded')
@@ -822,10 +821,11 @@ function App() {
         try {
           account = await APIService.getCurrentUser()
           if (!account) throw new Error('No account returned from /users/me')
+          if (!account.id) throw new Error('Account response from /users/me is missing id')
           userAccountFetchRef.current = authUser.id
 
           const userData = {
-            id: authUser.id,
+            id: account.id,
             username: account.username || authUser.id,
             avatarUrl: account.avatarUrl,
           }
@@ -851,6 +851,8 @@ function App() {
               message,
             })
             return
+          } else {
+            throw err
           }
         }
 
@@ -916,11 +918,14 @@ function App() {
         if (!account) {
           throw new Error('Failed to create user account after retries')
         }
+        if (!account.id) {
+          throw new Error('Created account response is missing id')
+        }
 
         userAccountFetchRef.current = authUser.id
 
         const userData = {
-          id: authUser.id,
+          id: account.id,
           username: account.username || authUser.id,
           avatarUrl: account.avatarUrl,
         }
