@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Card } from '@/components/ui/card'
+import { Card, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -351,9 +351,6 @@ export function DiscussionSection({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">
-          Discussion
-        </h2>
         <span className="text-sm text-muted-foreground">{visibleDiscussions.length} messages</span>
       </div>
 
@@ -361,9 +358,9 @@ export function DiscussionSection({
         <p className="text-sm text-muted-foreground">Sign in to start a thread or reply.</p>
       ) : (
         <Card className="p-6" aria-labelledby="start-discussion-heading">
-          <h3 id="start-discussion-heading" className="text-lg font-semibold mb-4">
+          <CardTitle id="start-discussion-heading" className="text-base font-medium mb-4" as={'h3'}>
             Start a New Thread
-          </h3>
+          </CardTitle>
           <form onSubmit={handleSubmit} className="space-y-4">
             <Textarea
               id="discussion-content"
