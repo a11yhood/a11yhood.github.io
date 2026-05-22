@@ -201,15 +201,41 @@ jobs:
 
   accessibility_scanner:
     name: A11y Preview Scan (PR)
-    needs: deploy-preview
+    needs: build
     runs-on: ubuntu-latest
-    # Disabled while preview publishing is off.
-    if: false
+    if: github.event.action != 'closed'
     steps:
+      - name: Download PR build
+        uses: actions/download-artifact@v5
+        with:
+          name: vite-site-${{ github.event.number }}
+          path: /tmp/pr-build/
+
+      - name: Serve preview artifact locally
+        env:
+          PREVIEW_SUBPATH: pr-preview/${{ github.event.number }}
+        run: |
+          mkdir -p "/tmp/scan-site/${PREVIEW_SUBPATH}"
+          if [ -d /tmp/pr-build/dist ]; then
+            cp -r /tmp/pr-build/dist/. "/tmp/scan-site/${PREVIEW_SUBPATH}/"
+          else
+            cp -r /tmp/pr-build/. "/tmp/scan-site/${PREVIEW_SUBPATH}/"
+          fi
+          python3 -m http.server 4173 --directory /tmp/scan-site >/tmp/scan-http.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf "http://127.0.0.1:4173/${PREVIEW_SUBPATH}/" >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Timed out waiting for local preview server"
+          cat /tmp/scan-http.log || true
+          exit 1
+
       - uses: github/accessibility-scanner@v2
         with:
           urls: |
-            https://a11yhood.org/pr-preview/${{ github.event.number }}/
+            http://127.0.0.1:4173/pr-preview/${{ github.event.number }}/
           repository: a11yhood/a11yhood.github.io
           token: ${{ secrets.GH_TOKEN }}
           cache_key: a11yhood.org-pr-${{ github.event.number }}

@@ -133,7 +133,6 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
               <span className="text-sm capitalize text-muted-foreground flex-shrink-0">{product.type}</span>
             </div>
 
-            <h4 className="sr-only">Description</h4>
             {product.description && (
               <div className="w-full">
                 <MarkdownText
@@ -143,7 +142,6 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
               </div>
             )}
 
-            <h4 className="sr-only">Tags</h4>
             <div className="flex flex-wrap gap-1.5 text-sm text-muted-foreground">
 	    <ul className="flex flex-wrap gap-1.5">
                 {Array.from(new Set(product.tags)).slice(0, 20).map((tag) => (
@@ -177,8 +175,7 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
           ) : (
             <div className="w-full sm:w-28 flex-shrink-0">
               <div className="w-full h-12 bg-muted overflow-hidden rounded-sm flex items-center justify-center text-[11px] text-muted-foreground">
-                <span aria-hidden="true">Image unavailable</span>
-                <span className="sr-only">No image available for {product.name}</span>
+                <span>Image unavailable for {product.name}</span>
               </div>
             </div>
           )}
