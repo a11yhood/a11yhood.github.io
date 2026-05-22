@@ -73,6 +73,11 @@ description = "start frontend dev server connected to local backend (default por
 cmd = "npm run dev"
 depends-on = ["install-dev"]
 
+[tasks.backend-test]
+description = "start frontend dev server using Vite test mode env (loads .env.test)"
+cmd = "npm run dev -- --mode test"
+depends-on = ["install-dev"]
+
 [tasks.lint]
 description = "run ESLint across all source files"
 cmd = "npm run lint"

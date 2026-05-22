@@ -86,16 +86,14 @@ function DiscussionItem({
             </div>
             {isEditing ? (
               <div className="space-y-2 mb-3">
-                <label className="sr-only">
-                  Edit post
-                  <Textarea
-                    id={`edit-${discussion.id}`}
-                    value={editDraft}
-                    onChange={(e) => setEditDraft(e.target.value)}
-                    rows={3}
-                    className="resize-none"
-                  />
-                </label>
+                <label htmlFor={`edit-${discussion.id}`} className="sr-only">Edit post</label>
+                <Textarea
+                  id={`edit-${discussion.id}`}
+                  value={editDraft}
+                  onChange={(e) => setEditDraft(e.target.value)}
+                  rows={3}
+                  className="resize-none"
+                />
                 <div className="flex gap-2">
                   <Button
                     type="button"
@@ -209,20 +207,18 @@ function DiscussionItem({
       {isReplying && (
         <div className="ml-12 mt-2">
           <Card className="p-4">
-            <label className="sr-only">
-              Reply content
-              <Textarea
-                id={`reply-${discussion.id}`}
-                placeholder="Write your reply..."
-                value={getReplyValue(discussion.id)}
-                onChange={(e) => onChangeReply(discussion.id, e.target.value)}
-                ref={(el) => setReplyRef(discussion.id, el)}
-                autoFocus
+            <label htmlFor={`reply-${discussion.id}`} className="sr-only">Reply content</label>
+            <Textarea
+              id={`reply-${discussion.id}`}
+              placeholder="Write your reply..."
+              value={getReplyValue(discussion.id)}
+              onChange={(e) => onChangeReply(discussion.id, e.target.value)}
+              ref={(el) => setReplyRef(discussion.id, el)}
+              autoFocus
               rows={3}
               className="resize-none mb-2"
               aria-label="Reply content"
             />
-            </label>
             <div className="flex gap-2">
               <Button
                 type="button"
