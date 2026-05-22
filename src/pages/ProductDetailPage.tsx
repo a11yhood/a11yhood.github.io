@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { ProductDetail } from '@/components/ProductDetail'
@@ -189,6 +189,7 @@ export function ProductDetailPageWrapper({
 
     const [localRatings, setLocalRatings] = useState<Rating[]>(ratings)
     const [localDiscussions, setLocalDiscussions] = useState<Discussion[]>(discussions)
+    const localDiscussionsRef = useRef<Discussion[]>(discussions)
 
     // Fetch ratings and discussions if not already loaded
     useEffect(() => {
@@ -218,6 +219,10 @@ export function ProductDetailPageWrapper({
         if (discussions.length > 0) setLocalDiscussions(discussions)
     }, [discussions])
 
+    useEffect(() => {
+        localDiscussionsRef.current = localDiscussions
+    }, [localDiscussions])
+
     const handleAddToCollection = async (collectionSlug: string) => {
         if (!slug) return
 
@@ -240,9 +245,9 @@ export function ProductDetailPageWrapper({
     }
 
     const handleEditDiscussionLocal = async (id: string, content: string) => {
-        let previous: Discussion | undefined
+        const previous = localDiscussionsRef.current.find((d) => d.id === id)
+
         setLocalDiscussions((current) => {
-            previous = current.find((d) => d.id === id)
             const editedAt = Date.now()
             return current.map((d) => (d.id === id ? { ...d, content, editedAt } : d))
         })
@@ -250,7 +255,9 @@ export function ProductDetailPageWrapper({
         try {
             await onEditDiscussion(id, content)
         } catch (error) {
-            setLocalDiscussions((current) => current.map((d) => (d.id === id && previous ? previous : d)))
+            if (previous) {
+                setLocalDiscussions((current) => current.map((d) => (d.id === id ? previous : d)))
+            }
             throw error
         }
     }
