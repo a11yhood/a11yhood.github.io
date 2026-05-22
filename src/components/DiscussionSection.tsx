@@ -169,7 +169,6 @@ function DiscussionItem({
                     type="button"
                     size="sm"
                     variant="outline"
-                    aria-label="Edit message"
                     onClick={() => {
                       setIsEditing(true)
                       setEditDraft(discussion.content)
@@ -182,7 +181,6 @@ function DiscussionItem({
                     size="sm"
                     variant="destructive"
                     onClick={() => onDeleteDiscussion && onDeleteDiscussion(discussion.id)}
-                    aria-label="Delete message"
                   >
                     Delete
                   </Button>
@@ -194,7 +192,6 @@ function DiscussionItem({
                   size="sm"
                   variant={discussion.blocked ? 'secondary' : 'outline'}
                   onClick={() => onToggleBlockDiscussion && onToggleBlockDiscussion(discussion.id, !discussion.blocked)}
-                  aria-label={discussion.blocked ? 'Unblock post' : 'Block post'}
                 >
                   {discussion.blocked ? 'Unblock' : 'Block'}
                 </Button>
@@ -346,20 +343,17 @@ export function DiscussionSection({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">Discussion</h2>
         <span className="text-sm text-muted-foreground">{visibleDiscussions.length} messages</span>
       </div>
 
       {!user ? (
         <p className="text-sm text-muted-foreground">Sign in to start a thread or reply.</p>
       ) : (
-        <Card className="p-6" aria-labelledby="start-discussion-heading">
-          <CardTitle id="start-discussion-heading" className="text-base font-medium mb-4" as={'h3'}>
-            Start a New Thread
-          </CardTitle>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <label htmlFor="discussion-content" className="text-base font-medium mb-4">Start a new thread</label>
             <Textarea
               id="discussion-content"
-              aria-label="Start a new thread"
               placeholder="Ask a question or share your thoughts..."
               value={messageContent}
               onChange={(e) => setMessageContent(e.target.value)}
@@ -375,7 +369,6 @@ export function DiscussionSection({
                 return (
                   <Button
                     type="submit"
-                    aria-label={submitLabel}
                     disabled={!messageContent.trim() || isSubmitting}
                   >
                     {submitLabel}
@@ -384,7 +377,6 @@ export function DiscussionSection({
               })()}
             </div>
           </form>
-        </Card>
       )}
 
       <div className="space-y-4" aria-live="polite">

@@ -175,7 +175,7 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
           ) : (
             <div className="w-full sm:w-28 flex-shrink-0">
               <div className="w-full h-12 bg-muted overflow-hidden rounded-sm flex items-center justify-center text-[11px] text-muted-foreground">
-                <span>Image unavailable</span>
+                <span>Image unavailable for {product.name}</span>
               </div>
             </div>
           )}

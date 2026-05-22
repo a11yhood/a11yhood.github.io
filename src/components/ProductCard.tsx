@@ -157,7 +157,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
         </div>
       ) : (
         <div className="w-full h-[200px] bg-muted flex items-center justify-center text-xs text-muted-foreground">
-          <span>Image unavailable</span>
+          <span>Image unavailable for {product.name}</span>
         </div>
       )}
 
