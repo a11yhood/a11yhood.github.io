@@ -18,16 +18,16 @@ import { runA11yScan } from '../helpers/a11y'
 import { AuthProvider } from '@/contexts/AuthContext'
 import App from '@/App'
 
-describe('NotFoundPage – level-one heading', () => {
-  const renderAtPath = (path: string) =>
-    render(
-      <MemoryRouter initialEntries={[path]}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </MemoryRouter>
-    )
+const renderAtPath = (path: string) =>
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </MemoryRouter>
+  )
 
+describe('NotFoundPage – level-one heading', () => {
   it('renders a level-one heading for the standalone NotFoundPage', () => {
     render(
       <MemoryRouter>
@@ -63,13 +63,7 @@ describe('NotFoundPage – landmark region (axe region rule)', () => {
    * https://dequeuniversity.com/rules/axe/4.11/region
    */
   it('NotFoundPage content is inside the main landmark when rendered via App', () => {
-    render(
-      <MemoryRouter initialEntries={['/this-route-does-not-exist']}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </MemoryRouter>
-    )
+    renderAtPath('/this-route-does-not-exist')
 
     const main = screen.getByRole('main')
     expect(main).toBeInTheDocument()
@@ -80,13 +74,7 @@ describe('NotFoundPage – landmark region (axe region rule)', () => {
   })
 
   it('has no axe violations for unmatched route rendered inside App', async () => {
-    const { container } = render(
-      <MemoryRouter initialEntries={['/this-route-does-not-exist']}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </MemoryRouter>
-    )
+    const { container } = renderAtPath('/this-route-does-not-exist')
 
     const results = await runA11yScan(container)
     expect(results).toHaveNoViolations()

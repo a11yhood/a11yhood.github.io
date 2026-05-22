@@ -41,9 +41,6 @@ import { asProductArray } from '@/pages/ProductListPage'
 import { ProductDetailPageWrapper } from '@/pages/ProductDetailPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { AlertBanner } from '@/components/AlertBanner'
-// API adapter disabled - using real backend API now
-// import '@/lib/api-adapter'
-import { useNotifications } from '@/contexts/NotificationContext'
 import { Switch } from '@/components/ui/switch'
 
 console.log('✓ [App.tsx] All imports loaded')
