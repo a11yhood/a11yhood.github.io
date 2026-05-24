@@ -105,7 +105,7 @@ describe('AdminRequestsPanel API Contract', () => {
 
 describe('AdminRequestsPanel product ownership request resolution', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.restoreAllMocks()
   })
 
   it('resolves request product by ID when product is missing from props list', async () => {
