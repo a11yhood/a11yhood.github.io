@@ -204,6 +204,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: github.event.action != 'closed'
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
     steps:
       - name: Download PR build
         uses: actions/download-artifact@v5
@@ -232,10 +234,18 @@ jobs:
           cat /tmp/scan-http.log || true
           exit 1
 
-      - uses: github/accessibility-scanner@v2
+      - name: Run accessibility scanner
+        if: ${{ github.event.pull_request.head.repo.full_name == github.repository && env.GH_TOKEN != '' }}
+        uses: github/accessibility-scanner@v2
         with:
           urls: |
             http://127.0.0.1:4173/pr-preview/${{ github.event.number }}/
-          repository: a11yhood/a11yhood.github.io
-          token: ${{ secrets.GH_TOKEN }}
+          repository: ${{ github.repository }}
+          token: ${{ env.GH_TOKEN }}
           cache_key: a11yhood.org-pr-${{ github.event.number }}
+
+      - name: Skip scanner for fork PRs without secret access
+        if: ${{ github.event.pull_request.head.repo.full_name != github.repository || env.GH_TOKEN == '' }}
+        run: |
+          echo "Accessibility scanner skipped: fork PRs and runs without GH_TOKEN cannot use github/accessibility-scanner@v2."
+          echo "Accessibility remains enforced by in-repo a11y test suites in CI."
