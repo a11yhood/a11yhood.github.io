@@ -221,6 +221,9 @@ describeWithBackend('Loading State Accessibility', () => {
 
 describe('Focus Management and Skip Links', () => {
   it('should allow skipping to main content', async () => {
+    // This test intentionally renders the full App (including any error banners that
+    // may appear in dev/test mode). The skip link must remain reachable as the first
+    // tab stop regardless of whether an error banner is present on the page.
     const user = userEvent.setup()
     
     render(
