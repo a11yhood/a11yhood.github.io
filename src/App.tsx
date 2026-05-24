@@ -139,10 +139,9 @@ function App() {
     setRuntimeLogLevel(null)
   }, [isAdmin, adminVerboseLoggingEnabled])
 
-  useEffect(() => {
-    if (!pageError) return
-    errorSummaryRef.current?.focus()
-  }, [pageError])
+  // Note: the error summary uses role="alert" which announces to screen readers
+  // automatically. We intentionally do NOT programmatically focus the error div
+  // because doing so steals focus from the skip link and disrupts keyboard navigation.
 
   useEffect(() => {
     setPageError(null)

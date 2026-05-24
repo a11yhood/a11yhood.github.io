@@ -5,7 +5,7 @@
  * - ARIA live regions for dynamic content
  * - Screen reader announcements
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { describeWithBackend } from '../helpers/with-backend'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { BrowserRouter, MemoryRouter } from 'react-router-dom'
@@ -220,22 +220,10 @@ describeWithBackend('Loading State Accessibility', () => {
 })
 
 describe('Focus Management and Skip Links', () => {
-  beforeEach(() => {
-    // Prevent the dev-mode auth flow from calling a (potentially unavailable) backend,
-    // which would show an error banner and auto-focus it — stealing focus from
-    // the skip link before the tab key can be tested.
-    vi.spyOn(APIService, 'getCurrentUser').mockResolvedValue({
-      id: '49366adb-2d13-412f-9ae5-4c35dbffab10',
-      username: 'admin_user',
-      role: 'admin',
-    })
-  })
-
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
   it('should allow skipping to main content', async () => {
+    // This test intentionally renders the full App (including any error banners that
+    // may appear in dev/test mode). The skip link must remain reachable as the first
+    // tab stop regardless of whether an error banner is present on the page.
     const user = userEvent.setup()
     
     render(
