@@ -202,7 +202,7 @@ export function RequestCard({
                     <p className="text-xs text-muted-foreground">Editors: none</p>
                   )}
                   <Link
-                    to={`/products/${product.id}`}
+                    to={`/product/${encodeURIComponent(product.slug || product.id)}`}
                     className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                   >
                     View product detail

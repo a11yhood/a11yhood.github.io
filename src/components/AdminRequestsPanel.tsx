@@ -21,6 +21,7 @@ type AdminRequestsPanelProps = {
 export function AdminRequestsPanel({ adminId, products = [], canManageRoleRequests = true }: AdminRequestsPanelProps) {
   const { notify } = useNotifications()
   const [allRequests, setAllRequests] = useState<UserRequest[]>([])
+  const [requestProductLookup, setRequestProductLookup] = useState<Record<string, Product | null>>({})
   const [loading, setLoading] = useState(true)
   // Collapsible handled by CollapsibleCard
   const [reviewingRequest, setReviewingRequest] = useState<UserRequest | null>(null)
@@ -70,6 +71,50 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
 
     resolveUserLookup()
   }, [allRequests, userLookup])
+
+  useEffect(() => {
+    const resolveRequestProducts = async () => {
+      const productIds = Array.from(new Set(
+        allRequests
+          .filter((request) => request.type === 'product-ownership' && !!request.productId)
+          .map((request) => request.productId as string)
+      ))
+
+      if (productIds.length === 0) return
+
+      const missing = productIds.filter((id) => {
+        const alreadyResolved = Object.prototype.hasOwnProperty.call(requestProductLookup, id)
+        const alreadyInProps = products.some((product) => product.id === id)
+        return !alreadyResolved && !alreadyInProps
+      })
+
+      if (missing.length === 0) return
+
+      const resolvedEntries = await Promise.all(
+        missing.map(async (id) => {
+          try {
+            const product = await APIService.getProduct(id)
+            return [id, product ?? null] as const
+          } catch (error) {
+            console.warn('Failed to resolve request product:', { id, error })
+            return [id, null] as const
+          }
+        })
+      )
+
+      setRequestProductLookup((prev) => ({
+        ...prev,
+        ...Object.fromEntries(resolvedEntries),
+      }))
+    }
+
+    void resolveRequestProducts()
+  }, [allRequests, products, requestProductLookup])
+
+  const getRequestProduct = (productId?: string): Product | null => {
+    if (!productId) return null
+    return products.find((product) => product.id === productId) || requestProductLookup[productId] || null
+  }
 
   const loadRequests = async () => {
     setLoading(true)
@@ -229,8 +274,13 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
                   </p>
                 ) : (
                   pendingRequests.map((request) => {
-                    const product = request.productId ? products.find(p => p.id === request.productId) : null
-                    const productMissing = request.type === 'product-ownership' && request.productId && !product
+                    const product = getRequestProduct(request.productId)
+                    const productResolutionPending = Boolean(
+                      request.productId &&
+                      !products.some((p) => p.id === request.productId) &&
+                      !Object.prototype.hasOwnProperty.call(requestProductLookup, request.productId)
+                    )
+                    const productMissing = request.type === 'product-ownership' && request.productId && !product && !productResolutionPending
                     const isRoleRequest = request.type === 'admin' || request.type === 'moderator'
 
                     return (
@@ -258,8 +308,13 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
                   </p>
                 ) : (
                   reviewedRequests.map((request) => {
-                    const product = request.productId ? products.find(p => p.id === request.productId) : null
-                    const productMissing = request.type === 'product-ownership' && request.productId && !product
+                    const product = getRequestProduct(request.productId)
+                    const productResolutionPending = Boolean(
+                      request.productId &&
+                      !products.some((p) => p.id === request.productId) &&
+                      !Object.prototype.hasOwnProperty.call(requestProductLookup, request.productId)
+                    )
+                    const productMissing = request.type === 'product-ownership' && request.productId && !product && !productResolutionPending
 
                     return (
                       <RequestCard
