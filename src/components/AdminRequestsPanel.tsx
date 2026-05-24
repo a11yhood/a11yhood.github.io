@@ -93,7 +93,7 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
       const resolvedEntries = await Promise.all(
         missing.map(async (id) => {
           try {
-            const product = await APIService.getProduct(id)
+            const product = await APIService.getProductById(id)
             return [id, product ?? null] as const
           } catch (error) {
             console.warn('Failed to resolve request product:', { id, error })
@@ -288,6 +288,7 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
                         key={request.id}
                         request={request}
                         product={product}
+                        productLoading={productResolutionPending}
                         productMissing={!!productMissing}
                         userLookup={userLookup}
                         showActions
@@ -321,6 +322,7 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
                         key={request.id}
                         request={request}
                         product={product}
+                        productLoading={productResolutionPending}
                         productMissing={!!productMissing}
                         userLookup={userLookup}
                         allowDeleteReviewed

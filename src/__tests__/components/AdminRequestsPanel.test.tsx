@@ -137,7 +137,7 @@ describe('AdminRequestsPanel product ownership request resolution', () => {
       role: 'user',
       username: 'requester',
     })
-    const getProductSpy = vi.spyOn(APIService, 'getProduct').mockResolvedValue(resolvedProduct)
+    const getProductSpy = vi.spyOn(APIService, 'getProductById').mockResolvedValue(resolvedProduct)
 
     render(
       <MemoryRouter>

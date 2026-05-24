@@ -10,6 +10,7 @@ import { Product, UserAccount, UserRequest } from '@/lib/types'
 export type RequestCardProps = {
   request: UserRequest
   product?: Product | null
+  productLoading?: boolean
   productMissing?: boolean
   userLookup?: Record<string, { name?: string; role?: UserAccount['role'] | 'unknown'; username?: string }>
   showActions?: boolean
@@ -84,6 +85,7 @@ function renderUserIdLine(userId?: string, userLookup?: RequestCardProps['userLo
 export function RequestCard({
   request,
   product,
+  productLoading,
   productMissing,
   userLookup,
   showActions,
@@ -165,7 +167,15 @@ export function RequestCard({
           </div>
 
           {request.type === 'product-ownership' && request.productId && (
-            productMissing ? (
+            productLoading ? (
+              <div className="flex items-center gap-2 bg-muted p-3 rounded">
+                <Package size={18} className="text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Loading product details...</p>
+                  <p className="text-xs text-muted-foreground">Product ID: {request.productId}</p>
+                </div>
+              </div>
+            ) : productMissing ? (
               <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 p-3 rounded">
                 <XCircle size={18} className="text-destructive" />
                 <div>
