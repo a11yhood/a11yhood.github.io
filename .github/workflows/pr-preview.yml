@@ -240,7 +240,7 @@ jobs:
         with:
           urls: |
             http://127.0.0.1:4173/pr-preview/${{ github.event.number }}/
-          repository: a11yhood/a11yhood.github.io
+          repository: ${{ github.repository }}
           token: ${{ env.GH_TOKEN }}
           cache_key: a11yhood.org-pr-${{ github.event.number }}
 
