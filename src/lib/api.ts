@@ -218,6 +218,11 @@ function isLegacyNumericTimestamp(value: unknown): boolean {
 
 // Strict ISO 8601 datetime pattern: YYYY-MM-DDTHH:MM:SS[.sss][Z|±HH:MM|±HHMM]
 const ISO_8601_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}|[+-]\d{4})$/
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function isUuid(value: string): boolean {
+  return UUID_RE.test(value)
+}
 
 function assertIsoTimestamp(value: unknown, fieldName: string, context: string): string {
   // Detect digit-only strings (e.g. "1713182400000") as legacy numeric timestamps
@@ -1210,15 +1215,23 @@ export class APIService {
     return data.tags || []
   }
   static async getProduct(productIdOrSlug: string): Promise<Product | null> {
+    if (isUuid(productIdOrSlug)) {
+      return this.getProductById(productIdOrSlug)
+    }
+
     // Prefer slug lookup; falls back to ID lookup on 404 for backwards compatibility
     try {
       return await request<Product | null>(`/products/slug/${encodeURIComponent(productIdOrSlug)}`)
     } catch (error) {
       if (error instanceof APIError && error.status === 404) {
-        return request<Product | null>(`/products/${productIdOrSlug}`)
+        return this.getProductById(productIdOrSlug)
       }
       throw error
     }
+  }
+
+  static async getProductById(productId: string): Promise<Product | null> {
+    return request<Product | null>(`/products/${encodeURIComponent(productId)}`)
   }
 
   static async getProductBySlug(slug: string): Promise<Product | null> {

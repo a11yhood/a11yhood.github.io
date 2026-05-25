@@ -5,7 +5,20 @@
  * on a live backend so failures are deterministic and not network-dependent.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { APIError, APIService } from '@/lib/api'
+import { AdminRequestsPanel } from '@/components/AdminRequestsPanel'
+import { Product, UserRequest } from '@/lib/types'
+
+vi.mock('@/contexts/NotificationContext', () => ({
+  useNotifications: () => ({
+    notify: {
+      success: vi.fn(),
+      error: vi.fn(),
+    },
+  }),
+}))
 
 describe('AdminRequestsPanel API Contract', () => {
   beforeEach(() => {
@@ -87,5 +100,54 @@ describe('AdminRequestsPanel API Contract', () => {
         status: 403,
       })
     )
+  })
+})
+
+describe('AdminRequestsPanel product ownership request resolution', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('resolves request product by ID when product is missing from props list', async () => {
+    const request: UserRequest = {
+      id: 'req-product-1',
+      userId: 'user-123',
+      userName: 'Requester',
+      type: 'product-ownership',
+      status: 'pending',
+      createdAt: Date.now(),
+      productId: 'b5a1cc2b-a50c-4017-b215-b2921a030ef1',
+    }
+
+    const resolvedProduct: Product = {
+      id: 'b5a1cc2b-a50c-4017-b215-b2921a030ef1',
+      slug: 'assistive-widget',
+      name: 'Assistive Widget',
+      type: 'Software',
+      source: 'Github',
+      description: 'A test product resolved by ID',
+      tags: ['a11y'],
+      createdAt: Date.now(),
+      editorIds: [],
+    }
+
+    vi.spyOn(APIService, 'getAllRequests').mockResolvedValue([request])
+    vi.spyOn(APIService, 'getUserAccount').mockResolvedValue({
+      id: 'user-123',
+      role: 'user',
+      username: 'requester',
+    })
+    const getProductSpy = vi.spyOn(APIService, 'getProductById').mockResolvedValue(resolvedProduct)
+
+    render(
+      <MemoryRouter>
+        <AdminRequestsPanel adminId="admin-1" products={[]} canManageRoleRequests />
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByText('Assistive Widget')).toBeInTheDocument()
+    expect(screen.queryByText('Product Not Found')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeEnabled()
+    expect(getProductSpy).toHaveBeenCalledWith('b5a1cc2b-a50c-4017-b215-b2921a030ef1')
   })
 })
