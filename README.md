@@ -203,6 +203,8 @@ Products are automatically scraped from:
 - **Ravelry**: Patterns tagged as accessibility
 - **Thingiverse**: 3D printable assistive devices
 
+Products gathered through such scraping recieve an initial review that is based on their stars on their respective platforms. This initial score mapping is exponential and the highest scores (e.g. 5.0) map to several hundred thousand stars. Thus, many products start with ratings that appear low: this is meant to estimate overall community interest rather than act as an indictment on a product's usefulness or quality. Users' ratings of products on the a11yhood site will update this overall rating.
+
 ### User Roles
 
 - **Public**: Browse and search products
