@@ -204,16 +204,32 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: github.event.action != 'closed'
-    env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
     steps:
+      - name: Determine scanner eligibility
+        id: scanner_gate
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "can_scan=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=fork-pr" >> "$GITHUB_OUTPUT"
+          elif [ -z "$GH_TOKEN" ]; then
+            echo "can_scan=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=missing-token" >> "$GITHUB_OUTPUT"
+          else
+            echo "can_scan=true" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=none" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Download PR build
+        if: ${{ steps.scanner_gate.outputs.can_scan == 'true' }}
         uses: actions/download-artifact@v5
         with:
           name: vite-site-${{ github.event.number }}
           path: /tmp/pr-build/
 
       - name: Serve preview artifact locally
+        if: ${{ steps.scanner_gate.outputs.can_scan == 'true' }}
         env:
           PREVIEW_SUBPATH: pr-preview/${{ github.event.number }}
         run: |
@@ -235,17 +251,23 @@ jobs:
           exit 1
 
       - name: Run accessibility scanner
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository && env.GH_TOKEN != '' }}
+        if: ${{ steps.scanner_gate.outputs.can_scan == 'true' }}
         uses: github/accessibility-scanner@v2
         with:
           urls: |
             http://127.0.0.1:4173/pr-preview/${{ github.event.number }}/
-          repository: ${{ github.repository }}
-          token: ${{ env.GH_TOKEN }}
+          repository: a11yhood/a11yhood.github.io
+          token: ${{ secrets.GH_TOKEN }}
           cache_key: a11yhood.org-pr-${{ github.event.number }}
 
       - name: Skip scanner for fork PRs without secret access
-        if: ${{ github.event.pull_request.head.repo.full_name != github.repository || env.GH_TOKEN == '' }}
+        if: ${{ steps.scanner_gate.outputs.can_scan != 'true' }}
         run: |
-          echo "Accessibility scanner skipped: fork PRs and runs without GH_TOKEN cannot use github/accessibility-scanner@v2."
+          if [ "${{ steps.scanner_gate.outputs.skip_reason }}" = "fork-pr" ]; then
+            echo "Accessibility scanner skipped: fork PRs cannot access repository secrets."
+          elif [ "${{ steps.scanner_gate.outputs.skip_reason }}" = "missing-token" ]; then
+            echo "Accessibility scanner skipped: GH_TOKEN is not configured for this repository."
+          else
+            echo "Accessibility scanner skipped."
+          fi
           echo "Accessibility remains enforced by in-repo a11y test suites in CI."
