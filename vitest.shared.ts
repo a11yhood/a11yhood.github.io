@@ -39,12 +39,24 @@ export function createVitestConfig(mode: string, include?: string[]) {
   // configured in .env/.env.local/.env.test and shell environment.
   const resolvedTestBackendUrl = process.env.TEST_BACKEND_URL || env.TEST_BACKEND_URL || env.VITE_API_URL || ''
   const resolvedApiUrl = process.env.VITE_API_URL || env.VITE_API_URL || ''
+  const resolvedTestRunToken =
+    process.env.TEST_RUN_TOKEN ||
+    process.env.VITEST_TEST_RUN_TOKEN ||
+    env.TEST_RUN_TOKEN ||
+    env.VITEST_TEST_RUN_TOKEN ||
+    ''
 
   if (!process.env.TEST_BACKEND_URL && resolvedTestBackendUrl) {
     process.env.TEST_BACKEND_URL = resolvedTestBackendUrl
   }
   if (!process.env.VITE_API_URL && resolvedApiUrl) {
     process.env.VITE_API_URL = resolvedApiUrl
+  }
+  if (!process.env.TEST_RUN_TOKEN && resolvedTestRunToken) {
+    process.env.TEST_RUN_TOKEN = resolvedTestRunToken
+  }
+  if (!process.env.VITEST_TEST_RUN_TOKEN && resolvedTestRunToken) {
+    process.env.VITEST_TEST_RUN_TOKEN = resolvedTestRunToken
   }
 
   return {

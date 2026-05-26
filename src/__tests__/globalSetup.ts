@@ -155,6 +155,7 @@ export async function setup() {
 
   let seedManifest: SeedManifest | null = null
   let seedVersion: string | undefined
+  const testRunToken = process.env.TEST_RUN_TOKEN || process.env.VITEST_TEST_RUN_TOKEN
 
   if (backendAvailable && shouldReset) {
     const adminToken = getDevToken(DEV_USERS.admin.role)
@@ -162,6 +163,7 @@ export async function setup() {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${adminToken}`,
+        ...(testRunToken ? { 'X-Test-Run-Token': testRunToken } : {}),
       },
     })
 
@@ -187,6 +189,7 @@ export async function setup() {
     const manifestRes = await fetch(`${backendBase}/api/test/seed-manifest`, {
       headers: {
         Authorization: `Bearer ${adminToken}`,
+        ...(testRunToken ? { 'X-Test-Run-Token': testRunToken } : {}),
       },
     }).catch(() => null)
 

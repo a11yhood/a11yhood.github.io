@@ -74,8 +74,29 @@ jobs:
           npm ci
           npm install --no-save @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu
 
+      - name: Validate backend-test CI configuration
+        env:
+          TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
+          TEST_RUN_TOKEN: ${{ secrets.TEST_RUN_TOKEN }}
+        run: |
+          if [ -z "$TEST_BACKEND_URL" ]; then
+            echo "Missing repository secret VITE_API_URL_PREVIEW"
+            exit 1
+          fi
+
+          if [ -z "$TEST_RUN_TOKEN" ]; then
+            echo "Missing repository secret TEST_RUN_TOKEN"
+            exit 1
+          fi
+
+          if ! echo "$TEST_BACKEND_URL" | grep -qi 'backend-test'; then
+            echo "Refusing to run full backend suite against non-test backend URL: $TEST_BACKEND_URL"
+            exit 1
+          fi
+
       - name: Run full test suite (including backend tests)
         env:
           TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
           VITEST_DEV_DB_RESET_MODE: always
+          TEST_RUN_TOKEN: ${{ secrets.TEST_RUN_TOKEN }}
         run: npm run test:run:full
