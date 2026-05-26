@@ -214,11 +214,36 @@ Products are automatically scraped from:
 The site is hosted on GitHub Pages. Production deploys are gated behind a version
 tag — merging to `main` alone does **not** deploy:
 
-Every pull request gets a live preview at `https://a11yhood.org/pr-preview/<PR#>/`,
-automatically deployed and cleaned up by CI.
+PR preview publishing is currently disabled. Pull requests still run lint,
+tests, and accessibility checks in CI.
 
 See [GITHUB_PAGES_DEPLOYMENT.md](GITHUB_PAGES_DEPLOYMENT.md) for the full release process, PR preview details, and
 required repository settings.
+
+## Copilot Accessibility Setup
+
+This repository uses both custom instructions and custom agents for
+accessibility-focused development.
+
+### Always-on instructions
+
+- Repository-wide instructions: [.github/copilot-instructions.md](.github/copilot-instructions.md)
+- Markdown-specific instructions: [.github/instructions/markdown-accessibility.instructions.md](.github/instructions/markdown-accessibility.instructions.md)
+
+### Custom agents
+
+- Markdown accessibility assistant:
+   [.github/agents/markdown-a11y-assistant.agent.md](.github/agents/markdown-a11y-assistant.agent.md)
+- Accessibility review advisor:
+   [.github/agents/a11y-review-advisor.agent.md](.github/agents/a11y-review-advisor.agent.md)
+
+### GitHub-hosted agent setup
+
+- Setup workflow for GitHub agent runs:
+   [.github/workflows/copilot-setup-steps.yml](.github/workflows/copilot-setup-steps.yml)
+
+Use this setup when you want Copilot to apply repo accessibility standards
+consistently and delegate focused accessibility tasks to specialized agents.
 
 ## Contributing
 

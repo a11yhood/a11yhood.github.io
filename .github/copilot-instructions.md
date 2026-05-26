@@ -8,6 +8,13 @@ a11yhood is an accessibility-focused platform for discovering and sharing access
 
 **Accessibility is the core mission of this project. Every piece of code must be accessible by default.**
 
+## Accessibility Baseline
+
+- The UI **MUST** target WCAG 2.2 AA conformance for applicable criteria.
+- Accessibility regressions **MUST NOT** be introduced to ship a feature.
+- New interactive UI work **SHOULD** include or update tests in `src/__tests__/accessibility/`.
+- Changes to keyboard behavior, semantics, focus handling, or ARIA **SHOULD** be validated with role/label-based Testing Library queries.
+
 ### Prefer Native HTML
 
 - Use native HTML elements whenever they provide the needed semantics: `<button>`, `<a>`, `<nav>`, `<main>`, `<header>`, `<footer>`, `<section>`, `<article>`, `<aside>`, `<details>`, `<summary>`, `<dialog>`, `<form>`, `<fieldset>`, `<legend>`, `<label>`, `<select>`, `<input>`, `<textarea>`, etc.
