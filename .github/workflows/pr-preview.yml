@@ -35,13 +35,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: prefix-dev/setup-pixi@v0.8.8
-      - name: Run tests
+
+      - name: Determine preview execution mode
+        id: preview_mode
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}" ]; then
+            echo "can_use_preview_secrets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "can_use_preview_secrets=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Pixi for trusted preview build
+        if: ${{ steps.preview_mode.outputs.can_use_preview_secrets == 'true' }}
+        uses: prefix-dev/setup-pixi@v0.8.8
+
+      - name: Run trusted preview tests
+        if: ${{ steps.preview_mode.outputs.can_use_preview_secrets == 'true' }}
         env:
           TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
           VITEST_DEV_DB_RESET_MODE: never
         run: pixi run test
-      - name: Build for GitHub Pages
+
+      - name: Build trusted preview artifact
+        if: ${{ steps.preview_mode.outputs.can_use_preview_secrets == 'true' }}
         env:
           # PR previews must use isolated preview services, never production.
           VITE_API_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
@@ -53,151 +69,39 @@ jobs:
           VITE_BASE_URL: /pr-preview/${{ github.event.number }}/
         run: pixi run build-vite
 
+      - name: Setup Node.js for fork-safe validation
+        if: ${{ steps.preview_mode.outputs.can_use_preview_secrets != 'true' }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies for fork-safe validation
+        if: ${{ steps.preview_mode.outputs.can_use_preview_secrets != 'true' }}
+        run: |
+          npm ci
+          npm install --no-save @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu
+
+      - name: Run fork-safe reduced tests
+        if: ${{ steps.preview_mode.outputs.can_use_preview_secrets != 'true' }}
+        env:
+          VITE_DEV_MODE: "true"
+          VITEST_DEV_DB_RESET_MODE: never
+        run: npm run test:run:reduced
+
+      - name: Build fork-safe preview artifact
+        if: ${{ steps.preview_mode.outputs.can_use_preview_secrets != 'true' }}
+        env:
+          VITE_DEV_MODE: "true"
+          VITE_LOG_LEVEL: debug
+        run: npm run build:ghpages:ci
+
       - uses: actions/upload-artifact@v5
+        if: ${{ steps.preview_mode.outputs.can_use_preview_secrets == 'true' }}
         with:
           name: vite-site-${{ github.event.number }}
           path: dist/
-
-  deploy-preview:
-    # Security hold: public PR preview publishing is intentionally disabled.
-    # Keep lint/test/build checks active in this workflow.
-    if: false
-    needs: build
-    runs-on: ubuntu-latest
-    env:
-      PREVIEW_URL: https://a11yhood.org/pr-preview/${{ github.event.number }}/
-    steps:
-      - name: Checkout gh-pages branch
-        uses: actions/checkout@v5
-        with:
-          ref: gh-pages
-          path: gh-pages-branch
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Clear existing preview directory
-        run: rm -rf gh-pages-branch/pr-preview/${{ github.event.number }}
-
-      - name: Download PR build
-        uses: actions/download-artifact@v5
-        with:
-          name: vite-site-${{ github.event.number }}
-          path: /tmp/pr-build/
-
-      - name: Place build in preview directory
-        run: |
-          mkdir -p gh-pages-branch/pr-preview/${{ github.event.number }}
-          if [ -d /tmp/pr-build/dist ]; then
-            cp -r /tmp/pr-build/dist/. gh-pages-branch/pr-preview/${{ github.event.number }}/
-          else
-            cp -r /tmp/pr-build/. gh-pages-branch/pr-preview/${{ github.event.number }}/
-          fi
-
-      - name: Commit preview to gh-pages
-        env:
-          GH_PAGES_PUSH_PAT: ${{ secrets.GH_PAGES_PUSH_PAT }}
-        run: |
-          cd gh-pages-branch
-          if [ -z "$GH_PAGES_PUSH_PAT" ]; then
-            echo "Missing required secret: GH_PAGES_PUSH_PAT"
-            exit 1
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${GH_PAGES_PUSH_PAT}@github.com/${{ github.repository }}.git"
-          git add -A pr-preview/${{ github.event.number }}/
-          if git diff --cached --quiet; then
-            echo "Nothing to commit, preview is already up to date"
-          else
-            git commit -m "Deploy PR #${{ github.event.number }} preview"
-            git push
-          fi
-
-      - name: Add preview URL to workflow summary
-        run: |
-          echo "### PR Preview" >> "$GITHUB_STEP_SUMMARY"
-          echo "${PREVIEW_URL}" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Comment preview URL on PR
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const marker = '<!-- pr-preview-url -->';
-            const body = `${marker}\nPR preview is ready: ${process.env.PREVIEW_URL}`;
-            const { owner, repo } = context.repo;
-            const issue_number = context.issue.number;
-
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner,
-              repo,
-              issue_number,
-              per_page: 100,
-            });
-
-            const existing = comments.find(
-              (comment) =>
-                comment.user?.type === 'Bot' &&
-                typeof comment.body === 'string' &&
-                comment.body.includes(marker)
-            );
-
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner,
-                repo,
-                comment_id: existing.id,
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number,
-                body,
-              });
-            }
-
-  cleanup:
-    # Disabled while preview publishing is off.
-    if: false
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout gh-pages branch
-        uses: actions/checkout@v5
-        with:
-          ref: gh-pages
-          path: gh-pages-branch
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Remove PR preview directory
-        env:
-          GH_PAGES_PUSH_PAT: ${{ secrets.GH_PAGES_PUSH_PAT }}
-        run: |
-          cd gh-pages-branch
-          if [ -z "$GH_PAGES_PUSH_PAT" ]; then
-            echo "Missing required secret: GH_PAGES_PUSH_PAT"
-            exit 1
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${GH_PAGES_PUSH_PAT}@github.com/${{ github.repository }}.git"
-          REMOVED_PREVIEW=0
-          if [ -d "pr-preview/${{ github.event.number }}" ]; then
-            git rm -rf "pr-preview/${{ github.event.number }}/"
-            REMOVED_PREVIEW=1
-          fi
-          if git diff --cached --quiet; then
-            echo "No preview directory found, nothing to remove"
-          else
-            if [ "$REMOVED_PREVIEW" -eq 1 ]; then
-              COMMIT_MSG="Remove PR #${{ github.event.number }} preview"
-            else
-              COMMIT_MSG="Update gh-pages metadata"
-            fi
-            git commit -m "$COMMIT_MSG"
-            git push
-          fi
 
   accessibility_scanner:
     name: A11y Preview Scan (PR)

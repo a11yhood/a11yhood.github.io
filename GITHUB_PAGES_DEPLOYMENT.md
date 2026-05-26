@@ -2,160 +2,127 @@
 
 ## Overview
 
-The site is hosted on GitHub Pages and uses three workflows working together:
+The site is hosted on GitHub Pages and currently uses two active workflows:
 
 | Workflow | Trigger | Role |
 |----------|---------|------|
-| [Production Release](.github/workflows/production-release.yml) | Push a `v*` tag | Build production, update `gh-pages`, and publish Pages directly |
-| [PR Preview](.github/workflows/pr-preview.yml) | PR push / close | Build preview, commit to `gh-pages` branch |
-| [Publish Pages](.github/workflows/publish-pages.yml) | Push to `gh-pages` branch | Upload & deploy Pages artifact |
+| [Production Release](.github/workflows/production-release.yml) | Push a `v*` tag | Build production, update `gh-pages`, deploy Pages directly, and trigger the production accessibility scan |
+| [PR Preview](.github/workflows/pr-preview.yml) | PR open / update / reopen / close | Run lint, tests, preview-scoped builds, and PR accessibility checks without publishing public previews |
 
-**Why three workflows?** PR preview jobs need a shared `gh-pages` branch that
-contains the full assembled site, including `pr-preview/<PR#>/` subdirectories.
-Production releases now publish directly from `production-release.yml` to avoid relying on
-a second workflow trigger from a bot-authenticated `gh-pages` push, while PR
-preview updates still publish via `publish-pages.yml` from `gh-pages` branch
-context.
-
-The `gh-pages` branch root is the production build; `pr-preview/<PR#>/` subdirectories
-hold active PR previews. Both are served from the same Pages deployment.
+Production release is the only automatic Pages deployment path. The `gh-pages`
+branch remains the assembled site snapshot used for deployed content and for
+preserving any legacy preview directories, but pushes to `gh-pages` no longer
+trigger a separate publish workflow.
 
 ---
 
-## Releasing to production
+## Releasing to Production
 
-Production deploys are gated behind a version tag. Merging to `main`
-alone does **not** deploy.
+Production deploys are gated behind a version tag. Merging to `main` alone does
+**not** deploy.
 
 ### Versioning
-We use semantic versioning with a v prefix for tags:
 
-vMAJOR.MINOR.PATCH
+We use semantic versioning with a `v` prefix for tags:
+
+`vMAJOR.MINOR.PATCH`
+
 - Patch: bug fixes and small internal improvements
 - Minor: backward-compatible features or substantial enhancements
 - Major: breaking changes or compatibility resets
 
 ```bash
-# 1. Make sure main is green (CI passes) and you are on main.
+# 1. Make sure main is green and up to date.
 git checkout main
 git pull
 
-# 2. Tag the release.  Use semver: vMAJOR.MINOR.PATCH
+# 2. Create the release tag.
 git tag v1.2.3
 
-# 3. Push the tag — this is what triggers the deploy workflow.
+# 3. Push the tag.
 git push origin v1.2.3
 ```
 
 The [Production Release](.github/workflows/production-release.yml) workflow then:
-1. Runs `npm run test:run` against the tagged commit.
-2. Builds the site with `npm run build:ghpages` (sets `VITE_BASE_URL=/`).
-3. Checks out the `gh-pages` branch, `rsync`s the new build into the root
-   **while preserving preview subdirectories** (active PR previews).
-4. Commits the updated assembled site back to `gh-pages` so future preview jobs
-   build on the latest production root.
-5. Uploads that assembled `gh-pages` checkout as the Pages artifact.
-6. Calls `actions/deploy-pages` directly in the same workflow to publish the
-   new production site immediately.
 
-After a successful deploy, the [Accessibility Scanner](.github/workflows/a11y-scan.yml)
-runs automatically against the live site.
+1. Verifies the pushed tag points to a commit reachable from `main`.
+2. Runs the full test suite against the tagged commit.
+3. Builds the site for GitHub Pages deployment.
+4. Updates the root of `gh-pages` while preserving any existing preview
+   subdirectories.
+5. Commits the assembled site snapshot back to `gh-pages`.
+6. Uploads the assembled checkout as the Pages artifact.
+7. Calls `actions/deploy-pages` directly in the same workflow.
 
-### What to do if the deploy workflow fails
+After a successful production deploy, the
+[Accessibility Scanner](.github/workflows/a11y-scan.yml) workflow runs
+automatically against the live site.
 
-- If **tests** fail: fix the code, push to `main`, then re-tag (delete the old tag
-  first with `git push --delete origin v1.2.3`, then create a new one).
-- If **production-release.yml** fails before pushing to `gh-pages`: fix and re-run `production-release.yml`
-   (or push a new tag).
-- If **production-release.yml** fails during the final Pages publish step: re-run `production-release.yml`
-   from the Actions tab.
-- If a **PR preview** publish fails: re-run `publish-pages.yml` from the Actions
-   tab (`workflow_dispatch` is enabled there).
+### If Production Release Fails
+
+- If tests fail: fix the code, push to `main`, then create and push a new tag.
+- If the release fails before the final Pages publish step: fix the issue and
+  re-run [production-release.yml](.github/workflows/production-release.yml), or
+  push a new tag.
+- If the production accessibility scan fails after deployment: inspect and
+  re-run [a11y-scan.yml](.github/workflows/a11y-scan.yml) from the Actions tab.
 
 ---
 
-## PR previews
+## Pull Request Validation
 
-PR preview publishing is currently disabled for security hardening.
-The [PR Preview](.github/workflows/pr-preview.yml) workflow still runs lint,
-tests, and build checks on pull requests, but it does not publish
-`pr-preview/<PR#>/` content to `gh-pages`.
-
-When preview publishing is re-enabled, pull requests are deployed at
-`https://a11yhood.org/pr-preview/<PR#>/`.
+Public PR preview publishing is currently disabled for security hardening. The
+[PR Preview](.github/workflows/pr-preview.yml) workflow still runs validation on
+pull requests, but it does not publish `pr-preview/<PR#>/` content to
+`gh-pages` or post preview URLs.
 
 The [PR Preview](.github/workflows/pr-preview.yml) workflow:
-1. Runs lint and tests on the PR branch.
-2. Builds the site with `VITE_BASE_URL=/pr-preview/<PR#>/` so all asset and router
-   paths are scoped to the preview URL, using preview-specific backend and
-   preview-specific Supabase credentials.
-3. Checks out `gh-pages`, places the build under `pr-preview/<PR#>/`, and commits.
-4. Pushes to `gh-pages`, which triggers [Publish Pages](.github/workflows/publish-pages.yml)
-   to deploy the merged site.
-5. Posts a comment on the PR with the preview URL.
 
-When a PR is **closed** (merged or abandoned), the `cleanup` job automatically
-removes `pr-preview/<PR#>/` from `gh-pages`; that push triggers `publish-pages.yml`
-which redeploys the site without the preview.
-
----
-
-## Publish workflow details
-
-[Publish Pages](.github/workflows/publish-pages.yml) is used by PR preview
-deploy/cleanup flows. It runs from `gh-pages` branch context, which satisfies
-environment protection rules and avoids PR ref deployment rejections.
+1. Runs lint on every non-closed pull request.
+2. Uses the preview backend and preview Supabase credentials for trusted
+   same-repository pull requests.
+3. Falls back to a secret-free reduced test/build path for forked pull
+   requests so external contributors still get basic validation.
+4. Runs the PR accessibility scan only when the PR is from the main repository
+   and `GH_TOKEN` is available.
 
 ### Forked PRs
 
 Forked PRs cannot access repository secrets, and their workflow token is
-typically read-only. In practice, that means only checks that do not require
-secrets or repository writes are expected to run normally.
+typically read-only. In practice, that means:
 
-For PR previews specifically, the build depends on repository `VITE_*` secrets
-for the preview backend, preview Supabase project, and deployment updates
-`gh-pages`, so preview build/deploy (and related PR comments) may be skipped or
-fail for forked PRs unless the workflow explicitly gates those steps to
-non-fork pull requests.
+- forked PRs should only rely on checks that do not need secrets or repository
+  writes
+- preview-secret-backed build steps only run for same-repository PRs
+- the PR accessibility scan is skipped for forked PRs
 
-PR previews must not embed production Supabase client settings. They should use
-preview-specific secrets only:
+Trusted preview builds must not embed production Supabase settings. They use:
+
 - `VITE_API_URL_PREVIEW`
 - `VITE_SUPABASE_URL_PREVIEW`
 - `VITE_SUPABASE_ANON_KEY_PREVIEW`
 
-Preview builds must not enable `VITE_DEV_MODE`; they should use the preview
-Supabase project and preview backend with the same auth flow as production.
-Do not send dev auth signals such as `X-Dev-Role` or `dev-token-*` from PR
-previews.
 ---
 
-## Repository settings required
+## Repository Settings Required
 
 The following must be configured in the repository's GitHub settings for
 deployments to work:
 
-These are **one-time repository setup steps** performed by a maintainer/admin.
-Individual developers do **not** need to create local copies of these secrets
-to open PRs or contribute code.
+These are one-time repository setup steps performed by a maintainer or admin.
+Individual developers do not need local copies of these secrets to contribute.
 
 | Setting | Value |
 |---------|-------|
 | **Pages → Source** | GitHub Actions |
 | **Environment → `github-pages`** | Must exist; `id-token: write` depends on it |
 | **Actions → General → Workflow permissions** | Read and write permissions |
-| **Secrets** | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SUPABASE_URL_PREVIEW`, `VITE_SUPABASE_ANON_KEY_PREVIEW`, `VITE_API_URL`, `VITE_API_URL_PREVIEW`, `VITE_DEV_MODE`, `VITE_LOG_LEVEL`, `GH_TOKEN`, `GH_PAGES_PUSH_PAT` |
+| **Secrets** | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SUPABASE_URL_PREVIEW`, `VITE_SUPABASE_ANON_KEY_PREVIEW`, `VITE_API_URL`, `VITE_API_URL_PREVIEW`, `VITE_DEV_MODE`, `VITE_LOG_LEVEL`, `GH_TOKEN` |
 
 Preview builds require the preview backend secret plus preview-specific
-Supabase client secrets. Production and preview secrets must point at different
-projects.
+Supabase client secrets. Production and preview secrets must point at
+different projects.
 
-The `GH_TOKEN` secret is used for accessibility testing. It must be a personal access token with repo scope — the
-default `GITHUB_TOKEN` is not supported by the `github/accessibility-scanner`
-action.
-
-The `GH_PAGES_PUSH_PAT` secret is used for PR preview deployments. It must be a
-personal access token that can push to this repository (used by PR preview
-deploy/cleanup jobs when committing to `gh-pages`). Using a PAT here ensures
-the `gh-pages` push reliably triggers `publish-pages.yml`.
-
+The `GH_TOKEN` secret is used for accessibility testing. It must be a personal
+access token with repo scope because the default `GITHUB_TOKEN` is not
+supported by the `github/accessibility-scanner` action.

@@ -28,9 +28,17 @@ const normalizeBackendBase: NormalizeBackendBase =
    })
  testGlobals.__NORMALIZE_BACKEND_BASE__ = normalizeBackendBase
 
+function isReducedVitestRun(argv: string[]): boolean {
+  return argv.some(arg => arg.includes('vitest.config.reduced.ts'))
+}
+
 
 function shouldResetDevDbForRun(argv: string[]): boolean {
   if (process.env.VITEST_SKIP_DEV_DB_RESET === '1') {
+    return false
+  }
+
+  if (isReducedVitestRun(argv)) {
     return false
   }
 
