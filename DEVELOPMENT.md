@@ -298,3 +298,49 @@ Check these resources:
 - [`.env.local`](.env.local) - Development environment variables
 - [`.env.production.local`](.env.production.local) - Production environment variables
 - [`.github/workflows/`](.github/workflows/) - CI/CD configuration for reference
+
+## Full Backend Validation in CI
+
+This repository uses a manual, maintainers-in-control flow for the full backend-capable test suite.
+
+When opening or reviewing PRs, use the checklist in
+[.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md), including the accessibility checks for UI changes.
+
+### Why this flow exists
+
+- Full backend tests require repository secrets and a trusted backend-test environment.
+- Fork pull requests do not receive repository secrets by default.
+- Running secret-backed tests automatically on untrusted fork code is unsafe.
+
+### Internal PRs (same-repo branches)
+
+The full backend workflow is defined in [`.github/workflows/backend-tests.yml`](.github/workflows/backend-tests.yml).
+
+1. Add label `run-full-backend` to trigger the full suite.
+2. On new commits (`synchronize`), the trigger label is cleared automatically.
+3. Re-add the label after each new commit if you want another full backend run.
+
+### Fork PRs
+
+- Fork PR events are intentionally treated as not applicable by the full backend workflow.
+- Maintainers can explicitly dispatch the full suite by commenting `/run-full-backend` on the PR.
+- The comment-trigger dispatcher lives in [`.github/workflows/full-backend-from-comment.yml`](.github/workflows/full-backend-from-comment.yml).
+- It dispatches [`.github/workflows/backend-tests.yml`](.github/workflows/backend-tests.yml) against `refs/pull/<pr-number>/merge`.
+
+### Required repository configuration
+
+GitHub repository settings:
+
+1. Actions workflow permissions: **Read and write** (required for workflow dispatch and PR comments).
+2. Branch protection should require the check emitted by [`.github/workflows/backend-tests.yml`](.github/workflows/backend-tests.yml).
+
+GitHub repository secrets (used by full backend suite):
+
+1. `VITE_API_URL_PREVIEW` (must point to backend-test, not production backend).
+2. `TEST_RUN_TOKEN` (sent as `X-Test-Run-Token` in test reset/setup requests).
+
+Backend-test environment requirements:
+
+1. `DEV_TEST_AUTH_SECRET` configured server-side.
+2. `ALLOW_TEST_DATA_MUTATION=true` configured server-side.
+3. These values must not be exposed to frontend `VITE_*` variables.

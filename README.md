@@ -222,6 +222,15 @@ tests, and accessibility checks in CI.
 See [GITHUB_PAGES_DEPLOYMENT.md](GITHUB_PAGES_DEPLOYMENT.md) for the full release process, PR preview details, and
 required repository settings.
 
+### Full Backend Test Validation
+
+The full backend-capable suite is intentionally manual-triggered:
+
+- Internal PRs: add label `run-full-backend` to trigger [`.github/workflows/backend-tests.yml`](.github/workflows/backend-tests.yml).
+- Fork PRs: maintainers can comment `/run-full-backend`; [`.github/workflows/full-backend-from-comment.yml`](.github/workflows/full-backend-from-comment.yml) dispatches the full suite on the PR merge ref.
+
+This pattern avoids exposing repository secrets to untrusted fork events while preserving pre-merge backend validation.
+
 ## Copilot Accessibility Setup
 
 This repository uses both custom instructions and custom agents for
@@ -257,6 +266,9 @@ We welcome contributions! Please:
 
 For contribution norms, review expectations, and release conventions across A11yhood,
 see the community guide: [Community CONTRIBUTING.md](https://github.com/a11yhood/community/blob/main/CONTRIBUTING.md).
+
+When opening a pull request in this repository, complete the accessibility checklist
+in [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md).
 
 ## Partners and Funders
 
