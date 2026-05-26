@@ -1,6 +1,11 @@
 name: Full Test Suite (with backend)
 
 on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, reopened, ready_for_review, synchronize, labeled]
+
   workflow_dispatch:
     inputs:
       ref:
@@ -10,17 +15,96 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   test-with-backend:
     runs-on: ubuntu-latest
+    env:
+      FULL_BACKEND_TRIGGER_LABEL: run-full-backend
     steps:
+      - name: Determine whether full backend suite is applicable
+        id: gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action || '' }}
+          EVENT_LABEL: ${{ github.event.label.name || '' }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name || '' }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          should_run=true
+          reason=""
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+              should_run=false
+              reason="fork-pr"
+            elif [ "$EVENT_ACTION" = "labeled" ] && [ "$EVENT_LABEL" != "$FULL_BACKEND_TRIGGER_LABEL" ]; then
+              should_run=false
+              reason="unrelated-label"
+            fi
+          fi
+
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+
+      - name: Skip when full backend suite is not applicable
+        if: ${{ steps.gate.outputs.should_run != 'true' }}
+        run: |
+          if [ "${{ steps.gate.outputs.reason }}" = "fork-pr" ]; then
+            echo "Fork PR detected: skipping full backend suite because repository secrets are unavailable."
+            echo "Maintainers can run this workflow manually (workflow_dispatch) on a trusted ref if needed."
+          elif [ "${{ steps.gate.outputs.reason }}" = "unrelated-label" ]; then
+            echo "Label event did not add '${FULL_BACKEND_TRIGGER_LABEL}'; skipping full backend suite."
+          else
+            echo "Full backend suite is not applicable for this event."
+          fi
+
+      - name: Reset manual trigger label on new commits
+        if: ${{ steps.gate.outputs.should_run == 'true' && github.event_name == 'pull_request' && github.event.action == 'synchronize' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          status_code=$(curl -sS -o /dev/null -w "%{http_code}" \
+            -X DELETE \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/${FULL_BACKEND_TRIGGER_LABEL}")
+
+          if [ "$status_code" = "200" ] || [ "$status_code" = "204" ] || [ "$status_code" = "404" ]; then
+            echo "Trigger label reset status: ${status_code}"
+          else
+            echo "Failed to reset trigger label (HTTP ${status_code})"
+            exit 1
+          fi
+
+      - name: Enforce manual trigger label on PRs
+        if: ${{ steps.gate.outputs.should_run == 'true' && github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          labels_json=$(curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels") || {
+              echo "Failed to fetch PR labels from GitHub API."
+              exit 1
+            }
+
+          if ! echo "$labels_json" | jq -e --arg trigger "$FULL_BACKEND_TRIGGER_LABEL" '.[] | select(.name == $trigger)' >/dev/null; then
+            echo "Required check is manually triggered."
+            echo "Add label '${FULL_BACKEND_TRIGGER_LABEL}' to this PR to run the full backend suite."
+            exit 1
+          fi
+
       - name: Checkout code
+        if: ${{ steps.gate.outputs.should_run == 'true' }}
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && (inputs.ref || github.ref) || github.ref }}
 
       - name: Setup Node.js
+        if: ${{ steps.gate.outputs.should_run == 'true' }}
         uses: actions/setup-node@v5
         with:
           node-version: '20'
@@ -28,12 +112,36 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies
+        if: ${{ steps.gate.outputs.should_run == 'true' }}
         run: |
           npm ci
           npm install --no-save @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu
 
+      - name: Validate backend-test CI configuration
+        if: ${{ steps.gate.outputs.should_run == 'true' }}
+        env:
+          TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
+          TEST_RUN_TOKEN: ${{ secrets.TEST_RUN_TOKEN }}
+        run: |
+          if [ -z "$TEST_BACKEND_URL" ]; then
+            echo "Missing repository secret VITE_API_URL_PREVIEW"
+            exit 1
+          fi
+
+          if [ -z "$TEST_RUN_TOKEN" ]; then
+            echo "Missing repository secret TEST_RUN_TOKEN"
+            exit 1
+          fi
+
+          if ! echo "$TEST_BACKEND_URL" | grep -qi 'backend-test'; then
+            echo "Refusing to run full backend suite against non-test backend URL: $TEST_BACKEND_URL"
+            exit 1
+          fi
+
       - name: Run full test suite (including backend tests)
+        if: ${{ steps.gate.outputs.should_run == 'true' }}
         env:
           TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
           VITEST_DEV_DB_RESET_MODE: always
+          TEST_RUN_TOKEN: ${{ secrets.TEST_RUN_TOKEN }}
         run: npm run test:run:full

@@ -113,23 +113,12 @@ describe('DiscussionSection Component Tests (APIService mocked)', () => {
 
   it('shows "Posting..." while submitting', async () => {
     const user = userEvent.setup()
+    let resolveCreate: ((value: Discussion) => void) | null = null
 
     vi.mocked(APIService.createDiscussion).mockImplementationOnce(
       async (payload: any) =>
-        new Promise((resolve) => {
-          setTimeout(() => {
-            const created: Discussion = {
-              id: `d-${store.length + 1}`,
-              productId: payload.productId,
-              userId: payload.userId,
-              username: payload.username,
-              content: payload.content,
-              parentId: payload.parentId,
-              createdAt: Date.now(),
-            }
-            store = [...store, created]
-            resolve(created)
-          }, 10)
+        new Promise<Discussion>((resolve) => {
+          resolveCreate = resolve
         })
     )
 
@@ -144,6 +133,17 @@ describe('DiscussionSection Component Tests (APIService mocked)', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /posting/i })).toBeInTheDocument()
     })
+
+    const created: Discussion = {
+      id: `d-${store.length + 1}`,
+      productId,
+      userId: owner.id,
+      username: owner.username,
+      content: 'Posting state check',
+      createdAt: Date.now(),
+    }
+    store = [...store, created]
+    resolveCreate?.(created)
 
     // Ensure submission settles before teardown so we don't race product cleanup.
     await waitFor(() => {

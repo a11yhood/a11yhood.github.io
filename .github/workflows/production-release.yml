@@ -90,11 +90,10 @@ jobs:
             });
           "
 
-      - name: Run tests
+      - name: Run tests (reduced suite)
         env:
-          TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
-          VITEST_DEV_DB_RESET_MODE: always
-        run: npm run test:run:full
+          CI: true
+        run: npm run test:run:reduced
 
       - name: Set app version from tag
         if: startsWith(github.ref, 'refs/tags/')
