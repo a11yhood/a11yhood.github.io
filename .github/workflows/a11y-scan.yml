@@ -5,7 +5,7 @@ on:
   # Primary accessibility testing happens during development (unit tests with axe).
   # This scanner is the final check against the live site.
   workflow_run:
-    workflows: ["Publish GitHub Pages"]
+    workflows: ["Production Release"]
     types:
       - completed
 
