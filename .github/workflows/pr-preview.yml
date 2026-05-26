@@ -95,7 +95,6 @@ jobs:
         env:
           VITE_DEV_MODE: "true"
           VITE_LOG_LEVEL: debug
-          VITE_BASE_URL: /pr-preview/${{ github.event.number }}/
         run: npm run build:ghpages:ci
 
       - uses: actions/upload-artifact@v5
