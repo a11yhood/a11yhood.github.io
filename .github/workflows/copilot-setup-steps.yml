@@ -13,4 +13,4 @@ jobs:
           node-version: "20"
 
       - name: Install markdown accessibility tooling
-        run: npm install -g markdownlint-cli2
+        run: npm install -g markdownlint-cli2@0.14.0
