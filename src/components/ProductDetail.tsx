@@ -43,6 +43,7 @@ type ProductDetailProps = {
   onEditDiscussion?: (id: string, content: string) => void
   onDeleteDiscussion?: (id: string) => void
   onToggleBlockDiscussion?: (id: string, block: boolean) => void
+  onRequireLogin?: (returnToPath: string) => void
   autoOpenEdit?: boolean
   autoOpenOwnershipRequest?: boolean
 }
@@ -69,6 +70,7 @@ export function ProductDetail({
   onEditDiscussion,
   onDeleteDiscussion,
   onToggleBlockDiscussion,
+  onRequireLogin,
   autoOpenEdit,
   autoOpenOwnershipRequest,
 }: ProductDetailProps) {
@@ -91,6 +93,10 @@ export function ProductDetail({
   const shouldShowImage = !!resolvedImageUrl && !imageError
   const canModerate = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
   const isEditor = !!userAccount?.id && (product.editorIds?.includes(userAccount.id) || false)
+  const handleRequireLogin = () => {
+    if (!onRequireLogin || typeof window === 'undefined') return
+    onRequireLogin(`${window.location.pathname}${window.location.search}${window.location.hash}`)
+  }
   const [showAddToCollectionDialog, setShowAddToCollectionDialog] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
   const prevShowAddToCollectionDialogRef = useRef(false)
@@ -360,7 +366,7 @@ export function ProductDetail({
           </div>
 
           <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-lg sm:text-xl font-semibold">Your Rating</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">{user ? 'Your Rating' : 'Rating'}</h2>
             {user ? (
               <div className="flex items-center gap-3 sm:gap-4">
                 <StarRating value={userRating} onChange={onRate} size={24} className="shrink-0" />
@@ -370,9 +376,17 @@ export function ProductDetail({
               </div>
             ) : (
               <div className="flex items-center gap-3 sm:gap-4">
-                <StarRating value={averageRating} readonly size={24} className="shrink-0" />
-                <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
-                </span>
+                <button
+                  type="button"
+                  onClick={handleRequireLogin}
+                  className="flex items-center gap-3 sm:gap-4 hover:opacity-80 transition-opacity"
+                  aria-label="Sign in to rate this project"
+                >
+                  <StarRating value={averageRating} readonly size={24} className="shrink-0" />
+                  <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
+                    Rate this project
+                  </span>
+                </button>
               </div>
             )}
           </div>

@@ -69,6 +69,8 @@ type CollectionFromSearchPayload = {
   minRating?: number
 }
 
+const POST_AUTH_REDIRECT_KEY = 'a11yhood:post-auth-redirect'
+
 
 
 function App() {
@@ -1421,7 +1423,7 @@ function App() {
     }
   }
 
-  const handleLogin = () => {
+  const handleLogin = (returnToPath?: string) => {
     console.log('[App] 🔐 handleLogin called')
     console.log('[App] → isTestEnv:', isTestEnv)
     console.log('[App] → signIn function:', typeof signIn)
@@ -1429,6 +1431,10 @@ function App() {
     if (isTestEnv) {
       notify.info('Login is disabled in tests')
       return
+    }
+
+    if (returnToPath && typeof window !== 'undefined') {
+      sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, returnToPath)
     }
 
     console.log('[App] → Calling signIn()...')
@@ -1940,6 +1946,7 @@ function App() {
                   onEditDiscussion={handleEditDiscussion}
                   onDeleteDiscussion={handleDeleteDiscussion}
                   onToggleBlockDiscussion={handleToggleBlockDiscussion}
+                  onLogin={handleLogin}
                   allTags={allTags}
                   allProductTypes={allProductTypes}
                 />
@@ -2098,11 +2105,19 @@ function AuthCallback() {
       } catch (e) {
         console.error('[AuthCallback] Failed to process session from URL:', e)
       } finally {
+        let redirectPath = '/'
+        if (typeof window !== 'undefined') {
+          const storedRedirect = sessionStorage.getItem(POST_AUTH_REDIRECT_KEY)
+          sessionStorage.removeItem(POST_AUTH_REDIRECT_KEY)
+          if (storedRedirect && storedRedirect.startsWith('/') && !storedRedirect.startsWith('//')) {
+            redirectPath = storedRedirect
+          }
+        }
         // Clean up URL fragments while preserving app basename for hosted deployments.
         const basePathRaw = import.meta.env.BASE_URL || '/'
         const basePath = basePathRaw.endsWith('/') ? basePathRaw : `${basePathRaw}/`
         window.history.replaceState({}, document.title, basePath)
-        navigate('/', { replace: true })
+        navigate(redirectPath, { replace: true })
       }
     }
     process()

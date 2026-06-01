@@ -26,6 +26,7 @@ export function ProductDetailPage({
     onEditDiscussion,
     onDeleteDiscussion,
     onToggleBlockDiscussion,
+    onLogin,
     allTags,
     allProductTypes = [],
 }: {
@@ -47,6 +48,7 @@ export function ProductDetailPage({
     onEditDiscussion: (id: string, content: string) => Promise<void> | void
     onDeleteDiscussion: (id: string) => Promise<void> | void
     onToggleBlockDiscussion: (id: string, block: boolean) => Promise<void> | void
+    onLogin: (returnToPath?: string) => void
     allTags: string[]
     allProductTypes?: string[]
 }) {
@@ -135,6 +137,7 @@ export function ProductDetailPage({
             onEditDiscussion={onEditDiscussion}
             onDeleteDiscussion={onDeleteDiscussion}
             onToggleBlockDiscussion={onToggleBlockDiscussion}
+            onRequireLogin={onLogin}
             autoOpenEdit={autoOpenEdit}
             autoOpenOwnershipRequest={autoOpenOwnershipRequest}
         />
@@ -159,6 +162,7 @@ export function ProductDetailPageWrapper({
     onEditDiscussion,
     onDeleteDiscussion,
     onToggleBlockDiscussion,
+    onLogin,
     allTags,
     allProductTypes = [],
 }: {
@@ -179,6 +183,7 @@ export function ProductDetailPageWrapper({
     onEditDiscussion: (id: string, content: string) => Promise<void> | void
     onDeleteDiscussion: (id: string) => Promise<void> | void
     onToggleBlockDiscussion: (id: string, block: boolean) => Promise<void> | void
+    onLogin: (returnToPath?: string) => void
     allTags: string[]
     allProductTypes?: string[]
 }) {
@@ -282,6 +287,7 @@ export function ProductDetailPageWrapper({
             onEditDiscussion={handleEditDiscussionLocal}
             onDeleteDiscussion={onDeleteDiscussion}
             onToggleBlockDiscussion={onToggleBlockDiscussion}
+            onLogin={onLogin}
             allTags={allTags}
             allProductTypes={allProductTypes}
         />

@@ -65,7 +65,7 @@ describeWithBackend('ProductDetail - Integration', () => {
 
     expect(screen.getByText(product.name)).toBeInTheDocument()
     // Key sections exist
-    expect(screen.getByRole('heading', { name: /Your Rating/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Rating/i })).toBeInTheDocument()
     expect(screen.getAllByRole('heading', { name: /Discussion/i }).length).toBeGreaterThan(0)
   })
 
