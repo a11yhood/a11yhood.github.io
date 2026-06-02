@@ -44,6 +44,11 @@ export function CollectionDetail({
   const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(false)
   const [resolvedCreatorUsername, setResolvedCreatorUsername] = useState('')
+  const [collectionEditors, setCollectionEditors] = useState<UserAccount[]>([])
+  const [pendingEditorRequests, setPendingEditorRequests] = useState<Array<{ id: string; userId: string; userName: string }>>([])
+  const [isSubmittingEditorRequest, setIsSubmittingEditorRequest] = useState(false)
+  const [isReviewingRequestId, setIsReviewingRequestId] = useState<string | null>(null)
+  const [editorRequestSubmitted, setEditorRequestSubmitted] = useState(false)
 
   // Products individually fetched by this component (not present in globalProducts).
   // Stored in a ref so mutations don't trigger re-renders; `fetchVersion` is bumped
@@ -187,6 +192,73 @@ export function CollectionDetail({
     return () => { cancelled = true }
   }, [creatorUsername, collection.userId])
 
+  const currentUserId = userAccount?.id
+  const isCollectionEditor = !!currentUserId && (
+    (collection.editorIds || []).includes(currentUserId) ||
+    collectionEditors.some((editor) => editor.id === currentUserId)
+  )
+  const canManageEditorRequests = isOwner || isCollectionEditor || userAccount?.role === 'admin' || userAccount?.role === 'moderator'
+  const canRequestEditorAccess = !!userAccount && !isOwner && !isCollectionEditor
+  const canManageCollectionProducts = isOwner || isCollectionEditor
+
+  const loadEditorData = async () => {
+    try {
+      const editors = await APIService.getCollectionEditors(collection.slug || collection.id)
+      setCollectionEditors(editors || [])
+    } catch (error) {
+      console.debug('[CollectionDetail] Failed to load collection editors', error)
+      setCollectionEditors([])
+    }
+    if (!canManageEditorRequests) {
+      setPendingEditorRequests([])
+      return
+    }
+    try {
+      const requests = await APIService.getCollectionEditorRequests(collection.slug || collection.id)
+      setPendingEditorRequests(
+        (requests || [])
+          .filter((request) => request.status === 'pending')
+          .map((request) => ({
+            id: request.id,
+            userId: request.userId,
+            userName: request.userName,
+          }))
+      )
+    } catch (error) {
+      console.debug('[CollectionDetail] Failed to load collection editor requests', error)
+      setPendingEditorRequests([])
+    }
+  }
+
+  useEffect(() => {
+    loadEditorData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collection.id, collection.slug, canManageEditorRequests])
+
+  const handleRequestEditorAccess = async () => {
+    setIsSubmittingEditorRequest(true)
+    try {
+      await APIService.requestCollectionEditor(collection.slug || collection.id)
+      setEditorRequestSubmitted(true)
+    } finally {
+      setIsSubmittingEditorRequest(false)
+    }
+  }
+
+  const handleReviewEditorRequest = async (requestId: string, decision: 'approve' | 'reject') => {
+    setIsReviewingRequestId(requestId)
+    try {
+      if (decision === 'approve') {
+        await APIService.approveCollectionEditorRequest(collection.slug || collection.id, requestId)
+      } else {
+        await APIService.rejectCollectionEditorRequest(collection.slug || collection.id, requestId)
+      }
+      await loadEditorData()
+    } finally {
+      setIsReviewingRequestId(null)
+    }
+  }
+
   return (
     <div>
       <Button variant="outline" onClick={onBack} className="mb-6">
@@ -285,6 +357,69 @@ export function CollectionDetail({
               </span>
             </div>
           </div>
+          <div className="mt-3 text-sm">
+            <span className="text-muted-foreground">Editors:</span>{' '}
+            {collectionEditors.length > 0 || collection.editorUsernames?.length ? (
+              <span className="font-medium">
+                {(collectionEditors.map((editor) => editor.username).filter(Boolean) as string[]).length > 0
+                  ? (collectionEditors.map((editor) => editor.username).filter(Boolean) as string[]).map((username, index) => (
+                    <span key={username}>
+                      {index > 0 ? ', ' : ''}
+                      <Link to={`/profile/${username}`} className="hover:underline">{username}</Link>
+                    </span>
+                  ))
+                  : (collection.editorUsernames || []).map((username, index) => (
+                    <span key={username}>
+                      {index > 0 ? ', ' : ''}
+                      <Link to={`/profile/${username}`} className="hover:underline">{username}</Link>
+                    </span>
+                  ))}
+              </span>
+            ) : (
+              <span className="font-medium">No editors yet</span>
+            )}
+          </div>
+          {canRequestEditorAccess && !editorRequestSubmitted && (
+            <div className="mt-3">
+              <Button variant="outline" size="sm" onClick={handleRequestEditorAccess} disabled={isSubmittingEditorRequest}>
+                Request editor access
+              </Button>
+            </div>
+          )}
+          {editorRequestSubmitted && (
+            <p className="mt-3 text-sm text-muted-foreground">Editor request submitted.</p>
+          )}
+          {canManageEditorRequests && pendingEditorRequests.length > 0 && (
+            <div className="mt-4 border-t pt-4">
+              <h3 className="font-medium mb-2">Pending editor requests</h3>
+              <div className="space-y-2">
+                {pendingEditorRequests.map((request) => (
+                  <div key={request.id} className="flex items-center justify-between gap-3 rounded border p-2">
+                    <Link to={`/profile/${request.userName}`} className="text-sm hover:underline">
+                      {request.userName}
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isReviewingRequestId === request.id}
+                        onClick={() => handleReviewEditorRequest(request.id, 'reject')}
+                      >
+                        Reject
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={isReviewingRequestId === request.id}
+                        onClick={() => handleReviewEditorRequest(request.id, 'approve')}
+                      >
+                        Approve
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -296,7 +431,7 @@ export function CollectionDetail({
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground mb-2">This collection is empty</p>
           <p className="text-sm text-muted-foreground">
-            {isOwner ? 'Add products from the product details page' : 'No products in this collection yet'}
+            {canManageCollectionProducts ? 'Add products from the product details page' : 'No products in this collection yet'}
           </p>
         </div>
       ) : (
@@ -315,7 +450,7 @@ export function CollectionDetail({
                   onDelete={onRemoveProduct}
                   userAccount={userAccount}
                 />
-                {isOwner && (
+                {canManageCollectionProducts && (
                   <div className="absolute top-2 right-2 z-10">
                     <Button
                       variant="destructive"

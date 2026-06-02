@@ -53,7 +53,7 @@ export function CollectionsPage({
     // Filter to only show collections created by the current user
     const myCollections = userAccount
         ? collections.filter(c => {
-            const match = c.userId === userAccount.id
+            const match = c.userId === userAccount.id || (c.editorIds || []).includes(userAccount.id)
             console.log('[CollectionsPage] Checking collection:', {
                 collectionName: c.name,
                 collectionUserId: c.userId,
@@ -73,7 +73,7 @@ export function CollectionsPage({
     const myTotalPages = Math.ceil(myCollections.length / itemsPerPage)
 
     const filteredPublicCollections = publicCollections.filter(c =>
-        !userAccount || c.userId !== userAccount.id
+        !userAccount || (c.userId !== userAccount.id && !(c.editorIds || []).includes(userAccount.id))
     )
     const publicStart = (publicPage - 1) * itemsPerPage
     const publicEnd = publicStart + itemsPerPage

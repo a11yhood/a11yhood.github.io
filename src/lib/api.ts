@@ -648,7 +648,17 @@ export class APIService {
   private static normalizeCollection(collection: Collection): Collection {
     const raw = collection as Collection & {
       userName?: string
+      editorIds?: string[]
+      editor_ids?: string[]
+      editorUsernames?: string[]
+      editor_usernames?: string[]
+      editors?: Array<{ id?: string; username?: string }>
     }
+
+    const editors = Array.isArray(raw.editors) ? raw.editors : []
+    const editorIds = collection.editorIds || raw.editor_ids || editors.map((editor) => editor?.id).filter(Boolean) as string[]
+    const editorUsernames =
+      collection.editorUsernames || raw.editor_usernames || editors.map((editor) => editor?.username).filter(Boolean) as string[]
 
     return {
       ...collection,
@@ -656,6 +666,8 @@ export class APIService {
         collection.username ||
         raw.userName ||
         '',
+      editorIds,
+      editorUsernames,
     }
   }
 
@@ -1882,6 +1894,33 @@ export class APIService {
       body: JSON.stringify({ productSlugs }),
     })
     return result ? APIService.normalizeCollection(result) : null
+  }
+
+  static async getCollectionEditors(collectionSlug: string): Promise<UserAccount[]> {
+    return request<UserAccount[]>(`/collections/${collectionSlug}/editors`)
+  }
+
+  static async requestCollectionEditor(collectionSlug: string, message?: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(`/collections/${collectionSlug}/editors/request`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    })
+  }
+
+  static async getCollectionEditorRequests(collectionSlug: string): Promise<UserRequest[]> {
+    return request<UserRequest[]>(`/collections/${collectionSlug}/editor-requests`)
+  }
+
+  static async approveCollectionEditorRequest(collectionSlug: string, requestId: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(`/collections/${collectionSlug}/editor-requests/${requestId}/approve`, {
+      method: 'POST',
+    })
+  }
+
+  static async rejectCollectionEditorRequest(collectionSlug: string, requestId: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(`/collections/${collectionSlug}/editor-requests/${requestId}/reject`, {
+      method: 'POST',
+    })
   }
 
   static async getUserRequests(username: string): Promise<UserRequest[]> {

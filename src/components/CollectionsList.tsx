@@ -91,6 +91,8 @@ export function CollectionsList({
       {collections.map((collection) => {
         const collectionProducts = getProductsInCollection(collection)
         const isOwner = currentUserId === collection.userId
+        const isEditor = !!currentUserId && (collection.editorIds || []).includes(currentUserId)
+        const canEdit = isOwner || isEditor
         const img = imageErrors[collection.id] ? undefined : collectionImages[collection.id]
         const topTags = getTopTagsForCollection(collectionProducts)
         
@@ -141,7 +143,7 @@ export function CollectionsList({
                     <span>{collection.isPublic ? 'Public' : 'Private'}</span>
                   </CardDescription>
                 </div>
-                {isOwner && (
+                {canEdit && (
                   <div className="flex items-center gap-1">
                     {onEditCollection && (
                       <Button
@@ -156,17 +158,19 @@ export function CollectionsList({
                         <Pencil size={16} />
                       </Button>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onDeleteCollection(collection.slug || collection.id)
-                      }}
-                      aria-label="Delete collection"
-                    >
-                      <Trash size={16} />
-                    </Button>
+                    {isOwner && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDeleteCollection(collection.slug || collection.id)
+                        }}
+                        aria-label="Delete collection"
+                      >
+                        <Trash size={16} />
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
@@ -188,6 +192,23 @@ export function CollectionsList({
                   Updated {formatDistanceToNow(collection.updatedAt, { addSuffix: true })}
                 </span>
               </div>
+              {!!collection.editorUsernames?.length && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Editors:{' '}
+                  {collection.editorUsernames.map((username, index) => (
+                    <span key={username}>
+                      {index > 0 ? ', ' : ''}
+                      <a
+                        href={`/profile/${encodeURIComponent(username)}`}
+                        className="underline underline-offset-2 hover:text-foreground"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        @{username}
+                      </a>
+                    </span>
+                  ))}
+                </div>
+              )}
               {collectionProducts.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1">
                   {collectionProducts.slice(0, 3).map((product) => (
