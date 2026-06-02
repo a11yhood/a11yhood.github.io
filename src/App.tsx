@@ -2132,6 +2132,13 @@ function AuthCallback() {
       } catch (e) {
         console.error('[AuthCallback] Failed to process session from URL:', e)
       } finally {
+        const basePathRaw = import.meta.env.BASE_URL || '/'
+        const basePath = (() => {
+          const withLeadingSlash = basePathRaw.startsWith('/') ? basePathRaw : `/${basePathRaw}`
+          return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`
+        })()
+        const basePathNoTrailingSlash = basePath === '/' ? '/' : basePath.slice(0, -1)
+
         let redirectPath = '/'
         if (typeof window !== 'undefined') {
           const storedRedirect = sessionStorage.getItem(POST_AUTH_REDIRECT_KEY)
@@ -2140,11 +2147,25 @@ function AuthCallback() {
             redirectPath = storedRedirect
           }
         }
+
+        // Stored redirect comes from window.location and can include the router basename.
+        // Strip basename before navigate() to avoid double-basenaming on hosted deployments.
+        const normalizedRedirectPath = (() => {
+          if (basePathNoTrailingSlash === '/') {
+            return redirectPath
+          }
+          if (redirectPath === basePathNoTrailingSlash) {
+            return '/'
+          }
+          if (redirectPath.startsWith(`${basePathNoTrailingSlash}/`)) {
+            return redirectPath.slice(basePathNoTrailingSlash.length) || '/'
+          }
+          return redirectPath
+        })()
+
         // Clean up URL fragments while preserving app basename for hosted deployments.
-        const basePathRaw = import.meta.env.BASE_URL || '/'
-        const basePath = basePathRaw.endsWith('/') ? basePathRaw : `${basePathRaw}/`
         window.history.replaceState({}, document.title, basePath)
-        navigate(redirectPath, { replace: true })
+        navigate(normalizedRedirectPath, { replace: true })
       }
     }
     process()
