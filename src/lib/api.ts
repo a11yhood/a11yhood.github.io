@@ -648,6 +648,7 @@ export class APIService {
   private static normalizeCollection(collection: Collection): Collection {
     const raw = collection as Collection & {
       userName?: string
+      user_name?: string
       editorIds?: string[]
       editor_ids?: string[]
       editorUsernames?: string[]
@@ -664,6 +665,7 @@ export class APIService {
       ...collection,
       username:
         collection.username ||
+        raw.user_name ||
         raw.userName ||
         '',
       editorIds,
@@ -1896,8 +1898,26 @@ export class APIService {
     return result ? APIService.normalizeCollection(result) : null
   }
 
-  static async getCollectionEditors(collectionSlug: string): Promise<UserAccount[]> {
-    return request<UserAccount[]>(`/collections/${collectionSlug}/editors`)
+  static async getCollectionEditors(collectionSlug: string): Promise<{ collectionId: string; editorIds: string[] }> {
+    const result = await request<{ collectionId: string; editorIds?: string[] }>(`/collections/${collectionSlug}/editors`)
+    return {
+      collectionId: result.collectionId,
+      editorIds: result.editorIds || [],
+    }
+  }
+
+  static async addCollectionEditor(collectionSlug: string, editorUserId: string): Promise<Collection | null> {
+    const result = await request<Collection | null>(`/collections/${collectionSlug}/editors/${editorUserId}`, {
+      method: 'POST',
+    })
+    return result ? APIService.normalizeCollection(result) : null
+  }
+
+  static async removeCollectionEditor(collectionSlug: string, editorUserId: string): Promise<Collection | null> {
+    const result = await request<Collection | null>(`/collections/${collectionSlug}/editors/${editorUserId}`, {
+      method: 'DELETE',
+    })
+    return result ? APIService.normalizeCollection(result) : null
   }
 
   static async requestCollectionEditor(collectionSlug: string, message?: string): Promise<{ success: boolean }> {

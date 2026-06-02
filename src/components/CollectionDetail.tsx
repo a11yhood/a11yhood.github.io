@@ -1,5 +1,6 @@
 import { Collection, Product, Rating, UserAccount } from '@/lib/types'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Card, CardHeader, CardDescription, CardContent, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Lock, LockOpen, Trash, Pencil } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
@@ -10,6 +11,7 @@ import { APIService } from '@/lib/api'
 import { Link, useNavigate } from 'react-router-dom'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
 import MarkdownText from '@/components/ui/MarkdownText'
+import { useNotifications } from '@/contexts/NotificationContext'
 
 type CollectionDetailProps = {
   collection: Collection
@@ -24,6 +26,7 @@ type CollectionDetailProps = {
   onTogglePrivacy?: (nextPublic: boolean) => Promise<void> | void
   onDeleteCollection?: () => void
   onEditCollection?: () => void
+  onCollectionUpdated?: (collection: Collection) => void
 }
 
 export function CollectionDetail({
@@ -39,16 +42,19 @@ export function CollectionDetail({
   onTogglePrivacy,
   onDeleteCollection,
   onEditCollection,
+  onCollectionUpdated,
 }: CollectionDetailProps) {
   void onDeleteProduct
+  const { notify } = useNotifications()
   const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(false)
   const [resolvedCreatorUsername, setResolvedCreatorUsername] = useState('')
-  const [collectionEditors, setCollectionEditors] = useState<UserAccount[]>([])
-  const [pendingEditorRequests, setPendingEditorRequests] = useState<Array<{ id: string; userId: string; userName: string }>>([])
-  const [isSubmittingEditorRequest, setIsSubmittingEditorRequest] = useState(false)
-  const [isReviewingRequestId, setIsReviewingRequestId] = useState<string | null>(null)
-  const [editorRequestSubmitted, setEditorRequestSubmitted] = useState(false)
+  const [collectionEditorIds, setCollectionEditorIds] = useState<string[]>(collection.editorIds || [])
+  const [resolvedEditors, setResolvedEditors] = useState<Record<string, UserAccount | null>>({})
+  const [collaboratorUserId, setCollaboratorUserId] = useState('')
+  const [isAddingCollaborator, setIsAddingCollaborator] = useState(false)
+  const [removingCollaboratorId, setRemovingCollaboratorId] = useState<string | null>(null)
+  const [collaboratorError, setCollaboratorError] = useState<string>('')
 
   // Products individually fetched by this component (not present in globalProducts).
   // Stored in a ref so mutations don't trigger re-renders; `fetchVersion` is bumped
@@ -193,69 +199,150 @@ export function CollectionDetail({
   }, [creatorUsername, collection.userId])
 
   const currentUserId = userAccount?.id
+  const editorIds = useMemo(() => {
+    const merged = [...(collection.editorIds || []), ...collectionEditorIds]
+    return Array.from(new Set(merged.filter(Boolean)))
+  }, [collection.editorIds, collectionEditorIds])
+
   const isCollectionEditor = !!currentUserId && (
-    (collection.editorIds || []).includes(currentUserId) ||
-    collectionEditors.some((editor) => editor.id === currentUserId)
+    editorIds.includes(currentUserId)
   )
-  const canManageEditorRequests = isOwner || isCollectionEditor || userAccount?.role === 'admin' || userAccount?.role === 'moderator'
-  const canRequestEditorAccess = !!userAccount && !isOwner && !isCollectionEditor
+
+  const isPrivilegedRole = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
+  const canManageCollaborators = isOwner || isPrivilegedRole
   const canManageCollectionProducts = isOwner || isCollectionEditor
+
+  useEffect(() => {
+    setCollectionEditorIds(collection.editorIds || [])
+  }, [collection.editorIds])
+
+  const getCollaboratorErrorMessage = (error: unknown, action: 'add' | 'remove'): string => {
+    const apiError = error as { status?: number; data?: { detail?: string }; message?: string }
+    const detail = apiError.data?.detail
+
+    if (apiError.status === 400) {
+      return detail || (action === 'add'
+        ? 'Invalid collaborator user ID format.'
+        : 'This collaborator change is not allowed.')
+    }
+
+    if (apiError.status === 403) {
+      return 'Only the collection owner, admin, or moderator can manage collaborators.'
+    }
+
+    if (apiError.status === 404) {
+      return detail || (action === 'add'
+        ? 'Collaborator user was not found.'
+        : 'Collection or collaborator user was not found.')
+    }
+
+    return detail || apiError.message || 'Unable to update collaborators right now.'
+  }
 
   const loadEditorData = async () => {
     try {
-      const editors = await APIService.getCollectionEditors(collection.slug || collection.id)
-      setCollectionEditors(editors || [])
+      const editorData = await APIService.getCollectionEditors(collection.slug || collection.id)
+      setCollectionEditorIds(editorData.editorIds || [])
     } catch (error) {
       console.debug('[CollectionDetail] Failed to load collection editors', error)
-      setCollectionEditors([])
-    }
-    if (!canManageEditorRequests) {
-      setPendingEditorRequests([])
-      return
-    }
-    try {
-      const requests = await APIService.getCollectionEditorRequests(collection.slug || collection.id)
-      setPendingEditorRequests(
-        (requests || [])
-          .filter((request) => request.status === 'pending')
-          .map((request) => ({
-            id: request.id,
-            userId: request.userId,
-            userName: request.userName,
-          }))
-      )
-    } catch (error) {
-      console.debug('[CollectionDetail] Failed to load collection editor requests', error)
-      setPendingEditorRequests([])
+      setCollectionEditorIds(collection.editorIds || [])
     }
   }
 
   useEffect(() => {
     loadEditorData()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collection.id, collection.slug, canManageEditorRequests])
+  }, [collection.id, collection.slug])
 
-  const handleRequestEditorAccess = async () => {
-    setIsSubmittingEditorRequest(true)
+  useEffect(() => {
+    let cancelled = false
+
+    const loadEditorUsers = async () => {
+      const idsNeedingLookup = editorIds.filter((id) => resolvedEditors[id] === undefined)
+      if (idsNeedingLookup.length === 0) {
+        return
+      }
+
+      const results = await Promise.all(
+        idsNeedingLookup.map(async (id) => {
+          try {
+            const user = await APIService.getUserAccount(id)
+            return { id, user: user || null }
+          } catch {
+            return { id, user: null }
+          }
+        })
+      )
+
+      if (cancelled) {
+        return
+      }
+
+      setResolvedEditors((current) => {
+        const next = { ...current }
+        results.forEach(({ id, user }) => {
+          next[id] = user
+        })
+        return next
+      })
+    }
+
+    loadEditorUsers().catch((error) => {
+      console.debug('[CollectionDetail] Failed to resolve collaborator usernames', error)
+    })
+
+    return () => { cancelled = true }
+  }, [editorIds, resolvedEditors])
+
+  const handleAddCollaborator = async () => {
+    const editorUserId = collaboratorUserId.trim()
+    if (!editorUserId) {
+      setCollaboratorError('Enter a collaborator user ID.')
+      return
+    }
+
+    setCollaboratorError('')
+    setIsAddingCollaborator(true)
+
     try {
-      await APIService.requestCollectionEditor(collection.slug || collection.id)
-      setEditorRequestSubmitted(true)
+      const updated = await APIService.addCollectionEditor(collection.slug || collection.id, editorUserId)
+      if (updated) {
+        setCollectionEditorIds(updated.editorIds || [])
+        onCollectionUpdated?.(updated)
+      }
+      setCollaboratorUserId('')
+      notify.success('Collaborator added')
+    } catch (error) {
+      const message = getCollaboratorErrorMessage(error, 'add')
+      setCollaboratorError(message)
+      notify.error(message)
     } finally {
-      setIsSubmittingEditorRequest(false)
+      setIsAddingCollaborator(false)
     }
   }
 
-  const handleReviewEditorRequest = async (requestId: string, decision: 'approve' | 'reject') => {
-    setIsReviewingRequestId(requestId)
+  const handleRemoveCollaborator = async (editorUserId: string) => {
+    if (editorUserId === collection.userId) {
+      setCollaboratorError('The collection owner cannot be removed as a collaborator.')
+      return
+    }
+
+    setCollaboratorError('')
+    setRemovingCollaboratorId(editorUserId)
+
     try {
-      if (decision === 'approve') {
-        await APIService.approveCollectionEditorRequest(collection.slug || collection.id, requestId)
-      } else {
-        await APIService.rejectCollectionEditorRequest(collection.slug || collection.id, requestId)
+      const updated = await APIService.removeCollectionEditor(collection.slug || collection.id, editorUserId)
+      if (updated) {
+        setCollectionEditorIds(updated.editorIds || [])
+        onCollectionUpdated?.(updated)
       }
-      await loadEditorData()
+      notify.success('Collaborator removed')
+    } catch (error) {
+      const message = getCollaboratorErrorMessage(error, 'remove')
+      setCollaboratorError(message)
+      notify.error(message)
     } finally {
-      setIsReviewingRequestId(null)
+      setRemovingCollaboratorId(null)
     }
   }
 
@@ -358,68 +445,80 @@ export function CollectionDetail({
             </div>
           </div>
           <div className="mt-3 text-sm">
-            <span className="text-muted-foreground">Editors:</span>{' '}
-            {collectionEditors.length > 0 || collection.editorUsernames?.length ? (
-              <span className="font-medium">
-                {(collectionEditors.map((editor) => editor.username).filter(Boolean) as string[]).length > 0
-                  ? (collectionEditors.map((editor) => editor.username).filter(Boolean) as string[]).map((username, index) => (
-                    <span key={username}>
-                      {index > 0 ? ', ' : ''}
-                      <Link to={`/profile/${username}`} className="hover:underline">{username}</Link>
-                    </span>
-                  ))
-                  : (collection.editorUsernames || []).map((username, index) => (
-                    <span key={username}>
-                      {index > 0 ? ', ' : ''}
-                      <Link to={`/profile/${username}`} className="hover:underline">{username}</Link>
-                    </span>
-                  ))}
-              </span>
+            <span className="text-muted-foreground">Collaborators:</span>{' '}
+            {editorIds.length > 0 ? (
+              <span className="font-medium">{editorIds.length}</span>
             ) : (
-              <span className="font-medium">No editors yet</span>
+              <span className="font-medium">None</span>
             )}
           </div>
-          {canRequestEditorAccess && !editorRequestSubmitted && (
-            <div className="mt-3">
-              <Button variant="outline" size="sm" onClick={handleRequestEditorAccess} disabled={isSubmittingEditorRequest}>
-                Request editor access
-              </Button>
-            </div>
-          )}
-          {editorRequestSubmitted && (
-            <p className="mt-3 text-sm text-muted-foreground">Editor request submitted.</p>
-          )}
-          {canManageEditorRequests && pendingEditorRequests.length > 0 && (
-            <div className="mt-4 border-t pt-4">
-              <h3 className="font-medium mb-2">Pending editor requests</h3>
-              <div className="space-y-2">
-                {pendingEditorRequests.map((request) => (
-                  <div key={request.id} className="flex items-center justify-between gap-3 rounded border p-2">
-                    <Link to={`/profile/${request.userName}`} className="text-sm hover:underline">
-                      {request.userName}
-                    </Link>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isReviewingRequestId === request.id}
-                        onClick={() => handleReviewEditorRequest(request.id, 'reject')}
-                      >
-                        Reject
-                      </Button>
-                      <Button
-                        size="sm"
-                        disabled={isReviewingRequestId === request.id}
-                        onClick={() => handleReviewEditorRequest(request.id, 'approve')}
-                      >
-                        Approve
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+          <div className="mt-4 border-t pt-4">
+            <h3 className="font-medium mb-2">Collaborators</h3>
+            {editorIds.length > 0 ? (
+              <ul className="space-y-2">
+                {editorIds.map((editorId) => {
+                  const resolvedEditor = resolvedEditors[editorId]
+                  const username = resolvedEditor?.username || null
+
+                  return (
+                    <li key={editorId} className="flex items-center justify-between gap-3 rounded border p-2">
+                      <div className="text-sm">
+                        {username ? (
+                          <Link to={`/profile/${username}`} className="hover:underline">
+                            @{username}
+                          </Link>
+                        ) : (
+                          <span>{editorId}</span>
+                        )}
+                      </div>
+                      {canManageCollaborators && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={removingCollaboratorId === editorId || editorId === collection.userId}
+                          onClick={() => handleRemoveCollaborator(editorId)}
+                          aria-label={username ? `Remove collaborator ${username}` : `Remove collaborator ${editorId}`}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">No collaborators yet.</p>
+            )}
+
+            {canManageCollaborators && (
+              <div className="mt-3 space-y-2">
+                <label htmlFor="collaborator-user-id" className="text-sm font-medium">
+                  Add collaborator by user ID
+                </label>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Input
+                    id="collaborator-user-id"
+                    value={collaboratorUserId}
+                    onChange={(event) => setCollaboratorUserId(event.target.value)}
+                    placeholder="Enter user UUID"
+                    aria-describedby={collaboratorError ? 'collaborator-error' : undefined}
+                  />
+                  <Button onClick={handleAddCollaborator} disabled={isAddingCollaborator}>
+                    Add collaborator
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Only collection owners, admins, and moderators can manage collaborators.
+                </p>
               </div>
-            </div>
-          )}
+            )}
+
+            {collaboratorError && (
+              <p id="collaborator-error" className="mt-2 text-sm text-destructive" role="status">
+                {collaboratorError}
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
 
