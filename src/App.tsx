@@ -1433,6 +1433,33 @@ function App() {
       return
     }
 
+    if (import.meta.env.VITE_DEV_MODE === 'true' && authUser) {
+      // In dev mode, OAuth signIn may be a no-op. Ensure login clicks still produce a
+      // usable signed-in UI state and preserve return behavior for product-page actions.
+      setUser((current) => {
+        if (current?.id) return current
+        return {
+          id: authUser.id,
+          username:
+            (typeof authUser.user_metadata?.preferred_username === 'string' && authUser.user_metadata.preferred_username) ||
+            (typeof authUser.user_metadata?.user_name === 'string' && authUser.user_metadata.user_name) ||
+            (typeof authUser.email === 'string' ? authUser.email.split('@')[0] : authUser.id),
+          avatarUrl:
+            (typeof authUser.user_metadata?.avatar_url === 'string' && authUser.user_metadata.avatar_url) ||
+            (typeof authUser.user_metadata?.picture === 'string' && authUser.user_metadata.picture) ||
+            undefined,
+        }
+      })
+
+      if (returnToPath && typeof window !== 'undefined') {
+        sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, returnToPath)
+        window.history.replaceState({}, document.title, returnToPath)
+      }
+
+      notify.info('Dev mode sign-in enabled')
+      return
+    }
+
     if (returnToPath && typeof window !== 'undefined') {
       sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, returnToPath)
     }

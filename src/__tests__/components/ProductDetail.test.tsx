@@ -35,9 +35,16 @@ describe('ProductDetail rating section', () => {
     expect(screen.getByRole('heading', { name: 'Rating' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Your Rating' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in to rate this project' }))
+    const loginCtas = screen.getAllByRole('button', { name: 'Sign in to rate this product' })
+    expect(loginCtas.length).toBeGreaterThan(0)
 
-    expect(onRequireLogin).toHaveBeenCalledWith('/product/test-product?source=test#ratings')
+    fireEvent.click(loginCtas[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in to add tag' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in to add to collection' }))
+
+    expect(onRequireLogin).toHaveBeenNthCalledWith(1, '/product/test-product?source=test#ratings')
+    expect(onRequireLogin).toHaveBeenNthCalledWith(2, '/product/test-product?source=test#ratings')
+    expect(onRequireLogin).toHaveBeenNthCalledWith(3, '/product/test-product?source=test#ratings')
   })
 
   it('shows "Your Rating" for signed-in users', () => {
@@ -51,5 +58,6 @@ describe('ProductDetail rating section', () => {
     )
 
     expect(screen.getByRole('heading', { name: 'Your Rating' })).toBeInTheDocument()
+    expect(screen.getByText('Rate this product')).toBeInTheDocument()
   })
 })

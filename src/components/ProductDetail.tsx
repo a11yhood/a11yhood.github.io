@@ -332,11 +332,34 @@ export function ProductDetail({
             </div>
 
             <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-              <StarRating value={averageRating} readonly size={24} showValue />
-              {!hasUserRatings && !hasSourceRatings ? (
-                <span className="text-sm text-muted-foreground">(No ratings yet)</span>
+              {user ? (
+                <>
+                  <StarRating value={averageRating} readonly size={24} showValue />
+                  {!hasUserRatings && !hasSourceRatings ? (
+                    <span className="text-sm text-muted-foreground">(No ratings yet)</span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">({ratingSummary})</span>
+                  )}
+                </>
               ) : (
-                <span className="text-sm text-muted-foreground">({ratingSummary})</span>
+                <>
+                  <button
+                    type="button"
+                    onClick={handleRequireLogin}
+                    className="hover:opacity-80 transition-opacity"
+                    aria-label="Sign in to rate this product"
+                  >
+                    <StarRating value={averageRating} readonly size={24} showValue />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRequireLogin}
+                    className="text-sm text-muted-foreground hover:underline"
+                    aria-label="Sign in to rate this product"
+                  >
+                    {!hasUserRatings && !hasSourceRatings ? '(No ratings yet)' : `(${ratingSummary})`}
+                  </button>
+                </>
               )}
             </div>
 
@@ -371,7 +394,7 @@ export function ProductDetail({
               <div className="flex items-center gap-3 sm:gap-4">
                 <StarRating value={userRating} onChange={onRate} size={24} className="shrink-0" />
                 <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
-                  {userRating > 0 ? 'Click to change' : 'Click to rate'}
+                  Rate this product
                 </span>
               </div>
             ) : (
@@ -379,13 +402,18 @@ export function ProductDetail({
                 <button
                   type="button"
                   onClick={handleRequireLogin}
-                  className="flex items-center gap-3 sm:gap-4 hover:opacity-80 transition-opacity"
-                  aria-label="Sign in to rate this project"
+                  className="hover:opacity-80 transition-opacity"
+                  aria-label="Sign in to rate this product"
                 >
                   <StarRating value={averageRating} readonly size={24} className="shrink-0" />
-                  <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
-                    Rate this project
-                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRequireLogin}
+                  className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap hover:underline"
+                  aria-label="Sign in to rate this product"
+                >
+                  Rate this product
                 </button>
               </div>
             )}
@@ -398,6 +426,7 @@ export function ProductDetail({
               allTags={allTags}
               onAddTag={onAddTag}
               user={user}
+              onRequireLogin={handleRequireLogin}
             />
           </div>
 
@@ -407,6 +436,7 @@ export function ProductDetail({
               userCollections={localCollections}
               user={user}
               onOpenAddDialog={() => setShowAddToCollectionDialog(true)}
+              onRequireLogin={handleRequireLogin}
             />
           </div>
         </div>
