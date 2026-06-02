@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link as LinkIcon, Trash, Prohibit, CheckCircle } from '@phosphor-icons/react'
+import { Link as LinkIcon, Trash, Prohibit, CheckCircle, Star } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -95,7 +95,29 @@ export function ProductDetail({
   const isEditor = !!userAccount?.id && (product.editorIds?.includes(userAccount.id) || false)
   const handleRequireLogin = () => {
     if (!onRequireLogin || typeof window === 'undefined') return
-    onRequireLogin(`${window.location.pathname}${window.location.search}${window.location.hash}`)
+
+    const rawPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
+    const basePathRaw = import.meta.env.BASE_URL || '/'
+    const basePath = (() => {
+      const withLeadingSlash = basePathRaw.startsWith('/') ? basePathRaw : `/${basePathRaw}`
+      return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`
+    })()
+    const basePathNoTrailingSlash = basePath === '/' ? '/' : basePath.slice(0, -1)
+
+    const normalizedReturnPath = (() => {
+      if (basePathNoTrailingSlash === '/') {
+        return rawPath
+      }
+      if (rawPath === basePathNoTrailingSlash) {
+        return '/'
+      }
+      if (rawPath.startsWith(`${basePathNoTrailingSlash}/`)) {
+        return rawPath.slice(basePathNoTrailingSlash.length) || '/'
+      }
+      return rawPath
+    })()
+
+    onRequireLogin(normalizedReturnPath)
   }
   const [showAddToCollectionDialog, setShowAddToCollectionDialog] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
@@ -331,35 +353,13 @@ export function ProductDetail({
               </div>
             </div>
 
-            <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-              {user ? (
-                <>
-                  <StarRating value={averageRating} readonly size={24} showValue />
-                  {!hasUserRatings && !hasSourceRatings ? (
-                    <span className="text-sm text-muted-foreground">(No ratings yet)</span>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">({ratingSummary})</span>
-                  )}
-                </>
+            <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4" aria-label="Average rating summary">
+              <span className="text-base font-medium text-foreground">{averageRating.toFixed(1)}</span>
+              <Star size={22} weight="fill" className="text-accent" aria-hidden="true" />
+              {!hasUserRatings && !hasSourceRatings ? (
+                <span className="text-sm text-muted-foreground">(No ratings yet)</span>
               ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleRequireLogin}
-                    className="hover:opacity-80 transition-opacity"
-                    aria-label="Sign in to rate this product"
-                  >
-                    <StarRating value={averageRating} readonly size={24} showValue />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleRequireLogin}
-                    className="text-sm text-muted-foreground hover:underline"
-                    aria-label="Sign in to rate this product"
-                  >
-                    {!hasUserRatings && !hasSourceRatings ? '(No ratings yet)' : `(${ratingSummary})`}
-                  </button>
-                </>
+                <span className="text-sm text-muted-foreground">({ratingSummary})</span>
               )}
             </div>
 
