@@ -14,6 +14,7 @@ type TagManagerProps = {
   allTags: string[]
   onAddTag: (tag: string) => void | Promise<void>
   user: UserData | null
+  onRequireLogin?: () => void
 }
 
 export function TagManager({
@@ -21,6 +22,7 @@ export function TagManager({
   allTags,
   onAddTag,
   user,
+  onRequireLogin,
 }: TagManagerProps) {
   const { notify } = useNotifications()
   const [isAdding, setIsAdding] = useState(false)
@@ -93,12 +95,18 @@ export function TagManager({
           <TagIcon size={20} />
           Tags
         </h2>
-        {user && !isAdding && (
+        {!isAdding && (
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => setIsAdding(true)}
-            aria-label="Add tag"
+            onClick={() => {
+              if (user) {
+                setIsAdding(true)
+                return
+              }
+              onRequireLogin?.()
+            }}
+            aria-label={user ? 'Add tag' : 'Sign in to add tag'}
             className="h-6 w-6 p-0"
           >
             <Plus size={16} />

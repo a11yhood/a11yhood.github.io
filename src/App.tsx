@@ -69,6 +69,8 @@ type CollectionFromSearchPayload = {
   minRating?: number
 }
 
+const POST_AUTH_REDIRECT_KEY = 'a11yhood:post-auth-redirect'
+
 
 
 function App() {
@@ -1421,7 +1423,7 @@ function App() {
     }
   }
 
-  const handleLogin = () => {
+  const handleLogin = (returnToPath?: string) => {
     console.log('[App] 🔐 handleLogin called')
     console.log('[App] → isTestEnv:', isTestEnv)
     console.log('[App] → signIn function:', typeof signIn)
@@ -1429,6 +1431,37 @@ function App() {
     if (isTestEnv) {
       notify.info('Login is disabled in tests')
       return
+    }
+
+    if (import.meta.env.VITE_DEV_MODE === 'true' && authUser) {
+      // In dev mode, OAuth signIn may be a no-op. Ensure login clicks still produce a
+      // usable signed-in UI state and preserve return behavior for product-page actions.
+      setUser((current) => {
+        if (current?.id) return current
+        return {
+          id: authUser.id,
+          username:
+            (typeof authUser.user_metadata?.preferred_username === 'string' && authUser.user_metadata.preferred_username) ||
+            (typeof authUser.user_metadata?.user_name === 'string' && authUser.user_metadata.user_name) ||
+            (typeof authUser.email === 'string' ? authUser.email.split('@')[0] : authUser.id),
+          avatarUrl:
+            (typeof authUser.user_metadata?.avatar_url === 'string' && authUser.user_metadata.avatar_url) ||
+            (typeof authUser.user_metadata?.picture === 'string' && authUser.user_metadata.picture) ||
+            undefined,
+        }
+      })
+
+      if (returnToPath && typeof window !== 'undefined') {
+        sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, returnToPath)
+        window.history.replaceState({}, document.title, returnToPath)
+      }
+
+      notify.info('Dev mode sign-in enabled')
+      return
+    }
+
+    if (returnToPath && typeof window !== 'undefined') {
+      sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, returnToPath)
     }
 
     console.log('[App] → Calling signIn()...')
@@ -1940,6 +1973,7 @@ function App() {
                   onEditDiscussion={handleEditDiscussion}
                   onDeleteDiscussion={handleDeleteDiscussion}
                   onToggleBlockDiscussion={handleToggleBlockDiscussion}
+                  onLogin={handleLogin}
                   allTags={allTags}
                   allProductTypes={allProductTypes}
                 />
@@ -2098,11 +2132,40 @@ function AuthCallback() {
       } catch (e) {
         console.error('[AuthCallback] Failed to process session from URL:', e)
       } finally {
-        // Clean up URL fragments while preserving app basename for hosted deployments.
         const basePathRaw = import.meta.env.BASE_URL || '/'
-        const basePath = basePathRaw.endsWith('/') ? basePathRaw : `${basePathRaw}/`
+        const basePath = (() => {
+          const withLeadingSlash = basePathRaw.startsWith('/') ? basePathRaw : `/${basePathRaw}`
+          return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`
+        })()
+        const basePathNoTrailingSlash = basePath === '/' ? '/' : basePath.slice(0, -1)
+
+        let redirectPath = '/'
+        if (typeof window !== 'undefined') {
+          const storedRedirect = sessionStorage.getItem(POST_AUTH_REDIRECT_KEY)
+          sessionStorage.removeItem(POST_AUTH_REDIRECT_KEY)
+          if (storedRedirect && storedRedirect.startsWith('/') && !storedRedirect.startsWith('//')) {
+            redirectPath = storedRedirect
+          }
+        }
+
+        // Stored redirect comes from window.location and can include the router basename.
+        // Strip basename before navigate() to avoid double-basenaming on hosted deployments.
+        const normalizedRedirectPath = (() => {
+          if (basePathNoTrailingSlash === '/') {
+            return redirectPath
+          }
+          if (redirectPath === basePathNoTrailingSlash) {
+            return '/'
+          }
+          if (redirectPath.startsWith(`${basePathNoTrailingSlash}/`)) {
+            return redirectPath.slice(basePathNoTrailingSlash.length) || '/'
+          }
+          return redirectPath
+        })()
+
+        // Clean up URL fragments while preserving app basename for hosted deployments.
         window.history.replaceState({}, document.title, basePath)
-        navigate('/', { replace: true })
+        navigate(normalizedRedirectPath, { replace: true })
       }
     }
     process()

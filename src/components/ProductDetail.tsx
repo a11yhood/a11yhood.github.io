@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link as LinkIcon, Trash, Prohibit, CheckCircle } from '@phosphor-icons/react'
+import { Link as LinkIcon, Trash, Prohibit, CheckCircle, Star } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -43,6 +43,7 @@ type ProductDetailProps = {
   onEditDiscussion?: (id: string, content: string) => void
   onDeleteDiscussion?: (id: string) => void
   onToggleBlockDiscussion?: (id: string, block: boolean) => void
+  onRequireLogin?: (returnToPath: string) => void
   autoOpenEdit?: boolean
   autoOpenOwnershipRequest?: boolean
 }
@@ -69,6 +70,7 @@ export function ProductDetail({
   onEditDiscussion,
   onDeleteDiscussion,
   onToggleBlockDiscussion,
+  onRequireLogin,
   autoOpenEdit,
   autoOpenOwnershipRequest,
 }: ProductDetailProps) {
@@ -91,6 +93,32 @@ export function ProductDetail({
   const shouldShowImage = !!resolvedImageUrl && !imageError
   const canModerate = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
   const isEditor = !!userAccount?.id && (product.editorIds?.includes(userAccount.id) || false)
+  const handleRequireLogin = () => {
+    if (!onRequireLogin || typeof window === 'undefined') return
+
+    const rawPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
+    const basePathRaw = import.meta.env.BASE_URL || '/'
+    const basePath = (() => {
+      const withLeadingSlash = basePathRaw.startsWith('/') ? basePathRaw : `/${basePathRaw}`
+      return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`
+    })()
+    const basePathNoTrailingSlash = basePath === '/' ? '/' : basePath.slice(0, -1)
+
+    const normalizedReturnPath = (() => {
+      if (basePathNoTrailingSlash === '/') {
+        return rawPath
+      }
+      if (rawPath === basePathNoTrailingSlash) {
+        return '/'
+      }
+      if (rawPath.startsWith(`${basePathNoTrailingSlash}/`)) {
+        return rawPath.slice(basePathNoTrailingSlash.length) || '/'
+      }
+      return rawPath
+    })()
+
+    onRequireLogin(normalizedReturnPath)
+  }
   const [showAddToCollectionDialog, setShowAddToCollectionDialog] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
   const prevShowAddToCollectionDialogRef = useRef(false)
@@ -325,8 +353,9 @@ export function ProductDetail({
               </div>
             </div>
 
-            <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-              <StarRating value={averageRating} readonly size={24} showValue />
+            <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4" aria-label="Average rating summary">
+              <span className="text-base font-medium text-foreground">{averageRating.toFixed(1)}</span>
+              <Star size={22} weight="fill" className="text-accent" aria-hidden="true" />
               {!hasUserRatings && !hasSourceRatings ? (
                 <span className="text-sm text-muted-foreground">(No ratings yet)</span>
               ) : (
@@ -360,19 +389,32 @@ export function ProductDetail({
           </div>
 
           <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-lg sm:text-xl font-semibold">Your Rating</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">{user ? 'Your Rating' : 'Rating'}</h2>
             {user ? (
               <div className="flex items-center gap-3 sm:gap-4">
                 <StarRating value={userRating} onChange={onRate} size={24} className="shrink-0" />
                 <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
-                  {userRating > 0 ? 'Click to change' : 'Click to rate'}
+                  Rate this product
                 </span>
               </div>
             ) : (
               <div className="flex items-center gap-3 sm:gap-4">
-                <StarRating value={averageRating} readonly size={24} className="shrink-0" />
-                <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
-                </span>
+                <button
+                  type="button"
+                  onClick={handleRequireLogin}
+                  className="hover:opacity-80 transition-opacity"
+                  aria-label="Sign in to rate this product"
+                >
+                  <StarRating value={averageRating} readonly size={24} className="shrink-0" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRequireLogin}
+                  className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap hover:underline"
+                  aria-label="Sign in to rate this product"
+                >
+                  Rate this product
+                </button>
               </div>
             )}
           </div>
@@ -384,6 +426,7 @@ export function ProductDetail({
               allTags={allTags}
               onAddTag={onAddTag}
               user={user}
+              onRequireLogin={handleRequireLogin}
             />
           </div>
 
@@ -393,6 +436,7 @@ export function ProductDetail({
               userCollections={localCollections}
               user={user}
               onOpenAddDialog={() => setShowAddToCollectionDialog(true)}
+              onRequireLogin={handleRequireLogin}
             />
           </div>
         </div>

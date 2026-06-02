@@ -8,6 +8,7 @@ type CollectionsManagerProps = {
   userCollections: Collection[]
   user: UserData | null
   onOpenAddDialog: () => void
+  onRequireLogin?: () => void
 }
 
 export function CollectionsManager({
@@ -15,6 +16,7 @@ export function CollectionsManager({
   userCollections,
   user,
   onOpenAddDialog,
+  onRequireLogin,
 }: CollectionsManagerProps) {
   const productCollections = productSlug
     ? userCollections.filter(c => (c.productSlugs ?? []).includes(productSlug))
@@ -27,15 +29,19 @@ export function CollectionsManager({
           <FolderOpen size={20} />
           Collections
         </h2>
-        {user && (
-          <button
-            onClick={onOpenAddDialog}
-            className="inline-flex items-center justify-center h-6 w-6 rounded-md text-xs border border-dashed border-muted-foreground/50 text-muted-foreground hover:border-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Add to collection"
-          >
-            <Plus size={14} weight="bold" />
-          </button>
-        )}
+        <button
+          onClick={() => {
+            if (user) {
+              onOpenAddDialog()
+              return
+            }
+            onRequireLogin?.()
+          }}
+          className="inline-flex items-center justify-center h-6 w-6 rounded-md text-xs border border-dashed border-muted-foreground/50 text-muted-foreground hover:border-muted-foreground hover:text-foreground transition-colors"
+          aria-label={user ? 'Add to collection' : 'Sign in to add to collection'}
+        >
+          <Plus size={14} weight="bold" />
+        </button>
       </div>
 
       <ul className="flex flex-wrap gap-2">
