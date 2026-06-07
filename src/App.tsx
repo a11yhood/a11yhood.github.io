@@ -43,7 +43,6 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { AlertBanner } from '@/components/AlertBanner'
 // API adapter disabled - using real backend API now
 // import '@/lib/api-adapter'
-import { Switch } from '@/components/ui/switch'
 
 console.log('✓ [App.tsx] All imports loaded')
 
@@ -55,18 +54,6 @@ export type ApiErrorLike = {
     type?: string
     debug_info?: unknown
   }
-}
-
-type CollectionFromSearchPayload = {
-  name: string
-  description?: string
-  isPublic: boolean
-  search?: string
-  sources?: string[]
-  types?: string[]
-  tags?: string[]
-  tagsMode?: string
-  minRating?: number
 }
 
 const POST_AUTH_REDIRECT_KEY = 'a11yhood:post-auth-redirect'
@@ -1102,6 +1089,7 @@ function App() {
       }
     }
 
+    void handleRavelryOAuth()
   }, [authLoading, authUser, notify])
 
   // Load collections for all users (public collections always, user collections on /collections pages)

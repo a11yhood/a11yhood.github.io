@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link as LinkIcon, Trash, Prohibit, CheckCircle, Star } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -126,7 +126,7 @@ export function ProductDetail({
   const [banReason, setBanReason] = useState('')
 
   // Load collections function (extracted for reuse)
-  const loadCollections = async () => {
+  const loadCollections = useCallback(async () => {
     if (!user) return
     try {
       const userCollections = await APIService.getUserCollections()
@@ -136,26 +136,24 @@ export function ProductDetail({
       // Silently handle errors - collections are optional
       console.debug('Failed to load collections:', error)
     }
-  }
+  }, [user])
 
   // Load collections on mount and whenever user state changes
   useEffect(() => {
     collectionLoadStartedRef.current = false
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    loadCollections()
-  }, [user])
+    void loadCollections()
+  }, [loadCollections, user])
 
   useEffect(() => {
     if (user) {
       if (showAddToCollectionDialog && !prevShowAddToCollectionDialogRef.current) {
-        loadCollections()
+        void loadCollections()
       } else if (!showAddToCollectionDialog && prevShowAddToCollectionDialogRef.current) {
-        loadCollections()
+        void loadCollections()
       }
     }
     prevShowAddToCollectionDialogRef.current = showAddToCollectionDialog
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showAddToCollectionDialog, user])
+  }, [showAddToCollectionDialog, user, loadCollections])
 
   useEffect(() => {
     setImageError(false)

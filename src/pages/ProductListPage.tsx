@@ -20,6 +20,7 @@ import {
 } from '@/lib/types'
 
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function asProductArray(value: unknown): Product[] {
     if (Array.isArray(value)) {
         return value
@@ -35,6 +36,7 @@ export function asProductArray(value: unknown): Product[] {
     return []
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function getProductRenderKey(product: Product, index: number): string {
     if (product.slug) {
         return `slug:${product.slug}`

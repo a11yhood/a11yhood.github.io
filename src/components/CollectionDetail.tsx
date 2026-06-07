@@ -6,7 +6,7 @@ import { ArrowLeft, Lock, LockOpen, Trash, Pencil } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductFilterTag } from '@/components/ProductFilterTag'
 import { formatDistanceToNow } from 'date-fns'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { APIService } from '@/lib/api'
 import { Link, useNavigate } from 'react-router-dom'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
@@ -71,12 +71,16 @@ export function CollectionDetail({
   const globalProductsRef = useRef(globalProducts)
   useEffect(() => { globalProductsRef.current = globalProducts }, [globalProducts])
 
-  // Stable key derived from the sorted slug list so the fetch effect only re-runs
-  // when the actual set of slugs changes, not on every parent re-render that
-  // creates a new array reference.
-  const slugKey = useMemo(
-    () => (collection.productSlugs ?? []).slice().sort().join(','),
+  const orderedProductSlugs = useMemo(
+    () => collection.productSlugs ?? [],
     [collection.productSlugs]
+  )
+
+  // Set-based key for fetch behavior: changes only when membership changes,
+  // so reorder-only updates do not trigger network requests.
+  const slugSetKey = useMemo(
+    () => orderedProductSlugs.slice().sort().join(','),
+    [orderedProductSlugs]
   )
 
   // Fetch effect: runs only when the slug set changes.
@@ -87,7 +91,7 @@ export function CollectionDetail({
     fetchedBySlugRef.current = new Map()
     setFetchVersion(0)
 
-    const slugs = collection.productSlugs || []
+    const slugs = orderedProductSlugs
     if (slugs.length === 0) {
       setIsLoading(false)
       return
@@ -132,15 +136,15 @@ export function CollectionDetail({
     })
 
     return () => { cancelled = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slugKey]) // intentionally excludes globalProducts — read via globalProductsRef
+  }, [orderedProductSlugs, slugSetKey])
 
   // Merge globalProducts (always fresh, takes precedence) with locally-fetched
   // fallbacks to produce the ordered list for rendering.  Recomputes whenever
   // the slug set, global cache, or locally-fetched set changes — without issuing
   // any network requests.
   const collectionProducts = useMemo(() => {
-    const slugs = collection.productSlugs || []
+    void fetchVersion
+    const slugs = orderedProductSlugs
     if (slugs.length === 0) return []
     const bySlug = new Map<string, Product>()
     // Locally-fetched products (lower priority — may be slightly stale)
@@ -149,8 +153,7 @@ export function CollectionDetail({
     ;(globalProducts || []).forEach((p) => { if (p?.slug) bySlug.set(p.slug, p) })
     return slugs.map((s) => bySlug.get(s)).filter((p): p is Product => p != null)
   // fetchVersion triggers recomputation when fetchedBySlugRef is mutated
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slugKey, globalProducts, fetchVersion])
+  }, [orderedProductSlugs, globalProducts, fetchVersion])
 
   // Derive top tags from the collection's products, sorted by frequency
   const topTags = useMemo(() => {
@@ -248,7 +251,7 @@ export function CollectionDetail({
     return detail || apiError.message || 'Unable to update collaborators right now.'
   }
 
-  const loadEditorData = async () => {
+  const loadEditorData = useCallback(async () => {
     try {
       const editorData = await APIService.getCollectionEditors(collection.slug || collection.id)
       setCollectionEditorIds(editorData.editorIds || [])
@@ -256,12 +259,11 @@ export function CollectionDetail({
       console.debug('[CollectionDetail] Failed to load collection editors', error)
       setCollectionEditorIds(collection.editorIds || [])
     }
-  }
+  }, [collection.id, collection.slug, collection.editorIds])
 
   useEffect(() => {
-    loadEditorData()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collection.id, collection.slug])
+    void loadEditorData()
+  }, [loadEditorData])
 
   useEffect(() => {
     let cancelled = false

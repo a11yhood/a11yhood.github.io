@@ -7,7 +7,7 @@
  * - Role management (user, moderator, admin)
  * - Platform-wide statistics dashboard
  */
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CollapsibleCard } from '@/components/CollapsibleCard'
@@ -43,12 +43,7 @@ export function AdminUsersStats() {
   const [loading, setLoading] = useState(true)
   const [sortBy, setSortBy] = useState<'contributions' | 'recent' | 'joined'>('contributions')
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    loadUsers()
-  }, [])
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true)
     try {
       const allUsers = await APIService.getAllUsers()
@@ -69,7 +64,11 @@ export function AdminUsersStats() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [notify])
+
+  useEffect(() => {
+    void loadUsers()
+  }, [loadUsers])
 
   const handleRoleChange = async (username: string, newRole: 'user' | 'moderator' | 'admin') => {
     try {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { UserCircle, Check, X, Clock } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
@@ -36,27 +36,7 @@ export function ProductEditors({
   const [pendingRequest, setPendingRequest] = useState<UserRequest | null>(null)
   const [showRequestForm, setShowRequestForm] = useState(false)
 
-  useEffect(() => {
-    if (!isBrowser) return
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    loadEditors()
-  }, [productId])
-
-  useEffect(() => {
-    if (!isBrowser) return
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    checkExistingRequest()
-  }, [productId, username, userAccount])
-
-  useEffect(() => {
-    if (!isBrowser) return
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    if (autoOpenRequestForm && !isEditor && !hasExistingRequest) {
-      setShowRequestForm(true)
-    }
-  }, [autoOpenRequestForm, isEditor, hasExistingRequest])
-
-  const loadEditors = async () => {
+  const loadEditors = useCallback(async () => {
     if (!isBrowser) return
     try {
       const productEditors = await APIService.getProductOwners(productId)
@@ -69,11 +49,11 @@ export function ProductEditors({
     } finally {
       setLoading(false)
     }
-  }
+  }, [isBrowser, productId])
 
-  const checkExistingRequest = async () => {
+  const checkExistingRequest = useCallback(async () => {
     if (!username || !userAccount) return
-    
+
     try {
       // Use /requests/me (current user's own requests) rather than /users/{username}/requests
       // to avoid auth timing issues and use the correct endpoint for self-lookup.
@@ -92,7 +72,24 @@ export function ProductEditors({
         console.error('Failed to check existing request:', error)
       }
     }
-  }
+  }, [productId, username, userAccount])
+
+  useEffect(() => {
+    if (!isBrowser) return
+    void loadEditors()
+  }, [isBrowser, loadEditors])
+
+  useEffect(() => {
+    if (!isBrowser) return
+    void checkExistingRequest()
+  }, [isBrowser, checkExistingRequest])
+
+  useEffect(() => {
+    if (!isBrowser) return
+    if (autoOpenRequestForm && !isEditor && !hasExistingRequest) {
+      setShowRequestForm(true)
+    }
+  }, [autoOpenRequestForm, isBrowser, isEditor, hasExistingRequest])
 
   const handleRequestEditor = async () => {
     if (!username) return

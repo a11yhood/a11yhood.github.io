@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { CalendarBlank, Globe, MapPin, ChartBar, BookOpen, FolderOpen, Article } from '@phosphor-icons/react'
+import { CalendarBlank, Globe, MapPin, ChartBar, BookOpen, Article } from '@phosphor-icons/react'
 import { APIService } from '@/lib/api'
 import { UserAccount, Product, Collection, BlogPost } from '@/lib/types'
 
 export function PublicProfile({ username }: { username: string }) {
-  const navigate = useNavigate()
   const [account, setAccount] = useState<UserAccount | null>(null)
   const [stats, setStats] = useState({
     productsSubmitted: 0,
