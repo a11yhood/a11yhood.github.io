@@ -38,7 +38,8 @@ export function createVitestConfig(mode: string, include?: string[]) {
   // Ensure test setup files (which read process.env directly) see the same backend URL
   // configured in .env/.env.local/.env.test and shell environment.
   const resolvedTestBackendUrl = process.env.TEST_BACKEND_URL || env.TEST_BACKEND_URL || env.VITE_API_URL || ''
-  const resolvedApiUrl = process.env.VITE_API_URL || env.VITE_API_URL || ''
+  // Allow a single backend URL variable in test environments by falling back to TEST_BACKEND_URL.
+  const resolvedApiUrl = process.env.VITE_API_URL || env.VITE_API_URL || resolvedTestBackendUrl || ''
   const resolvedTestRunToken =
     process.env.TEST_RUN_TOKEN ||
     process.env.VITEST_TEST_RUN_TOKEN ||

@@ -318,9 +318,9 @@ describeWithBackend('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', ()
           />
         )
 
-        expect(screen.getByText(/haven't created any collections yet/i)).toBeInTheDocument()
+        expect(screen.getByText(/don't have editor access to any collections yet/i)).toBeInTheDocument()
         
-        const createButton = screen.getByRole('button', { name: /create your first collection/i })
+        const createButton = screen.getByRole('button', { name: /create a collection/i })
         expect(createButton).toBeInTheDocument()
       })
     })

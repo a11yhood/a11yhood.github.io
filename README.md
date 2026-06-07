@@ -1,4 +1,4 @@
-# A11yhood Front End Website
+# A11yhood Front End Website 
 
 This is the main repository for the [A11yhood front end website](https://a11yhood.org). A11yhood is a community platform for discovering, reviewing, and discussing open-source assistive technologies. A11yhood serves as a central hub for disabled and non-disabled makers, developers, and contributors to find, use, and contribute to accessibility projects.
 

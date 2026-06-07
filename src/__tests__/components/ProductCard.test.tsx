@@ -97,8 +97,8 @@ describeWithBackend('ProductCard - API-backed', () => {
   it('should render product information', () => {
     render(<ProductCard product={productFromApi} ratings={ratingsFromApi} onClick={vi.fn()} />)
 
-    // Name includes a timestamp; match prefix only
-    expect(screen.getByText(/Test Product/)).toBeInTheDocument()
+    // Name appears in both fallback image text and title; assert heading specifically.
+    expect(screen.getByRole('heading', { name: /Test Product/ })).toBeInTheDocument()
     expect(screen.getByText('A test product for accessibility')).toBeInTheDocument()
     expect(screen.getByText('Software')).toBeInTheDocument()
   })

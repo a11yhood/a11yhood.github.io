@@ -103,6 +103,9 @@ export function CollectionDetailPage({
                 navigate('/collections')
             } : undefined}
             onEditCollection={onEditCollection ? () => onEditCollection(effectiveCollection) : undefined}
+            onCollectionUpdated={(updatedCollection) => {
+                setExternalCollection(updatedCollection)
+            }}
             onTogglePrivacy={async (nextPublic) => {
                 try {
                     const updated = await APIService.updateCollection(effectiveCollection.id, { isPublic: nextPublic })

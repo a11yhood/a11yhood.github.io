@@ -10,6 +10,7 @@ type AddToCollectionDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   collections: Collection[]
+  currentUserId?: string
   productSlug: string
   onAddToCollection: (collectionSlug: string) => void
   onRemoveFromCollection: (collectionSlug: string) => void
@@ -20,6 +21,7 @@ export function AddToCollectionDialog({
   open,
   onOpenChange,
   collections,
+  currentUserId,
   productSlug,
   onAddToCollection,
   onRemoveFromCollection,
@@ -28,17 +30,21 @@ export function AddToCollectionDialog({
   const [selectedCollections, setSelectedCollections] = useState<Set<string>>(new Set())
   const [initialCollections, setInitialCollections] = useState<Set<string>>(new Set())
   const prevOpenRef = useRef(false)
+  const editableCollections = collections.filter((collection) => {
+    if (!currentUserId) return true
+    return collection.userId === currentUserId || (collection.editorIds || []).includes(currentUserId)
+  })
 
   // Update selectedCollections only when dialog opens (not every time collections change)
   useEffect(() => {
     if (open && !prevOpenRef.current) {
       // Dialog is opening
-      const initial = new Set(collections.filter(c => (c.productSlugs || []).includes(productSlug)).map(c => c.slug || c.id))
+      const initial = new Set(editableCollections.filter(c => (c.productSlugs || []).includes(productSlug)).map(c => c.slug || c.id))
       setSelectedCollections(initial)
       setInitialCollections(initial)
     }
     prevOpenRef.current = open
-  }, [open, collections, productSlug])
+  }, [open, editableCollections, productSlug])
 
   const handleToggleCollection = (collectionSlug: string, isChecked: boolean) => {
     const newSelected = new Set(selectedCollections)
@@ -75,22 +81,22 @@ export function AddToCollectionDialog({
           </DialogDescription>
         </DialogHeader>
         
-        {collections.length === 0 ? (
+        {editableCollections.length === 0 ? (
           <div className="py-8 text-center">
             <FolderOpen size={48} className="mx-auto mb-4 text-muted-foreground" />
             <p className="text-sm text-muted-foreground mb-4">
-              You haven't created any collections yet
+              You don't have editor access to any collections yet
             </p>
             <Button onClick={onCreateNew}>
               <Plus size={18} className="mr-2" />
-              Create Your First Collection
+              Create a Collection
             </Button>
           </div>
         ) : (
           <>
             <ScrollArea className="max-h-[300px] pr-4">
               <div className="space-y-3">
-                {collections.map((collection) => {
+                {editableCollections.map((collection) => {
                   const collectionSlug = collection.slug || collection.id
                   const isChecked = selectedCollections.has(collectionSlug)
                   return (

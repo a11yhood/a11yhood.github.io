@@ -129,18 +129,8 @@ export function ProductDetail({
   const loadCollections = async () => {
     if (!user) return
     try {
-      const [userCollections, publicCollections] = await Promise.all([
-        APIService.getUserCollections(),
-        APIService.getPublicCollections(),
-      ])
-      // Combine user's collections with public collections (avoid duplicates by ID)
-      const allCollections = [...userCollections]
-      publicCollections.forEach(pub => {
-        if (!allCollections.some(c => c.id === pub.id)) {
-          allCollections.push(pub)
-        }
-      })
-      setLocalCollections(allCollections)
+      const userCollections = await APIService.getUserCollections()
+      setLocalCollections(userCollections)
       collectionLoadStartedRef.current = true
     } catch (error) {
       // Silently handle errors - collections are optional
@@ -472,6 +462,7 @@ export function ProductDetail({
           open={showAddToCollectionDialog}
           onOpenChange={setShowAddToCollectionDialog}
           collections={localCollections}
+          currentUserId={user.id}
           productSlug={product.slug}
           onAddToCollection={async (collectionSlug) => {
             await onAddToCollection(collectionSlug)

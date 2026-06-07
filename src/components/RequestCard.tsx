@@ -108,6 +108,8 @@ export function RequestCard({
             ? 'Editor Request'
             : request.type === 'admin'
               ? 'Admin Request'
+              : request.type === 'collection-ownership'
+              ? 'Collection Editor Request'
               : request.type === 'source-domain'
                 ? 'Source Domain Request'
                 : 'Product Editor Request'}
@@ -141,12 +143,17 @@ export function RequestCard({
                     ? 'Editor Request'
                     : request.type === 'admin'
                       ? 'Admin Request'
+                      : request.type === 'collection-ownership'
+                      ? 'Collection Editor Request'
                       : request.type === 'source-domain'
                         ? 'Source Domain Request'
                         : 'Product Editor Request'}
                 </p>
                 <p className="text-xs text-muted-foreground font-mono">ID: {request.id}</p>
                 {renderUserIdLine(request.userId, userLookup)}
+                {request.type === 'collection-ownership' && request.collectionId && (
+                  <p className="text-xs text-muted-foreground font-mono">Collection ID: {request.collectionId}</p>
+                )}
               </div>
               {renderRoleBadge(request.userId, userLookup)}
             </div>

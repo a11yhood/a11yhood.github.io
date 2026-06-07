@@ -247,7 +247,7 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
       <CollapsibleCard
         iconLeft={<ShieldCheck size={24} />}
         title="User Requests"
-        description="Review and manage user requests for admin, moderator, and product management."
+        description="Review and manage user requests for admin, moderator, product editor, and collection editor access."
         defaultOpen
       >
           {loading ? (
@@ -356,6 +356,8 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
                   ? `Approve ${reviewingRequest?.userName}'s request to become an editor. They will be able to edit products.`
                   : reviewingRequest?.type === 'source-domain'
                   ? `Approve this request to add a new source domain. The domain will be added to the allowed sources list.`
+                  : reviewingRequest?.type === 'collection-ownership'
+                  ? `Approve ${reviewingRequest?.userName}'s request to become an editor of this collection.`
                   : `Approve ${reviewingRequest?.userName}'s request to become an editor of this product.`
                 : reviewingRequest?.type === 'source-domain'
                 ? `Reject this source domain request. You can optionally provide a reason.`

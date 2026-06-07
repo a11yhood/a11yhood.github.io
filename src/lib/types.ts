@@ -198,6 +198,8 @@ export type Collection = {
   userId: string
   username: string
   productSlugs: string[]
+  editorIds?: string[]
+  editorUsernames?: string[]
   createdAt: string | number
   updatedAt: string | number
   isPublic: boolean
@@ -216,7 +218,7 @@ export type UserRequest = {
   userId: string
   userName: string
   userAvatarUrl?: string
-  type: 'moderator' | 'admin' | 'product-ownership' | 'source-domain'
+  type: 'moderator' | 'admin' | 'product-ownership' | 'collection-ownership' | 'source-domain'
   message?: string
   reason?: string
   status: 'pending' | 'approved' | 'rejected'
@@ -225,6 +227,7 @@ export type UserRequest = {
   reviewedBy?: string
   reviewerNote?: string
   productId?: string
+  collectionId?: string
 }
 
 export type SupportedSource = {
