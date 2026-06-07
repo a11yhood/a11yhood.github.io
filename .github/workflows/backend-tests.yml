@@ -138,40 +138,41 @@ jobs:
             exit 1
           fi
 
-      - name: Preflight backend supported-sources configuration
+      - name: Preflight backend database health
         if: ${{ steps.gate.outputs.should_run == 'true' }}
         env:
           TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
+          TEST_RUN_TOKEN: ${{ secrets.TEST_RUN_TOKEN }}
         run: |
-          probe_url="${TEST_BACKEND_URL%/}/api/scrapers/load-url"
-          probe_payload='{"url":"https://github.com/a11yhood/a11yhood.github.io"}'
+          health_url="${TEST_BACKEND_URL%/}/health"
+          health_status=$(curl -sS -o /dev/null -w "%{http_code}" "$health_url")
+          echo "Backend health status: $health_status"
 
-          response=$(curl -sS -w "\n%{http_code}" \
-            -X POST "$probe_url" \
-            -H "Content-Type: application/json" \
+          if [ "$health_status" -lt 200 ] || [ "$health_status" -ge 300 ]; then
+            echo "Backend preflight failed: health check returned HTTP $health_status"
+            exit 1
+          fi
+
+          reset_url="${TEST_BACKEND_URL%/}/api/dev/reset"
+          reset_response=$(curl -sS -w "\n%{http_code}" \
+            -X POST "$reset_url" \
             -H "Authorization: Bearer dev-token-admin" \
-            --data "$probe_payload")
+            -H "X-Test-Run-Token: ${TEST_RUN_TOKEN}")
 
-          status=$(echo "$response" | tail -n 1)
-          body=$(echo "$response" | sed '$d')
+          reset_status=$(echo "$reset_response" | tail -n 1)
+          reset_body=$(echo "$reset_response" | sed '$d')
 
-          echo "Backend preflight status: $status"
+          echo "Backend reset status: $reset_status"
 
-          if echo "$body" | grep -qi 'No supported sources are configured yet'; then
-            echo "Backend preflight failed: supported_sources is empty on backend-test."
-            echo "Configure supported domains (must include github.com) on backend-test and redeploy."
+          if [ "$reset_status" -lt 200 ] || [ "$reset_status" -ge 300 ]; then
+            echo "Backend preflight failed: reset endpoint returned HTTP $reset_status"
+            echo "Response body: $reset_body"
             exit 1
           fi
 
-          if echo "$body" | grep -qi 'URL domain is not supported'; then
-            echo "Backend preflight failed: github.com is not in backend-test supported_sources."
-            echo "Update backend-test supported domains and redeploy."
-            exit 1
-          fi
-
-          if [ "$status" -ge 500 ]; then
-            echo "Backend preflight failed: backend-test returned HTTP $status."
-            echo "Response body: $body"
+          if ! echo "$reset_body" | grep -q '"seeded":true'; then
+            echo "Backend preflight failed: reset did not report seeded=true"
+            echo "Response body: $reset_body"
             exit 1
           fi
 
@@ -179,6 +180,6 @@ jobs:
         if: ${{ steps.gate.outputs.should_run == 'true' }}
         env:
           TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
-          VITEST_DEV_DB_RESET_MODE: always
+          VITEST_DEV_DB_RESET_MODE: never
           TEST_RUN_TOKEN: ${{ secrets.TEST_RUN_TOKEN }}
         run: npm run test:run:full
