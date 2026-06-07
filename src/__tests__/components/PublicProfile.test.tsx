@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { PublicProfile } from '@/components/PublicProfile'
 import { APIService } from '@/lib/api'
-import type { UserAccount } from '@/lib/types'
+import type { Product, UserAccount } from '@/lib/types'
 
 const mockAccount: UserAccount = {
   id: 'user-uuid-1',
@@ -86,5 +86,26 @@ describe('PublicProfile', () => {
     )
 
     expect(await screen.findByRole('heading', { name: /profile/i })).toBeInTheDocument()
+  })
+
+  it('uses managed products count when productsSubmitted is behind', async () => {
+    const managedProduct = {
+      id: 'product-1',
+      name: 'ProgramAT',
+      createdAt: Date.now(),
+    } as unknown as Product
+    vi.spyOn(APIService, 'getProductsByOwner').mockResolvedValue([managedProduct])
+
+    render(
+      <MemoryRouter>
+        <PublicProfile username="testuser" />
+      </MemoryRouter>
+    )
+
+    const productsLabel = await screen.findByText(/^Products$/)
+    const totalLabel = await screen.findByText(/^Total$/)
+
+    expect(productsLabel.previousElementSibling).toHaveTextContent('1')
+    expect(totalLabel.previousElementSibling).toHaveTextContent('1')
   })
 })

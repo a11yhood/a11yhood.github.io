@@ -126,6 +126,12 @@ export function PublicProfile({ username }: { username: string }) {
     })
   }
 
+  const displayedProductsSubmitted = Math.max(stats.productsSubmitted, managedProducts.length)
+  const displayedTotalContributions = Math.max(
+    stats.totalContributions,
+    displayedProductsSubmitted + stats.ratingsGiven + stats.discussionsParticipated
+  )
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold mb-6">Profile</h1>
@@ -205,11 +211,11 @@ export function PublicProfile({ username }: { username: string }) {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="text-center p-4 bg-muted rounded-lg">
-              <div className="text-3xl font-bold">{stats.totalContributions}</div>
+              <div className="text-3xl font-bold">{displayedTotalContributions}</div>
               <div className="text-sm text-muted-foreground mt-1">Total</div>
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
-              <div className="text-3xl font-bold">{stats.productsSubmitted}</div>
+              <div className="text-3xl font-bold">{displayedProductsSubmitted}</div>
               <div className="text-sm text-muted-foreground mt-1">Products</div>
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
@@ -349,4 +355,3 @@ export function PublicProfile({ username }: { username: string }) {
     </div>
   )
 }
-
