@@ -154,25 +154,56 @@ jobs:
           fi
 
           reset_url="${TEST_BACKEND_URL%/}/api/dev/reset"
-          reset_response=$(curl -sS -w "\n%{http_code}" \
-            -X POST "$reset_url" \
-            -H "Authorization: Bearer dev-token-admin" \
-            -H "X-Test-Run-Token: ${TEST_RUN_TOKEN}")
+          reset_ok=false
+          last_status=""
+          last_body=""
+          last_request_id=""
 
-          reset_status=$(echo "$reset_response" | tail -n 1)
-          reset_body=$(echo "$reset_response" | sed '$d')
+          for attempt in 1 2 3; do
+            echo "Reset preflight attempt ${attempt}/3"
 
-          echo "Backend reset status: $reset_status"
+            tmp_headers=$(mktemp)
+            tmp_body=$(mktemp)
+            reset_status=$(curl -sS \
+              -o "$tmp_body" \
+              -D "$tmp_headers" \
+              -w "%{http_code}" \
+              -X POST "$reset_url" \
+              -H "Authorization: Bearer dev-token-admin" \
+              -H "X-Test-Run-Token: ${TEST_RUN_TOKEN}")
 
-          if [ "$reset_status" -lt 200 ] || [ "$reset_status" -ge 300 ]; then
-            echo "Backend preflight failed: reset endpoint returned HTTP $reset_status"
-            echo "Response body: $reset_body"
-            exit 1
-          fi
+            request_id=$(grep -i '^x-request-id:' "$tmp_headers" | head -n 1 | sed -E 's/^[^:]+:\s*//; s/\r$//')
+            reset_body=$(cat "$tmp_body")
 
-          if ! echo "$reset_body" | grep -q '"seeded":true'; then
-            echo "Backend preflight failed: reset did not report seeded=true"
-            echo "Response body: $reset_body"
+            rm -f "$tmp_headers" "$tmp_body"
+
+            echo "Backend reset status: $reset_status"
+            if [ -n "$request_id" ]; then
+              echo "Backend reset request id: $request_id"
+            fi
+
+            if [ "$reset_status" -ge 200 ] && [ "$reset_status" -lt 300 ] && echo "$reset_body" | grep -q '"seeded":true'; then
+              reset_ok=true
+              break
+            fi
+
+            last_status="$reset_status"
+            last_body="$reset_body"
+            last_request_id="$request_id"
+
+            if [ "$attempt" -lt 3 ]; then
+              echo "Reset preflight attempt ${attempt} failed; retrying..."
+              sleep 2
+            fi
+          done
+
+          if [ "$reset_ok" != "true" ]; then
+            echo "Backend preflight failed: reset endpoint did not succeed after retries."
+            echo "Last status: $last_status"
+            if [ -n "$last_request_id" ]; then
+              echo "Last request id: $last_request_id"
+            fi
+            echo "Response body: $last_body"
             exit 1
           fi
 
