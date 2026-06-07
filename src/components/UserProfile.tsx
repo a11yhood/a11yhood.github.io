@@ -69,7 +69,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
       setLoadingOwnedProducts(true)
       setOwnedProductsError(null)
       try {
-        const products = await APIService.getOwnedProducts(userAccount.username)
+        const products = await APIService.getOwnedProducts(userAccount.id)
         setOwnedProducts(products)
       } catch (error) {
         console.error('Failed to load owned products:', error)
@@ -80,7 +80,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
     }
 
     loadOwnedProducts()
-  }, [userAccount.id, userAccount.username])
+  }, [userAccount.id])
 
   useEffect(() => {
     const loadBlogPosts = async () => {

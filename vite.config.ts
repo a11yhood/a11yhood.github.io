@@ -33,7 +33,16 @@ function withApiProxy(target: string) {
       ) => {
         proxy.on('proxyReq', (proxyReq, req, _res) => {
           const headers = req.headers
-          const isUserAccountRead = req.url?.startsWith('/api/users/') && !req.url?.startsWith('/api/users/me') && req.method?.toUpperCase() === 'GET'
+          const isGet = req.method?.toUpperCase() === 'GET'
+          const url = req.url || ''
+          const isUsersRoute = url.startsWith('/api/users/')
+          const isMeRoute = url.startsWith('/api/users/me')
+          const isPrivateUsersSubresource =
+            url.includes('/owned-products') ||
+            url.includes('/requests') ||
+            url.includes('/collections') ||
+            url.includes('/role')
+          const isUserAccountRead = isGet && isUsersRoute && !isMeRoute && !isPrivateUsersSubresource
 
           // Copy every header from the incoming request to the proxy request
           for (const [key, value] of Object.entries(headers)) {
@@ -47,7 +56,8 @@ function withApiProxy(target: string) {
             }
           }
 
-          // For user account reads, drop auth headers to avoid backend 500s when auth is unnecessary
+          // For public user account reads, drop auth headers to avoid backend 500s
+          // when auth is unnecessary. Keep auth for private user sub-resources.
           if (isUserAccountRead) {
             proxyReq.removeHeader('authorization')
             proxyReq.removeHeader('x-forwarded-authorization')

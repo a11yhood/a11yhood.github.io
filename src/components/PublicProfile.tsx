@@ -6,8 +6,6 @@ import { Badge } from '@/components/ui/badge'
 import { CalendarBlank, Globe, MapPin, ChartBar, BookOpen, FolderOpen, Article } from '@phosphor-icons/react'
 import { APIService } from '@/lib/api'
 import { UserAccount, Product, Collection, BlogPost } from '@/lib/types'
-import { ProductCard } from '@/components/ProductCard'
-import { pickCollectionImage } from '@/lib/collectionUtils'
 
 export function PublicProfile({ username }: { username: string }) {
   const navigate = useNavigate()
@@ -20,8 +18,6 @@ export function PublicProfile({ username }: { username: string }) {
   })
   const [managedProducts, setManagedProducts] = useState<Product[]>([])
   const [userCollections, setUserCollections] = useState<Collection[]>([])
-  const [collectionImages, setCollectionImages] = useState<Record<string, { imageUrl: string; imageAlt?: string; name: string }>>({})
-  const [collectionImageErrors, setCollectionImageErrors] = useState<Record<string, boolean>>({})
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -37,19 +33,24 @@ export function PublicProfile({ username }: { username: string }) {
           const effectiveUsername = acct.username ?? username
           const s = await APIService.getUserStats(effectiveUsername)
           setStats(s)
-          
-          // Load products the user manages
+
+          // Load products the user can edit (owner or editor) from the
+          // relationship-backed endpoint.
           try {
-            const userManagedProducts = await APIService.getProductsByOwner(effectiveUsername)
-            setManagedProducts(userManagedProducts)
+            const ownedProducts = await APIService.getOwnedProducts(acct.id)
+            setManagedProducts(ownedProducts)
           } catch (error) {
             console.error('[PublicProfile] Failed to load products:', error)
           }
-          
-          // Load collections created by the user (public only for non-admin viewers)
+
+          // Load collections where the user is owner or editor.
           try {
             const allPublicCollections = await APIService.getPublicCollections('updated_at')
-            setUserCollections(allPublicCollections.filter(c => c.userId === acct.id))
+            setUserCollections(
+              allPublicCollections.filter(
+                (collection) => collection.userId === acct.id || (collection.editorIds || []).includes(acct.id)
+              )
+            )
           } catch {
             // Silently fail if we can't load collections
           }
@@ -77,42 +78,6 @@ export function PublicProfile({ username }: { username: string }) {
     load()
   }, [username])
 
-  // After collections are loaded, fetch a few products per collection to find a
-  // representative image (prefer alt text / featured with deterministic choice).
-  useEffect(() => {
-    if (userCollections.length === 0) return
-
-    const fetchImages = async () => {
-      const results = await Promise.allSettled(
-        userCollections.map(async (collection) => {
-          const slugs = collection.productSlugs || []
-          if (slugs.length === 0) return null
-
-          // Fetch up to 5 products from the collection to find a suitable image
-          const productResults = await Promise.allSettled(
-            slugs.slice(0, 5).map(slug => APIService.getProductBySlug(slug))
-          )
-          const fetched = productResults
-            .filter((r): r is PromiseFulfilledResult<Product> => r.status === 'fulfilled' && r.value !== null)
-            .map(r => r.value)
-
-          const picked = pickCollectionImage(fetched)
-          return picked ? { collectionId: collection.id, image: picked } : null
-        })
-      )
-
-      const images: Record<string, { imageUrl: string; imageAlt?: string; name: string }> = {}
-      results.forEach(result => {
-        if (result.status === 'fulfilled' && result.value) {
-          images[result.value.collectionId] = result.value.image
-        }
-      })
-      setCollectionImages(images)
-    }
-
-    fetchImages()
-  }, [userCollections])
-
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading profile...</p>
   }
@@ -127,9 +92,10 @@ export function PublicProfile({ username }: { username: string }) {
   }
 
   const displayedProductsSubmitted = Math.max(stats.productsSubmitted, managedProducts.length)
+  const displayedCollectionsCount = userCollections.length
   const displayedTotalContributions = Math.max(
     stats.totalContributions,
-    displayedProductsSubmitted + stats.ratingsGiven + stats.discussionsParticipated
+    displayedProductsSubmitted + displayedCollectionsCount + stats.ratingsGiven + stats.discussionsParticipated
   )
 
   return (
@@ -226,38 +192,68 @@ export function PublicProfile({ username }: { username: string }) {
               <div className="text-3xl font-bold">{stats.discussionsParticipated}</div>
               <div className="text-sm text-muted-foreground mt-1">Discussions</div>
             </div>
+            <div className="text-center p-4 bg-muted rounded-lg">
+              <div className="text-3xl font-bold">{displayedCollectionsCount}</div>
+              <div className="text-sm text-muted-foreground mt-1">Collections</div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {managedProducts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle as="h2" className="flex items-center gap-2">
-              <BookOpen size={24} />
-              Edited Products ({managedProducts.length})
-            </CardTitle>
-            <CardDescription>
-              Products this user manages and maintains
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {managedProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  ratings={[]}
-                  onClick={() => navigate(`/product/${product.slug}`)}
-                  user={null}
-                  userAccount={null}
-                  onRate={() => {}}
-                />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle as="h2" className="flex items-center gap-2">
+            <BookOpen size={24} />
+            Projects and Collections
+          </CardTitle>
+          <CardDescription>
+            Items this user contributes to
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <section aria-labelledby="profile-products-heading" className="space-y-3">
+            <h3 id="profile-products-heading" className="text-lg font-semibold">Products ({managedProducts.length})</h3>
+            {managedProducts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No product contributions yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {managedProducts.map((product) => {
+                  const role = product.submittedBy === account.id ? 'owner' : 'editor'
+                  return (
+                    <li key={product.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
+                      <Link to={`/product/${product.slug || product.id}`} className="font-medium hover:underline">
+                        {product.name}
+                      </Link>
+                      <span className="text-xs text-muted-foreground">({role})</span>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </section>
+
+          <section aria-labelledby="profile-collections-heading" className="space-y-3">
+            <h3 id="profile-collections-heading" className="text-lg font-semibold">Collections ({userCollections.length})</h3>
+            {userCollections.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No collection contributions yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {userCollections.map((collection) => {
+                  const role = collection.userId === account.id ? 'owner' : 'editor'
+                  return (
+                    <li key={collection.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
+                      <Link to={`/collections/${collection.slug || collection.id}`} className="font-medium hover:underline">
+                        {collection.name}
+                      </Link>
+                      <span className="text-xs text-muted-foreground">({role})</span>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </section>
+        </CardContent>
+      </Card>
 
       {blogPosts.length > 0 && (
         <Card>
@@ -299,59 +295,6 @@ export function PublicProfile({ username }: { username: string }) {
         </Card>
       )}
 
-      {userCollections.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle as="h2" className="flex items-center gap-2">
-              <FolderOpen size={24} />
-              Collections ({userCollections.length})
-            </CardTitle>
-            <CardDescription>
-              Public collections curated by this user
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-              {userCollections.map((collection) => {
-                const img = collectionImageErrors[collection.id] ? undefined : collectionImages[collection.id]
-                return (
-                  <Card 
-                    key={collection.id}
-                    className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
-                    onClick={() => navigate(`/collections/${collection.slug || collection.id}`)}
-                  >
-                    <div className="w-full h-32 bg-muted overflow-hidden flex items-center justify-center">
-                      {img ? (
-                        <img
-                          src={img.imageUrl}
-                          alt={img.imageAlt || `${img.name} image`}
-                          className="w-full h-full object-cover object-center"
-                          onError={() => setCollectionImageErrors(prev => ({ ...prev, [collection.id]: true }))}
-                        />
-                      ) : (
-                        <FolderOpen size={40} className="text-muted-foreground/30" aria-hidden="true" />
-                      )}
-                    </div>
-                    <CardHeader>
-                      <CardTitle as="h2" className="text-lg">{collection.name}</CardTitle>
-                      {collection.description && (
-                        <CardDescription className="line-clamp-2">
-                          {collection.description}
-                        </CardDescription>
-                      )}
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">
-                        {(collection.productSlugs?.length ?? 0)} product{(collection.productSlugs?.length ?? 0) !== 1 ? 's' : ''}
-                      </p>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }
