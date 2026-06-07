@@ -337,6 +337,7 @@ GitHub repository settings:
 GitHub repository secrets (used by full backend suite):
 
 1. `VITE_API_URL_PREVIEW` (must point to backend-test, not production backend).
+  Workflows map this to `TEST_BACKEND_URL` internally for Vitest.
 2. `TEST_RUN_TOKEN` (sent as `X-Test-Run-Token` in test reset/setup requests).
 
 Backend-test environment requirements:
@@ -348,7 +349,7 @@ Backend-test environment requirements:
 ### Full backend workflow preflight troubleshooting
 
 The full backend workflow now runs a preflight check before `npm run test:run:full`.
-This check calls `POST /api/scrapers/load-url` on `VITE_API_URL_PREVIEW` with a
+This check calls `POST /api/scrapers/load-url` on `TEST_BACKEND_URL` with a
 `github.com` URL to confirm backend domain configuration.
 
 If the preflight fails, use these targeted fixes:
