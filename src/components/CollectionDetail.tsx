@@ -51,9 +51,12 @@ export function CollectionDetail({
   const [resolvedCreatorUsername, setResolvedCreatorUsername] = useState('')
   const [collectionEditorIds, setCollectionEditorIds] = useState<string[]>(collection.editorIds || [])
   const [resolvedEditors, setResolvedEditors] = useState<Record<string, UserAccount | null>>({})
-  const [collaboratorUserId, setCollaboratorUserId] = useState('')
+  const [collaboratorUsername, setCollaboratorUsername] = useState('')
   const [isAddingCollaborator, setIsAddingCollaborator] = useState(false)
   const [removingCollaboratorId, setRemovingCollaboratorId] = useState<string | null>(null)
+  const [requestReason, setRequestReason] = useState('')
+  const [isSubmittingCollaboratorRequest, setIsSubmittingCollaboratorRequest] = useState(false)
+  const [hasPendingCollaboratorRequest, setHasPendingCollaboratorRequest] = useState(false)
   const [collaboratorError, setCollaboratorError] = useState<string>('')
 
   // Products individually fetched by this component (not present in globalProducts).
@@ -199,17 +202,23 @@ export function CollectionDetail({
   }, [creatorUsername, collection.userId])
 
   const currentUserId = userAccount?.id
-  const editorIds = useMemo(() => {
+  const mergedEditorIds = useMemo(() => {
     const merged = [...(collection.editorIds || []), ...collectionEditorIds]
     return Array.from(new Set(merged.filter(Boolean)))
   }, [collection.editorIds, collectionEditorIds])
 
+  const collaboratorIds = useMemo(
+    () => mergedEditorIds.filter((id) => id !== collection.userId),
+    [mergedEditorIds, collection.userId]
+  )
+
   const isCollectionEditor = !!currentUserId && (
-    editorIds.includes(currentUserId)
+    mergedEditorIds.includes(currentUserId)
   )
 
   const isPrivilegedRole = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
   const canManageCollaborators = isOwner || isPrivilegedRole
+  const canRequestCollaboratorAccess = !!userAccount && !canManageCollaborators && !isCollectionEditor
   const canManageCollectionProducts = isOwner || isCollectionEditor
 
   useEffect(() => {
@@ -222,7 +231,7 @@ export function CollectionDetail({
 
     if (apiError.status === 400) {
       return detail || (action === 'add'
-        ? 'Invalid collaborator user ID format.'
+        ? 'Invalid collaborator username.'
         : 'This collaborator change is not allowed.')
     }
 
@@ -232,7 +241,7 @@ export function CollectionDetail({
 
     if (apiError.status === 404) {
       return detail || (action === 'add'
-        ? 'Collaborator user was not found.'
+        ? 'Collaborator username was not found.'
         : 'Collection or collaborator user was not found.')
     }
 
@@ -257,8 +266,44 @@ export function CollectionDetail({
   useEffect(() => {
     let cancelled = false
 
+    const loadPendingCollaboratorRequests = async () => {
+      if (!canRequestCollaboratorAccess) {
+        setHasPendingCollaboratorRequest(false)
+        return
+      }
+
+      try {
+        const requests = await APIService.getMyRequests('pending', 'collection-ownership')
+        if (cancelled) return
+
+        const collectionIdentifiers = new Set([collection.id, collection.slug].filter(Boolean) as string[])
+        const hasPending = (requests || []).some((request) =>
+          request.type === 'collection-ownership' &&
+          request.status === 'pending' &&
+          !!request.collectionId &&
+          collectionIdentifiers.has(request.collectionId)
+        )
+
+        setHasPendingCollaboratorRequest(hasPending)
+      } catch {
+        if (cancelled) return
+        setHasPendingCollaboratorRequest(false)
+      }
+    }
+
+    loadPendingCollaboratorRequests().catch(() => {
+      if (cancelled) return
+      setHasPendingCollaboratorRequest(false)
+    })
+
+    return () => { cancelled = true }
+  }, [canRequestCollaboratorAccess, collection.id, collection.slug])
+
+  useEffect(() => {
+    let cancelled = false
+
     const loadEditorUsers = async () => {
-      const idsNeedingLookup = editorIds.filter((id) => resolvedEditors[id] === undefined)
+      const idsNeedingLookup = collaboratorIds.filter((id) => resolvedEditors[id] === undefined)
       if (idsNeedingLookup.length === 0) {
         return
       }
@@ -292,12 +337,12 @@ export function CollectionDetail({
     })
 
     return () => { cancelled = true }
-  }, [editorIds, resolvedEditors])
+  }, [collaboratorIds, resolvedEditors])
 
   const handleAddCollaborator = async () => {
-    const editorUserId = collaboratorUserId.trim()
-    if (!editorUserId) {
-      setCollaboratorError('Enter a collaborator user ID.')
+    const username = collaboratorUsername.trim().replace(/^@/, '')
+    if (!username) {
+      setCollaboratorError('Enter a collaborator username.')
       return
     }
 
@@ -305,12 +350,18 @@ export function CollectionDetail({
     setIsAddingCollaborator(true)
 
     try {
-      const updated = await APIService.addCollectionEditor(collection.slug || collection.id, editorUserId)
+      const collaboratorAccount = await APIService.getUserByUsername(username)
+      if (!collaboratorAccount?.id) {
+        setCollaboratorError('Collaborator username was not found.')
+        return
+      }
+
+      const updated = await APIService.addCollectionEditor(collection.slug || collection.id, collaboratorAccount.id)
       if (updated) {
         setCollectionEditorIds(updated.editorIds || [])
         onCollectionUpdated?.(updated)
       }
-      setCollaboratorUserId('')
+      setCollaboratorUsername('')
       notify.success('Collaborator added')
     } catch (error) {
       const message = getCollaboratorErrorMessage(error, 'add')
@@ -343,6 +394,43 @@ export function CollectionDetail({
       notify.error(message)
     } finally {
       setRemovingCollaboratorId(null)
+    }
+  }
+
+  const handleRequestCollaboratorAccess = async () => {
+    if (!userAccount) {
+      return
+    }
+
+    setCollaboratorError('')
+    setIsSubmittingCollaboratorRequest(true)
+
+    try {
+      const resolvedRequester = userAccount.username
+        ? userAccount
+        : await APIService.getUserAccount(userAccount.id)
+
+      const requesterUsername = resolvedRequester?.username || userAccount.username || userAccount.displayName || 'unknown-user'
+
+      await APIService.createUserRequest({
+        userId: userAccount.id,
+        userName: requesterUsername,
+        userAvatarUrl: userAccount.avatarUrl,
+        type: 'collection-ownership',
+        reason: requestReason.trim() || `Please add me as a collaborator to ${collection.name}.`,
+        collectionId: collection.id,
+      })
+
+      setRequestReason('')
+      setHasPendingCollaboratorRequest(true)
+      notify.success('Collaborator request submitted')
+    } catch (error) {
+      const apiError = error as { status?: number; data?: { detail?: string }; message?: string }
+      const message = apiError.data?.detail || apiError.message || 'Failed to submit collaborator request.'
+      setCollaboratorError(message)
+      notify.error(message)
+    } finally {
+      setIsSubmittingCollaboratorRequest(false)
     }
   }
 
@@ -446,17 +534,17 @@ export function CollectionDetail({
           </div>
           <div className="mt-3 text-sm">
             <span className="text-muted-foreground">Collaborators:</span>{' '}
-            {editorIds.length > 0 ? (
-              <span className="font-medium">{editorIds.length}</span>
+            {collaboratorIds.length > 0 ? (
+              <span className="font-medium">{collaboratorIds.length}</span>
             ) : (
               <span className="font-medium">None</span>
             )}
           </div>
           <div className="mt-4 border-t pt-4">
             <h3 className="font-medium mb-2">Collaborators</h3>
-            {editorIds.length > 0 ? (
+            {collaboratorIds.length > 0 ? (
               <ul className="space-y-2">
-                {editorIds.map((editorId) => {
+                {collaboratorIds.map((editorId) => {
                   const resolvedEditor = resolvedEditors[editorId]
                   const username = resolvedEditor?.username || null
 
@@ -492,15 +580,15 @@ export function CollectionDetail({
 
             {canManageCollaborators && (
               <div className="mt-3 space-y-2">
-                <label htmlFor="collaborator-user-id" className="text-sm font-medium">
-                  Add collaborator by user ID
+                <label htmlFor="collaborator-username" className="text-sm font-medium">
+                  Add collaborator by username
                 </label>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <Input
-                    id="collaborator-user-id"
-                    value={collaboratorUserId}
-                    onChange={(event) => setCollaboratorUserId(event.target.value)}
-                    placeholder="Enter user UUID"
+                    id="collaborator-username"
+                    value={collaboratorUsername}
+                    onChange={(event) => setCollaboratorUsername(event.target.value)}
+                    placeholder="Enter username"
                     aria-describedby={collaboratorError ? 'collaborator-error' : undefined}
                   />
                   <Button onClick={handleAddCollaborator} disabled={isAddingCollaborator}>
@@ -509,6 +597,31 @@ export function CollectionDetail({
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Only collection owners, admins, and moderators can manage collaborators.
+                </p>
+              </div>
+            )}
+
+            {canRequestCollaboratorAccess && (
+              <div className="mt-3 space-y-2">
+                <label htmlFor="collaborator-request-message" className="text-sm font-medium">
+                  Request collaborator access
+                </label>
+                <Input
+                  id="collaborator-request-message"
+                  value={requestReason}
+                  onChange={(event) => setRequestReason(event.target.value)}
+                  placeholder="Optional reason for collaborator access"
+                  aria-describedby={collaboratorError ? 'collaborator-error' : undefined}
+                />
+                <Button
+                  variant="outline"
+                  disabled={isSubmittingCollaboratorRequest || hasPendingCollaboratorRequest}
+                  onClick={handleRequestCollaboratorAccess}
+                >
+                  {hasPendingCollaboratorRequest ? 'Request pending' : 'Request collaborator access'}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  This adds a collaborator request to the admin request queue for owner/admin review.
                 </p>
               </div>
             )}
