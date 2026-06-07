@@ -97,7 +97,9 @@ export default defineConfig(({ mode }) => {
     'unknown'
   const apiProxyTarget =
     process.env.VITE_API_URL ||
+    process.env.TEST_BACKEND_URL ||
     env.VITE_API_URL ||
+    env.TEST_BACKEND_URL ||
     env.VITE_BACKEND_URL ||
     'http://localhost:8002'
 
