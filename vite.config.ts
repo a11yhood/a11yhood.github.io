@@ -35,14 +35,25 @@ function withApiProxy(target: string) {
           const headers = req.headers
           const isGet = req.method?.toUpperCase() === 'GET'
           const url = req.url || ''
-          const isUsersRoute = url.startsWith('/api/users/')
-          const isMeRoute = url.startsWith('/api/users/me')
+          const usersPath = url.split('?')[0]
+
+          const isPublicByUsernameRead = isGet && usersPath.startsWith('/api/users/by-username/')
+          const publicUserReadMatch = usersPath.match(/^\/api\/users\/([^/]+)(?:\/(stats))?\/?$/)
+          const isPublicUserRead =
+            isGet &&
+            !!publicUserReadMatch &&
+            publicUserReadMatch[1] !== 'me'
+
+          const isUserAccountRead = isPublicByUsernameRead || isPublicUserRead
+
           const isPrivateUsersSubresource =
             url.includes('/owned-products') ||
             url.includes('/requests') ||
             url.includes('/collections') ||
-            url.includes('/role')
-          const isUserAccountRead = isGet && isUsersRoute && !isMeRoute && !isPrivateUsersSubresource
+            url.includes('/role') ||
+            url.includes('/export')
+
+          const shouldStripAuthForPublicRead = isUserAccountRead && !isPrivateUsersSubresource
 
           // Copy every header from the incoming request to the proxy request
           for (const [key, value] of Object.entries(headers)) {
@@ -58,7 +69,7 @@ function withApiProxy(target: string) {
 
           // For public user account reads, drop auth headers to avoid backend 500s
           // when auth is unnecessary. Keep auth for private user sub-resources.
-          if (isUserAccountRead) {
+          if (shouldStripAuthForPublicRead) {
             proxyReq.removeHeader('authorization')
             proxyReq.removeHeader('x-forwarded-authorization')
           }
@@ -66,7 +77,7 @@ function withApiProxy(target: string) {
           // If Authorization is missing but we have X-Forwarded-Authorization, restore it (unless we purposely stripped for user read)
           const hasAuth = typeof headers['authorization'] !== 'undefined'
           const forwarded = headers['x-forwarded-authorization']
-          if (!isUserAccountRead && !hasAuth && typeof forwarded !== 'undefined') {
+          if (!shouldStripAuthForPublicRead && !hasAuth && typeof forwarded !== 'undefined') {
             try {
               const val = Array.isArray(forwarded) ? forwarded[0] : forwarded
               if (typeof val === 'string' && val.length > 0) {

@@ -419,16 +419,26 @@ async function request<T>(
     logger.debug('[API] Query parameters:', Object.fromEntries(params.entries()))
   }
   
-  // For public user profile reads (base endpoint and /stats), skip auth.
-  // Private endpoints like /requests, /owned-products, /me, /collections, /role MUST include auth.
-  const omitAuth = 
-    endpoint.startsWith('/users/') && 
-    (!options.method || options.method === 'GET') &&
-    !endpoint.includes('/requests') &&
-    !endpoint.includes('/owned-products') &&
-    !endpoint.includes('/collections') &&
-    !endpoint.includes('/role') &&
-    !endpoint.includes('/me')
+  // Only omit auth for explicitly public user-read endpoints.
+  // Keep auth for users collection and private subresources.
+  const method = (options.method || 'GET').toUpperCase()
+  const endpointPath = endpoint.split('?')[0]
+  const isGet = method === 'GET'
+  const isPublicByUsernameRead = endpointPath.startsWith('/users/by-username/')
+  const publicUserReadMatch = endpointPath.match(/^\/users\/([^/]+)(?:\/(stats))?\/?$/)
+  const isPublicUserRead = !!publicUserReadMatch && publicUserReadMatch[1] !== 'me'
+  const isPrivateUsersSubresource =
+    endpointPath.includes('/requests') ||
+    endpointPath.includes('/owned-products') ||
+    endpointPath.includes('/collections') ||
+    endpointPath.includes('/role') ||
+    endpointPath.includes('/export') ||
+    endpointPath.includes('/profile')
+
+  const omitAuth =
+    isGet &&
+    (isPublicByUsernameRead || isPublicUserRead) &&
+    !isPrivateUsersSubresource
 
   // Get auth token from registered getter (set by AuthContext on app load).
   // If no getter is registered, token will be null and the request will be sent without Authorization.
@@ -437,8 +447,6 @@ async function request<T>(
   const shouldSendAuth = !!token && !omitAuth
   
   logger.debug('[API] Making request:', { endpoint, hasTokenGetter: !!getAuthToken, hasToken: !!token, omitAuth, shouldSendAuth })
-
-  const method = (options.method || 'GET').toUpperCase()
 
   const hasHeader = (headers: HeadersInit | undefined, headerName: string): boolean => {
     if (!headers) return false
@@ -943,11 +951,11 @@ export class APIService {
   }
 
   static async getModerators(): Promise<UserAccount[]> {
-    return request<UserAccount[]>('/users?role=moderator')
+    return request<UserAccount[]>('/users/?role=moderator')
   }
 
   static async getAllUsers(): Promise<UserAccount[]> {
-    return request<UserAccount[]>('/users')
+    return request<UserAccount[]>('/users/')
   }
 
   static async incrementUserStats(

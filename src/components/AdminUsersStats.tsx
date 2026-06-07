@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CollapsibleCard } from '@/components/CollapsibleCard'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -283,7 +284,19 @@ export function AdminUsersStats() {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <div className="font-medium">{user.username}</div>
+                            <div className="font-medium">
+                              {user.username ? (
+                                <Link
+                                  to={`/profile/${encodeURIComponent(user.username)}`}
+                                  className="underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+                                  aria-label={`View ${user.username}'s profile`}
+                                >
+                                  {user.username}
+                                </Link>
+                              ) : (
+                                'Unknown user'
+                              )}
+                            </div>
                             <div className="text-sm text-muted-foreground">{user.email || '—'}</div>
                           </div>
                         </div>
