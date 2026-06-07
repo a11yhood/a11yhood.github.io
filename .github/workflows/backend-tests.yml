@@ -138,6 +138,43 @@ jobs:
             exit 1
           fi
 
+      - name: Preflight backend supported-sources configuration
+        if: ${{ steps.gate.outputs.should_run == 'true' }}
+        env:
+          TEST_BACKEND_URL: ${{ secrets.VITE_API_URL_PREVIEW }}
+        run: |
+          probe_url="${TEST_BACKEND_URL%/}/api/scrapers/load-url"
+          probe_payload='{"url":"https://github.com/a11yhood/a11yhood.github.io"}'
+
+          response=$(curl -sS -w "\n%{http_code}" \
+            -X POST "$probe_url" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer dev-token-admin" \
+            --data "$probe_payload")
+
+          status=$(echo "$response" | tail -n 1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "Backend preflight status: $status"
+
+          if echo "$body" | grep -qi 'No supported sources are configured yet'; then
+            echo "Backend preflight failed: supported_sources is empty on backend-test."
+            echo "Configure supported domains (must include github.com) on backend-test and redeploy."
+            exit 1
+          fi
+
+          if echo "$body" | grep -qi 'URL domain is not supported'; then
+            echo "Backend preflight failed: github.com is not in backend-test supported_sources."
+            echo "Update backend-test supported domains and redeploy."
+            exit 1
+          fi
+
+          if [ "$status" -ge 500 ]; then
+            echo "Backend preflight failed: backend-test returned HTTP $status."
+            echo "Response body: $body"
+            exit 1
+          fi
+
       - name: Run full test suite (including backend tests)
         if: ${{ steps.gate.outputs.should_run == 'true' }}
         env:

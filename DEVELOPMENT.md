@@ -344,3 +344,23 @@ Backend-test environment requirements:
 1. `DEV_TEST_AUTH_SECRET` configured server-side.
 2. `ALLOW_TEST_DATA_MUTATION=true` configured server-side.
 3. These values must not be exposed to frontend `VITE_*` variables.
+
+### Full backend workflow preflight troubleshooting
+
+The full backend workflow now runs a preflight check before `npm run test:run:full`.
+This check calls `POST /api/scrapers/load-url` on `VITE_API_URL_PREVIEW` with a
+`github.com` URL to confirm backend domain configuration.
+
+If the preflight fails, use these targeted fixes:
+
+1. Error includes `No supported sources are configured yet.`
+  Configure backend-test `supported_sources` so it is not empty, then redeploy backend-test.
+2. Error includes `URL domain is not supported` for `github.com`.
+  Add `github.com` to backend-test allowed/supported domains, then redeploy backend-test.
+3. Error includes `Missing repository secret VITE_API_URL_PREVIEW`.
+  Add the repository secret and point it to backend-test.
+4. Error includes `Missing repository secret TEST_RUN_TOKEN`.
+  Add the repository secret and ensure it matches backend-test `DEV_TEST_AUTH_SECRET`.
+
+After applying a fix, retrigger [`.github/workflows/backend-tests.yml`](.github/workflows/backend-tests.yml)
+using the PR label flow or workflow dispatch.
