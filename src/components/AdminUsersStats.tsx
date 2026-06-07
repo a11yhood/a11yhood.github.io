@@ -256,6 +256,9 @@ export function AdminUsersStats() {
           ) : (
             <div className="rounded-md border">
               <Table>
+                <caption>
+                  User statistics and role management table showing contribution counts, join date, and last active time.
+                </caption>
                 <TableHeader>
                   <TableRow>
                     <TableHead>User</TableHead>
