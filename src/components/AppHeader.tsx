@@ -160,7 +160,6 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                   try {
                     const newProduct = await APIService.createProduct({
                       ...productData,
-                      submittedBy: user.id,
                       source: 'user-submitted',
                     })
                     APIService.logUserActivity({

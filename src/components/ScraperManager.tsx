@@ -1097,13 +1097,16 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                 
                 try {
                   if (sourceToDelete === 'User-Submitted') {
-                    const productsToDelete = products.filter(p => p.submittedBy !== 'system')
+                    const isSystemOwned = (product: { createdBy?: string; submittedBy?: string }) =>
+                      product.createdBy === 'system' || product.submittedBy === 'system'
+
+                    const productsToDelete = products.filter(p => !isSystemOwned(p))
                     
                     await Promise.all(
                       productsToDelete.map(p => APIService.deleteProduct(p.slug || p.id))
                     )
                     
-                    const updatedProducts = products.filter(p => p.submittedBy === 'system')
+                    const updatedProducts = products.filter(isSystemOwned)
                     onProductsUpdate(updatedProducts)
                     notify.success('Deleted products from selected source')
                   } else {

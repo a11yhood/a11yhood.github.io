@@ -58,7 +58,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
 
   useEffect(() => {
     const loadStats = async () => {
-      const userStats = await APIService.getUserStats(userAccount.username || userAccount.id)
+      const userStats = await APIService.getUserStats(userAccount.id || userAccount.username)
       setStats(userStats)
     }
     loadStats()
@@ -69,7 +69,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
       setLoadingOwnedProducts(true)
       setOwnedProductsError(null)
       try {
-        const products = await APIService.getOwnedProducts(userAccount.id)
+        const products = await APIService.getOwnedProducts(userAccount.username || userAccount.id)
         setOwnedProducts(products)
       } catch (error) {
         console.error('Failed to load owned products:', error)
@@ -80,11 +80,12 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
     }
 
     loadOwnedProducts()
-  }, [userAccount.id])
+  }, [userAccount.id, userAccount.username])
 
   useEffect(() => {
     const loadBlogPosts = async () => {
-      if (userAccount.role !== 'admin') return
+      const canViewOwnPosts = userAccount.role === 'admin' || userAccount.role === 'moderator'
+      if (!canViewOwnPosts) return
       
       setLoadingBlogPosts(true)
       try {
@@ -441,7 +442,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
         </div>
       </CollapsibleCard>
 
-      {userAccount.role === 'admin' && (
+      {(userAccount.role === 'admin' || userAccount.role === 'moderator') && (
         <Card>
           <CardHeader>
             <CardTitle as="h2" className="flex items-center gap-2">

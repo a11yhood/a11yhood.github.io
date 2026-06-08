@@ -92,7 +92,9 @@ export function ProductDetail({
   })()
   const shouldShowImage = !!resolvedImageUrl && !imageError
   const canModerate = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
+  const isOwner = !!userAccount?.id && (product.createdBy === userAccount.id || product.submittedBy === userAccount.id)
   const isEditor = !!userAccount?.id && (product.editorIds?.includes(userAccount.id) || false)
+  const canEditProduct = isOwner || isEditor
   const handleRequireLogin = () => {
     if (!onRequireLogin || typeof window === 'undefined') return
 
@@ -235,7 +237,7 @@ export function ProductDetail({
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center gap-3 justify-between mb-4 sm:mb-6 sm:flex-nowrap">
         <div className="flex items-center gap-2 sm:gap-3">
-          {user && (canModerate || isEditor) && (
+          {user && (canModerate || canEditProduct) && (
             <>
               {onEdit && !product.banned && (
                 <ProductEditDialog
@@ -446,7 +448,7 @@ export function ProductDetail({
             <ProductEditors
               productId={product.id}
               username={user?.username || null}
-              isEditor={!!user && (product.editorIds?.includes(user.id) || false)}
+              isEditor={!!user && (product.createdBy === user.id || product.submittedBy === user.id || (product.editorIds?.includes(user.id) || false))}
               userAccount={userAccount}
               onEditorsChange={() => { }}
               autoOpenRequestForm={autoOpenOwnershipRequest}

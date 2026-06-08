@@ -24,8 +24,9 @@ beforeEach(() => {
   vi.spyOn(APIService, 'getUserByUsername').mockResolvedValue(mockAccount)
   vi.spyOn(APIService, 'getUserStats').mockResolvedValue(defaultStats)
   vi.spyOn(APIService, 'getOwnedProducts').mockResolvedValue([])
-  vi.spyOn(APIService, 'getPublicCollections').mockResolvedValue([])
+  vi.spyOn(APIService, 'getUserPublicCollections').mockResolvedValue([])
   vi.spyOn(APIService, 'getAllBlogPosts').mockResolvedValue([])
+  vi.spyOn(APIService, 'getAllProducts').mockResolvedValue([])
 })
 
 describe('PublicProfile', () => {
@@ -49,8 +50,9 @@ describe('PublicProfile', () => {
     )
 
     await waitFor(() => {
-      expect(APIService.getUserStats).toHaveBeenCalledWith('testuser')
-      expect(APIService.getOwnedProducts).toHaveBeenCalledWith('user-uuid-1')
+      expect(APIService.getUserStats).toHaveBeenCalledWith('user-uuid-1')
+      expect(APIService.getOwnedProducts).toHaveBeenCalledWith('testuser')
+      expect(APIService.getUserPublicCollections).toHaveBeenCalledWith('testuser')
     })
   })
 
@@ -93,7 +95,7 @@ describe('PublicProfile', () => {
       id: 'product-1',
       name: 'ProgramAT',
       createdAt: Date.now(),
-      submittedBy: 'user-uuid-1',
+      createdBy: 'user-uuid-1',
     } as unknown as Product
     vi.spyOn(APIService, 'getOwnedProducts').mockResolvedValue([editableProduct])
 
@@ -122,7 +124,7 @@ describe('PublicProfile', () => {
       updatedAt: Date.now(),
       isPublic: true,
     } as unknown as Collection
-    vi.spyOn(APIService, 'getPublicCollections').mockResolvedValue([ownedCollection])
+    vi.spyOn(APIService, 'getUserPublicCollections').mockResolvedValue([ownedCollection])
 
     render(
       <MemoryRouter>
@@ -140,15 +142,15 @@ describe('PublicProfile', () => {
       slug: 'owned-product',
       name: 'Owned Product',
       createdAt: Date.now(),
-      submittedBy: 'user-uuid-1',
-      editorIds: ['user-uuid-1'],
+      createdBy: 'user-uuid-1',
+      editorIds: [],
     } as unknown as Product
     const editedProduct = {
       id: 'product-2',
       slug: 'edited-product',
       name: 'Edited Product',
       createdAt: Date.now(),
-      submittedBy: 'different-user',
+      createdBy: 'different-user',
       editorIds: ['user-uuid-1'],
     } as unknown as Product
     vi.spyOn(APIService, 'getOwnedProducts').mockResolvedValue([ownedProduct, editedProduct])
@@ -177,7 +179,7 @@ describe('PublicProfile', () => {
       updatedAt: Date.now(),
       isPublic: true,
     } as unknown as Collection
-    vi.spyOn(APIService, 'getPublicCollections').mockResolvedValue([ownedCollection, editedCollection])
+    vi.spyOn(APIService, 'getUserPublicCollections').mockResolvedValue([ownedCollection, editedCollection])
 
     render(
       <MemoryRouter>
@@ -192,5 +194,33 @@ describe('PublicProfile', () => {
 
     expect(screen.getAllByText('(owner)').length).toBeGreaterThan(0)
     expect(screen.getAllByText('(editor)').length).toBeGreaterThan(0)
+  })
+
+  it('falls back to public product index when owned-products endpoint is unauthorized', async () => {
+    vi.spyOn(APIService, 'getOwnedProducts').mockRejectedValue({ status: 401 })
+    vi.spyOn(APIService, 'getAllProducts').mockResolvedValue([
+      {
+        id: 'product-fallback-1',
+        slug: 'test-product-from-github',
+        name: 'Test Product From Github',
+        createdAt: Date.now(),
+        createdBy: 'different-user',
+        editorIds: ['user-uuid-1'],
+      } as unknown as Product,
+    ])
+
+    render(
+      <MemoryRouter>
+        <PublicProfile username="testuser" />
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByRole('link', { name: 'Test Product From Github' })).toHaveAttribute('href', '/product/test-product-from-github')
+
+    const productsLabel = await screen.findByText(/^Products$/)
+    const totalLabel = await screen.findByText(/^Total$/)
+
+    expect(productsLabel.previousElementSibling).toHaveTextContent('1')
+    expect(totalLabel.previousElementSibling).toHaveTextContent('1')
   })
 })

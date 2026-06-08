@@ -37,12 +37,13 @@ type UserStats = {
 
 type UserWithStats = UserAccount & UserStats
 
-export function AdminUsersStats() {
+export function AdminUsersStats({ currentUserRole = 'admin' }: { currentUserRole?: 'user' | 'moderator' | 'admin' }) {
   const { notify } = useNotifications()
   const navigate = useNavigate()
   const [users, setUsers] = useState<UserWithStats[]>([])
   const [loading, setLoading] = useState(true)
   const [sortBy, setSortBy] = useState<'contributions' | 'recent' | 'joined'>('contributions')
+  const canManageRoles = currentUserRole === 'admin'
 
   const loadUsers = useCallback(async () => {
     setLoading(true)
@@ -52,9 +53,26 @@ export function AdminUsersStats() {
       const usersWithStats: UserWithStats[] = await Promise.all(
         allUsers.map(async (user) => {
           const stats = await APIService.getUserStats(user.id)
+          let managedProductsCount = 0
+
+          try {
+            const ownedProducts = await APIService.getOwnedProducts(user.username || user.id)
+            managedProductsCount = ownedProducts.length
+          } catch (error) {
+            console.warn(`[AdminUsersStats] Failed to load owned products for ${user.username || user.id}:`, error)
+          }
+
+          const productsSubmitted = Math.max(stats.productsSubmitted || 0, managedProductsCount)
+          const totalContributions = Math.max(
+            stats.totalContributions || 0,
+            productsSubmitted + (stats.ratingsGiven || 0) + (stats.discussionsParticipated || 0)
+          )
+
           return {
             ...user,
-            ...stats
+            ...stats,
+            productsSubmitted,
+            totalContributions,
           }
         })
       )
@@ -72,6 +90,11 @@ export function AdminUsersStats() {
   }, [loadUsers])
 
   const handleRoleChange = async (username: string, newRole: 'user' | 'moderator' | 'admin') => {
+    if (!canManageRoles) {
+      notify.error('Only admins can change user roles')
+      return
+    }
+
     try {
       await APIService.setUserRole(username, newRole)
       await loadUsers()
@@ -190,13 +213,13 @@ export function AdminUsersStats() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle as="h2" className="text-sm font-medium">Products Submitted</CardTitle>
+              <CardTitle as="h2" className="text-sm font-medium">Products Submitted / Edited</CardTitle>
               <Package size={20} className="text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{totalStats.totalProducts}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Tools added to database
+                Tools submitted or editor-managed
               </p>
             </CardContent>
           </Card>
@@ -264,7 +287,7 @@ export function AdminUsersStats() {
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
-                    <TableHead className="text-center">Products</TableHead>
+                    <TableHead className="text-center">Products Submitted / Edited</TableHead>
                     <TableHead className="text-center">Ratings</TableHead>
                     <TableHead className="text-center">Discussions</TableHead>
                     <TableHead className="text-center">Total</TableHead>
@@ -302,24 +325,28 @@ export function AdminUsersStats() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={user.role || 'user'}
-                          onValueChange={(value: 'user' | 'moderator' | 'admin') => 
-                            handleRoleChange(user.username || user.id, value)
-                          }
-                        >
-                          <SelectTrigger
-                            className="w-32"
-                            aria-label={`Change role for ${user.username || user.id}`}
+                        {canManageRoles ? (
+                          <Select
+                            value={user.role || 'user'}
+                            onValueChange={(value: 'user' | 'moderator' | 'admin') =>
+                              handleRoleChange(user.username || user.id, value)
+                            }
                           >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="user">User</SelectItem>
-                            <SelectItem value="moderator">Moderator</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
+                            <SelectTrigger
+                              className="w-32"
+                              aria-label={`Change role for ${user.username || user.id}`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="user">User</SelectItem>
+                              <SelectItem value="moderator">Moderator</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant="outline" className="capitalize">{user.role || 'user'}</Badge>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
                         {user.productsSubmitted > 0 ? (

@@ -21,6 +21,61 @@ export function PublicProfile({ username }: { username: string }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const isProductOwnerById = (product: Product, accountId: string): boolean => {
+    return product.createdBy === accountId || product.submittedBy === accountId
+  }
+
+  const isProductOwnerByUsername = (product: Product, normalizedUsername: string): boolean => {
+    return (
+      (typeof product.createdBy === 'string' && product.createdBy.toLowerCase() === normalizedUsername) ||
+      (typeof product.submittedBy === 'string' && product.submittedBy.toLowerCase() === normalizedUsername)
+    )
+  }
+
+  const getManagedProductsFromPublicIndex = async (accountId: string, accountUsername: string): Promise<Product[]> => {
+    const pageSize = 100
+    const maxPages = 20
+    const normalizedUsername = accountUsername.toLowerCase()
+    const collected: Product[] = []
+
+    for (let page = 0; page < maxPages; page += 1) {
+      const offset = page * pageSize
+      const chunk = await APIService.getAllProducts({
+        limit: pageSize,
+        offset,
+        sortBy: 'created_at',
+        sortOrder: 'desc',
+      })
+
+      if (!chunk.length) {
+        break
+      }
+
+      collected.push(...chunk)
+
+      if (chunk.length < pageSize) {
+        break
+      }
+    }
+
+    const deduped = new Map<string, Product>()
+
+    for (const product of collected) {
+      const byId = isProductOwnerById(product, accountId) || (product.editorIds || []).includes(accountId)
+      const editorUsernames = ((product as Product & { editorUsernames?: string[] }).editorUsernames || [])
+        .map((value) => value.toLowerCase())
+      const byUsername =
+        isProductOwnerByUsername(product, normalizedUsername) ||
+        editorUsernames.includes(normalizedUsername)
+
+      if (byId || byUsername) {
+        deduped.set(product.id, product)
+      }
+    }
+
+    return Array.from(deduped.values())
+  }
+
   useEffect(() => {
     const load = async () => {
       setLoading(true)
@@ -30,26 +85,34 @@ export function PublicProfile({ username }: { username: string }) {
         if (acct) {
           setAccount(acct)
           const effectiveUsername = acct.username ?? username
-          const s = await APIService.getUserStats(effectiveUsername)
+          const statsUserRef = acct.id || effectiveUsername
+          const s = await APIService.getUserStats(statsUserRef)
           setStats(s)
 
           // Load products the user can edit (owner or editor) from the
           // relationship-backed endpoint.
           try {
-            const ownedProducts = await APIService.getOwnedProducts(acct.id)
+            const ownedProducts = await APIService.getOwnedProducts(effectiveUsername)
             setManagedProducts(ownedProducts)
           } catch (error) {
-            console.error('[PublicProfile] Failed to load products:', error)
+            const errorStatus = (error as { status?: number } | null)?.status
+
+            if (errorStatus === 401 || errorStatus === 403) {
+              try {
+                const fallbackProducts = await getManagedProductsFromPublicIndex(acct.id, effectiveUsername)
+                setManagedProducts(fallbackProducts)
+              } catch (fallbackError) {
+                console.error('[PublicProfile] Failed to load product fallback:', fallbackError)
+              }
+            } else {
+              console.error('[PublicProfile] Failed to load products:', error)
+            }
           }
 
           // Load collections where the user is owner or editor.
           try {
-            const allPublicCollections = await APIService.getPublicCollections('updated_at')
-            setUserCollections(
-              allPublicCollections.filter(
-                (collection) => collection.userId === acct.id || (collection.editorIds || []).includes(acct.id)
-              )
-            )
+            const collections = await APIService.getUserPublicCollections(effectiveUsername)
+            setUserCollections(collections)
           } catch {
             // Silently fail if we can't load collections
           }
@@ -217,7 +280,7 @@ export function PublicProfile({ username }: { username: string }) {
             ) : (
               <ul className="space-y-2">
                 {managedProducts.map((product) => {
-                  const role = product.submittedBy === account.id ? 'owner' : 'editor'
+                  const role = isProductOwnerById(product, account.id) ? 'owner' : 'editor'
                   return (
                     <li key={product.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
                       <Link to={`/product/${product.slug || product.id}`} className="font-medium hover:underline">

@@ -6,7 +6,10 @@ import { useNavigate } from 'react-router-dom'
 export function AdminUsersPage({ userAccount }: { userAccount: UserAccount | null }) {
     const navigate = useNavigate()
 
-    if (userAccount?.role !== 'admin') {
+    const role = userAccount?.role
+    const canAccess = role === 'admin' || role === 'moderator'
+
+    if (!canAccess) {
         return (
             <div className="text-center py-12">
                 <p className="text-lg text-muted-foreground">Access denied</p>
@@ -17,5 +20,5 @@ export function AdminUsersPage({ userAccount }: { userAccount: UserAccount | nul
         )
     }
 
-    return <AdminUsersStats />
+    return <AdminUsersStats currentUserRole={role} />
 }

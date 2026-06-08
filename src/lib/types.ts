@@ -28,7 +28,8 @@ export type Product = {
   
   // Creation metadata
   createdAt: number // Timestamp when product was added
-  submittedBy?: string // User ID (user submissions) or 'system' (scraped)
+  createdBy?: string // Canonical owner user ID from backend created_by
+  submittedBy?: string // Legacy owner field kept for backward compatibility
   
   // Edit history tracking
   lastEditedAt?: number // Timestamp of last modification

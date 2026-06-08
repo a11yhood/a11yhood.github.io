@@ -599,10 +599,9 @@ function App() {
   const { user: authUser, loading: authLoading, getAccessToken, signIn, signOut } = useAuth()
   const { notify } = useNotifications()
 
-  // Set up the auth token getter for API calls
-  useEffect(() => {
-    setAuthTokenGetter(getAccessToken)
-  }, [getAccessToken])
+  // Register the API auth token getter synchronously so child route effects
+  // can make authenticated requests on first render without a useEffect race.
+  setAuthTokenGetter(getAccessToken)
 
   // Refetch products when filters, search, or page changes (consolidated effect to avoid duplicates)
   useEffect(() => {

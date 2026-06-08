@@ -136,8 +136,9 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
     }
   }, [open, product])
 
+  const isOwner = !!userAccount?.id && (product.createdBy === userAccount.id || product.submittedBy === userAccount.id)
   const isEditor = userAccount?.id && product.editorIds?.includes(userAccount.id)
-  const canEdit = userAccount?.role === 'admin' || userAccount?.role === 'moderator' || !!isEditor
+  const canEdit = userAccount?.role === 'admin' || userAccount?.role === 'moderator' || !!isOwner || !!isEditor
   const canUploadFile = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
 
   // Ensure current product type is in the list

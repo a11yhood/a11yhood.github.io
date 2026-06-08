@@ -352,13 +352,25 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
     // FastAPI returns errors with 'detail' field, fallback to 'message' for other APIs
     const errorMessage = errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`
-    console.error('[API.handleResponse] Error response:', {
-      url: response.url,
-      status: response.status,
-      statusText: response.statusText,
-      errorMessage,
-      errorData
-    })
+    const isMissingOAuthConfig = response.status === 404 && /\/scrapers\/oauth\/[^/]+\/config$/.test(response.url)
+
+    if (isMissingOAuthConfig) {
+      logger.debug('[API.handleResponse] OAuth config not found (expected before setup):', {
+        url: response.url,
+        status: response.status,
+        statusText: response.statusText,
+        errorMessage,
+        errorData,
+      })
+    } else {
+      console.error('[API.handleResponse] Error response:', {
+        url: response.url,
+        status: response.status,
+        statusText: response.statusText,
+        errorMessage,
+        errorData
+      })
+    }
     throw new APIError(
       errorMessage,
       response.status,
@@ -1705,8 +1717,16 @@ export class APIService {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static async getOAuthConfig(platform: string): Promise<any> {
-    return request(`/scrapers/oauth/${platform}/config`)
+  static async getOAuthConfig(platform: string): Promise<any | null> {
+    try {
+      return await request(`/scrapers/oauth/${platform}/config`)
+    } catch (error) {
+      // Missing config is an expected state before credentials are saved.
+      if (error instanceof APIError && error.status === 404) {
+        return null
+      }
+      throw error
+    }
   }
 
   static async upsertOAuthConfig(
@@ -1825,6 +1845,21 @@ export class APIService {
     const query = params.toString() ? `?${params.toString()}` : ''
     const result = await request<Collection[]>(`/collections/public${query}`)
     return APIService.normalizeCollections(result)
+  }
+
+  static async getUserPublicCollections(username: string): Promise<Collection[]> {
+    try {
+      const response = await request<Collection[] | { collections?: Collection[] }>(`/users/${encodeURIComponent(username)}/collections`)
+      const collections = Array.isArray(response) ? response : (response.collections || [])
+      return APIService.normalizeCollections(collections)
+    } catch (error) {
+      // Backward compatibility for older backends that lack this endpoint.
+      if (error instanceof APIError && error.status === 404) {
+        console.warn('User collections endpoint not available:', error)
+        return []
+      }
+      throw error
+    }
   }
 
   static async createCollection(collection: CollectionCreateInput): Promise<Collection> {
@@ -2014,8 +2049,8 @@ export class APIService {
   static async getOwnedProducts(username: string): Promise<Product[]> {
     // Get all products owned by the user via product_editors table
     try {
-      const response = await request<{ products: Product[] }>(`/users/${encodeURIComponent(username)}/owned-products`)
-      return response.products || []
+      const response = await request<Product[] | { products?: Product[] }>(`/users/${encodeURIComponent(username)}/owned-products`)
+      return Array.isArray(response) ? response : (response.products || [])
     } catch (error) {
       // Backward compatibility for older backends that lack this endpoint.
       // Do not swallow auth/network/server errors.
