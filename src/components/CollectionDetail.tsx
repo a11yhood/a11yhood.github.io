@@ -91,7 +91,7 @@ export function CollectionDetail({
     fetchedBySlugRef.current = new Map()
     setFetchVersion(0)
 
-    const slugs = orderedProductSlugs
+    const slugs = slugSetKey ? slugSetKey.split(',').filter(Boolean) : []
     if (slugs.length === 0) {
       setIsLoading(false)
       return
@@ -136,7 +136,7 @@ export function CollectionDetail({
     })
 
     return () => { cancelled = true }
-  }, [orderedProductSlugs, slugSetKey])
+  }, [slugSetKey])
 
   // Merge globalProducts (always fresh, takes precedence) with locally-fetched
   // fallbacks to produce the ordered list for rendering.  Recomputes whenever
