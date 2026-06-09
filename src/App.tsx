@@ -7,7 +7,7 @@
  */
 console.log('📦 [App.tsx] Loading imports...')
 
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useState, useMemo, useRef } from 'react'
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { BlogPostDraftPage } from '@/components/BlogPostDraftPage'
@@ -599,9 +599,11 @@ function App() {
   const { user: authUser, loading: authLoading, getAccessToken, signIn, signOut } = useAuth()
   const { notify } = useNotifications()
 
-  // Register the API auth token getter synchronously so child route effects
-  // can make authenticated requests on first render without a useEffect race.
-  setAuthTokenGetter(getAccessToken)
+  // Register the API auth token getter before normal effects to avoid
+  // render-time side effects while still minimizing child effect races.
+  useLayoutEffect(() => {
+    setAuthTokenGetter(getAccessToken)
+  }, [getAccessToken])
 
   // Refetch products when filters, search, or page changes (consolidated effect to avoid duplicates)
   useEffect(() => {

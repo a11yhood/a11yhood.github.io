@@ -53,16 +53,8 @@ export function AdminUsersStats({ currentUserRole = 'admin' }: { currentUserRole
       const usersWithStats: UserWithStats[] = await Promise.all(
         allUsers.map(async (user) => {
           const stats = await APIService.getUserStats(user.id)
-          let managedProductsCount = 0
-
-          try {
-            const ownedProducts = await APIService.getOwnedProducts(user.username || user.id)
-            managedProductsCount = ownedProducts.length
-          } catch (error) {
-            console.warn(`[AdminUsersStats] Failed to load owned products for ${user.username || user.id}:`, error)
-          }
-
-          const productsSubmitted = Math.max(stats.productsSubmitted || 0, managedProductsCount)
+          const statsProductsSubmitted = stats.productsSubmitted || 0
+          const productsSubmitted = statsProductsSubmitted
           const totalContributions = Math.max(
             stats.totalContributions || 0,
             productsSubmitted + (stats.ratingsGiven || 0) + (stats.discussionsParticipated || 0)
