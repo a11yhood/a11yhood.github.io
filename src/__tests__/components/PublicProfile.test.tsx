@@ -14,6 +14,11 @@ const mockAccount: UserAccount = {
 
 const defaultStats = {
   productsSubmitted: 0,
+  collectionsCreated: 0,
+  productsOwnedSubmitted: 0,
+  productsEditedManaged: 0,
+  collectionsOwnedSubmitted: 0,
+  collectionsEditedManaged: 0,
   ratingsGiven: 0,
   discussionsParticipated: 0,
   totalContributions: 0,
@@ -112,7 +117,7 @@ describe('PublicProfile', () => {
     expect(totalLabel.previousElementSibling).toHaveTextContent('0')
   })
 
-  it('shows collection count in contribution statistics', async () => {
+  it('uses backend collection count without frontend correction', async () => {
     const ownedCollection = {
       id: 'col-1',
       slug: 'my-collection',
@@ -133,7 +138,7 @@ describe('PublicProfile', () => {
     )
 
     const collectionsLabel = await screen.findByText(/^Collections$/)
-    expect(collectionsLabel.previousElementSibling).toHaveTextContent('1')
+    expect(collectionsLabel.previousElementSibling).toHaveTextContent('0')
   })
 
   it('renders linked products and collections with owner/editor labels', async () => {

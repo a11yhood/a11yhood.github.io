@@ -1053,16 +1053,87 @@ export class APIService {
 
   static async getUserStats(username: string): Promise<{
     productsSubmitted: number
+    collectionsCreated: number
+    productsOwnedSubmitted?: number
+    productsEditedManaged?: number
+    collectionsOwnedSubmitted?: number
+    collectionsEditedManaged?: number
     ratingsGiven: number
     discussionsParticipated: number
     totalContributions: number
   }> {
     try {
-      return await request(`/users/${encodeURIComponent(username)}/stats`)
+      const stats = await request<Record<string, unknown>>(`/users/${encodeURIComponent(username)}/stats`)
+
+      const asNumber = (value: unknown): number =>
+        typeof value === 'number' && Number.isFinite(value) ? value : 0
+
+      const hasNumber = (value: unknown): boolean =>
+        typeof value === 'number' && Number.isFinite(value)
+
+      const productsOwnedSubmitted = hasNumber(stats.productsOwnedSubmitted)
+        ? asNumber(stats.productsOwnedSubmitted)
+        : hasNumber(stats.productsOwned)
+          ? asNumber(stats.productsOwned)
+          : asNumber(stats.productsSubmitted)
+      const productsEditedManaged = hasNumber(stats.productsEditedManaged)
+        ? asNumber(stats.productsEditedManaged)
+        : hasNumber(stats.productsManaged)
+          ? asNumber(stats.productsManaged)
+          : asNumber(stats.productsEdited)
+      const collectionsOwnedSubmitted = hasNumber(stats.collectionsOwnedSubmitted)
+        ? asNumber(stats.collectionsOwnedSubmitted)
+        : asNumber(stats.collectionsOwned)
+      const collectionsEditedManaged = hasNumber(stats.collectionsEditedManaged)
+        ? asNumber(stats.collectionsEditedManaged)
+        : hasNumber(stats.collectionsManaged)
+          ? asNumber(stats.collectionsManaged)
+          : asNumber(stats.collectionsEdited)
+
+      const hasSplitProductCounts =
+        hasNumber(stats.productsOwnedSubmitted) ||
+        hasNumber(stats.productsOwned) ||
+        hasNumber(stats.productsEditedManaged) ||
+        hasNumber(stats.productsManaged) ||
+        hasNumber(stats.productsEdited)
+      const hasSplitCollectionCounts =
+        hasNumber(stats.collectionsOwnedSubmitted) ||
+        hasNumber(stats.collectionsOwned) ||
+        hasNumber(stats.collectionsEditedManaged) ||
+        hasNumber(stats.collectionsManaged) ||
+        hasNumber(stats.collectionsEdited)
+
+      const productsSubmitted = hasSplitProductCounts
+        ? productsOwnedSubmitted + productsEditedManaged
+        : hasNumber(stats.productsSubmitted)
+          ? asNumber(stats.productsSubmitted)
+          : asNumber(stats.products)
+      const collectionsCreated = hasSplitCollectionCounts
+        ? collectionsOwnedSubmitted + collectionsEditedManaged
+        : hasNumber(stats.collectionsCreated)
+          ? asNumber(stats.collectionsCreated)
+          : asNumber(stats.collections)
+
+      return {
+        productsSubmitted,
+        collectionsCreated,
+        productsOwnedSubmitted,
+        productsEditedManaged,
+        collectionsOwnedSubmitted,
+        collectionsEditedManaged,
+        ratingsGiven: asNumber(stats.ratingsGiven),
+        discussionsParticipated: asNumber(stats.discussionsParticipated),
+        totalContributions: asNumber(stats.totalContributions),
+      }
     } catch {
       // Return empty stats if endpoint doesn't exist yet
       return {
         productsSubmitted: 0,
+        collectionsCreated: 0,
+        productsOwnedSubmitted: 0,
+        productsEditedManaged: 0,
+        collectionsOwnedSubmitted: 0,
+        collectionsEditedManaged: 0,
         ratingsGiven: 0,
         discussionsParticipated: 0,
         totalContributions: 0

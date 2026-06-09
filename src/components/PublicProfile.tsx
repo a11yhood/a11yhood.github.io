@@ -11,6 +11,11 @@ export function PublicProfile({ username }: { username: string }) {
   const [account, setAccount] = useState<UserAccount | null>(null)
   const [stats, setStats] = useState({
     productsSubmitted: 0,
+    collectionsCreated: 0,
+    productsOwnedSubmitted: 0,
+    productsEditedManaged: 0,
+    collectionsOwnedSubmitted: 0,
+    collectionsEditedManaged: 0,
     ratingsGiven: 0,
     discussionsParticipated: 0,
     totalContributions: 0,
@@ -43,6 +48,13 @@ export function PublicProfile({ username }: { username: string }) {
           try {
             const ownedProducts = await APIService.getOwnedProducts(effectiveUsername)
             setManagedProducts(ownedProducts)
+            if (import.meta.env.DEV && (s.productsSubmitted || 0) < ownedProducts.length) {
+              console.warn('[PublicProfile] Backend stats mismatch for productsSubmitted', {
+                username: effectiveUsername,
+                statsProductsSubmitted: s.productsSubmitted || 0,
+                ownedProductsCount: ownedProducts.length,
+              })
+            }
           } catch (error) {
             console.error('[PublicProfile] Failed to load products:', error)
           }
@@ -51,6 +63,18 @@ export function PublicProfile({ username }: { username: string }) {
           try {
             const collections = await APIService.getUserPublicCollections(effectiveUsername)
             setUserCollections(collections)
+            if (import.meta.env.DEV) {
+              const statsCollectionsTotal =
+                (s.collectionsOwnedSubmitted || 0) + (s.collectionsEditedManaged || 0)
+              const backendCollections = statsCollectionsTotal > 0 ? statsCollectionsTotal : (s.collectionsCreated || 0)
+              if (backendCollections < collections.length) {
+                console.warn('[PublicProfile] Backend stats mismatch for collections', {
+                  username: effectiveUsername,
+                  statsCollections: backendCollections,
+                  userCollectionsCount: collections.length,
+                })
+              }
+            }
           } catch {
             // Silently fail if we can't load collections
           }
@@ -92,11 +116,8 @@ export function PublicProfile({ username }: { username: string }) {
   }
 
   const displayedProductsSubmitted = stats.productsSubmitted
-  const displayedCollectionsCount = userCollections.length
-  const displayedTotalContributions = Math.max(
-    stats.totalContributions,
-    displayedProductsSubmitted + displayedCollectionsCount + stats.ratingsGiven + stats.discussionsParticipated
-  )
+  const displayedCollectionsCount = stats.collectionsCreated
+  const displayedTotalContributions = stats.totalContributions
 
   return (
     <div className="space-y-6">

@@ -46,6 +46,11 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
   const [website, setWebsite] = useState(userAccount.website || '')
   const [stats, setStats] = useState({
     productsSubmitted: 0,
+    collectionsCreated: 0,
+    productsOwnedSubmitted: 0,
+    productsEditedManaged: 0,
+    collectionsOwnedSubmitted: 0,
+    collectionsEditedManaged: 0,
     ratingsGiven: 0,
     discussionsParticipated: 0,
     totalContributions: 0,
@@ -135,11 +140,9 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
     })
   }
 
-  const displayedProductsSubmitted = Math.max(stats.productsSubmitted, ownedProducts.length)
-  const displayedTotalContributions = Math.max(
-    stats.totalContributions,
-    displayedProductsSubmitted + stats.ratingsGiven + stats.discussionsParticipated
-  )
+  const displayedProductsSubmitted = stats.productsSubmitted
+  const displayedCollectionsCreated = stats.collectionsCreated
+  const displayedTotalContributions = stats.totalContributions
 
   return (
     <div className="space-y-6">
@@ -325,6 +328,10 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
             <div className="text-center p-4 bg-muted rounded-lg">
               <div className="text-3xl font-bold">{stats.discussionsParticipated}</div>
               <div className="text-sm text-muted-foreground mt-1">Discussions</div>
+            </div>
+            <div className="text-center p-4 bg-muted rounded-lg">
+              <div className="text-3xl font-bold">{displayedCollectionsCreated}</div>
+              <div className="text-sm text-muted-foreground mt-1">Collections</div>
             </div>
           </div>
         </CardContent>

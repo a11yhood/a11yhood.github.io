@@ -36,6 +36,11 @@ describe('AdminUsersStats', () => {
       if (id === 'user-1') {
         return {
           productsSubmitted: 3,
+          collectionsCreated: 2,
+          productsOwnedSubmitted: 2,
+          productsEditedManaged: 1,
+          collectionsOwnedSubmitted: 1,
+          collectionsEditedManaged: 1,
           ratingsGiven: 1,
           discussionsParticipated: 1,
           totalContributions: 5,
@@ -44,6 +49,11 @@ describe('AdminUsersStats', () => {
 
       return {
         productsSubmitted: 0,
+        collectionsCreated: 0,
+        productsOwnedSubmitted: 0,
+        productsEditedManaged: 0,
+        collectionsOwnedSubmitted: 0,
+        collectionsEditedManaged: 0,
         ratingsGiven: 1,
         discussionsParticipated: 0,
         totalContributions: 1,

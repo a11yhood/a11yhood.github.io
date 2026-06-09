@@ -30,6 +30,7 @@ import { useNotifications } from '@/contexts/NotificationContext'
 
 type UserStats = {
   productsSubmitted: number
+  collectionsCreated: number
   ratingsGiven: number
   discussionsParticipated: number
   totalContributions: number
@@ -53,17 +54,15 @@ export function AdminUsersStats({ currentUserRole = 'admin' }: { currentUserRole
       const usersWithStats: UserWithStats[] = await Promise.all(
         allUsers.map(async (user) => {
           const stats = await APIService.getUserStats(user.id)
-          const statsProductsSubmitted = stats.productsSubmitted || 0
-          const productsSubmitted = statsProductsSubmitted
-          const totalContributions = Math.max(
-            stats.totalContributions || 0,
-            productsSubmitted + (stats.ratingsGiven || 0) + (stats.discussionsParticipated || 0)
-          )
+          const productsSubmitted = stats.productsSubmitted || 0
+          const collectionsCreated = stats.collectionsCreated || 0
+          const totalContributions = stats.totalContributions || 0
 
           return {
             ...user,
             ...stats,
             productsSubmitted,
+            collectionsCreated,
             totalContributions,
           }
         })
@@ -280,6 +279,7 @@ export function AdminUsersStats({ currentUserRole = 'admin' }: { currentUserRole
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead className="text-center">Products Submitted / Edited</TableHead>
+                    <TableHead className="text-center">Collections</TableHead>
                     <TableHead className="text-center">Ratings</TableHead>
                     <TableHead className="text-center">Discussions</TableHead>
                     <TableHead className="text-center">Total</TableHead>
@@ -343,6 +343,13 @@ export function AdminUsersStats({ currentUserRole = 'admin' }: { currentUserRole
                       <TableCell className="text-center">
                         {user.productsSubmitted > 0 ? (
                           <Badge variant="secondary">{user.productsSubmitted}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {user.collectionsCreated > 0 ? (
+                          <Badge variant="secondary">{user.collectionsCreated}</Badge>
                         ) : (
                           <span className="text-muted-foreground">0</span>
                         )}

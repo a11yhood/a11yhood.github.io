@@ -23,6 +23,11 @@ const userData = {
 
 const staleStats = {
   productsSubmitted: 0,
+  collectionsCreated: 0,
+  productsOwnedSubmitted: 0,
+  productsEditedManaged: 0,
+  collectionsOwnedSubmitted: 0,
+  collectionsEditedManaged: 0,
   ratingsGiven: 0,
   discussionsParticipated: 0,
   totalContributions: 0,
@@ -41,7 +46,7 @@ beforeEach(() => {
 })
 
 describe('UserProfile contribution statistics', () => {
-  it('uses owned products count when productsSubmitted is behind', async () => {
+  it('uses backend contribution totals without frontend correction', async () => {
     render(
       <MemoryRouter>
         <UserProfile userAccount={userAccount} user={userData} onProductClick={() => {}} />
@@ -51,7 +56,7 @@ describe('UserProfile contribution statistics', () => {
     const productsLabel = await screen.findByText(/^Products$/)
     const totalLabel = await screen.findByText(/^Total$/)
 
-    expect(productsLabel.previousElementSibling).toHaveTextContent('1')
-    expect(totalLabel.previousElementSibling).toHaveTextContent('1')
+    expect(productsLabel.previousElementSibling).toHaveTextContent('0')
+    expect(totalLabel.previousElementSibling).toHaveTextContent('0')
   })
 })

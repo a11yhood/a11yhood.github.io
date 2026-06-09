@@ -31,6 +31,11 @@ describe('AdminUsersStats accessibility', () => {
     ])
     vi.spyOn(APIService, 'getUserStats').mockResolvedValue({
       productsSubmitted: 2,
+      collectionsCreated: 1,
+      productsOwnedSubmitted: 1,
+      productsEditedManaged: 1,
+      collectionsOwnedSubmitted: 1,
+      collectionsEditedManaged: 0,
       ratingsGiven: 4,
       discussionsParticipated: 1,
       totalContributions: 7,
