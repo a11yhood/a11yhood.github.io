@@ -1636,10 +1636,10 @@ export class APIService {
     return request<Record<string, number>>('/products/banned/by-source')
   }
 
-  static async addProductOwner(productId: string, username: string): Promise<Product | null> {
+  static async addProductOwner(productId: string, userId: string): Promise<Product | null> {
     return request<Product | null>(`/products/${productId}/owners`, {
       method: 'POST',
-      body: JSON.stringify({ username }),
+      body: JSON.stringify({ userId }),
     })
   }
 
