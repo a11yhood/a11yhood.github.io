@@ -204,8 +204,15 @@ describeWithBackend('DiscussionSection Accessibility Tests', () => {
     const button = screen.getByRole('button', { name: /post/i })
     fireEvent.click(button)
 
+    await waitFor(() => {
+      expect(handleDiscuss).toHaveBeenCalled()
+    })
+
+    const lastCall = handleDiscuss.mock.calls.at(-1)
+    expect(lastCall?.[0]).toBe('New discussion message')
+    expect(lastCall?.[1]).toBeUndefined()
+
     await waitFor(async () => {
-      expect(handleDiscuss).toHaveBeenCalledWith('New discussion message', undefined)
       const updated = await APIService.getAllDiscussions()
       const exists = updated.some((d) => d.content === 'New discussion message' && d.productId === productId)
       expect(exists).toBe(true)

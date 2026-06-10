@@ -7,8 +7,9 @@
  * - Role management (user, moderator, admin)
  * - Platform-wide statistics dashboard
  */
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CollapsibleCard } from '@/components/CollapsibleCard'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -29,6 +30,7 @@ import { useNotifications } from '@/contexts/NotificationContext'
 
 type UserStats = {
   productsSubmitted: number
+  collectionsCreated: number
   ratingsGiven: number
   discussionsParticipated: number
   totalContributions: number
@@ -36,19 +38,15 @@ type UserStats = {
 
 type UserWithStats = UserAccount & UserStats
 
-export function AdminUsersStats() {
+export function AdminUsersStats({ currentUserRole = 'admin' }: { currentUserRole?: 'user' | 'moderator' | 'admin' }) {
   const { notify } = useNotifications()
   const navigate = useNavigate()
   const [users, setUsers] = useState<UserWithStats[]>([])
   const [loading, setLoading] = useState(true)
   const [sortBy, setSortBy] = useState<'contributions' | 'recent' | 'joined'>('contributions')
+  const canManageRoles = currentUserRole === 'admin'
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    loadUsers()
-  }, [])
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true)
     try {
       const allUsers = await APIService.getAllUsers()
@@ -56,9 +54,16 @@ export function AdminUsersStats() {
       const usersWithStats: UserWithStats[] = await Promise.all(
         allUsers.map(async (user) => {
           const stats = await APIService.getUserStats(user.id)
+          const productsSubmitted = stats.productsSubmitted || 0
+          const collectionsCreated = stats.collectionsCreated || 0
+          const totalContributions = stats.totalContributions || 0
+
           return {
             ...user,
-            ...stats
+            ...stats,
+            productsSubmitted,
+            collectionsCreated,
+            totalContributions,
           }
         })
       )
@@ -69,9 +74,18 @@ export function AdminUsersStats() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [notify])
+
+  useEffect(() => {
+    void loadUsers()
+  }, [loadUsers])
 
   const handleRoleChange = async (username: string, newRole: 'user' | 'moderator' | 'admin') => {
+    if (!canManageRoles) {
+      notify.error('Only admins can change user roles')
+      return
+    }
+
     try {
       await APIService.setUserRole(username, newRole)
       await loadUsers()
@@ -190,13 +204,13 @@ export function AdminUsersStats() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle as="h2" className="text-sm font-medium">Products Submitted</CardTitle>
+              <CardTitle as="h2" className="text-sm font-medium">Products Submitted / Edited</CardTitle>
               <Package size={20} className="text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{totalStats.totalProducts}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Tools added to database
+                Tools submitted or editor-managed
               </p>
             </CardContent>
           </Card>
@@ -257,11 +271,15 @@ export function AdminUsersStats() {
           ) : (
             <div className="rounded-md border">
               <Table>
+                <caption>
+                  User statistics and role management table showing contribution counts, join date, and last active time.
+                </caption>
                 <TableHeader>
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
-                    <TableHead className="text-center">Products</TableHead>
+                    <TableHead className="text-center">Products Submitted / Edited</TableHead>
+                    <TableHead className="text-center">Collections</TableHead>
                     <TableHead className="text-center">Ratings</TableHead>
                     <TableHead className="text-center">Discussions</TableHead>
                     <TableHead className="text-center">Total</TableHead>
@@ -281,34 +299,57 @@ export function AdminUsersStats() {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <div className="font-medium">{user.username}</div>
+                            <div className="font-medium">
+                              {user.username ? (
+                                <Link
+                                  to={`/profile/${encodeURIComponent(user.username)}`}
+                                  className="underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+                                  aria-label={`View ${user.username}'s profile`}
+                                >
+                                  {user.username}
+                                </Link>
+                              ) : (
+                                'Unknown user'
+                              )}
+                            </div>
                             <div className="text-sm text-muted-foreground">{user.email || '—'}</div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={user.role || 'user'}
-                          onValueChange={(value: 'user' | 'moderator' | 'admin') => 
-                            handleRoleChange(user.username || user.id, value)
-                          }
-                        >
-                          <SelectTrigger
-                            className="w-32"
-                            aria-label={`Change role for ${user.username || user.id}`}
+                        {canManageRoles ? (
+                          <Select
+                            value={user.role || 'user'}
+                            onValueChange={(value: 'user' | 'moderator' | 'admin') =>
+                              handleRoleChange(user.username || user.id, value)
+                            }
                           >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="user">User</SelectItem>
-                            <SelectItem value="moderator">Moderator</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
+                            <SelectTrigger
+                              className="w-32"
+                              aria-label={`Change role for ${user.username || user.id}`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="user">User</SelectItem>
+                              <SelectItem value="moderator">Moderator</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant="outline" className="capitalize">{user.role || 'user'}</Badge>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
                         {user.productsSubmitted > 0 ? (
                           <Badge variant="secondary">{user.productsSubmitted}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {user.collectionsCreated > 0 ? (
+                          <Badge variant="secondary">{user.collectionsCreated}</Badge>
                         ) : (
                           <span className="text-muted-foreground">0</span>
                         )}

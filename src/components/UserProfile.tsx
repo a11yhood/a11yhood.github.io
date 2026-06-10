@@ -46,6 +46,11 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
   const [website, setWebsite] = useState(userAccount.website || '')
   const [stats, setStats] = useState({
     productsSubmitted: 0,
+    collectionsCreated: 0,
+    productsOwnedSubmitted: 0,
+    productsEditedManaged: 0,
+    collectionsOwnedSubmitted: 0,
+    collectionsEditedManaged: 0,
     ratingsGiven: 0,
     discussionsParticipated: 0,
     totalContributions: 0,
@@ -58,7 +63,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
 
   useEffect(() => {
     const loadStats = async () => {
-      const userStats = await APIService.getUserStats(userAccount.username || userAccount.id)
+      const userStats = await APIService.getUserStats(userAccount.id || userAccount.username)
       setStats(userStats)
     }
     loadStats()
@@ -69,7 +74,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
       setLoadingOwnedProducts(true)
       setOwnedProductsError(null)
       try {
-        const products = await APIService.getOwnedProducts(userAccount.username)
+        const products = await APIService.getOwnedProducts(userAccount.username || userAccount.id)
         setOwnedProducts(products)
       } catch (error) {
         console.error('Failed to load owned products:', error)
@@ -84,7 +89,8 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
 
   useEffect(() => {
     const loadBlogPosts = async () => {
-      if (userAccount.role !== 'admin') return
+      const canViewOwnPosts = userAccount.role === 'admin' || userAccount.role === 'moderator'
+      if (!canViewOwnPosts) return
       
       setLoadingBlogPosts(true)
       try {
@@ -133,6 +139,10 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
       day: 'numeric',
     })
   }
+
+  const displayedProductsSubmitted = stats.productsSubmitted
+  const displayedCollectionsCreated = stats.collectionsCreated
+  const displayedTotalContributions = stats.totalContributions
 
   return (
     <div className="space-y-6">
@@ -304,11 +314,11 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="text-center p-4 bg-muted rounded-lg">
-              <div className="text-3xl font-bold">{stats.totalContributions}</div>
+              <div className="text-3xl font-bold">{displayedTotalContributions}</div>
               <div className="text-sm text-muted-foreground mt-1">Total</div>
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
-              <div className="text-3xl font-bold">{stats.productsSubmitted}</div>
+              <div className="text-3xl font-bold">{displayedProductsSubmitted}</div>
               <div className="text-sm text-muted-foreground mt-1">Products</div>
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
@@ -318,6 +328,10 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
             <div className="text-center p-4 bg-muted rounded-lg">
               <div className="text-3xl font-bold">{stats.discussionsParticipated}</div>
               <div className="text-sm text-muted-foreground mt-1">Discussions</div>
+            </div>
+            <div className="text-center p-4 bg-muted rounded-lg">
+              <div className="text-3xl font-bold">{displayedCollectionsCreated}</div>
+              <div className="text-sm text-muted-foreground mt-1">Collections</div>
             </div>
           </div>
         </CardContent>
@@ -435,7 +449,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
         </div>
       </CollapsibleCard>
 
-      {userAccount.role === 'admin' && (
+      {(userAccount.role === 'admin' || userAccount.role === 'moderator') && (
         <Card>
           <CardHeader>
             <CardTitle as="h2" className="flex items-center gap-2">

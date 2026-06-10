@@ -7,7 +7,7 @@
  */
 console.log('📦 [App.tsx] Loading imports...')
 
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useState, useMemo, useRef } from 'react'
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { BlogPostDraftPage } from '@/components/BlogPostDraftPage'
@@ -43,7 +43,6 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { AlertBanner } from '@/components/AlertBanner'
 // API adapter disabled - using real backend API now
 // import '@/lib/api-adapter'
-import { Switch } from '@/components/ui/switch'
 
 console.log('✓ [App.tsx] All imports loaded')
 
@@ -55,18 +54,6 @@ export type ApiErrorLike = {
     type?: string
     debug_info?: unknown
   }
-}
-
-type CollectionFromSearchPayload = {
-  name: string
-  description?: string
-  isPublic: boolean
-  search?: string
-  sources?: string[]
-  types?: string[]
-  tags?: string[]
-  tagsMode?: string
-  minRating?: number
 }
 
 const POST_AUTH_REDIRECT_KEY = 'a11yhood:post-auth-redirect'
@@ -612,8 +599,9 @@ function App() {
   const { user: authUser, loading: authLoading, getAccessToken, signIn, signOut } = useAuth()
   const { notify } = useNotifications()
 
-  // Set up the auth token getter for API calls
-  useEffect(() => {
+  // Register the API auth token getter before normal effects to avoid
+  // render-time side effects while still minimizing child effect races.
+  useLayoutEffect(() => {
     setAuthTokenGetter(getAccessToken)
   }, [getAccessToken])
 
@@ -864,11 +852,14 @@ function App() {
         // Check Supabase user_metadata for GitHub username fields
         const preferredUsername = authUser.user_metadata?.preferred_username
         const userName = authUser.user_metadata?.user_name
+        const metadataUsername = authUser.user_metadata?.username
 
         if (preferredUsername && typeof preferredUsername === 'string') {
           createUsername = preferredUsername
         } else if (userName && typeof userName === 'string') {
           createUsername = userName
+        } else if (metadataUsername && typeof metadataUsername === 'string') {
+          createUsername = metadataUsername
         } else if (authUser.email && typeof authUser.email === 'string' && authUser.email.includes('@')) {
           createUsername = authUser.email.split('@')[0]
         } else if (authUser.email) {
@@ -1102,6 +1093,7 @@ function App() {
       }
     }
 
+    void handleRavelryOAuth()
   }, [authLoading, authUser, notify])
 
   // Load collections for all users (public collections always, user collections on /collections pages)
@@ -1443,6 +1435,7 @@ function App() {
           username:
             (typeof authUser.user_metadata?.preferred_username === 'string' && authUser.user_metadata.preferred_username) ||
             (typeof authUser.user_metadata?.user_name === 'string' && authUser.user_metadata.user_name) ||
+            (typeof authUser.user_metadata?.username === 'string' && authUser.user_metadata.username) ||
             (typeof authUser.email === 'string' ? authUser.email.split('@')[0] : authUser.id),
           avatarUrl:
             (typeof authUser.user_metadata?.avatar_url === 'string' && authUser.user_metadata.avatar_url) ||
@@ -2032,12 +2025,12 @@ function App() {
                   </div>
                 )
               } />
-              <Route path="/profile" element={<Navigate to={user ? `/profile/${user.username}` : '/'} replace />} />
+              <Route path="/profile" element={<Navigate to={user ? `/profile/${userAccount?.username || user.username}` : '/'} replace />} />
               <Route path="/profile/:username" element={
                 <PublicProfileWrapper />
               } />
               {/* Backward compatibility: redirect /account to /account/:username if signed in */}
-              <Route path="/account" element={<Navigate to={user ? `/account/${user.username}` : '/'} replace />} />
+              <Route path="/account" element={<Navigate to={user ? `/account/${userAccount?.username || user.username}` : '/'} replace />} />
               <Route path="/admin" element={
                 <AdminPage
                   products={products}

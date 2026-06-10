@@ -352,13 +352,25 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
     // FastAPI returns errors with 'detail' field, fallback to 'message' for other APIs
     const errorMessage = errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`
-    console.error('[API.handleResponse] Error response:', {
-      url: response.url,
-      status: response.status,
-      statusText: response.statusText,
-      errorMessage,
-      errorData
-    })
+    const isMissingOAuthConfig = response.status === 404 && /\/scrapers\/oauth\/[^/]+\/config$/.test(response.url)
+
+    if (isMissingOAuthConfig) {
+      logger.debug('[API.handleResponse] OAuth config not found (expected before setup):', {
+        url: response.url,
+        status: response.status,
+        statusText: response.statusText,
+        errorMessage,
+        errorData,
+      })
+    } else {
+      console.error('[API.handleResponse] Error response:', {
+        url: response.url,
+        status: response.status,
+        statusText: response.statusText,
+        errorMessage,
+        errorData
+      })
+    }
     throw new APIError(
       errorMessage,
       response.status,
@@ -419,16 +431,26 @@ async function request<T>(
     logger.debug('[API] Query parameters:', Object.fromEntries(params.entries()))
   }
   
-  // For public user profile reads (base endpoint and /stats), skip auth.
-  // Private endpoints like /requests, /owned-products, /me, /collections, /role MUST include auth.
-  const omitAuth = 
-    endpoint.startsWith('/users/') && 
-    (!options.method || options.method === 'GET') &&
-    !endpoint.includes('/requests') &&
-    !endpoint.includes('/owned-products') &&
-    !endpoint.includes('/collections') &&
-    !endpoint.includes('/role') &&
-    !endpoint.includes('/me')
+  // Only omit auth for explicitly public user-read endpoints.
+  // Keep auth for users collection and private subresources.
+  const method = (options.method || 'GET').toUpperCase()
+  const endpointPath = endpoint.split('?')[0]
+  const isGet = method === 'GET'
+  const isPublicByUsernameRead = endpointPath.startsWith('/users/by-username/')
+  const publicUserReadMatch = endpointPath.match(/^\/users\/([^/]+)(?:\/(stats))?\/?$/)
+  const isPublicUserRead = !!publicUserReadMatch && publicUserReadMatch[1] !== 'me'
+  const isPrivateUsersSubresource =
+    endpointPath.includes('/requests') ||
+    endpointPath.includes('/owned-products') ||
+    endpointPath.includes('/collections') ||
+    endpointPath.includes('/role') ||
+    endpointPath.includes('/export') ||
+    endpointPath.includes('/profile')
+
+  const omitAuth =
+    isGet &&
+    (isPublicByUsernameRead || isPublicUserRead) &&
+    !isPrivateUsersSubresource
 
   // Get auth token from registered getter (set by AuthContext on app load).
   // If no getter is registered, token will be null and the request will be sent without Authorization.
@@ -437,8 +459,6 @@ async function request<T>(
   const shouldSendAuth = !!token && !omitAuth
   
   logger.debug('[API] Making request:', { endpoint, hasTokenGetter: !!getAuthToken, hasToken: !!token, omitAuth, shouldSendAuth })
-
-  const method = (options.method || 'GET').toUpperCase()
 
   const hasHeader = (headers: HeadersInit | undefined, headerName: string): boolean => {
     if (!headers) return false
@@ -943,11 +963,11 @@ export class APIService {
   }
 
   static async getModerators(): Promise<UserAccount[]> {
-    return request<UserAccount[]>('/users?role=moderator')
+    return request<UserAccount[]>('/users/?role=moderator')
   }
 
   static async getAllUsers(): Promise<UserAccount[]> {
-    return request<UserAccount[]>('/users')
+    return request<UserAccount[]>('/users/')
   }
 
   static async incrementUserStats(
@@ -1033,16 +1053,87 @@ export class APIService {
 
   static async getUserStats(username: string): Promise<{
     productsSubmitted: number
+    collectionsCreated: number
+    productsOwnedSubmitted?: number
+    productsEditedManaged?: number
+    collectionsOwnedSubmitted?: number
+    collectionsEditedManaged?: number
     ratingsGiven: number
     discussionsParticipated: number
     totalContributions: number
   }> {
     try {
-      return await request(`/users/${encodeURIComponent(username)}/stats`)
+      const stats = await request<Record<string, unknown>>(`/users/${encodeURIComponent(username)}/stats`)
+
+      const asNumber = (value: unknown): number =>
+        typeof value === 'number' && Number.isFinite(value) ? value : 0
+
+      const hasNumber = (value: unknown): boolean =>
+        typeof value === 'number' && Number.isFinite(value)
+
+      const productsOwnedSubmitted = hasNumber(stats.productsOwnedSubmitted)
+        ? asNumber(stats.productsOwnedSubmitted)
+        : hasNumber(stats.productsOwned)
+          ? asNumber(stats.productsOwned)
+          : asNumber(stats.productsSubmitted)
+      const productsEditedManaged = hasNumber(stats.productsEditedManaged)
+        ? asNumber(stats.productsEditedManaged)
+        : hasNumber(stats.productsManaged)
+          ? asNumber(stats.productsManaged)
+          : asNumber(stats.productsEdited)
+      const collectionsOwnedSubmitted = hasNumber(stats.collectionsOwnedSubmitted)
+        ? asNumber(stats.collectionsOwnedSubmitted)
+        : asNumber(stats.collectionsOwned)
+      const collectionsEditedManaged = hasNumber(stats.collectionsEditedManaged)
+        ? asNumber(stats.collectionsEditedManaged)
+        : hasNumber(stats.collectionsManaged)
+          ? asNumber(stats.collectionsManaged)
+          : asNumber(stats.collectionsEdited)
+
+      const hasSplitProductCounts =
+        hasNumber(stats.productsOwnedSubmitted) ||
+        hasNumber(stats.productsOwned) ||
+        hasNumber(stats.productsEditedManaged) ||
+        hasNumber(stats.productsManaged) ||
+        hasNumber(stats.productsEdited)
+      const hasSplitCollectionCounts =
+        hasNumber(stats.collectionsOwnedSubmitted) ||
+        hasNumber(stats.collectionsOwned) ||
+        hasNumber(stats.collectionsEditedManaged) ||
+        hasNumber(stats.collectionsManaged) ||
+        hasNumber(stats.collectionsEdited)
+
+      const productsSubmitted = hasSplitProductCounts
+        ? productsOwnedSubmitted + productsEditedManaged
+        : hasNumber(stats.productsSubmitted)
+          ? asNumber(stats.productsSubmitted)
+          : asNumber(stats.products)
+      const collectionsCreated = hasSplitCollectionCounts
+        ? collectionsOwnedSubmitted + collectionsEditedManaged
+        : hasNumber(stats.collectionsCreated)
+          ? asNumber(stats.collectionsCreated)
+          : asNumber(stats.collections)
+
+      return {
+        productsSubmitted,
+        collectionsCreated,
+        productsOwnedSubmitted,
+        productsEditedManaged,
+        collectionsOwnedSubmitted,
+        collectionsEditedManaged,
+        ratingsGiven: asNumber(stats.ratingsGiven),
+        discussionsParticipated: asNumber(stats.discussionsParticipated),
+        totalContributions: asNumber(stats.totalContributions),
+      }
     } catch {
       // Return empty stats if endpoint doesn't exist yet
       return {
         productsSubmitted: 0,
+        collectionsCreated: 0,
+        productsOwnedSubmitted: 0,
+        productsEditedManaged: 0,
+        collectionsOwnedSubmitted: 0,
+        collectionsEditedManaged: 0,
         ratingsGiven: 0,
         discussionsParticipated: 0,
         totalContributions: 0
@@ -1545,10 +1636,10 @@ export class APIService {
     return request<Record<string, number>>('/products/banned/by-source')
   }
 
-  static async addProductOwner(productId: string, username: string): Promise<Product | null> {
+  static async addProductOwner(productId: string, userId: string): Promise<Product | null> {
     return request<Product | null>(`/products/${productId}/owners`, {
       method: 'POST',
-      body: JSON.stringify({ username }),
+      body: JSON.stringify({ userId }),
     })
   }
 
@@ -1697,8 +1788,16 @@ export class APIService {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static async getOAuthConfig(platform: string): Promise<any> {
-    return request(`/scrapers/oauth/${platform}/config`)
+  static async getOAuthConfig(platform: string): Promise<any | null> {
+    try {
+      return await request(`/scrapers/oauth/${platform}/config`)
+    } catch (error) {
+      // Missing config is an expected state before credentials are saved.
+      if (error instanceof APIError && error.status === 404) {
+        return null
+      }
+      throw error
+    }
   }
 
   static async upsertOAuthConfig(
@@ -1817,6 +1916,21 @@ export class APIService {
     const query = params.toString() ? `?${params.toString()}` : ''
     const result = await request<Collection[]>(`/collections/public${query}`)
     return APIService.normalizeCollections(result)
+  }
+
+  static async getUserPublicCollections(username: string): Promise<Collection[]> {
+    try {
+      const response = await request<Collection[] | { collections?: Collection[] }>(`/users/${encodeURIComponent(username)}/collections`)
+      const collections = Array.isArray(response) ? response : (response.collections || [])
+      return APIService.normalizeCollections(collections)
+    } catch (error) {
+      // Backward compatibility for older backends that lack this endpoint.
+      if (error instanceof APIError && error.status === 404) {
+        console.warn('User collections endpoint not available:', error)
+        return []
+      }
+      throw error
+    }
   }
 
   static async createCollection(collection: CollectionCreateInput): Promise<Collection> {
@@ -2006,8 +2120,8 @@ export class APIService {
   static async getOwnedProducts(username: string): Promise<Product[]> {
     // Get all products owned by the user via product_editors table
     try {
-      const response = await request<{ products: Product[] }>(`/users/${encodeURIComponent(username)}/owned-products`)
-      return response.products || []
+      const response = await request<Product[] | { products?: Product[] }>(`/users/${encodeURIComponent(username)}/owned-products`)
+      return Array.isArray(response) ? response : (response.products || [])
     } catch (error) {
       // Backward compatibility for older backends that lack this endpoint.
       // Do not swallow auth/network/server errors.

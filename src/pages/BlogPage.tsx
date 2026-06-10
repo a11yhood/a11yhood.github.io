@@ -3,14 +3,6 @@ import { BlogPostList } from '@/components/BlogPostList'
 import { BlogPost, UserAccount } from '@/lib/types'
 import { useNavigate } from 'react-router-dom'
 
-interface BlogPageProps {
-    blogPosts: BlogPost[]
-    blogPostsLoading: boolean
-    userAccount: UserAccount | null
-}
-
-
-
 export function BlogPage({ blogPosts, blogPostsLoading, userAccount }: { blogPosts: BlogPost[], blogPostsLoading: boolean, userAccount: UserAccount | null }) {
     const navigate = useNavigate()
     const isAdmin = userAccount?.role === 'admin'

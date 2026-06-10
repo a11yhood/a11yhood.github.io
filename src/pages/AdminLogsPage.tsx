@@ -3,15 +3,6 @@ import { Button } from '@/components/ui/button'
 import { Product, UserAccount } from "@/lib/types"
 import { useNavigate } from "react-router-dom"
 
-
-
-interface AdminLogsPageProps {
-    products: Product[]
-    userAccount: UserAccount | null
-    ravelryAuthTimestamp: number
-    onProductsUpdate: (products: Product[]) => void
-}
-
 export function AdminLogsPage({
     products,
     userAccount,

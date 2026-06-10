@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link as LinkIcon, Trash, Prohibit, CheckCircle, Star } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -92,7 +92,9 @@ export function ProductDetail({
   })()
   const shouldShowImage = !!resolvedImageUrl && !imageError
   const canModerate = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
+  const isOwner = !!userAccount?.id && (product.createdBy === userAccount.id || product.submittedBy === userAccount.id)
   const isEditor = !!userAccount?.id && (product.editorIds?.includes(userAccount.id) || false)
+  const canEditProduct = isOwner || isEditor
   const handleRequireLogin = () => {
     if (!onRequireLogin || typeof window === 'undefined') return
 
@@ -126,7 +128,7 @@ export function ProductDetail({
   const [banReason, setBanReason] = useState('')
 
   // Load collections function (extracted for reuse)
-  const loadCollections = async () => {
+  const loadCollections = useCallback(async () => {
     if (!user) return
     try {
       const userCollections = await APIService.getUserCollections()
@@ -136,26 +138,24 @@ export function ProductDetail({
       // Silently handle errors - collections are optional
       console.debug('Failed to load collections:', error)
     }
-  }
+  }, [user])
 
   // Load collections on mount and whenever user state changes
   useEffect(() => {
     collectionLoadStartedRef.current = false
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    loadCollections()
-  }, [user])
+    void loadCollections()
+  }, [loadCollections, user])
 
   useEffect(() => {
     if (user) {
       if (showAddToCollectionDialog && !prevShowAddToCollectionDialogRef.current) {
-        loadCollections()
+        void loadCollections()
       } else if (!showAddToCollectionDialog && prevShowAddToCollectionDialogRef.current) {
-        loadCollections()
+        void loadCollections()
       }
     }
     prevShowAddToCollectionDialogRef.current = showAddToCollectionDialog
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showAddToCollectionDialog, user])
+  }, [showAddToCollectionDialog, user, loadCollections])
 
   useEffect(() => {
     setImageError(false)
@@ -237,7 +237,7 @@ export function ProductDetail({
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center gap-3 justify-between mb-4 sm:mb-6 sm:flex-nowrap">
         <div className="flex items-center gap-2 sm:gap-3">
-          {user && (canModerate || isEditor) && (
+          {user && (canModerate || canEditProduct) && (
             <>
               {onEdit && !product.banned && (
                 <ProductEditDialog
@@ -448,7 +448,7 @@ export function ProductDetail({
             <ProductEditors
               productId={product.id}
               username={user?.username || null}
-              isEditor={!!user && (product.editorIds?.includes(user.id) || false)}
+              isEditor={!!user && (product.createdBy === user.id || product.submittedBy === user.id || (product.editorIds?.includes(user.id) || false))}
               userAccount={userAccount}
               onEditorsChange={() => { }}
               autoOpenRequestForm={autoOpenOwnershipRequest}
