@@ -63,10 +63,23 @@ export function ProductDetailPage({
     useEffect(() => {
         let isActive = true
 
+    const navigate = useNavigate()
+    const [product, setProduct] = useState<Product | null>(null)
+    const [loading, setLoading] = useState(true)
+    const previousProductSlugRef = useRef<string | undefined>(undefined)
+
+    useEffect(() => {
+        let isActive = true
+
+        const slugChanged = previousProductSlugRef.current !== productSlug
+        previousProductSlugRef.current = productSlug
+
         // Clear stale product data immediately when navigating between slugs.
         // Without this, child effects can issue requests for the previous product ID.
-        setLoading(true)
-        setProduct(null)
+        if (slugChanged) {
+            setLoading(true)
+            setProduct(null)
+        }
 
         const fetchProduct = async () => {
             if (!productSlug) {
