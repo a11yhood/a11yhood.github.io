@@ -59,13 +59,6 @@ export function ProductDetailPage({
     const navigate = useNavigate()
     const [product, setProduct] = useState<Product | null>(null)
     const [loading, setLoading] = useState(true)
-
-    useEffect(() => {
-        let isActive = true
-
-    const navigate = useNavigate()
-    const [product, setProduct] = useState<Product | null>(null)
-    const [loading, setLoading] = useState(true)
     const previousProductSlugRef = useRef<string | undefined>(undefined)
 
     useEffect(() => {
