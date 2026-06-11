@@ -1,4 +1,4 @@
-import { useState, useImperativeHandle, forwardRef, useRef } from 'react'
+import { useState, useImperativeHandle, forwardRef, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,6 +38,20 @@ type ProductSubmissionProps = {
 
 export interface ProductSubmissionRef {
   close: () => void
+}
+
+const PRODUCT_TYPES_BY_SOURCE: Record<string, string[]> = {
+  github: ['Software', 'Tool', 'Library'],
+  ravelry: ['Knitting', 'Crochet', 'Weaving'],
+  thingiverse: ['3D Print', 'Fabrication', 'Model'],
+  'user-submitted': ['Software', 'Pattern', 'Tool', '3D Print', 'Other'],
+}
+
+const FALLBACK_PRODUCT_TYPES = ['Software', 'Fabrication', 'Knitting', 'Crochet', 'Hardware', 'Other']
+
+function getTypeOptionsForSource(source: string | undefined): string[] {
+  const normalizedSource = (source || 'user-submitted').trim().toLowerCase()
+  return PRODUCT_TYPES_BY_SOURCE[normalizedSource] || FALLBACK_PRODUCT_TYPES
 }
 
 /**
@@ -108,6 +122,13 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
   const [existingProduct, setExistingProduct] = useState<Product | null>(null)
   const [isScrapingUrl, setIsScrapingUrl] = useState(false)
   const [urlToCheck, setUrlToCheck] = useState('')
+  const availableTypeOptions = useMemo(() => getTypeOptionsForSource(source), [source])
+
+  useEffect(() => {
+    if (type && !availableTypeOptions.includes(type)) {
+      setType('')
+    }
+  }, [availableTypeOptions, type])
 
   const resolveScrapedImageReference = (imageId: unknown): string | undefined => {
     if (typeof imageId !== 'string') {
@@ -302,6 +323,8 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
 
     if (!type.trim()) {
       newErrors.type = 'Product type is required'
+    } else if (!availableTypeOptions.includes(type.trim())) {
+      newErrors.type = 'Please choose a valid product type for this source'
     }
 
     if (!description.trim()) {
@@ -689,12 +712,9 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                     <SelectValue placeholder="Choose a type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Software">Software</SelectItem>
-                    <SelectItem value="Fabrication">Fabrication</SelectItem>
-                    <SelectItem value="Knitting">Knitting</SelectItem>
-                    <SelectItem value="Crochet">Crochet</SelectItem>
-                    <SelectItem value="Hardware">Hardware</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                    {availableTypeOptions.map((option) => (
+                      <SelectItem key={option} value={option}>{option}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <input type="hidden" name="type" value={type} />
