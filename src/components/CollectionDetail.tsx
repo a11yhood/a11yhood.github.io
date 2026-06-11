@@ -143,6 +143,9 @@ export function CollectionDetail({
   // the slug set, global cache, or locally-fetched set changes — without issuing
   // any network requests.
   const collectionProducts = useMemo(() => {
+    // Read this state value so eslint recognizes the dependency that invalidates
+    // memoization when fetchedBySlugRef is mutated.
+    void fetchVersion
     const slugs = orderedProductSlugs
     if (slugs.length === 0) return []
     const bySlug = new Map<string, Product>()
