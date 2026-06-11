@@ -170,8 +170,13 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                     })
                     notify.success('Product submitted successfully! You are now an editor of this product.')
                     onProductCreated?.()
-                    const destinationSlug = newProduct.slug ?? newProduct.id
-                    navigate(`/product/${destinationSlug}`)
+const destinationSlug = newProduct.slug?.trim() || (await APIService.getProductById(newProduct.id).catch(() => null))?.slug
+if (destinationSlug) {
+  navigate(`/product/${destinationSlug}`)
+} else {
+  notify.info('Product submitted successfully! You can find it in the Products list.')
+  navigate('/products')
+}
                   } catch (error) {
                     // Check if this is an unsupported domain error
                     const errorMessage = error instanceof Error ? error.message : String(error)
