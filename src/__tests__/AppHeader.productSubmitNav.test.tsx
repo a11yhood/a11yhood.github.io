@@ -69,8 +69,9 @@ describe('AppHeader product submission navigation', () => {
         </Routes>
       </MemoryRouter>
     )
+    const user = userEvent.setup()
 
-    await userEvent.click(screen.getByRole('button', { name: /mock submit product/i }))
+    await user.click(screen.getByRole('button', { name: /mock submit product/i }))
 
     await waitFor(() => {
       expect(APIService.createProduct).toHaveBeenCalledTimes(1)
