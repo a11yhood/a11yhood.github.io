@@ -61,9 +61,18 @@ export function ProductDetailPage({
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
+        let isActive = true
+
+        // Clear stale product data immediately when navigating between slugs.
+        // Without this, child effects can issue requests for the previous product ID.
+        setLoading(true)
+        setProduct(null)
+
         const fetchProduct = async () => {
             if (!productSlug) {
-                setLoading(false)
+                if (isActive) {
+                    setLoading(false)
+                }
                 return
             }
 
@@ -71,28 +80,40 @@ export function ProductDetailPage({
                 // First check if product is already in the products array (from home page navigation)
                 const cachedProduct = products.find(p => p.slug === productSlug)
                 if (cachedProduct) {
-                    setProduct({ ...cachedProduct, slug: cachedProduct.slug ?? productSlug })
-                    setLoading(false)
+                    if (isActive) {
+                        setProduct({ ...cachedProduct, slug: cachedProduct.slug ?? productSlug })
+                        setLoading(false)
+                    }
                     return
                 }
 
                 // Otherwise fetch just this product
                 const fetchedProduct = await APIService.getProductBySlug(productSlug)
-                setProduct(fetchedProduct ? { ...fetchedProduct, slug: fetchedProduct.slug ?? productSlug } : null)
+                if (isActive) {
+                    setProduct(fetchedProduct ? { ...fetchedProduct, slug: fetchedProduct.slug ?? productSlug } : null)
+                }
             } catch (error) {
                 const status = (error as ApiErrorLike | undefined)?.status
                 // 404 is expected when the URL slug is stale or invalid.
                 // Treat it as a normal "not found" state without noisy error logging.
-                if (status !== 404) {
+                if (status !== 404 && isActive) {
                     console.error('Failed to fetch product:', error)
                 }
-                setProduct(null)
+                if (isActive) {
+                    setProduct(null)
+                }
             } finally {
-                setLoading(false)
+                if (isActive) {
+                    setLoading(false)
+                }
             }
         }
 
-        fetchProduct()
+        void fetchProduct()
+
+        return () => {
+            isActive = false
+        }
     }, [productSlug, products])
 
     if (loading) {
