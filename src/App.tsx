@@ -805,35 +805,38 @@ function App() {
           return
         }
 
-        // Fetch account from backend using auth token (definitive source of truth)
+        // Fetch account from backend using auth token (definitive source of truth).
+        // getCurrentUser() returns null when /users/me → 404 (new user); throws for all
+        // other errors so they are handled correctly below.
         let account: typeof userAccount | null = null
         try {
           account = await APIService.getCurrentUser()
-          if (!account) throw new Error('No account returned from /users/me')
-          if (!account.id) throw new Error('Account response from /users/me is missing id')
-          userAccountFetchRef.current = authUser.id
+          if (account !== null) {
+            // Existing account found — validate and store it.
+            if (!account.id) throw new Error('Account response from /users/me is missing id')
+            userAccountFetchRef.current = authUser.id
 
-          const userData = {
-            id: account.id,
-            username: account.username || authUser.id,
-            avatarUrl: account.avatarUrl,
+            const userData = {
+              id: account.id,
+              username: account.username || authUser.id,
+              avatarUrl: account.avatarUrl,
+            }
+
+            setUser(userData)
+            setUserAccount(account)
+            console.log('🔐 [App] User account loaded from backend:', { username: account.username, role: account.role })
+            console.log('✅ [App] User role:', account.role, '| isAdmin:', account.role === 'admin')
+
+            if (isTestEnv) {
+              setShowSignup(false)
+            }
+            return
           }
-
-          setUser(userData)
-          setUserAccount(account)
-          console.log('🔐 [App] User account loaded from backend:', { username: account.username, role: account.role })
-          console.log('✅ [App] User role:', account.role, '| isAdmin:', account.role === 'admin')
-
-          if (isTestEnv) {
-            setShowSignup(false)
-          }
-          return
+          // account is null → /users/me returned 404; fall through to create account
+          console.log('📨 [App] User account not found, creating...')
         } catch (err: unknown) {
           const status = (err as ApiErrorLike)?.status ?? 0
-          if (status === 404) {
-            // New user — create account
-            console.log('📨 [App] User account not found, creating...')
-          } else if (status) {
+          if (status) {
             const message = (err as ApiErrorLike)?.message
             console.error('Failed to fetch user account from /users/me:', {
               status,

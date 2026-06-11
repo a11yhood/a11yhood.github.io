@@ -711,12 +711,18 @@ export class APIService {
     return getApiBaseUrl()
   }
   
-  // Get current authenticated user from backend
+  // Get current authenticated user from backend.
+  // Returns null only when the backend confirms the user does not exist (404).
+  // All other errors (network failures, 401, 5xx, etc.) are re-thrown so the
+  // caller can distinguish "user not found → create account" from "request failed".
   static async getCurrentUser(): Promise<UserAccount | null> {
     try {
       return await request<UserAccount>('/users/me')
-    } catch {
-      return null
+    } catch (err) {
+      if (err instanceof APIError && err.status === 404) {
+        return null
+      }
+      throw err
     }
   }
   
