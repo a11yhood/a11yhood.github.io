@@ -11,6 +11,7 @@ type AddToCollectionDialogProps = {
   onOpenChange: (open: boolean) => void
   collections: Collection[]
   currentUserId?: string
+  currentUsername?: string
   productSlug: string
   onAddToCollection: (collectionSlug: string) => void
   onRemoveFromCollection: (collectionSlug: string) => void
@@ -22,6 +23,7 @@ export function AddToCollectionDialog({
   onOpenChange,
   collections,
   currentUserId,
+  currentUsername,
   productSlug,
   onAddToCollection,
   onRemoveFromCollection,
@@ -31,8 +33,13 @@ export function AddToCollectionDialog({
   const [initialCollections, setInitialCollections] = useState<Set<string>>(new Set())
   const prevOpenRef = useRef(false)
   const editableCollections = collections.filter((collection) => {
-    if (!currentUserId) return true
-    return collection.userId === currentUserId || (collection.editorIds || []).includes(currentUserId)
+    if (!currentUserId && !currentUsername) return true
+
+    const isOwner = !!currentUserId && collection.userId === currentUserId
+    const isEditorById = !!currentUserId && (collection.editorIds || []).includes(currentUserId)
+    const isEditorByUsername = !!currentUsername && (collection.editorUsernames || []).includes(currentUsername)
+
+    return isOwner || isEditorById || isEditorByUsername
   })
 
   // Update selectedCollections only when dialog opens (not every time collections change)

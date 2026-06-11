@@ -463,6 +463,7 @@ export function ProductDetail({
           onOpenChange={setShowAddToCollectionDialog}
           collections={localCollections}
           currentUserId={user.id}
+          currentUsername={user.username}
           productSlug={product.slug}
           onAddToCollection={async (collectionSlug) => {
             await onAddToCollection(collectionSlug)
