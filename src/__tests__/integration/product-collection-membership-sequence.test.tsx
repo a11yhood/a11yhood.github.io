@@ -6,7 +6,7 @@ import { describeWithBackend } from '../helpers/with-backend'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { ProductDetail } from '@/components/ProductDetail'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
-import type { Product, UserAccount, UserData, Collection } from '@/lib/types'
+import type { Product, UserAccount, UserData } from '@/lib/types'
 
 type UserStats = {
   productsSubmitted: number
@@ -226,4 +226,52 @@ describeWithBackend('Owned + edited membership sequence', () => {
       { timeout: 5000 }
     )
   }, 25000)
+
+  it('shows an editor-only collection when user opens product and clicks add to collection', async () => {
+    // Ensure backend recognizes this user as editor (not owner) on the target collection.
+    const editorOnlyCollection = await APIService.getCollection(editedCollectionSlug)
+    if (!editorOnlyCollection) {
+      throw new Error(`Could not fetch edited collection: ${editedCollectionSlug}`)
+    }
+
+    expect(editorOnlyCollection.userId).not.toBe(user.id)
+    expect(editorOnlyCollection.editorIds || []).toContain(user.id)
+
+    const productForDetail = {
+      ...editedProduct,
+      slug: editedProduct.slug || editedProduct.id,
+    }
+
+    render(
+      <MemoryRouter>
+        <ProductDetail
+          product={productForDetail}
+          ratings={[]}
+          discussions={[]}
+          user={user}
+          userAccount={userAccount}
+          onBack={vi.fn()}
+          onRate={vi.fn()}
+          onDiscuss={vi.fn()}
+          onAddTag={vi.fn()}
+          allTags={[]}
+          onAddToCollection={async () => undefined}
+          onRemoveFromCollection={async () => undefined}
+        />
+      </MemoryRouter>
+    )
+
+    const trigger = await screen.findByRole('button', { name: /add to collection/i })
+    await userEvent.setup().click(trigger)
+
+    await screen.findByRole('heading', { name: /add to collection/i })
+
+    // The collection must appear for editor access, and it must be labeled as editor-only.
+    await waitFor(
+      () => {
+        expect(screen.getByText(`${editedCollectionName} [editor]`)).toBeInTheDocument()
+      },
+      { timeout: 10000 }
+    )
+  }, 30000)
 })

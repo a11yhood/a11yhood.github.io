@@ -168,7 +168,9 @@ export function ProductDetail({
   const loadCollections = useCallback(async () => {
     if (!user) return
     try {
-      const userCollections = await APIService.getUserCollections()
+      const userCollections = user.username
+        ? await APIService.getUserPublicCollections(user.username)
+        : await APIService.getUserCollections()
       setLocalCollections(userCollections)
       collectionLoadStartedRef.current = true
     } catch (error) {
