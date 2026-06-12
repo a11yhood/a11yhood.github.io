@@ -1,10 +1,15 @@
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { ProductDetail } from '@/components/ProductDetail'
+import { APIService } from '@/lib/api'
 import { createMockProduct } from '../helpers/create-mocks'
 
 describe('ProductDetail rating section', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   const product = createMockProduct({ slug: 'test-product' })
   const baseProps = {
     product,
@@ -59,5 +64,41 @@ describe('ProductDetail rating section', () => {
 
     expect(screen.getByRole('heading', { name: 'Your Rating' })).toBeInTheDocument()
     expect(screen.getByText('Rate this product')).toBeInTheDocument()
+  })
+
+  it('loads authenticated collections when user and userAccount usernames match', async () => {
+    const getUserCollectionsSpy = vi.spyOn(APIService, 'getUserCollections').mockResolvedValue([])
+
+    render(
+      <MemoryRouter>
+        <ProductDetail
+          {...baseProps}
+          user={{ id: 'user-1', username: 'test-user', avatarUrl: '' } as any}
+          userAccount={{ id: 'user-1', username: 'test-user', role: 'user' } as any}
+        />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(getUserCollectionsSpy).toHaveBeenCalled()
+    })
+  })
+
+  it('does not load /collections when user and userAccount usernames mismatch', async () => {
+    const getUserCollectionsSpy = vi.spyOn(APIService, 'getUserCollections').mockResolvedValue([])
+
+    render(
+      <MemoryRouter>
+        <ProductDetail
+          {...baseProps}
+          user={{ id: 'user-1', username: 'test-user', avatarUrl: '' } as any}
+          userAccount={{ id: 'user-1', username: 'other-user', role: 'user' } as any}
+        />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(getUserCollectionsSpy).not.toHaveBeenCalled()
+    })
   })
 })

@@ -155,9 +155,8 @@ describeWithBackend('Owned + edited membership sequence', () => {
   })
 
   it('shows owned and edited collections with correct labels in Add to Collection dialog', async () => {
-    // After all the setup, fetch all collections the user can edit (owned + edited)
-    // This endpoint returns both: collections owned by the user AND collections they are editors of
-    const userEditableCollections = await APIService.getUserPublicCollections(user.username)
+    // Backend contract: authenticated /collections returns both owned and edited collections.
+    const userEditableCollections = await APIService.getUserCollections()
     
     const testOwnedCollection = userEditableCollections.find(c => c.name === ownedCollectionName)
     const testEditedCollection = userEditableCollections.find(c => c.name === editedCollectionName)
