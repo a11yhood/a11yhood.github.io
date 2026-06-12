@@ -59,8 +59,9 @@ export function CollectionsPage({
         loadCollectionsForPage()
     }, [userAccount])
 
-    const ownerCollections = myCollections.filter((collection) => collection.userId === user?.id)
-    const editorCollections = myCollections.filter((collection) => collection.userId !== user?.id)
+    const currentUserId = userAccount?.id || user?.id
+    const ownerCollections = myCollections.filter((collection) => !!currentUserId && collection.userId === currentUserId)
+    const editorCollections = myCollections.filter((collection) => !currentUserId || collection.userId !== currentUserId)
 
     // Paginate collections
     const ownerStart = (ownerPage - 1) * itemsPerPage
@@ -169,7 +170,7 @@ export function CollectionsPage({
                         <CollectionsList
                             collections={paginatedOwnerCollections}
                             products={allProducts}
-                            isFirstLoadComplete={myCollectionsFirstLoadComplete || collectionsFirstLoadComplete}
+                            isFirstLoadComplete={myCollectionsFirstLoadComplete}
                             onSelectCollection={(collection) =>
                                 navigate(`/collections/${collection.slug || collection.id}`, {
                                     state: { collectionSnapshot: collection },
@@ -177,7 +178,7 @@ export function CollectionsPage({
                             }
                             onDeleteCollection={onDeleteCollection}
                             onEditCollection={onEditCollection}
-                            currentUserId={user?.id}
+                            currentUserId={userAccount?.id || user?.id}
                             currentUsername={userAccount?.username || user?.username}
                         />
                         {ownerTotalPages > 1 && (
@@ -207,7 +208,7 @@ export function CollectionsPage({
                         <CollectionsList
                             collections={paginatedEditorCollections}
                             products={allProducts}
-                            isFirstLoadComplete={myCollectionsFirstLoadComplete || collectionsFirstLoadComplete}
+                            isFirstLoadComplete={myCollectionsFirstLoadComplete}
                             onSelectCollection={(collection) =>
                                 navigate(`/collections/${collection.slug || collection.id}`, {
                                     state: { collectionSnapshot: collection },
@@ -215,7 +216,7 @@ export function CollectionsPage({
                             }
                             onDeleteCollection={onDeleteCollection}
                             onEditCollection={onEditCollection}
-                            currentUserId={user?.id}
+                            currentUserId={userAccount?.id || user?.id}
                             currentUsername={userAccount?.username || user?.username}
                         />
                         {editorTotalPages > 1 && (
