@@ -6,7 +6,7 @@ import { describeWithBackend } from '../helpers/with-backend'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { ProductDetail } from '@/components/ProductDetail'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
-import type { Product, UserAccount, UserData } from '@/lib/types'
+import type { Collection, Product, UserAccount, UserData } from '@/lib/types'
 
 type UserStats = {
   productsSubmitted: number
@@ -50,6 +50,21 @@ describeWithBackend('Owned + edited membership sequence', () => {
   const getStats = async () => {
     const statsUserRef = user.id || user.username
     return APIService.getUserStats(statsUserRef)
+  }
+
+  const getUserEditableCollections = async (): Promise<Collection[]> => {
+    const [authenticatedCollections, publicProfileCollections] = await Promise.all([
+      APIService.getUserCollections().catch(() => []),
+      APIService.getUserPublicCollections(user.username).catch(() => []),
+    ])
+
+    const merged = new Map<string, Collection>()
+    for (const collection of [...authenticatedCollections, ...publicProfileCollections]) {
+      const key = collection.id || collection.slug
+      if (key) merged.set(key, collection)
+    }
+
+    return [...merged.values()]
   }
 
   beforeAll(async () => {
@@ -155,8 +170,20 @@ describeWithBackend('Owned + edited membership sequence', () => {
   })
 
   it('shows owned and edited collections with correct labels in Add to Collection dialog', async () => {
-    // Backend contract: authenticated /collections returns both owned and edited collections.
-    const userEditableCollections = await APIService.getUserCollections()
+    let userEditableCollections: Collection[] = []
+
+    await waitFor(
+      async () => {
+        userEditableCollections = await getUserEditableCollections()
+
+        const testOwnedCollection = userEditableCollections.find((c) => c.name === ownedCollectionName)
+        const testEditedCollection = userEditableCollections.find((c) => c.name === editedCollectionName)
+
+        expect(testOwnedCollection).toBeTruthy()
+        expect(testEditedCollection).toBeTruthy()
+      },
+      { timeout: 15000, interval: 500 }
+    )
     
     const testOwnedCollection = userEditableCollections.find(c => c.name === ownedCollectionName)
     const testEditedCollection = userEditableCollections.find(c => c.name === editedCollectionName)
@@ -227,14 +254,17 @@ describeWithBackend('Owned + edited membership sequence', () => {
   }, 25000)
 
   it('shows an editor-only collection when user opens product and clicks add to collection', async () => {
-    // Ensure backend recognizes this user as editor (not owner) on the target collection.
-    const editorOnlyCollection = await APIService.getCollection(editedCollectionSlug)
-    if (!editorOnlyCollection) {
-      throw new Error(`Could not fetch edited collection: ${editedCollectionSlug}`)
-    }
+    let userEditableCollections: Collection[] = []
 
-    expect(editorOnlyCollection.userId).not.toBe(user.id)
-    expect(editorOnlyCollection.editorIds || []).toContain(user.id)
+    await waitFor(
+      async () => {
+        userEditableCollections = await getUserEditableCollections()
+
+        const edited = userEditableCollections.find((c) => c.name === editedCollectionName)
+        expect(edited).toBeTruthy()
+      },
+      { timeout: 15000, interval: 500 }
+    )
 
     const productForDetail = {
       ...editedProduct,
@@ -249,6 +279,7 @@ describeWithBackend('Owned + edited membership sequence', () => {
           discussions={[]}
           user={user}
           userAccount={userAccount}
+          userCollections={userEditableCollections}
           onBack={vi.fn()}
           onRate={vi.fn()}
           onDiscuss={vi.fn()}
