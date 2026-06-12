@@ -155,7 +155,7 @@ export function CollectionsPage({
                     <div className="mb-6 flex items-center justify-between">
                         <h1 className="text-3xl font-bold">Collections</h1>
                         <div className="flex items-center gap-2">
-                            <Button onClick={onCreateCollection}>Create Collection</Button>
+                            <Button variant="outline" onClick={onCreateCollection}>Create Collection</Button>
                             <Button variant="outline" onClick={() => navigate('/')}>
                                 ← Back to Products
                             </Button>
