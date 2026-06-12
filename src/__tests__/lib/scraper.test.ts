@@ -4,6 +4,7 @@ import { ScraperService } from '@/lib/scrapers'
 import type { Product } from '@/lib/types'
 
 const BACKEND_URL = (globalThis as any).__TEST_BACKEND_BASE__
+const USER_TOKEN = 'dev-token-user'
 
 let backendProducts: Product[] = []
 
@@ -32,7 +33,36 @@ async function fetchBackendProducts(limit = 10): Promise<void> {
   }
 
   if (!Array.isArray(raw) || raw.length === 0) {
-    throw new Error('Backend returned no products; seed test data before running scraper tests')
+    const seedPayload = {
+      name: `Scraper Seed ${Date.now()}`,
+      type: 'Software',
+      source: 'user-submitted',
+      source_url: `https://github.com/a11yhood/scraper-seed-${Date.now()}`,
+      description: 'Auto-seeded product for scraper integration tests',
+      tags: ['integration', 'scraper-seed'],
+    }
+
+    const seedRes = await fetch(`${BACKEND_URL}/api/products`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${USER_TOKEN}`,
+      },
+      body: JSON.stringify(seedPayload),
+    })
+
+    if (!seedRes.ok) {
+      const details = await seedRes.text().catch(() => '')
+      throw new Error(
+        `Backend returned no products and auto-seed failed (${seedRes.status}): ${details}`
+      )
+    }
+
+    const retryResp = await fetch(`${BACKEND_URL}/api/products?limit=${limit}`)
+    if (!retryResp.ok) {
+      throw new Error(`Backend unreachable at ${BACKEND_URL} (status ${retryResp.status})`)
+    }
+    raw = await retryResp.json()
   }
 
   backendProducts = raw.map((p: any): Product => ({
