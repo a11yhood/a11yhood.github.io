@@ -1910,7 +1910,11 @@ export class APIService {
   }
 
   static async getUserCollections(): Promise<Collection[]> {
-    // Gets the authenticated user's collections
+    // Returns all collections the authenticated user can manage:
+    // - collections owned by the user (collections.user_id = current user)
+    // - collections where the user is an editor (collection_editors join)
+    // Backend contract: both owned and editor-only collections must be included.
+    // See: src/__tests__/integration/product-collection-membership-sequence.test.tsx
     const result = await request<Collection[]>('/collections')
     return APIService.normalizeCollections(result)
   }

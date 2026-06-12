@@ -166,7 +166,18 @@ export function ProductDetail({
 
   // Load collections function (extracted for reuse)
   const loadCollections = useCallback(async () => {
-    if (!user) return
+    if (!user?.username?.trim()) return
+
+    // Guard against mixed identity state (e.g., stale user vs userAccount) before
+    // making an authenticated /collections request.
+    if (userAccount?.username && userAccount.username !== user.username) {
+      console.warn('[ProductDetail] Skipping /collections load due to username mismatch', {
+        userUsername: user.username,
+        userAccountUsername: userAccount.username,
+      })
+      return
+    }
+
     try {
       const userCollections = await APIService.getUserCollections()
       setLocalCollections(userCollections)
@@ -175,7 +186,7 @@ export function ProductDetail({
       // Silently handle errors - collections are optional
       console.debug('Failed to load collections:', error)
     }
-  }, [user])
+  }, [user, userAccount?.username])
 
   // Load collections on mount and whenever user state changes
   useEffect(() => {

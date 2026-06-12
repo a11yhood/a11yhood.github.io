@@ -1,4 +1,5 @@
 import { DEV_USERS, getDevToken } from '../lib/dev-users'
+import { runAllSeeds } from './fixtures/test-seeds'
 
 /** Milliseconds to wait for backend health check before considering it unavailable. */
 const HEALTH_CHECK_TIMEOUT_MS = 3000
@@ -197,6 +198,12 @@ export async function setup() {
       seedManifest = await manifestRes.json().catch(() => null)
       seedVersion = seedManifest?.seed_version
     }
+  }
+
+  if (backendAvailable) {
+    // Ensure backend prerequisites expected by integration tests are present
+    // (dev users + supported source domains for URL validation).
+    await runAllSeeds()
   }
 
   if (seedManifest) {
