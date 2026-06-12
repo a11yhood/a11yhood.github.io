@@ -30,6 +30,7 @@ export function CollectionsManager({
           Collections
         </h2>
         <button
+          type="button"
           onClick={() => {
             if (user) {
               onOpenAddDialog()
@@ -37,7 +38,7 @@ export function CollectionsManager({
             }
             onRequireLogin?.()
           }}
-          className="inline-flex items-center justify-center h-6 w-6 rounded-md text-xs border border-dashed border-muted-foreground/50 text-muted-foreground hover:border-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center justify-center h-6 w-6 rounded-md text-xs border-2 border-dashed border-foreground/60 text-foreground/80 hover:border-foreground hover:text-foreground transition-colors"
           aria-label={user ? 'Add to collection' : 'Sign in to add to collection'}
         >
           <Plus size={14} weight="bold" />

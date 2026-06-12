@@ -96,9 +96,8 @@ export function TagManager({
           Tags
         </h2>
         {!isAdding && (
-          <Button
-            size="sm"
-            variant="ghost"
+          <button
+            type="button"
             onClick={() => {
               if (user) {
                 setIsAdding(true)
@@ -107,10 +106,10 @@ export function TagManager({
               onRequireLogin?.()
             }}
             aria-label={user ? 'Add tag' : 'Sign in to add tag'}
-            className="h-6 w-6 p-0"
+            className="inline-flex items-center justify-center h-6 w-6 rounded-md text-xs border-2 border-dashed border-foreground/60 text-foreground/80 hover:border-foreground hover:text-foreground transition-colors"
           >
-            <Plus size={16} />
-          </Button>
+            <Plus size={14} weight="bold" />
+          </button>
         )}
       </div>
 
