@@ -8,20 +8,16 @@ import { useNavigate } from 'react-router-dom'
 
 
 export function CollectionsPage({
-    collections,
     products,
     user,
     userAccount,
-    collectionsFirstLoadComplete,
     onDeleteCollection,
     onEditCollection,
     onCreateCollection
 }: {
-    collections: Collection[]
     products: Product[]
     user: UserData | null
     userAccount: UserAccount | null
-    collectionsFirstLoadComplete: boolean
     onDeleteCollection: (collectionSlug: string) => void
     onEditCollection: (collection: Collection) => void
     onCreateCollection: () => void
