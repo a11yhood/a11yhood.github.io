@@ -103,9 +103,9 @@ export function DevRoleSwitcher({ userAccount, onRoleChange }: DevRoleSwitcherPr
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="user">👤 regular_user</SelectItem>
-              <SelectItem value="moderator">🛡️ moderator_user</SelectItem>
-              <SelectItem value="admin">👑 admin_user</SelectItem>
+              <SelectItem value="user">👤 User role account</SelectItem>
+              <SelectItem value="moderator">🛡️ Moderator role account</SelectItem>
+              <SelectItem value="admin">👑 Admin role account</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -119,14 +119,26 @@ export function DevRoleSwitcher({ userAccount, onRoleChange }: DevRoleSwitcherPr
         </div>
 
         <div className="text-xs text-muted-foreground space-y-1">
-          <div>Logged in as: <span className="font-mono font-semibold">{userAccount?.username}</span></div>
-          <div>Current dev-user: <span className="font-mono">{selectedUser}</span></div>
+          <div>
+            Logged in as:{' '}
+            <span className="font-mono font-semibold">{userAccount?.username || 'unknown'}</span>
+          </div>
+          <div>
+            Account ID:{' '}
+            <span className="font-mono">{userAccount?.id || 'unknown'}</span>
+          </div>
+          <div>Selected dev role: <span className="font-mono">{selectedUser}</span></div>
           <div className="flex items-center gap-2">
             <span>Role:</span>
             <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
               {userAccount?.role ?? 'unknown'}
             </span>
           </div>
+          {userAccount?.role && userAccount.role !== selectedUser && (
+            <div className="text-amber-800">
+              Role mismatch detected. Reloading usually resolves this.
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

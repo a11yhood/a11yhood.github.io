@@ -32,14 +32,30 @@ export function AddToCollectionDialog({
   const [selectedCollections, setSelectedCollections] = useState<Set<string>>(new Set())
   const [initialCollections, setInitialCollections] = useState<Set<string>>(new Set())
   const prevOpenRef = useRef(false)
+
+  const isCollectionOwner = (collection: Collection) => {
+    return !!currentUserId && collection.userId === currentUserId
+  }
+
+  const isCollectionEditor = (collection: Collection) => {
+    const isEditorById = !!currentUserId && (collection.editorIds || []).includes(currentUserId)
+    const isEditorByUsername = !!currentUsername && (collection.editorUsernames || []).includes(currentUsername)
+    return isEditorById || isEditorByUsername
+  }
+
+  const getCollectionDisplayName = (collection: Collection) => {
+    const isOwner = isCollectionOwner(collection)
+    const isEditor = isCollectionEditor(collection)
+    return !isOwner && isEditor ? `${collection.name} [editor]` : collection.name
+  }
+
   const editableCollections = collections.filter((collection) => {
     if (!currentUserId && !currentUsername) return true
 
-    const isOwner = !!currentUserId && collection.userId === currentUserId
-    const isEditorById = !!currentUserId && (collection.editorIds || []).includes(currentUserId)
-    const isEditorByUsername = !!currentUsername && (collection.editorUsernames || []).includes(currentUsername)
+    const isOwner = isCollectionOwner(collection)
+    const isEditor = isCollectionEditor(collection)
 
-    return isOwner || isEditorById || isEditorByUsername
+    return isOwner || isEditor
   })
 
   // Update selectedCollections only when dialog opens (not every time collections change)
@@ -123,7 +139,7 @@ export function AddToCollectionDialog({
                         htmlFor={`collection-${collection.id}`}
                         className="flex-1 cursor-pointer"
                       >
-                        <div className="font-medium">{collection.name}</div>
+                        <div className="font-medium">{getCollectionDisplayName(collection)}</div>
                         {collection.description && (
                           <div className="text-sm text-muted-foreground">
                             {collection.description}

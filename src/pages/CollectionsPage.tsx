@@ -28,53 +28,53 @@ export function CollectionsPage({
 }) {
     const navigate = useNavigate()
     const [publicCollections, setPublicCollections] = useState<Collection[]>([])
-    const [myPage, setMyPage] = useState(1)
+    const [myCollections, setMyCollections] = useState<Collection[]>([])
+    const [ownerPage, setOwnerPage] = useState(1)
+    const [editorPage, setEditorPage] = useState(1)
     const [publicPage, setPublicPage] = useState(1)
     const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
     const [loadedCollectionIds, setLoadedCollectionIds] = useState<Set<string>>(new Set())
+    const [myCollectionsFirstLoadComplete, setMyCollectionsFirstLoadComplete] = useState(false)
     const [publicCollectionsFirstLoadComplete, setPublicCollectionsFirstLoadComplete] = useState(false)
     const itemsPerPage = 12 // 3 columns x 4 rows
 
     useEffect(() => {
-        const loadPublic = async () => {
+        const loadCollectionsForPage = async () => {
+            setMyCollectionsFirstLoadComplete(false)
             setPublicCollectionsFirstLoadComplete(false)
             try {
-                const result = await APIService.getPublicCollections('updated_at')
-                setPublicCollections(result)
+                const [myResult, publicResult] = await Promise.all([
+                    userAccount ? APIService.getUserCollections() : Promise.resolve<Collection[]>([]),
+                    APIService.getPublicCollections('updated_at')
+                ])
+                setMyCollections(myResult)
+                setPublicCollections(publicResult)
             } catch (error) {
-                console.warn('[CollectionsPage] Failed to load public collections:', error)
+                console.warn('[CollectionsPage] Failed to load collections:', error)
             } finally {
+                setMyCollectionsFirstLoadComplete(true)
                 setPublicCollectionsFirstLoadComplete(true)
             }
         }
-        loadPublic()
-    }, [])
+        loadCollectionsForPage()
+    }, [userAccount])
 
-    // Filter to only show collections created by the current user
-    const myCollections = userAccount
-        ? collections.filter(c => {
-            const match = c.userId === userAccount.id || (c.editorIds || []).includes(userAccount.id)
-            console.log('[CollectionsPage] Checking collection:', {
-                collectionName: c.name,
-                collectionUserId: c.userId,
-                userAccountId: userAccount.id,
-                match
-            })
-            return match
-        })
-        : []
-
-    console.log('[CollectionsPage] Total collections:', collections.length, 'My collections:', myCollections.length)
+    const ownerCollections = myCollections.filter((collection) => collection.userId === user?.id)
+    const editorCollections = myCollections.filter((collection) => collection.userId !== user?.id)
 
     // Paginate collections
-    const myStart = (myPage - 1) * itemsPerPage
-    const myEnd = myStart + itemsPerPage
-    const paginatedMyCollections = myCollections.slice(myStart, myEnd)
-    const myTotalPages = Math.ceil(myCollections.length / itemsPerPage)
+    const ownerStart = (ownerPage - 1) * itemsPerPage
+    const ownerEnd = ownerStart + itemsPerPage
+    const paginatedOwnerCollections = ownerCollections.slice(ownerStart, ownerEnd)
+    const ownerTotalPages = Math.ceil(ownerCollections.length / itemsPerPage)
 
-    const filteredPublicCollections = publicCollections.filter(c =>
-        !userAccount || (c.userId !== userAccount.id && !(c.editorIds || []).includes(userAccount.id))
-    )
+    const editorStart = (editorPage - 1) * itemsPerPage
+    const editorEnd = editorStart + itemsPerPage
+    const paginatedEditorCollections = editorCollections.slice(editorStart, editorEnd)
+    const editorTotalPages = Math.ceil(editorCollections.length / itemsPerPage)
+
+    const myCollectionIds = new Set(myCollections.map((collection) => collection.id))
+    const filteredPublicCollections = publicCollections.filter((collection) => !myCollectionIds.has(collection.id))
     const publicStart = (publicPage - 1) * itemsPerPage
     const publicEnd = publicStart + itemsPerPage
     const paginatedPublicCollections = filteredPublicCollections.slice(publicStart, publicEnd)
@@ -84,12 +84,12 @@ export function CollectionsPage({
     useEffect(() => {
         setLoadedCollectionIds(new Set())
         setCollectionProducts([])
-    }, [myPage, publicPage])
+    }, [ownerPage, editorPage, publicPage])
 
     // Load products from each visible collection for image display, one collection at a time
     useEffect(() => {
         const loadNextCollectionImages = async () => {
-            const visibleCollections = [...paginatedMyCollections, ...paginatedPublicCollections]
+            const visibleCollections = [...paginatedOwnerCollections, ...paginatedEditorCollections, ...paginatedPublicCollections]
             const MAX_IMAGE_PRODUCTS_PER_COLLECTION = 3
 
             // Find the first unloaded collection
@@ -146,7 +146,7 @@ export function CollectionsPage({
         }
 
         loadNextCollectionImages()
-    }, [paginatedMyCollections, paginatedPublicCollections, products, collectionProducts, loadedCollectionIds])
+    }, [paginatedOwnerCollections, paginatedEditorCollections, paginatedPublicCollections, products, collectionProducts, loadedCollectionIds])
 
     // Merge products from App and locally loaded collection products
     const allProducts = [...products, ...collectionProducts]
@@ -156,7 +156,7 @@ export function CollectionsPage({
             {user ? (
                 <>
                     <div className="mb-6 flex items-center justify-between">
-                        <h1 className="text-3xl font-bold">My Collections</h1>
+                        <h1 className="text-3xl font-bold">Collections</h1>
                         <div className="flex items-center gap-2">
                             <Button onClick={onCreateCollection}>Create Collection</Button>
                             <Button variant="outline" onClick={() => navigate('/')}>
@@ -164,40 +164,82 @@ export function CollectionsPage({
                             </Button>
                         </div>
                     </div>
-                    <CollectionsList
-                        collections={paginatedMyCollections}
-                        products={allProducts}
-                        isFirstLoadComplete={collectionsFirstLoadComplete}
-                        onSelectCollection={(collection) =>
-                            navigate(`/collections/${collection.slug || collection.id}`, {
-                                state: { collectionSnapshot: collection },
-                            })
-                        }
-                        onDeleteCollection={onDeleteCollection}
-                        onEditCollection={onEditCollection}
-                        currentUserId={user?.id}
-                    />
-                    {myTotalPages > 1 && (
-                        <div className="flex justify-center gap-2 mt-6">
-                            <Button
-                                variant="outline"
-                                onClick={() => setMyPage(p => Math.max(1, p - 1))}
-                                disabled={myPage === 1}
-                            >
-                                Previous
-                            </Button>
-                            <span className="flex items-center px-4">
-                                Page {myPage} of {myTotalPages}
-                            </span>
-                            <Button
-                                variant="outline"
-                                onClick={() => setMyPage(p => Math.min(myTotalPages, p + 1))}
-                                disabled={myPage === myTotalPages}
-                            >
-                                Next
-                            </Button>
-                        </div>
-                    )}
+                    <div>
+                        <h2 className="text-2xl font-semibold mb-4">Your Collections</h2>
+                        <CollectionsList
+                            collections={paginatedOwnerCollections}
+                            products={allProducts}
+                            isFirstLoadComplete={myCollectionsFirstLoadComplete || collectionsFirstLoadComplete}
+                            onSelectCollection={(collection) =>
+                                navigate(`/collections/${collection.slug || collection.id}`, {
+                                    state: { collectionSnapshot: collection },
+                                })
+                            }
+                            onDeleteCollection={onDeleteCollection}
+                            onEditCollection={onEditCollection}
+                            currentUserId={user?.id}
+                            currentUsername={userAccount?.username || user?.username}
+                        />
+                        {ownerTotalPages > 1 && (
+                            <div className="flex justify-center gap-2 mt-6">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setOwnerPage((p) => Math.max(1, p - 1))}
+                                    disabled={ownerPage === 1}
+                                >
+                                    Previous
+                                </Button>
+                                <span className="flex items-center px-4">
+                                    Page {ownerPage} of {ownerTotalPages}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setOwnerPage((p) => Math.min(ownerTotalPages, p + 1))}
+                                    disabled={ownerPage === ownerTotalPages}
+                                >
+                                    Next
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                    <div className="mt-10">
+                        <h2 className="text-2xl font-semibold mb-4">Editor Collections</h2>
+                        <CollectionsList
+                            collections={paginatedEditorCollections}
+                            products={allProducts}
+                            isFirstLoadComplete={myCollectionsFirstLoadComplete || collectionsFirstLoadComplete}
+                            onSelectCollection={(collection) =>
+                                navigate(`/collections/${collection.slug || collection.id}`, {
+                                    state: { collectionSnapshot: collection },
+                                })
+                            }
+                            onDeleteCollection={onDeleteCollection}
+                            onEditCollection={onEditCollection}
+                            currentUserId={user?.id}
+                            currentUsername={userAccount?.username || user?.username}
+                        />
+                        {editorTotalPages > 1 && (
+                            <div className="flex justify-center gap-2 mt-6">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setEditorPage((p) => Math.max(1, p - 1))}
+                                    disabled={editorPage === 1}
+                                >
+                                    Previous
+                                </Button>
+                                <span className="flex items-center px-4">
+                                    Page {editorPage} of {editorTotalPages}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setEditorPage((p) => Math.min(editorTotalPages, p + 1))}
+                                    disabled={editorPage === editorTotalPages}
+                                >
+                                    Next
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                 </>
             ) : (
                 <div className="mb-6">
@@ -224,6 +266,7 @@ export function CollectionsPage({
                     }
                     onDeleteCollection={() => { /* no-op for public */ }}
                     currentUserId={user?.id}
+                    currentUsername={userAccount?.username || user?.username}
                 />
                 {publicTotalPages > 1 && (
                     <div className="flex justify-center gap-2 mt-6">

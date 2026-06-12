@@ -41,6 +41,18 @@ export function ProductEditors({
     try {
       const productEditors = await APIService.getProductOwners(productId)
       setEditors(productEditors)
+
+      if (import.meta.env.VITE_DEV_MODE === 'true') {
+        console.log('[ProductEditors][editor-debug] owners endpoint snapshot', {
+          productId,
+          ownersCount: productEditors.length,
+          ownerIds: productEditors.map((editor) => editor.id),
+          ownerUsernames: productEditors.map((editor) => editor.username),
+          incomingIsEditorProp: isEditor,
+          userAccountId: userAccount?.id ?? null,
+          userAccountUsername: userAccount?.username ?? null,
+        })
+      }
     } catch (error) {
       // Silently handle 404 for product managers endpoint (legacy owners endpoint not yet implemented)
       if (error instanceof Error && !error.message.includes('404')) {
@@ -49,7 +61,32 @@ export function ProductEditors({
     } finally {
       setLoading(false)
     }
-  }, [isBrowser, productId])
+  }, [isBrowser, isEditor, productId, userAccount?.id, userAccount?.username])
+
+  useEffect(() => {
+    if (import.meta.env.VITE_DEV_MODE !== 'true') return
+
+    const showsNoEditorsMessage = !loading && editors.length === 0
+    if (showsNoEditorsMessage && isEditor) {
+      console.warn('[ProductEditors][editor-debug] contradiction detected', {
+        productId,
+        showsNoEditorsMessage,
+        incomingIsEditorProp: isEditor,
+        userAccountId: userAccount?.id ?? null,
+        userAccountUsername: userAccount?.username ?? null,
+      })
+      return
+    }
+
+    console.log('[ProductEditors][editor-debug] render state', {
+      productId,
+      loading,
+      editorsCount: editors.length,
+      incomingIsEditorProp: isEditor,
+      userAccountId: userAccount?.id ?? null,
+      userAccountUsername: userAccount?.username ?? null,
+    })
+  }, [editors.length, isEditor, loading, productId, userAccount?.id, userAccount?.username])
 
   const checkExistingRequest = useCallback(async () => {
     if (!username || !userAccount) return

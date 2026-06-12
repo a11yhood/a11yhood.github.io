@@ -94,7 +94,44 @@ export function ProductDetail({
   const canModerate = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
   const isOwner = !!userAccount?.id && (product.createdBy === userAccount.id || product.submittedBy === userAccount.id)
   const isEditor = !!userAccount?.id && (product.editorIds?.includes(userAccount.id) || false)
+  const isEditorForEditorsCard = !!user && (
+    product.createdBy === user.id ||
+    product.submittedBy === user.id ||
+    (product.editorIds?.includes(user.id) || false)
+  )
   const canEditProduct = isOwner || isEditor
+
+  useEffect(() => {
+    if (import.meta.env.VITE_DEV_MODE !== 'true') return
+
+    console.log('[ProductDetail][editor-debug] membership snapshot', {
+      productId: product.id,
+      productSlug: product.slug,
+      userId: user?.id ?? null,
+      userUsername: user?.username ?? null,
+      userAccountId: userAccount?.id ?? null,
+      userAccountUsername: userAccount?.username ?? null,
+      createdBy: product.createdBy ?? null,
+      submittedBy: product.submittedBy ?? null,
+      editorIds: product.editorIds ?? [],
+      isOwnerFromUserAccount: isOwner,
+      isEditorFromUserAccount: isEditor,
+      isEditorPassedToEditorsCard: isEditorForEditorsCard,
+    })
+  }, [
+    isEditor,
+    isEditorForEditorsCard,
+    isOwner,
+    product.createdBy,
+    product.editorIds,
+    product.id,
+    product.slug,
+    product.submittedBy,
+    user?.id,
+    user?.username,
+    userAccount?.id,
+    userAccount?.username,
+  ])
   const handleRequireLogin = () => {
     if (!onRequireLogin || typeof window === 'undefined') return
 
@@ -448,7 +485,7 @@ export function ProductDetail({
             <ProductEditors
               productId={product.id}
               username={user?.username || null}
-              isEditor={!!user && (product.createdBy === user.id || product.submittedBy === user.id || (product.editorIds?.includes(user.id) || false))}
+              isEditor={isEditorForEditorsCard}
               userAccount={userAccount}
               onEditorsChange={() => { }}
               autoOpenRequestForm={autoOpenOwnershipRequest}
