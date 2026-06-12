@@ -40,7 +40,36 @@ describe('AddToCollectionDialog', () => {
       />
     )
 
-    expect(screen.getByText('Editable by Username')).toBeInTheDocument()
+    expect(screen.getByText('Editable by Username [editor]')).toBeInTheDocument()
     expect(screen.queryByText(/don't have editor access to any collections yet/i)).not.toBeInTheDocument()
+  })
+
+  it('does not show editor label for owned collections', () => {
+    const ownedCollection: Collection = {
+      ...baseCollection,
+      id: 'collection-3',
+      slug: 'collection-3',
+      name: 'Owned Collection',
+      userId: 'user-123',
+      editorIds: ['user-123'],
+      editorUsernames: ['editor-user'],
+    }
+
+    render(
+      <AddToCollectionDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        collections={[ownedCollection]}
+        currentUserId="user-123"
+        currentUsername="editor-user"
+        productSlug="product-1"
+        onAddToCollection={vi.fn()}
+        onRemoveFromCollection={vi.fn()}
+        onCreateNew={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('Owned Collection')).toBeInTheDocument()
+    expect(screen.queryByText('Owned Collection [editor]')).not.toBeInTheDocument()
   })
 })

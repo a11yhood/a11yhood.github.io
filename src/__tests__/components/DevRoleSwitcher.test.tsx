@@ -44,9 +44,9 @@ describe('DevRoleSwitcher', () => {
 
     // Radix Select renders the current value inside the trigger and the list items in the popover.
     // Query by role to avoid multiple matches for the same label.
-    expect(screen.getByRole('option', { name: /👤 regular_user/ })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: /🛡️ moderator_user/ })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: /👑 admin_user/ })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /👤 User role account/ })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /🛡️ Moderator role account/ })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /👑 Admin role account/ })).toBeInTheDocument()
   })
 
   it('handles null userAccount gracefully', () => {
@@ -62,7 +62,7 @@ describe('DevRoleSwitcher', () => {
     const selectTrigger = screen.getByRole('combobox')
     await user.click(selectTrigger)
 
-    const moderatorOption = screen.getByText(/🛡️ moderator_user/)
+    const moderatorOption = screen.getByText(/🛡️ Moderator role account/)
     await user.click(moderatorOption)
 
     expect(localStorage.getItem('dev-user')).toBe('moderator')
