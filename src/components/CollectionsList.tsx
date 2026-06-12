@@ -18,6 +18,7 @@ type CollectionsListProps = {
   onDeleteCollection: (collectionSlug: string) => void
   onEditCollection?: (collection: Collection) => void
   currentUserId?: string
+  currentUsername?: string
   isFirstLoadComplete?: boolean
 }
 
@@ -28,6 +29,7 @@ export function CollectionsList({
   onDeleteCollection,
   onEditCollection,
   currentUserId,
+  currentUsername,
   isFirstLoadComplete = true,
 }: CollectionsListProps) {
   const navigate = useNavigate()
@@ -91,7 +93,9 @@ export function CollectionsList({
       {collections.map((collection) => {
         const collectionProducts = getProductsInCollection(collection)
         const isOwner = currentUserId === collection.userId
-        const isEditor = !!currentUserId && (collection.editorIds || []).includes(currentUserId)
+        const isEditorById = !!currentUserId && (collection.editorIds || []).includes(currentUserId)
+        const isEditorByUsername = !!currentUsername && (collection.editorUsernames || []).includes(currentUsername)
+        const isEditor = !isOwner && (isEditorById || isEditorByUsername)
         const canEdit = isOwner || isEditor
         const img = imageErrors[collection.id] ? undefined : collectionImages[collection.id]
         const topTags = getTopTagsForCollection(collectionProducts)

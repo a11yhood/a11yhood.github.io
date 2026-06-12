@@ -88,7 +88,6 @@ function App() {
   const isAdmin = userAccount?.role === 'admin'
   const isModerator = userAccount?.role === 'moderator' || userAccount?.role === 'admin'
   const [collections, setCollections] = useState<Collection[]>([])
-  const [collectionsFirstLoadComplete, setCollectionsFirstLoadComplete] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
   const [showCreateCollectionFromSearchDialog, setShowCreateCollectionFromSearchDialog] = useState(false)
   const [showEditCollectionDialog, setShowEditCollectionDialog] = useState(false)
@@ -1103,9 +1102,6 @@ function App() {
   useEffect(() => {
     const loadCollections = async () => {
       const isCollectionsListPage = location.pathname === '/collections'
-      if (isCollectionsListPage) {
-        setCollectionsFirstLoadComplete(false)
-      }
 
       try {
         // Only load public collections on pages that need them (currently collections list)
@@ -1131,10 +1127,6 @@ function App() {
         // Silently handle errors - collections are optional
         if (error instanceof Error && !error.message.includes('404')) {
           console.debug('Failed to load collections:', error)
-        }
-      } finally {
-        if (isCollectionsListPage) {
-          setCollectionsFirstLoadComplete(true)
         }
       }
     }
@@ -1985,11 +1977,9 @@ function App() {
               } />
               <Route path="/collections" element={
                 <CollectionsPage
-                  collections={collections}
                   products={(isAdmin || isModerator) && includeBanned ? (products || []) : (products || []).filter((p) => !p.banned)}
                   user={user}
                   userAccount={userAccount}
-                  collectionsFirstLoadComplete={collectionsFirstLoadComplete}
                   onDeleteCollection={handleDeleteCollection}
                   onEditCollection={(collection) => {
                     setEditingCollection(collection)

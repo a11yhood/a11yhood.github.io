@@ -4,6 +4,13 @@
 
 a11yhood is an accessibility-focused platform for discovering and sharing accessible software, tutorials, and resources. The codebase is a React + TypeScript single-page application built with Vite, Tailwind CSS, Radix UI primitives, and tested with Vitest and Testing Library.
 
+## Root Cause First
+
+- Agents **MUST** identify and explain root cause before proposing or applying fixes for bugs, regressions, flaky behavior, or data inconsistencies.
+- Agents **MUST NOT** stop at targeted or cosmetic symptom fixes unless explicitly requested by the user.
+- Diagnostic work **SHOULD** compare all relevant sources of truth (frontend state, API responses, persistence layer behavior, and tests) and call out where they diverge.
+- If a temporary mitigation is necessary, agents **MUST** label it as a mitigation, state the residual risk, and document the underlying root cause still needing resolution.
+
 ## Accessibility First
 
 **Accessibility is the core mission of this project. Every piece of code must be accessible by default.**
