@@ -102,7 +102,7 @@ const defaultTheme = {
       "muted-foreground": "var(--color-neutral-11)",
       accent: "var(--color-accent-9)",
       "accent-foreground": "var(--color-accent-contrast)",
-      border: "var(--color-neutral-6)",
+      border: "var(--color-neutral-8)",
       input: "var(--color-bg-inset)",
       ring: "var(--color-focus-ring)",
     },
