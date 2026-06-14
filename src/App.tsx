@@ -58,6 +58,12 @@ export type ApiErrorLike = {
 
 const POST_AUTH_REDIRECT_KEY = 'a11yhood:post-auth-redirect'
 
+export const routeNeedsFullProductList = (pathname: string) => (
+  pathname === '/products' ||
+  pathname === '/submit' ||
+  pathname.startsWith('/admin')
+)
+
 
 
 function App() {
@@ -438,10 +444,7 @@ function App() {
       console.log('[App] Loading initial data...', { pathname: location.pathname })
 
       // Only load all products on pages that actually consume the list.
-      const needsFullProductList =
-        location.pathname === '/products' ||
-        location.pathname === '/submit' ||
-        location.pathname === '/admin' 
+      const needsFullProductList = routeNeedsFullProductList(location.pathname)
 
       // Only load filter metadata (tags, sources, types) on pages that use them
       // Don't load on collection detail pages (/collections/:slug)
