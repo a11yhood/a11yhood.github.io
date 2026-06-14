@@ -8,6 +8,8 @@ import { useNavigate } from 'react-router-dom'
 
 
 export function CollectionsPage({
+    collections,
+    collectionsLoaded,
     products,
     user,
     userAccount,
@@ -15,6 +17,8 @@ export function CollectionsPage({
     onEditCollection,
     onCreateCollection
 }: {
+    collections: Collection[]
+    collectionsLoaded: boolean
     products: Product[]
     user: UserData | null
     userAccount: UserAccount | null
@@ -23,79 +27,25 @@ export function CollectionsPage({
     onCreateCollection: () => void
 }) {
     const navigate = useNavigate()
-    const [publicCollections, setPublicCollections] = useState<Collection[]>([])
-    const [myCollections, setMyCollections] = useState<Collection[]>([])
     const [ownerPage, setOwnerPage] = useState(1)
     const [editorPage, setEditorPage] = useState(1)
     const [publicPage, setPublicPage] = useState(1)
     const [collectionProducts, setCollectionProducts] = useState<Product[]>([])
     const [loadedCollectionIds, setLoadedCollectionIds] = useState<Set<string>>(new Set())
-    const [myCollectionsFirstLoadComplete, setMyCollectionsFirstLoadComplete] = useState(false)
-    const [publicCollectionsFirstLoadComplete, setPublicCollectionsFirstLoadComplete] = useState(false)
     const itemsPerPage = 12 // 3 columns x 4 rows
 
-    useEffect(() => {
-        let cancelled = false
-
-        const loadPublicCollectionsForPage = async () => {
-            setPublicCollectionsFirstLoadComplete(false)
-            try {
-                const publicResult = await APIService.getPublicCollections('updated_at')
-                if (cancelled) return
-                setPublicCollections(publicResult)
-            } catch (error) {
-                if (cancelled) return
-                console.warn('[CollectionsPage] Failed to load public collections:', error)
-            } finally {
-                if (!cancelled) {
-                    setPublicCollectionsFirstLoadComplete(true)
-                }
-            }
-        }
-
-        loadPublicCollectionsForPage()
-
-        return () => {
-            cancelled = true
-        }
-    }, [])
-
-    useEffect(() => {
-        let cancelled = false
-
-        const loadMyCollectionsForPage = async () => {
-            setMyCollectionsFirstLoadComplete(false)
-
-            if (!userAccount) {
-                setMyCollections([])
-                setMyCollectionsFirstLoadComplete(true)
-                return
-            }
-
-            try {
-                const myResult = await APIService.getUserCollections()
-                if (cancelled) return
-                setMyCollections(myResult)
-            } catch (error) {
-                if (cancelled) return
-                console.warn('[CollectionsPage] Failed to load user collections:', error)
-            } finally {
-                if (!cancelled) {
-                    setMyCollectionsFirstLoadComplete(true)
-                }
-            }
-        }
-
-        loadMyCollectionsForPage()
-
-        return () => {
-            cancelled = true
-        }
-    }, [userAccount])
-
     const currentUserId = userAccount?.id || user?.id
-    const ownerCollections = myCollections.filter((collection) => !!currentUserId && collection.userId === currentUserId)
-    const editorCollections = myCollections.filter((collection) => !currentUserId || collection.userId !== currentUserId)
+    const currentUsername = userAccount?.username || user?.username
+    const ownerCollections = collections.filter((collection) => !!currentUserId && collection.userId === currentUserId)
+    const editorCollections = collections.filter((collection) => {
+        if (!currentUserId && !currentUsername) return false
+        if (currentUserId && collection.userId === currentUserId) return false
+
+        const isEditorById = !!currentUserId && (collection.editorIds || []).includes(currentUserId)
+        const isEditorByUsername = !!currentUsername && (collection.editorUsernames || []).includes(currentUsername)
+
+        return isEditorById || isEditorByUsername
+    })
 
     // Paginate collections
     const ownerStart = (ownerPage - 1) * itemsPerPage
@@ -108,8 +58,8 @@ export function CollectionsPage({
     const paginatedEditorCollections = editorCollections.slice(editorStart, editorEnd)
     const editorTotalPages = Math.ceil(editorCollections.length / itemsPerPage)
 
-    const myCollectionIds = new Set(myCollections.map((collection) => collection.id))
-    const filteredPublicCollections = publicCollections.filter((collection) => !myCollectionIds.has(collection.id))
+    const myCollectionIds = new Set([...ownerCollections, ...editorCollections].map((collection) => collection.id))
+    const filteredPublicCollections = collections.filter((collection) => collection.isPublic && !myCollectionIds.has(collection.id))
     const publicStart = (publicPage - 1) * itemsPerPage
     const publicEnd = publicStart + itemsPerPage
     const paginatedPublicCollections = filteredPublicCollections.slice(publicStart, publicEnd)
@@ -204,7 +154,7 @@ export function CollectionsPage({
                         <CollectionsList
                             collections={paginatedOwnerCollections}
                             products={allProducts}
-                            isFirstLoadComplete={myCollectionsFirstLoadComplete}
+                            isFirstLoadComplete={collectionsLoaded}
                             onSelectCollection={(collection) =>
                                 navigate(`/collections/${collection.slug || collection.id}`, {
                                     state: { collectionSnapshot: collection },
@@ -212,8 +162,8 @@ export function CollectionsPage({
                             }
                             onDeleteCollection={onDeleteCollection}
                             onEditCollection={onEditCollection}
-                            currentUserId={userAccount?.id || user?.id}
-                            currentUsername={userAccount?.username || user?.username}
+                            currentUserId={currentUserId}
+                            currentUsername={currentUsername}
                         />
                         {ownerTotalPages > 1 && (
                             <div className="flex justify-center gap-2 mt-6">
@@ -242,7 +192,7 @@ export function CollectionsPage({
                         <CollectionsList
                             collections={paginatedEditorCollections}
                             products={allProducts}
-                            isFirstLoadComplete={myCollectionsFirstLoadComplete}
+                            isFirstLoadComplete={collectionsLoaded}
                             onSelectCollection={(collection) =>
                                 navigate(`/collections/${collection.slug || collection.id}`, {
                                     state: { collectionSnapshot: collection },
@@ -250,8 +200,8 @@ export function CollectionsPage({
                             }
                             onDeleteCollection={onDeleteCollection}
                             onEditCollection={onEditCollection}
-                            currentUserId={userAccount?.id || user?.id}
-                            currentUsername={userAccount?.username || user?.username}
+                            currentUserId={currentUserId}
+                            currentUsername={currentUsername}
                         />
                         {editorTotalPages > 1 && (
                             <div className="flex justify-center gap-2 mt-6">
@@ -293,15 +243,15 @@ export function CollectionsPage({
                 <CollectionsList
                     collections={paginatedPublicCollections}
                     products={allProducts}
-                    isFirstLoadComplete={publicCollectionsFirstLoadComplete}
+                    isFirstLoadComplete={collectionsLoaded}
                     onSelectCollection={(collection) =>
                         navigate(`/collections/${collection.slug || collection.id}`, {
                             state: { collectionSnapshot: collection },
                         })
                     }
                     onDeleteCollection={() => { /* no-op for public */ }}
-                    currentUserId={user?.id}
-                    currentUsername={userAccount?.username || user?.username}
+                    currentUserId={currentUserId}
+                    currentUsername={currentUsername}
                 />
                 {publicTotalPages > 1 && (
                     <div className="flex justify-center gap-2 mt-6">

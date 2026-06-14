@@ -64,6 +64,28 @@ export const routeNeedsFullProductList = (pathname: string) => (
   pathname.startsWith('/admin')
 )
 
+const routeNeedsCollections = (pathname: string) => (
+  pathname === '/products' ||
+  pathname.startsWith('/product/') ||
+  pathname.startsWith('/collections')
+)
+
+const mergeCollections = (...groups: Collection[][]): Collection[] => {
+  const merged: Collection[] = []
+  const seenKeys = new Set<string>()
+
+  groups.forEach((group) => {
+    group.forEach((collection) => {
+      const key = collection.slug || collection.id
+      if (!key || seenKeys.has(key)) return
+      seenKeys.add(key)
+      merged.push(collection)
+    })
+  })
+
+  return merged
+}
+
 
 
 function App() {
@@ -94,6 +116,7 @@ function App() {
   const isAdmin = userAccount?.role === 'admin'
   const isModerator = userAccount?.role === 'moderator' || userAccount?.role === 'admin'
   const [collections, setCollections] = useState<Collection[]>([])
+  const [collectionsLoaded, setCollectionsLoaded] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
   const [showCreateCollectionFromSearchDialog, setShowCreateCollectionFromSearchDialog] = useState(false)
   const [showEditCollectionDialog, setShowEditCollectionDialog] = useState(false)
@@ -1126,7 +1149,42 @@ function App() {
     void handleRavelryOAuth()
   }, [authLoading, authUser, notify])
 
-  // Collections list data is owned by CollectionsPage to avoid duplicate fetches.
+  useEffect(() => {
+    if (authLoading || !routeNeedsCollections(location.pathname)) return
+
+    let cancelled = false
+
+    const loadCollections = async () => {
+      setCollectionsLoaded(false)
+
+      const [userCollectionsResult, publicCollectionsResult] = await Promise.allSettled([
+        authUser ? APIService.getUserCollections() : Promise.resolve([]),
+        APIService.getPublicCollections('updated_at'),
+      ])
+
+      if (cancelled) return
+
+      if (userCollectionsResult.status === 'rejected') {
+        console.warn('[App] Failed to load user collections:', userCollectionsResult.reason)
+      }
+
+      if (publicCollectionsResult.status === 'rejected') {
+        console.warn('[App] Failed to load public collections:', publicCollectionsResult.reason)
+      }
+
+      const userCollections = userCollectionsResult.status === 'fulfilled' ? userCollectionsResult.value : []
+      const publicCollections = publicCollectionsResult.status === 'fulfilled' ? publicCollectionsResult.value : []
+
+      setCollections(mergeCollections(userCollections, publicCollections))
+      setCollectionsLoaded(true)
+    }
+
+    void loadCollections()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authLoading, authUser, location.pathname])
 
   useEffect(() => {
     const loadPendingRequests = async () => {
@@ -1972,6 +2030,8 @@ function App() {
               } />
               <Route path="/collections" element={
                 <CollectionsPage
+                  collections={collections}
+                  collectionsLoaded={collectionsLoaded}
                   products={(isAdmin || isModerator) && includeBanned ? (products || []) : (products || []).filter((p) => !p.banned)}
                   user={user}
                   userAccount={userAccount}
