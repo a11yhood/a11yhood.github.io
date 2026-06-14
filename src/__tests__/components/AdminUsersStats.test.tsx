@@ -109,6 +109,7 @@ describe('AdminUsersStats', () => {
     )
 
     await screen.findByRole('heading', { name: /users & statistics/i })
+    await screen.findByText(/loaded stats for 1 of 1 users/i)
 
     expect(getUserStatsSpy).not.toHaveBeenCalled()
   })
