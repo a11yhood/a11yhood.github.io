@@ -36,43 +36,128 @@ type UserStats = {
   totalContributions: number
 }
 
-type UserWithStats = UserAccount & UserStats
+type UserWithStats = UserAccount & Partial<UserStats> & {
+  statsLoaded: boolean
+}
+
+const asFiniteNumber = (value: unknown): number | null => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null
+  return value
+}
+
+const normalizeStats = (input: Partial<UserStats>): UserStats => {
+  const productsSubmitted = asFiniteNumber(input.productsSubmitted) ?? 0
+  const collectionsCreated = asFiniteNumber(input.collectionsCreated) ?? 0
+  const ratingsGiven = asFiniteNumber(input.ratingsGiven) ?? 0
+  const discussionsParticipated = asFiniteNumber(input.discussionsParticipated) ?? 0
+  const totalContributions =
+    asFiniteNumber(input.totalContributions) ??
+    productsSubmitted + collectionsCreated + ratingsGiven + discussionsParticipated
+
+  return {
+    productsSubmitted,
+    collectionsCreated,
+    ratingsGiven,
+    discussionsParticipated,
+    totalContributions,
+  }
+}
+
+const tryReadEmbeddedStats = (user: UserAccount): UserStats | null => {
+  const maybeStats = user as UserAccount & Partial<UserStats>
+  const hasAnyEmbeddedStat =
+    asFiniteNumber(maybeStats.productsSubmitted) !== null ||
+    asFiniteNumber(maybeStats.collectionsCreated) !== null ||
+    asFiniteNumber(maybeStats.ratingsGiven) !== null ||
+    asFiniteNumber(maybeStats.discussionsParticipated) !== null ||
+    asFiniteNumber(maybeStats.totalContributions) !== null
+
+  if (!hasAnyEmbeddedStat) return null
+  return normalizeStats(maybeStats)
+}
+
+const mapWithConcurrency = async <T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>
+): Promise<R[]> => {
+  if (items.length === 0) return []
+
+  const cappedConcurrency = Math.max(1, Math.min(concurrency, items.length))
+  const results: R[] = new Array(items.length)
+  let nextIndex = 0
+
+  const worker = async () => {
+    while (true) {
+      const currentIndex = nextIndex
+      nextIndex += 1
+      if (currentIndex >= items.length) return
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex)
+    }
+  }
+
+  await Promise.all(Array.from({ length: cappedConcurrency }, () => worker()))
+  return results
+}
 
 export function AdminUsersStats({ currentUserRole = 'admin' }: { currentUserRole?: 'user' | 'moderator' | 'admin' }) {
   const { notify } = useNotifications()
   const navigate = useNavigate()
   const [users, setUsers] = useState<UserWithStats[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loadingUsers, setLoadingUsers] = useState(true)
   const [sortBy, setSortBy] = useState<'contributions' | 'recent' | 'joined'>('contributions')
   const canManageRoles = currentUserRole === 'admin'
 
   const loadUsers = useCallback(async () => {
-    setLoading(true)
+    setLoadingUsers(true)
     try {
       const allUsers = await APIService.getAllUsers()
-      // Fetch stats for each user
-      const usersWithStats: UserWithStats[] = await Promise.all(
-        allUsers.map(async (user) => {
-          const stats = await APIService.getUserStats(user.id)
-          const productsSubmitted = stats.productsSubmitted || 0
-          const collectionsCreated = stats.collectionsCreated || 0
-          const totalContributions = stats.totalContributions || 0
 
-          return {
-            ...user,
-            ...stats,
-            productsSubmitted,
-            collectionsCreated,
-            totalContributions,
+      setUsers(allUsers.map((user) => ({ ...user, statsLoaded: false })))
+      setLoadingUsers(false)
+
+      await mapWithConcurrency(
+        allUsers,
+        4,
+        async (user) => {
+          try {
+            const embeddedStats = tryReadEmbeddedStats(user)
+            const fetchedStats = embeddedStats ?? await APIService.getUserStats(user.id)
+            const normalizedStats = normalizeStats(fetchedStats)
+
+            setUsers((currentUsers) =>
+              currentUsers.map((currentUser) =>
+                currentUser.id === user.id
+                  ? {
+                    ...currentUser,
+                    ...normalizedStats,
+                    statsLoaded: true,
+                  }
+                  : currentUser
+              )
+            )
+          } catch (error) {
+            console.warn('[AdminUsersStats] Failed to load stats for user', { userId: user.id, error })
+            setUsers((currentUsers) =>
+              currentUsers.map((currentUser) =>
+                currentUser.id === user.id
+                  ? {
+                    ...currentUser,
+                    statsLoaded: true,
+                  }
+                  : currentUser
+              )
+            )
           }
-        })
+        }
       )
-      setUsers(usersWithStats)
     } catch (error) {
       console.error('Failed to load users:', error)
       notify.error('Failed to load users')
+      setUsers([])
+      setLoadingUsers(false)
     } finally {
-      setLoading(false)
+      setLoadingUsers(false)
     }
   }, [notify])
 
@@ -99,7 +184,7 @@ export function AdminUsersStats({ currentUserRole = 'admin' }: { currentUserRole
   const sortedUsers = [...users].sort((a, b) => {
     switch (sortBy) {
       case 'contributions':
-        return b.totalContributions - a.totalContributions
+        return (b.totalContributions ?? -1) - (a.totalContributions ?? -1)
       case 'recent': {
         const bLastActive = a.lastActive ? new Date(a.lastActive).getTime() : 0
         const aLastActive = b.lastActive ? new Date(b.lastActive).getTime() : 0
@@ -117,11 +202,13 @@ export function AdminUsersStats({ currentUserRole = 'admin' }: { currentUserRole
 
   const totalStats = {
     totalUsers: users.length,
-    totalProducts: users.reduce((sum, u) => sum + (u.productsSubmitted || 0), 0),
-    totalRatings: users.reduce((sum, u) => sum + (u.ratingsGiven || 0), 0),
-    totalDiscussions: users.reduce((sum, u) => sum + (u.discussionsParticipated || 0), 0),
-    totalContributions: users.reduce((sum, u) => sum + (u.totalContributions || 0), 0),
+    totalProducts: users.reduce((sum, u) => sum + (u.productsSubmitted ?? 0), 0),
+    totalRatings: users.reduce((sum, u) => sum + (u.ratingsGiven ?? 0), 0),
+    totalDiscussions: users.reduce((sum, u) => sum + (u.discussionsParticipated ?? 0), 0),
+    totalContributions: users.reduce((sum, u) => sum + (u.totalContributions ?? 0), 0),
   }
+
+  const loadedStatsCount = users.filter((user) => user.statsLoaded).length
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString('en-US', {
@@ -144,7 +231,19 @@ export function AdminUsersStats({ currentUserRole = 'admin' }: { currentUserRole
     return formatDate(ts)
   }
 
-  if (loading) {
+  const renderStatsCell = (value: number | undefined) => {
+    if (typeof value !== 'number') {
+      return <span className="text-muted-foreground">...</span>
+    }
+
+    if (value > 0) {
+      return <Badge variant="secondary">{value}</Badge>
+    }
+
+    return <span className="text-muted-foreground">0</span>
+  }
+
+  if (loadingUsers) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
@@ -165,6 +264,9 @@ export function AdminUsersStats({ currentUserRole = 'admin' }: { currentUserRole
           <h1 className="text-3xl font-bold">Users & Statistics</h1>
           <p className="text-muted-foreground mt-1">
             View and manage community members and platform metrics
+          </p>
+          <p className="text-xs text-muted-foreground mt-1" role="status" aria-live="polite">
+            Loaded stats for {loadedStatsCount} of {users.length} users
           </p>
         </div>
       </div>
@@ -341,37 +443,25 @@ export function AdminUsersStats({ currentUserRole = 'admin' }: { currentUserRole
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {user.productsSubmitted > 0 ? (
-                          <Badge variant="secondary">{user.productsSubmitted}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">0</span>
-                        )}
+                        {renderStatsCell(user.productsSubmitted)}
                       </TableCell>
                       <TableCell className="text-center">
-                        {user.collectionsCreated > 0 ? (
-                          <Badge variant="secondary">{user.collectionsCreated}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">0</span>
-                        )}
+                        {renderStatsCell(user.collectionsCreated)}
                       </TableCell>
                       <TableCell className="text-center">
-                        {user.ratingsGiven > 0 ? (
-                          <Badge variant="secondary">{user.ratingsGiven}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">0</span>
-                        )}
+                        {renderStatsCell(user.ratingsGiven)}
                       </TableCell>
                       <TableCell className="text-center">
-                        {user.discussionsParticipated > 0 ? (
-                          <Badge variant="secondary">{user.discussionsParticipated}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">0</span>
-                        )}
+                        {renderStatsCell(user.discussionsParticipated)}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant={user.totalContributions > 0 ? "default" : "outline"}>
-                          {user.totalContributions}
-                        </Badge>
+                        {typeof user.totalContributions === 'number' ? (
+                          <Badge variant={user.totalContributions > 0 ? 'default' : 'outline'}>
+                            {user.totalContributions}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">...</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">

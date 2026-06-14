@@ -85,4 +85,31 @@ describe('AdminUsersStats', () => {
       expect(APIService.getOwnedProducts).not.toHaveBeenCalled()
     })
   })
+
+  it('reuses embedded stats from getAllUsers when available', async () => {
+    vi.spyOn(APIService, 'getAllUsers').mockResolvedValue([
+      {
+        id: 'user-1',
+        username: 'alice',
+        role: 'user',
+        productsSubmitted: 2,
+        collectionsCreated: 1,
+        ratingsGiven: 3,
+        discussionsParticipated: 1,
+        totalContributions: 7,
+      },
+    ] as never[])
+
+    const getUserStatsSpy = vi.spyOn(APIService, 'getUserStats')
+
+    render(
+      <MemoryRouter>
+        <AdminUsersStats />
+      </MemoryRouter>
+    )
+
+    await screen.findByRole('heading', { name: /users & statistics/i })
+
+    expect(getUserStatsSpy).not.toHaveBeenCalled()
+  })
 })

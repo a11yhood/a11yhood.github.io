@@ -437,10 +437,11 @@ function App() {
       setIsSearching(true)
       console.log('[App] Loading initial data...', { pathname: location.pathname })
 
-      // Only load all products on pages that need the full list
-      const needsFullProductList = location.pathname === '/products' ||
+      // Only load all products on pages that actually consume the list.
+      const needsFullProductList =
+        location.pathname === '/products' ||
         location.pathname === '/submit' ||
-        location.pathname.startsWith('/admin')
+        location.pathname === '/admin' 
 
       // Only load filter metadata (tags, sources, types) on pages that use them
       // Don't load on collection detail pages (/collections/:slug)
@@ -568,21 +569,45 @@ function App() {
         setDataLoaded(true)
         setIsSearching(false)
 
-        // Load ratings and discussions asynchronously
-        Promise.all([
-          APIService.getAllRatings(),
-          APIService.getAllDiscussions(),
-          APIService.getAllBlogPosts(false),
-        ])
-          .then(([ratings, discussions, blogPosts]) => {
-            setRatings(ratings)
-            setDiscussions(discussions)
-            setBlogPosts(blogPosts)
-            setBlogPostsLoading(false)
+        const needsAdminSideData = location.pathname === '/admin' || location.pathname === '/admin/logs'
+
+        // Keep /products responsive by avoiding eager discussions/blog preloads.
+        // Product details fetch missing discussions on demand.
+        const sideLoadPromises: Promise<unknown>[] = [APIService.getAllRatings()]
+        if (needsAdminSideData) {
+          sideLoadPromises.push(APIService.getAllDiscussions())
+          sideLoadPromises.push(APIService.getAllBlogPosts(false))
+        }
+
+        Promise.allSettled(sideLoadPromises)
+          .then((results) => {
+            const ratingsResult = results[0]
+            if (ratingsResult?.status === 'fulfilled') {
+              setRatings(ratingsResult.value as Rating[])
+            }
+
+            if (needsAdminSideData) {
+              const discussionsResult = results[1]
+              const blogPostsResult = results[2]
+
+              if (discussionsResult?.status === 'fulfilled') {
+                setDiscussions(discussionsResult.value as Discussion[])
+              }
+
+              if (blogPostsResult?.status === 'fulfilled') {
+                setBlogPosts(blogPostsResult.value as BlogPost[])
+              }
+            }
+
+            if (needsAdminSideData) {
+              setBlogPostsLoading(false)
+            }
           })
           .catch(error => {
-            console.warn('[App] Failed to load ratings/discussions/blog posts:', error)
-            setBlogPostsLoading(false)
+            console.warn('[App] Failed to load side data:', error)
+            if (needsAdminSideData) {
+              setBlogPostsLoading(false)
+            }
           })
       } catch (error) {
         console.error('Failed to load data:', error)
@@ -1098,40 +1123,7 @@ function App() {
     void handleRavelryOAuth()
   }, [authLoading, authUser, notify])
 
-  // Load collections for all users (public collections always, user collections on /collections pages)
-  useEffect(() => {
-    const loadCollections = async () => {
-      const isCollectionsListPage = location.pathname === '/collections'
-
-      try {
-        // Only load public collections on pages that need them (currently collections list)
-        // Skip on collection detail pages (/collections/:slug) and other routes
-        const needsPublicCollections =
-          location.pathname === '/collections'
-
-        const publicCollections = needsPublicCollections ? await APIService.getPublicCollections() : []
-
-        // Load user's own collections only on the collections list page
-        const userCollections = (user && isCollectionsListPage) ? await APIService.getUserCollections() : []
-
-        // Combine public and user collections (avoiding duplicates)
-        const allCollections = [...userCollections]
-        publicCollections.forEach(pub => {
-          if (!allCollections.some(c => c.id === pub.id)) {
-            allCollections.push(pub)
-          }
-        })
-
-        setCollections(allCollections)
-      } catch (error) {
-        // Silently handle errors - collections are optional
-        if (error instanceof Error && !error.message.includes('404')) {
-          console.debug('Failed to load collections:', error)
-        }
-      }
-    }
-    loadCollections()
-  }, [user, location.pathname])
+  // Collections list data is owned by CollectionsPage to avoid duplicate fetches.
 
   useEffect(() => {
     const loadPendingRequests = async () => {

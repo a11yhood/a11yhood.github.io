@@ -35,24 +35,60 @@ export function CollectionsPage({
     const itemsPerPage = 12 // 3 columns x 4 rows
 
     useEffect(() => {
-        const loadCollectionsForPage = async () => {
-            setMyCollectionsFirstLoadComplete(false)
+        let cancelled = false
+
+        const loadPublicCollectionsForPage = async () => {
             setPublicCollectionsFirstLoadComplete(false)
             try {
-                const [myResult, publicResult] = await Promise.all([
-                    userAccount ? APIService.getUserCollections() : Promise.resolve<Collection[]>([]),
-                    APIService.getPublicCollections('updated_at')
-                ])
-                setMyCollections(myResult)
+                const publicResult = await APIService.getPublicCollections('updated_at')
+                if (cancelled) return
                 setPublicCollections(publicResult)
             } catch (error) {
-                console.warn('[CollectionsPage] Failed to load collections:', error)
+                if (cancelled) return
+                console.warn('[CollectionsPage] Failed to load public collections:', error)
             } finally {
-                setMyCollectionsFirstLoadComplete(true)
+                if (cancelled) return
                 setPublicCollectionsFirstLoadComplete(true)
             }
         }
-        loadCollectionsForPage()
+
+        loadPublicCollectionsForPage()
+
+        return () => {
+            cancelled = true
+        }
+    }, [])
+
+    useEffect(() => {
+        let cancelled = false
+
+        const loadMyCollectionsForPage = async () => {
+            setMyCollectionsFirstLoadComplete(false)
+
+            if (!userAccount) {
+                setMyCollections([])
+                setMyCollectionsFirstLoadComplete(true)
+                return
+            }
+
+            try {
+                const myResult = await APIService.getUserCollections()
+                if (cancelled) return
+                setMyCollections(myResult)
+            } catch (error) {
+                if (cancelled) return
+                console.warn('[CollectionsPage] Failed to load user collections:', error)
+            } finally {
+                if (cancelled) return
+                setMyCollectionsFirstLoadComplete(true)
+            }
+        }
+
+        loadMyCollectionsForPage()
+
+        return () => {
+            cancelled = true
+        }
     }, [userAccount])
 
     const currentUserId = userAccount?.id || user?.id

@@ -223,24 +223,45 @@ export function ProductDetailPageWrapper({
     const [localDiscussions, setLocalDiscussions] = useState<Discussion[]>(discussions)
     const localDiscussionsRef = useRef<Discussion[]>(discussions)
 
-    // Fetch ratings and discussions if not already loaded
+    // Fetch missing ratings/discussions independently.
+    // Avoid coupling discussion availability to ratings preloads.
     useEffect(() => {
         const fetchData = async () => {
-            if (ratings.length === 0) {
-                try {
-                    const [allRatings, allDiscussions] = await Promise.all([
-                        APIService.getAllRatings(),
-                        APIService.getAllDiscussions(),
-                    ])
-                    setLocalRatings(allRatings)
-                    setLocalDiscussions(allDiscussions)
-                } catch (error) {
-                    console.warn('[ProductDetailPageWrapper] Failed to fetch ratings/discussions:', error)
+            const needsRatings = ratings.length === 0
+            const needsDiscussions = discussions.length === 0
+
+            if (!needsRatings && !needsDiscussions) {
+                return
+            }
+
+            try {
+                const tasks: Array<Promise<Rating[] | Discussion[]>> = []
+                if (needsRatings) tasks.push(APIService.getAllRatings())
+                if (needsDiscussions) tasks.push(APIService.getAllDiscussions())
+
+                const results = await Promise.allSettled(tasks)
+                let idx = 0
+
+                if (needsRatings) {
+                    const ratingsResult = results[idx]
+                    idx += 1
+                    if (ratingsResult?.status === 'fulfilled') {
+                        setLocalRatings(ratingsResult.value as Rating[])
+                    }
                 }
+
+                if (needsDiscussions) {
+                    const discussionsResult = results[idx]
+                    if (discussionsResult?.status === 'fulfilled') {
+                        setLocalDiscussions(discussionsResult.value as Discussion[])
+                    }
+                }
+            } catch (error) {
+                console.warn('[ProductDetailPageWrapper] Failed to fetch ratings/discussions:', error)
             }
         }
         fetchData()
-    }, [ratings.length])
+    }, [ratings.length, discussions.length])
 
     // Keep local state in sync when parent updates
     useEffect(() => {
