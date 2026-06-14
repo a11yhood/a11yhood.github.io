@@ -1710,6 +1710,12 @@ export class APIService {
     })
   }
 
+  static async deleteRating(productId: string, userId: string): Promise<void> {
+    await request(`/ratings/${productId}/${userId}`, {
+      method: 'DELETE',
+    })
+  }
+
   static async getRatingsByUser(username: string): Promise<Rating[]> {
     return request<Rating[]>(`/users/${encodeURIComponent(username)}/ratings`)
   }

@@ -41,7 +41,7 @@ export function StarRating({
 
   const handleClick = (rating: number) => {
     if (!readonly && onChange) {
-      onChange(rating)
+      onChange(value === rating ? 0 : rating)
     }
   }
 
@@ -49,7 +49,7 @@ export function StarRating({
     if (!readonly && onChange) {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
-        onChange(rating)
+        onChange(value === rating ? 0 : rating)
       }
     }
   }
@@ -72,7 +72,7 @@ export function StarRating({
     <div className={cn('flex items-center gap-1', className)}>
       {!readonly && onChange && (
         <div className="sr-only" aria-live="polite" aria-atomic="true">
-          {value > 0 && `Rating: ${value} out of 5 stars`}
+          {value > 0 ? `Rating: ${value} out of 5 stars` : 'Rating removed'}
         </div>
       )}
       <div
