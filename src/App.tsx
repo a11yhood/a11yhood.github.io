@@ -58,6 +58,34 @@ export type ApiErrorLike = {
 
 const POST_AUTH_REDIRECT_KEY = 'a11yhood:post-auth-redirect'
 
+export const routeNeedsFullProductList = (pathname: string) => (
+  pathname === '/products' ||
+  pathname === '/submit' ||
+  pathname.startsWith('/admin')
+)
+
+const routeNeedsCollections = (pathname: string) => (
+  pathname === '/products' ||
+  pathname.startsWith('/product/') ||
+  pathname.startsWith('/collections')
+)
+
+const mergeCollections = (...groups: Collection[][]): Collection[] => {
+  const merged: Collection[] = []
+  const seenKeys = new Set<string>()
+
+  groups.forEach((group) => {
+    group.forEach((collection) => {
+      const key = collection.slug || collection.id
+      if (!key || seenKeys.has(key)) return
+      seenKeys.add(key)
+      merged.push(collection)
+    })
+  })
+
+  return merged
+}
+
 
 
 function App() {
@@ -88,6 +116,7 @@ function App() {
   const isAdmin = userAccount?.role === 'admin'
   const isModerator = userAccount?.role === 'moderator' || userAccount?.role === 'admin'
   const [collections, setCollections] = useState<Collection[]>([])
+  const [collectionsLoaded, setCollectionsLoaded] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
   const [showCreateCollectionFromSearchDialog, setShowCreateCollectionFromSearchDialog] = useState(false)
   const [showEditCollectionDialog, setShowEditCollectionDialog] = useState(false)
@@ -437,10 +466,8 @@ function App() {
       setIsSearching(true)
       console.log('[App] Loading initial data...', { pathname: location.pathname })
 
-      // Only load all products on pages that need the full list
-      const needsFullProductList = location.pathname === '/products' ||
-        location.pathname === '/submit' ||
-        location.pathname.startsWith('/admin')
+      // Only load all products on pages that actually consume the list.
+      const needsFullProductList = routeNeedsFullProductList(location.pathname)
 
       // Only load filter metadata (tags, sources, types) on pages that use them
       // Don't load on collection detail pages (/collections/:slug)
@@ -568,21 +595,45 @@ function App() {
         setDataLoaded(true)
         setIsSearching(false)
 
-        // Load ratings and discussions asynchronously
-        Promise.all([
-          APIService.getAllRatings(),
-          APIService.getAllDiscussions(),
-          APIService.getAllBlogPosts(false),
-        ])
-          .then(([ratings, discussions, blogPosts]) => {
-            setRatings(ratings)
-            setDiscussions(discussions)
-            setBlogPosts(blogPosts)
-            setBlogPostsLoading(false)
+        const needsAdminSideData = location.pathname === '/admin' || location.pathname === '/admin/logs'
+
+        // Keep /products responsive by avoiding eager discussions/blog preloads.
+        // Product details fetch missing discussions on demand.
+        const sideLoadPromises: Promise<unknown>[] = [APIService.getAllRatings()]
+        if (needsAdminSideData) {
+          sideLoadPromises.push(APIService.getAllDiscussions())
+          sideLoadPromises.push(APIService.getAllBlogPosts(false))
+        }
+
+        Promise.allSettled(sideLoadPromises)
+          .then((results) => {
+            const ratingsResult = results[0]
+            if (ratingsResult?.status === 'fulfilled') {
+              setRatings(ratingsResult.value as Rating[])
+            }
+
+            if (needsAdminSideData) {
+              const discussionsResult = results[1]
+              const blogPostsResult = results[2]
+
+              if (discussionsResult?.status === 'fulfilled') {
+                setDiscussions(discussionsResult.value as Discussion[])
+              }
+
+              if (blogPostsResult?.status === 'fulfilled') {
+                setBlogPosts(blogPostsResult.value as BlogPost[])
+              }
+            }
+
+            if (needsAdminSideData) {
+              setBlogPostsLoading(false)
+            }
           })
           .catch(error => {
-            console.warn('[App] Failed to load ratings/discussions/blog posts:', error)
-            setBlogPostsLoading(false)
+            console.warn('[App] Failed to load side data:', error)
+            if (needsAdminSideData) {
+              setBlogPostsLoading(false)
+            }
           })
       } catch (error) {
         console.error('Failed to load data:', error)
@@ -1098,40 +1149,42 @@ function App() {
     void handleRavelryOAuth()
   }, [authLoading, authUser, notify])
 
-  // Load collections for all users (public collections always, user collections on /collections pages)
   useEffect(() => {
+    if (authLoading || !routeNeedsCollections(location.pathname)) return
+
+    let cancelled = false
+
     const loadCollections = async () => {
-      const isCollectionsListPage = location.pathname === '/collections'
+      setCollectionsLoaded(false)
 
-      try {
-        // Only load public collections on pages that need them (currently collections list)
-        // Skip on collection detail pages (/collections/:slug) and other routes
-        const needsPublicCollections =
-          location.pathname === '/collections'
+      const [userCollectionsResult, publicCollectionsResult] = await Promise.allSettled([
+        authUser ? APIService.getUserCollections() : Promise.resolve([]),
+        APIService.getPublicCollections('updated_at'),
+      ])
 
-        const publicCollections = needsPublicCollections ? await APIService.getPublicCollections() : []
+      if (cancelled) return
 
-        // Load user's own collections only on the collections list page
-        const userCollections = (user && isCollectionsListPage) ? await APIService.getUserCollections() : []
-
-        // Combine public and user collections (avoiding duplicates)
-        const allCollections = [...userCollections]
-        publicCollections.forEach(pub => {
-          if (!allCollections.some(c => c.id === pub.id)) {
-            allCollections.push(pub)
-          }
-        })
-
-        setCollections(allCollections)
-      } catch (error) {
-        // Silently handle errors - collections are optional
-        if (error instanceof Error && !error.message.includes('404')) {
-          console.debug('Failed to load collections:', error)
-        }
+      if (userCollectionsResult.status === 'rejected') {
+        console.warn('[App] Failed to load user collections:', userCollectionsResult.reason)
       }
+
+      if (publicCollectionsResult.status === 'rejected') {
+        console.warn('[App] Failed to load public collections:', publicCollectionsResult.reason)
+      }
+
+      const userCollections = userCollectionsResult.status === 'fulfilled' ? userCollectionsResult.value : []
+      const publicCollections = publicCollectionsResult.status === 'fulfilled' ? publicCollectionsResult.value : []
+
+      setCollections(mergeCollections(userCollections, publicCollections))
+      setCollectionsLoaded(true)
     }
-    loadCollections()
-  }, [user, location.pathname])
+
+    void loadCollections()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authLoading, authUser, location.pathname])
 
   useEffect(() => {
     const loadPendingRequests = async () => {
@@ -1977,6 +2030,8 @@ function App() {
               } />
               <Route path="/collections" element={
                 <CollectionsPage
+                  collections={collections}
+                  collectionsLoaded={collectionsLoaded}
                   products={(isAdmin || isModerator) && includeBanned ? (products || []) : (products || []).filter((p) => !p.banned)}
                   user={user}
                   userAccount={userAccount}
