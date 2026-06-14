@@ -27,6 +27,15 @@ describe('StarRating', () => {
     expect(onChange).toHaveBeenCalledWith(3)
   })
 
+  it('should remove the rating when clicking the selected star', () => {
+    const onChange = vi.fn()
+    render(<StarRating value={3} onChange={onChange} />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Rate 3 stars' }))
+
+    expect(onChange).toHaveBeenCalledWith(0)
+  })
+
   it('should show read-only state', () => {
     render(<StarRating value={3} readonly />)
     
@@ -67,5 +76,23 @@ describe('StarRating', () => {
     fireEvent.keyDown(stars[3], { key: 'Enter' })
     
     expect(onChange).toHaveBeenCalledWith(4)
+  })
+
+  it('should remove the rating with keyboard when activating the selected star', () => {
+    const onChange = vi.fn()
+    render(<StarRating value={4} onChange={onChange} />)
+
+    fireEvent.keyDown(screen.getByRole('radio', { name: 'Rate 4 stars' }), { key: ' ' })
+
+    expect(onChange).toHaveBeenCalledWith(0)
+  })
+
+  it('should show no selected stars after the rating is removed', () => {
+    const { rerender } = render(<StarRating value={3} onChange={vi.fn()} />)
+    expect(screen.getByRole('radio', { name: 'Rate 3 stars' })).toHaveAttribute('aria-checked', 'true')
+
+    rerender(<StarRating value={0} onChange={vi.fn()} />)
+
+    expect(screen.queryByRole('radio', { checked: true })).not.toBeInTheDocument()
   })
 })

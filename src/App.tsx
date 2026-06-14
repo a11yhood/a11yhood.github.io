@@ -1221,6 +1221,17 @@ function App() {
     if (!user) return
 
     try {
+      if (rating === 0) {
+        await APIService.deleteRating(productSlug, user.id)
+
+        setRatings((currentRatings) => (currentRatings || []).filter(
+          (currentRating) => !(currentRating.productId === productSlug && currentRating.userId === user.id)
+        ))
+
+        notify.success('Rating removed')
+        return
+      }
+
       const savedRating = await APIService.updateRating(productSlug, user.id, rating)
       console.log('[handleRate] savedRating:', savedRating)
 
