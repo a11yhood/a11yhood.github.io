@@ -47,8 +47,9 @@ export function CollectionsPage({
                 if (cancelled) return
                 console.warn('[CollectionsPage] Failed to load public collections:', error)
             } finally {
-                if (cancelled) return
-                setPublicCollectionsFirstLoadComplete(true)
+                if (!cancelled) {
+                    setPublicCollectionsFirstLoadComplete(true)
+                }
             }
         }
 
@@ -79,8 +80,9 @@ export function CollectionsPage({
                 if (cancelled) return
                 console.warn('[CollectionsPage] Failed to load user collections:', error)
             } finally {
-                if (cancelled) return
-                setMyCollectionsFirstLoadComplete(true)
+                if (!cancelled) {
+                    setMyCollectionsFirstLoadComplete(true)
+                }
             }
         }
 
