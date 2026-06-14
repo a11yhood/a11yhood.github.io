@@ -68,5 +68,8 @@ describe('AdminUsersStats accessibility', () => {
 
     expect(screen.getByRole('combobox', { name: /sort users by/i })).toBeInTheDocument()
     expect(screen.getByRole('table', { name: /user statistics and role management table/i })).toBeInTheDocument()
+    const roleSelect = screen.getByRole('combobox', { name: /role for alice/i })
+    expect(roleSelect).toBeInTheDocument()
+    expect(roleSelect.tagName).toBe('SELECT')
   })
 })

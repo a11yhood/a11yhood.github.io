@@ -420,24 +420,21 @@ export function AdminUsersStats({ currentUserRole = 'admin' }: { currentUserRole
                       </TableCell>
                       <TableCell>
                         {canManageRoles ? (
-                          <Select
+                          <select
+                            className="w-32 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                            aria-label={`Role for ${user.username || user.id}`}
                             value={user.role || 'user'}
-                            onValueChange={(value: 'user' | 'moderator' | 'admin') =>
-                              handleRoleChange(user.username || user.id, value)
+                            onChange={(event) =>
+                              handleRoleChange(
+                                user.username || user.id,
+                                event.target.value as 'user' | 'moderator' | 'admin'
+                              )
                             }
                           >
-                            <SelectTrigger
-                              className="w-32"
-                              aria-label={`Change role for ${user.username || user.id}`}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="user">User</SelectItem>
-                              <SelectItem value="moderator">Moderator</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
-                            </SelectContent>
-                          </Select>
+                            <option value="user">User</option>
+                            <option value="moderator">Moderator</option>
+                            <option value="admin">Admin</option>
+                          </select>
                         ) : (
                           <Badge variant="outline" className="capitalize">{user.role || 'user'}</Badge>
                         )}
