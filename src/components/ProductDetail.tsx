@@ -32,8 +32,8 @@ type ProductDetailProps = {
   onRate: (rating: number) => void
   onDiscuss: (content: string, parentId?: string) => void
   onAddTag: (tag: string) => void | Promise<void>
-  onAddToCollection?: (collectionSlug: string) => void
-  onRemoveFromCollection?: (collectionSlug: string) => void
+  onAddToCollection?: (collectionSlug: string, productSlugs?: string[]) => void
+  onRemoveFromCollection?: (collectionSlug: string, productSlugs?: string[]) => void
   onCreateCollection?: (collection: CollectionCreateInput) => void
   allTags: string[]
   allProductTypes?: string[]
@@ -100,6 +100,7 @@ export function ProductDetail({
     (product.editorIds?.includes(user.id) || false)
   )
   const canEditProduct = isOwner || isEditor
+  const productCollectionTarget = product.slug || product.id
 
   useEffect(() => {
     if (import.meta.env.VITE_DEV_MODE !== 'true') return
@@ -512,14 +513,14 @@ export function ProductDetail({
           collections={localCollections}
           currentUserId={user.id}
           currentUsername={user.username}
-          productSlug={product.slug}
-          onAddToCollection={async (collectionSlug) => {
-            await onAddToCollection(collectionSlug)
+          productSlug={productCollectionTarget}
+          onAddToCollection={async (collectionSlug, productSlugs) => {
+            await onAddToCollection(collectionSlug, productSlugs)
             // Refresh collections after adding
             await loadCollections()
           }}
-          onRemoveFromCollection={async (collectionSlug) => {
-            await onRemoveFromCollection(collectionSlug)
+          onRemoveFromCollection={async (collectionSlug, productSlugs) => {
+            await onRemoveFromCollection(collectionSlug, productSlugs)
             // Refresh collections after removing
             await loadCollections()
           }}
@@ -540,7 +541,7 @@ export function ProductDetail({
             // Refresh collections list after creating a new one
             await loadCollections()
           }}
-          initialProductSlugs={[product.slug]}
+          initialProductSlugs={productCollectionTarget ? [productCollectionTarget] : []}
           username={user.username}
         />
       )}

@@ -21,6 +21,7 @@ import { Trash, ArrowUpRight, Prohibit, CheckCircle, FolderOpen } from '@phospho
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import MarkdownText from '@/components/ui/MarkdownText'
 import { ProductFilterTag } from '@/components/ProductFilterTag'
+import { collectionContainsProduct } from '@/lib/collectionUtils'
 
 /**
  * ProductCard component props.
@@ -59,7 +60,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
   const displayRating = Number.isFinite(averageRating) ? averageRating : 0
   const userRating = useMemo(() => user ? productRatings.find((r) => r.userId === user.id)?.rating : undefined, [user, productRatings])
   const productCollections = useMemo(
-    () => collections ? collections.filter((c) => product.slug && (c.productSlugs ?? []).includes(product.slug)) : [],
+    () => collections ? collections.filter((c) => product.slug && collectionContainsProduct(c, product.slug, collections)) : [],
     [collections, product.slug]
   )
 

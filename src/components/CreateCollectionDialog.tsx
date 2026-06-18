@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { CollectionCreateInput } from '@/lib/types'
+import { createCollectionEntriesFromProductSlugs } from '@/lib/collectionUtils'
 
 type CreateCollectionDialogProps = {
   open: boolean
@@ -71,7 +72,7 @@ export function CreateCollectionDialog({
       name: name.trim(),
       description: collectionDescription.trim() || undefined,
       username,
-      productSlugs: initialProductSlugs,
+      entries: createCollectionEntriesFromProductSlugs(initialProductSlugs),
       isPublic,
     })
 

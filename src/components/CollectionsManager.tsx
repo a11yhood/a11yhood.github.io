@@ -2,6 +2,7 @@ import { FolderOpen, Plus } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import { Collection, UserData } from '@/lib/types'
 import { Link } from 'react-router-dom'
+import { collectionContainsProduct } from '@/lib/collectionUtils'
 
 type CollectionsManagerProps = {
   productSlug?: string
@@ -19,7 +20,7 @@ export function CollectionsManager({
   onRequireLogin,
 }: CollectionsManagerProps) {
   const productCollections = productSlug
-    ? userCollections.filter(c => (c.productSlugs ?? []).includes(productSlug))
+    ? userCollections.filter(c => collectionContainsProduct(c, productSlug, userCollections))
     : []
 
   return (

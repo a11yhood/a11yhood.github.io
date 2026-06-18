@@ -74,7 +74,7 @@ export function ProductListPage({
     onDeleteProduct,
     onToggleBan,
     onCreateCollection,
-    onOpenCreateCollection,
+    onOpenAddToCollection,
     searchQuery,
     onSearchChange,
     searchInputValue,
@@ -120,7 +120,7 @@ export function ProductListPage({
     onDeleteProduct: (productId: string) => void
     onToggleBan: (product: Product) => void
     onCreateCollection: (data: CollectionCreateInput) => void
-    onOpenCreateCollection: (defaults: { name?: string; description?: string; productSlugs?: string[]; isPublic?: boolean }) => void
+    onOpenAddToCollection: (defaults: { name?: string; description?: string; productSlugs: string[]; isPublic?: boolean }) => void
     searchQuery: string
     onSearchChange: (query: string) => void
     searchInputValue: string
@@ -281,14 +281,14 @@ export function ProductListPage({
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => onOpenCreateCollection({
+                                    onClick={() => onOpenAddToCollection({
                                         name: searchQuery ? `Search: ${searchQuery}` : 'Filtered Products',
                                         productSlugs: products.map(p => p.slug).filter((s): s is string => !!s),
                                         isPublic: false
                                     })}
                                     className="text-xs"
                                 >
-                                    Save as Collection
+                                    Add to Collection
                                 </Button>
                             )}
 
@@ -361,7 +361,7 @@ export function ProductListPage({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => {
-                                        onOpenCreateCollection({
+                                        onOpenAddToCollection({
                                             name: searchQuery ? `Search: ${searchQuery}` : 'My Collection',
                                             description: `Collection with ${products.length} products`,
                                             productSlugs: products.map(p => p.slug).filter((s): s is string => !!s),
@@ -369,11 +369,11 @@ export function ProductListPage({
                                         })
                                     }}
                                     className="flex items-center gap-2"
-                                    aria-label={searchQuery ? 'Save search results as collection' : 'Save products as collection'}
+                                    aria-label={searchQuery ? 'Add search results to collection' : 'Add products to collection'}
                                 >
                                     <FontAwesomeIcon icon={faLayerGroup} className="w-[16px] h-[16px]" />
-                                    <span className="hidden sm:inline">Save as Collection</span>
-                                    <span className="sm:hidden">Save</span>
+                                    <span className="hidden sm:inline">Add to Collection</span>
+                                    <span className="sm:hidden">Add</span>
                                 </Button>
                             )}
                         </div>

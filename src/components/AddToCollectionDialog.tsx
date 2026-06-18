@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Plus, FolderOpen } from '@phosphor-icons/react'
 import { Collection } from '@/lib/types'
+import { collectionContainsAllProducts, getCollectionProductEntries } from '@/lib/collectionUtils'
 
 type AddToCollectionDialogProps = {
   open: boolean
@@ -12,10 +13,14 @@ type AddToCollectionDialogProps = {
   collections: Collection[]
   currentUserId?: string
   currentUsername?: string
-  productSlug: string
-  onAddToCollection: (collectionSlug: string) => void
-  onRemoveFromCollection: (collectionSlug: string) => void
+  productSlug?: string
+  productSlugs?: string[]
+  onAddToCollection: (collectionSlug: string, productSlugs?: string[]) => void
+  onRemoveFromCollection?: (collectionSlug: string, productSlugs?: string[]) => void
   onCreateNew: () => void
+  title?: string
+  description?: string
+  allowRemoval?: boolean
 }
 
 export function AddToCollectionDialog({
@@ -25,13 +30,22 @@ export function AddToCollectionDialog({
   currentUserId,
   currentUsername,
   productSlug,
+  productSlugs,
   onAddToCollection,
   onRemoveFromCollection,
   onCreateNew,
+  title = 'Add to Collection',
+  description = 'Select collections to add these items to',
+  allowRemoval = true,
 }: AddToCollectionDialogProps) {
   const [selectedCollections, setSelectedCollections] = useState<Set<string>>(new Set())
   const [initialCollections, setInitialCollections] = useState<Set<string>>(new Set())
   const prevOpenRef = useRef(false)
+  const normalizedProductSlugs = useMemo(() => {
+    return (productSlugs && productSlugs.length > 0)
+      ? productSlugs.filter(Boolean)
+      : (productSlug ? [productSlug] : [])
+  }, [productSlug, productSlugs])
 
   const isCollectionOwner = (collection: Collection) => {
     return !!currentUserId && collection.userId === currentUserId
@@ -62,12 +76,12 @@ export function AddToCollectionDialog({
   useEffect(() => {
     if (open && !prevOpenRef.current) {
       // Dialog is opening
-      const initial = new Set(editableCollections.filter(c => (c.productSlugs || []).includes(productSlug)).map(c => c.slug || c.id))
+      const initial = new Set(editableCollections.filter(c => collectionContainsAllProducts(c, normalizedProductSlugs, collections)).map(c => c.slug || c.id))
       setSelectedCollections(initial)
       setInitialCollections(initial)
     }
     prevOpenRef.current = open
-  }, [open, editableCollections, productSlug])
+  }, [open, editableCollections, normalizedProductSlugs, collections])
 
   const handleToggleCollection = (collectionSlug: string, isChecked: boolean) => {
     const newSelected = new Set(selectedCollections)
@@ -87,8 +101,8 @@ export function AddToCollectionDialog({
 
     // Execute all changes
     await Promise.all([
-      ...added.map(slug => onAddToCollection(slug)),
-      ...removed.map(slug => onRemoveFromCollection(slug))
+      ...added.map(slug => onAddToCollection(slug, normalizedProductSlugs)),
+      ...(allowRemoval && onRemoveFromCollection ? removed.map(slug => onRemoveFromCollection(slug, normalizedProductSlugs)) : [])
     ])
 
     onOpenChange(false)
@@ -98,9 +112,9 @@ export function AddToCollectionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add to Collection</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Select collections to add this product to
+            {description}
           </DialogDescription>
         </DialogHeader>
         
@@ -146,7 +160,7 @@ export function AddToCollectionDialog({
                           </div>
                         )}
                         <div className="text-xs text-muted-foreground mt-1">
-                          {(collection.productSlugs || []).length} {(collection.productSlugs || []).length === 1 ? 'product' : 'products'}
+                          {getCollectionProductEntries(collection).length} {getCollectionProductEntries(collection).length === 1 ? 'product' : 'products'}
                         </div>
                       </label>
                     </div>

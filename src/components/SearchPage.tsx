@@ -29,7 +29,7 @@ type SearchPageProps = {
   onDeleteProduct: (productId: string) => void
   onToggleBan: (product: Product) => void
   onCreateCollection: (data: CollectionCreateInput) => void
-  onOpenCreateCollection: (defaults: { name?: string; description?: string; productSlugs?: string[]; isPublic?: boolean }) => void
+  onOpenAddToCollection: (defaults: { name?: string; description?: string; productSlugs: string[]; isPublic?: boolean }) => void
   searchQuery: string
   onSearchChange: (query: string) => void
   searchInputValue: string

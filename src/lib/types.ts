@@ -198,7 +198,11 @@ export type Collection = {
   description?: string
   userId: string
   username: string
-  productSlugs: string[]
+  entries: CollectionEntry[]
+  productIds?: string[]
+  productSlugs?: string[]
+  accessRole?: 'owner' | 'editor'
+  isOwner?: boolean
   editorIds?: string[]
   editorUsernames?: string[]
   createdAt: string | number
@@ -206,11 +210,36 @@ export type Collection = {
   isPublic: boolean
 }
 
+export type CollectionEntryKind = 'product' | 'collection' | 'blogPost' | 'query'
+
+export type CollectionQuerySpec = {
+  search?: string
+  sources?: string[]
+  types?: string[]
+  tags?: string[]
+  tagsMode?: 'or' | 'and'
+  minRating?: number
+  updatedSince?: string | null
+  sortBy?: 'rating' | 'updated_at' | 'created_at'
+  sortOrder?: 'asc' | 'desc'
+}
+
+export type CollectionEntry = {
+  kind: CollectionEntryKind
+  targetId?: string
+  targetSlug?: string
+  query?: CollectionQuerySpec
+  title?: string
+  description?: string
+  order?: number
+  pinned?: boolean
+}
+
 export type CollectionCreateInput = {
   name: string
   description?: string
   isPublic: boolean
-  productSlugs?: string[]
+  entries: CollectionEntry[]
   username: string
 }
 

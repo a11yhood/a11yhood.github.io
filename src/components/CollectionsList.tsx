@@ -7,6 +7,7 @@ import { Trash, Lock, LockOpen, Pencil, FolderOpen } from '@phosphor-icons/react
 import { formatDistanceToNow } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import { pickCollectionImage } from '@/lib/collectionUtils'
+import { getCollectionEntries, getCollectionProductEntries, resolveCollectionProducts } from '@/lib/collectionUtils'
 import { ProductFilterTag } from '@/components/ProductFilterTag'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
 import MarkdownText from '@/components/ui/MarkdownText'
@@ -35,18 +36,8 @@ export function CollectionsList({
   const navigate = useNavigate()
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
 
-  // Index products by slug once for O(1) per-collection lookups.
-  const productsBySlug = useMemo(() => {
-    const map = new Map<string, Product>()
-    ;(products || []).forEach(p => { if (p.slug) map.set(p.slug, p) })
-    return map
-  }, [products])
-
   const getProductsInCollection = (collection: Collection) =>
-    (collection.productSlugs || []).flatMap(slug => {
-      const p = productsBySlug.get(slug)
-      return p ? [p] : []
-    })
+    resolveCollectionProducts(collection, collections, products)
 
   // Compute a representative image for each collection once per data change.
   const collectionImages = useMemo(() => {
@@ -54,10 +45,7 @@ export function CollectionsList({
     const usedProductKeys = new Set<string>()
 
     collections.forEach(collection => {
-      const collectionProducts = (collection.productSlugs || []).flatMap(slug => {
-        const p = productsBySlug.get(slug)
-        return p ? [p] : []
-      })
+      const collectionProducts = resolveCollectionProducts(collection, collections, products)
       const picked = pickCollectionImage(collectionProducts, { usedProductKeys })
       result[collection.id] = picked
       if (picked?.productKey) {
@@ -65,7 +53,7 @@ export function CollectionsList({
       }
     })
     return result
-  }, [collections, productsBySlug])
+  }, [collections, products])
 
   const getTopTagsForCollection = (collectionProducts: Product[], limit = 5) => {
     const tagCounts = new Map<string, number>()
@@ -92,6 +80,8 @@ export function CollectionsList({
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {collections.map((collection) => {
         const collectionProducts = getProductsInCollection(collection)
+        const collectionEntries = getCollectionEntries(collection)
+        const productEntries = getCollectionProductEntries(collection)
         const isOwner = currentUserId === collection.userId
         const isEditorById = !!currentUserId && (collection.editorIds || []).includes(currentUserId)
         const isEditorByUsername = !!currentUsername && (collection.editorUsernames || []).includes(currentUsername)
@@ -189,8 +179,8 @@ export function CollectionsList({
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
                   {isFirstLoadComplete
-                    ? `${(collection.productSlugs || []).length} ${(collection.productSlugs || []).length === 1 ? 'product' : 'products'}`
-                    : 'Products: ?'}
+                    ? `${collectionEntries.length} ${collectionEntries.length === 1 ? 'item' : 'items'}${productEntries.length !== collectionEntries.length ? ` (${productEntries.length} products)` : ''}`
+                    : 'Items: ?'}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   Updated {formatDistanceToNow(collection.updatedAt, { addSuffix: true })}
@@ -225,6 +215,15 @@ export function CollectionsList({
                       +{collectionProducts.length - 3} more
                     </Badge>
                   )}
+                </div>
+              )}
+              {collectionEntries.some((entry) => entry.kind !== 'product') && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {collectionEntries.filter((entry) => entry.kind !== 'product').slice(0, 3).map((entry, index) => (
+                    <Badge key={`${entry.kind}-${entry.targetSlug || entry.targetId || index}`} variant="outline" className="text-xs">
+                      {entry.kind === 'collection' ? 'Collection' : 'Blog post'}
+                    </Badge>
+                  ))}
                 </div>
               )}
               {topTags.length > 0 && (

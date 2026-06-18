@@ -86,6 +86,7 @@ export function CollectionDetailPage({
     return (
         <CollectionDetail
             collection={effectiveCollection}
+            collections={collections}
             ratings={ratings}
             products={products}
             onBack={() => navigate('/collections')}

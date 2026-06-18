@@ -1,6 +1,7 @@
 import { Collection, Product, Rating, UserAccount } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardHeader, CardDescription, CardContent, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Lock, LockOpen, Trash, Pencil } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
@@ -12,9 +13,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
 import MarkdownText from '@/components/ui/MarkdownText'
 import { useNotifications } from '@/contexts/NotificationContext'
+import { collectionEntryKey, getCollectionEntries, getCollectionEntryProductCandidates, resolveCollectionProducts } from '@/lib/collectionUtils'
 
 type CollectionDetailProps = {
   collection: Collection
+  collections?: Collection[]
   ratings: Rating[]
   products?: Product[]
   onBack: () => void
@@ -31,6 +34,7 @@ type CollectionDetailProps = {
 
 export function CollectionDetail({
   collection,
+  collections = [],
   ratings,
   products: globalProducts,
   onBack,
@@ -71,16 +75,22 @@ export function CollectionDetail({
   const globalProductsRef = useRef(globalProducts)
   useEffect(() => { globalProductsRef.current = globalProducts }, [globalProducts])
 
-  const orderedProductSlugs = useMemo(
-    () => collection.productSlugs ?? [],
-    [collection.productSlugs]
+  const orderedEntries = useMemo(
+    () => getCollectionEntries(collection),
+    [collection]
   )
 
   // Set-based key for fetch behavior: changes only when membership changes,
   // so reorder-only updates do not trigger network requests.
   const slugSetKey = useMemo(
-    () => orderedProductSlugs.slice().sort().join(','),
-    [orderedProductSlugs]
+    () => orderedEntries
+      .filter((entry) => entry.kind === 'product')
+      .map((entry) => entry.targetSlug || entry.targetId || '')
+      .filter(Boolean)
+      .slice()
+      .sort()
+      .join(','),
+    [orderedEntries]
   )
 
   // Fetch effect: runs only when the slug set changes.
@@ -116,7 +126,21 @@ export function CollectionDetail({
     console.log(`[CollectionDetail] Fetching ${missingSlugs.length} missing products`)
 
     Promise.allSettled(
-      missingSlugs.map((slug) => APIService.getProduct(slug))
+      missingSlugs.map(async (slug) => {
+        const candidates = getCollectionEntryProductCandidates({ targetSlug: slug })
+        for (const candidate of candidates) {
+          try {
+            const product = await APIService.getProduct(candidate)
+            if (product) {
+              return product
+            }
+          } catch {
+            // Keep trying fallback candidates (e.g., UUID extracted from a prefixed key).
+            continue
+          }
+        }
+        return null
+      })
     ).then((results) => {
       if (cancelled) return
       results.forEach((result, i) => {
@@ -142,20 +166,50 @@ export function CollectionDetail({
   // fallbacks to produce the ordered list for rendering.  Recomputes whenever
   // the slug set, global cache, or locally-fetched set changes — without issuing
   // any network requests.
-  const collectionProducts = useMemo(() => {
+  const allProductsForResolution = useMemo(() => {
     // Read this state value so eslint recognizes the dependency that invalidates
     // memoization when fetchedBySlugRef is mutated.
     void fetchVersion
-    const slugs = orderedProductSlugs
-    if (slugs.length === 0) return []
-    const bySlug = new Map<string, Product>()
-    // Locally-fetched products (lower priority — may be slightly stale)
-    fetchedBySlugRef.current.forEach((p, slug) => bySlug.set(slug, p))
-    // Global products are always fresh and take precedence
-    ;(globalProducts || []).forEach((p) => { if (p?.slug) bySlug.set(p.slug, p) })
-    return slugs.map((s) => bySlug.get(s)).filter((p): p is Product => p != null)
-  // fetchVersion triggers recomputation when fetchedBySlugRef is mutated
-  }, [orderedProductSlugs, globalProducts, fetchVersion])
+
+    const merged: Product[] = []
+    const seen = new Set<string>()
+
+    const addProduct = (product?: Product | null) => {
+      if (!product) {
+        return
+      }
+
+      const key = product.slug || product.id
+      if (!key || seen.has(key)) {
+        return
+      }
+
+      seen.add(key)
+      merged.push(product)
+    }
+
+    ;(globalProducts || []).forEach(addProduct)
+    fetchedBySlugRef.current.forEach((product) => addProduct(product))
+
+    return merged
+  }, [globalProducts, fetchVersion])
+
+  const collectionProducts = useMemo(() => {
+    return resolveCollectionProducts(collection, collections, allProductsForResolution)
+  }, [collection, collections, allProductsForResolution])
+
+  const productLabelByKey = useMemo(() => {
+    const labels = new Map<string, string>()
+    allProductsForResolution.forEach((product) => {
+      if (product.slug) {
+        labels.set(product.slug, product.name)
+      }
+      if (product.id) {
+        labels.set(product.id, product.name)
+      }
+    })
+    return labels
+  }, [allProductsForResolution])
 
   // Derive top tags from the collection's products, sorted by frequency
   const topTags = useMemo(() => {
@@ -527,7 +581,7 @@ export function CollectionDetail({
             </div>
             <div>
               <span className="text-muted-foreground">Products:</span>{' '}
-              <span className="font-medium">{collection.productSlugs?.length ?? collectionProducts.length}</span>
+              <span className="font-medium">{collectionProducts.length}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Updated:</span>{' '}
@@ -536,6 +590,60 @@ export function CollectionDetail({
               </span>
             </div>
           </div>
+
+          {orderedEntries.length > 0 && (
+            <div className="mt-4">
+              <h3 className="font-medium mb-2">Included items</h3>
+              <ul className="flex flex-wrap gap-2">
+                {orderedEntries.map((entry, index) => {
+                  const key = collectionEntryKey(entry, index)
+                  const targetCollection = entry.kind === 'collection'
+                    ? collections.find((candidate) => candidate.slug === entry.targetSlug || candidate.id === entry.targetId)
+                    : null
+
+                  if (entry.kind === 'product') {
+                    const candidates = getCollectionEntryProductCandidates(entry)
+                    const resolvedLabel = candidates
+                      .map((candidate) => productLabelByKey.get(candidate))
+                      .find((name): name is string => !!name)
+                    const targetRef = entry.targetSlug || entry.targetId
+                    const targetLabel = entry.title && targetRef
+                      ? `${entry.title} (${targetRef})`
+                      : (resolvedLabel || entry.title || targetRef || `Product ${index + 1}`)
+                    return (
+                      <li key={key}>
+                        <Badge variant="secondary">Product: {targetLabel}</Badge>
+                      </li>
+                    )
+                  }
+
+                  if (entry.kind === 'collection') {
+                    return (
+                      <li key={key}>
+                        <Link
+                          to={`/collections/${targetCollection?.slug || targetCollection?.id || entry.targetSlug || entry.targetId || ''}`}
+                          className="no-underline"
+                        >
+                          <Badge variant="outline">Collection: {targetCollection?.name || entry.title || entry.targetSlug || entry.targetId}</Badge>
+                        </Link>
+                      </li>
+                    )
+                  }
+
+                  return (
+                    <li key={key}>
+                      <Link
+                        to={`/blog/${entry.targetSlug || entry.targetId || ''}`}
+                        className="no-underline"
+                      >
+                        <Badge variant="outline">Blog post: {entry.title || entry.targetSlug || entry.targetId}</Badge>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
           <div className="mt-3 text-sm">
             <span className="text-muted-foreground">Collaborators:</span>{' '}
             {collaboratorIds.length > 0 ? (
@@ -662,8 +770,8 @@ export function CollectionDetail({
                   product={product}
                   ratings={ratings}
                   onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
-                  onClick={() => onSelectProduct(product.slug)}
-                  onDelete={onRemoveProduct}
+                  onClick={() => onSelectProduct(product.slug || product.id)}
+                  onDelete={(productSlug) => onRemoveProduct(productSlug || product.id)}
                   userAccount={userAccount}
                 />
                 {canManageCollectionProducts && (
@@ -673,7 +781,7 @@ export function CollectionDetail({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation()
-                        onRemoveProduct(product.slug)
+                        onRemoveProduct(product.slug || product.id)
                       }}
                       aria-label="Remove from collection"
                     >

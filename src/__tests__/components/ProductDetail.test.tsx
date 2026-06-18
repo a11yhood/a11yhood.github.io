@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ProductDetail } from '@/components/ProductDetail'
 import { APIService } from '@/lib/api'
 import { createMockProduct } from '../helpers/create-mocks'
+import type { Collection } from '@/lib/types'
 
 describe('ProductDetail rating section', () => {
   afterEach(() => {
@@ -99,6 +101,45 @@ describe('ProductDetail rating section', () => {
 
     await waitFor(() => {
       expect(getUserCollectionsSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  it('adds to collection using product id when slug is missing', async () => {
+    const user = userEvent.setup()
+    const onAddToCollection = vi.fn(async () => undefined)
+    const noSlugProduct = createMockProduct({ id: 'product-no-slug', slug: undefined })
+    const editableCollection: Collection = {
+      id: 'collection-1',
+      slug: 'collection-1',
+      name: 'Collection 1',
+      userId: 'user-1',
+      username: 'test-user',
+      productSlugs: [],
+      isPublic: true,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }
+
+    render(
+      <MemoryRouter>
+        <ProductDetail
+          {...baseProps}
+          product={noSlugProduct}
+          user={{ id: 'user-1', username: 'test-user', avatarUrl: '' } as any}
+          userAccount={{ id: 'user-1', username: 'test-user', role: 'user' } as any}
+          userCollections={[editableCollection]}
+          onAddToCollection={onAddToCollection}
+          onRemoveFromCollection={vi.fn(async () => undefined)}
+        />
+      </MemoryRouter>
+    )
+
+    await user.click(screen.getByRole('button', { name: /add to collection/i }))
+    await user.click(screen.getByRole('checkbox', { name: /collection 1/i }))
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+
+    await waitFor(() => {
+      expect(onAddToCollection).toHaveBeenCalledWith('collection-1', ['product-no-slug'])
     })
   })
 })

@@ -276,21 +276,26 @@ export function ProductDetailPageWrapper({
         localDiscussionsRef.current = localDiscussions
     }, [localDiscussions])
 
-    const handleAddToCollection = async (collectionSlug: string) => {
-        if (!slug) return
+    const handleAddToCollection = async (collectionSlug: string, productSlugs?: string[]) => {
+        const explicitTarget = productSlugs?.find((value) => !!value)
+        const targetSlug = explicitTarget || slug
+        if (!targetSlug) return
 
         if (!collectionSlug) return
 
-        const updated = await APIService.addProductToCollection(collectionSlug, slug)
+        const updated = await APIService.addProductToCollection(collectionSlug, targetSlug)
         if (updated) {
             onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
             notify.success('Added to collection')
         }
     }
 
-    const handleRemoveFromCollection = async (collectionSlug: string) => {
-        if (!slug) return
-        const updated = await APIService.removeProductFromCollection(collectionSlug, slug)
+    const handleRemoveFromCollection = async (collectionSlug: string, productSlugs?: string[]) => {
+        const explicitTarget = productSlugs?.find((value) => !!value)
+        const targetSlug = explicitTarget || slug
+        if (!targetSlug) return
+
+        const updated = await APIService.removeProductFromCollection(collectionSlug, targetSlug)
         if (updated) {
             onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
             notify.success('Removed from collection')

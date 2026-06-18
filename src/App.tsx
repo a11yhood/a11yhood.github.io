@@ -12,6 +12,7 @@ import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearch
 import { Button } from '@/components/ui/button'
 import { BlogPostDraftPage } from '@/components/BlogPostDraftPage'
 import { CreateCollectionDialog } from '@/components/CreateCollectionDialog'
+import { AddToCollectionDialog } from '@/components/AddToCollectionDialog'
 import { EditCollectionDialog } from '@/components/EditCollectionDialog'
 import { AboutPage } from '@/components/AboutPage'
 import { UserSignup } from '@/components/UserSignup'
@@ -118,7 +119,7 @@ function App() {
   const [collections, setCollections] = useState<Collection[]>([])
   const [collectionsLoaded, setCollectionsLoaded] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
-  const [showCreateCollectionFromSearchDialog, setShowCreateCollectionFromSearchDialog] = useState(false)
+  const [showAddSearchResultsDialog, setShowAddSearchResultsDialog] = useState(false)
   const [showEditCollectionDialog, setShowEditCollectionDialog] = useState(false)
   const [editingCollection, setEditingCollection] = useState<Collection | null>(null)
   const [initialCollectionProductSlugs, setInitialCollectionProductSlugs] = useState<string[]>([])
@@ -1741,65 +1742,13 @@ function App() {
 
   const handleCreateCollection = async (collectionData: CollectionCreateInput) => {
     try {
-      const { productSlugs = [], ...rest } = collectionData
-      console.debug('[CreateCollection] Payload being sent:', {
-        ...rest,
-        productSlugs,
-      })
-      const newCollection = await APIService.createCollection({
-        ...rest,
-        productSlugs: [], // Create with empty array, then add products
-      })
-      let finalCollection = newCollection
-      if (productSlugs && productSlugs.length > 0) {
-        const collectionSlug = newCollection.slug || newCollection.id
-        const results = await Promise.all(
-          productSlugs.map(productSlug => APIService.addProductToCollection(collectionSlug, productSlug))
-        )
-        const lastUpdated = results.filter(Boolean).pop()
-        if (lastUpdated) finalCollection = lastUpdated
-      }
-      setCollections((current) => [finalCollection, ...current])
+      console.debug('[CreateCollection] Payload being sent:', collectionData)
+      const newCollection = await APIService.createCollection(collectionData)
+      setCollections((current) => [newCollection, ...current])
       notify.success('Collection created successfully')
     } catch (error) {
       console.error('Failed to create collection:', error)
       showPageError('Failed to create collection')
-    }
-  }
-
-  const handleCreateCollectionFromSearch = async (collectionData: CollectionCreateInput) => {
-    try {
-      const payload: Parameters<typeof APIService.createCollectionFromSearch>[0] = {
-        name: collectionData.name,
-        description: collectionData.description,
-        isPublic: collectionData.isPublic,
-        search: searchQuery || undefined,
-        sources: selectedSources.length > 0 ? selectedSources : undefined,
-        types: selectedTypes.length > 0 ? selectedTypes : undefined,
-        tags: selectedTags.length > 0 ? selectedTags : undefined,
-        minRating: minRating > 0 ? minRating : undefined,
-      }
-      // Only include tagsMode if tags are actually present
-      if (selectedTags.length > 0) {
-        payload.tagsMode = 'or'
-      }
-      console.debug('[CreateCollectionFromSearch] Payload being sent:', payload)
-      const newCollection = await APIService.createCollectionFromSearch(payload)
-      setCollections((current) => [newCollection, ...current])
-      setShowCreateCollectionFromSearchDialog(false)
-      notify.success('Collection created from search results!')
-    } catch (error: unknown) {
-      const apiError = error as ApiErrorLike
-      console.error('[CreateCollectionFromSearch] Error response:', {
-        message: apiError.message,
-        status: apiError.status,
-        detail: apiError.data?.detail,
-        type: apiError.data?.type,
-        debugInfo: apiError.data?.debug_info,
-        fullData: apiError.data
-      })
-      const errorDetail = apiError.data?.detail || apiError.message || 'Failed to create collection from search'
-      showPageError(errorDetail)
     }
   }
 
@@ -1974,12 +1923,12 @@ function App() {
                   onRate={handleRate}
                   onDeleteProduct={handleDeleteProduct}
                   onCreateCollection={handleCreateCollection}
-                  onOpenCreateCollection={(defaults) => {
+                  onOpenAddToCollection={(defaults) => {
                     setInitialCollectionName(defaults.name ?? '')
                     setInitialCollectionDescription(defaults.description ?? '')
-                    setInitialCollectionProductSlugs(defaults.productSlugs ?? [])
+                    setInitialCollectionProductSlugs(defaults.productSlugs)
                     setInitialCollectionIsPublic(defaults.isPublic ?? true)
-                    setShowCreateCollectionFromSearchDialog(true)
+                    setShowAddSearchResultsDialog(true)
                   }}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
@@ -2129,17 +2078,27 @@ function App() {
                 username={user.username}
               />
 
-              <CreateCollectionDialog
-                open={showCreateCollectionFromSearchDialog}
-                onOpenChange={setShowCreateCollectionFromSearchDialog}
-                onCreateCollection={handleCreateCollectionFromSearch}
-                initialName={initialCollectionName}
-                initialDescription={initialCollectionDescription}
-                initialIsPublic={initialCollectionIsPublic}
-                title="Save Search Results as Collection"
-                description="Create a new collection from your current search and filter results"
+              <AddToCollectionDialog
+                open={showAddSearchResultsDialog}
+                onOpenChange={setShowAddSearchResultsDialog}
+                collections={collections}
+                currentUserId={userAccount?.id || user?.id}
+                currentUsername={user?.username}
+                productSlugs={initialCollectionProductSlugs}
+                onAddToCollection={async (collectionSlug, productSlugs = []) => {
+                  if (productSlugs.length === 0) return
+                  await APIService.addMultipleProductsToCollection(collectionSlug, productSlugs)
+                  const refreshed = await APIService.getUserCollections()
+                  setCollections(refreshed)
+                }}
+                onCreateNew={() => {
+                  setShowAddSearchResultsDialog(false)
+                  setShowCreateCollectionDialog(true)
+                }}
+                title="Add Search Results to Collection"
+                description="Select one or more collections to add the current search results to"
+                allowRemoval={false}
                 username={user.username}
-                hideProductSlugs
               />
 
               <EditCollectionDialog

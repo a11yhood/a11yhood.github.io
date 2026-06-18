@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import MarkdownText from '@/components/ui/MarkdownText'
 import { Prohibit, Trash, FolderOpen } from '@phosphor-icons/react'
 import { ProductFilterTag } from '@/components/ProductFilterTag'
+import { collectionContainsProduct } from '@/lib/collectionUtils'
 
 type ProductListItemProps = {
   product: Product
@@ -30,7 +31,7 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
   const productRatings = useMemo(() => ratings.filter((r) => r.productId === product.id), [ratings, product.id])
   const averageRating = useMemo(() => calculateAverageRating(product.sourceRating, productRatings, product.id), [product.sourceRating, productRatings, product.id])
   const productCollections = useMemo(
-    () => collections ? collections.filter((c) => product.slug && (c.productSlugs ?? []).includes(product.slug)) : [],
+    () => collections ? collections.filter((c) => product.slug && collectionContainsProduct(c, product.slug, collections)) : [],
     [collections, product.slug]
   )
 
