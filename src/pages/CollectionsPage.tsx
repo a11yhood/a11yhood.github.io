@@ -138,6 +138,9 @@ export function CollectionsPage({
     // Merge products from App and locally loaded collection products
     const allProducts = [...products, ...collectionProducts]
 
+    const sectionStatus = (count: number) =>
+        !collectionsLoaded ? 'Loading…' : count === 0 ? 'No collections found.' : `${count} ${count === 1 ? 'collection' : 'collections'}.`
+
     return (
         <div>
             {user ? (
@@ -151,8 +154,11 @@ export function CollectionsPage({
                             </Button>
                         </div>
                     </div>
-                    <div>
-                        <h2 className="text-2xl font-semibold mb-4">Your Collections</h2>
+                    <div aria-busy={!collectionsLoaded}>
+                        <h2 className="text-2xl font-semibold mb-4">
+                            Your Collections
+                            <span className="sr-only" aria-live="polite" aria-atomic="true">{sectionStatus(ownerCollections.length)}</span>
+                        </h2>
                         <CollectionsList
                             collections={paginatedOwnerCollections}
                             products={allProducts}
@@ -190,8 +196,11 @@ export function CollectionsPage({
                             </div>
                         )}
                     </div>
-                    <div className="mt-10">
-                        <h2 className="text-2xl font-semibold mb-4">Editor Collections</h2>
+                    <div className="mt-10" aria-busy={!collectionsLoaded}>
+                        <h2 className="text-2xl font-semibold mb-4">
+                            Editor Collections
+                            <span className="sr-only" aria-live="polite" aria-atomic="true">{sectionStatus(editorCollections.length)}</span>
+                        </h2>
                         <CollectionsList
                             collections={paginatedEditorCollections}
                             products={allProducts}
@@ -242,8 +251,11 @@ export function CollectionsPage({
                 </div>
             )}
 
-            <div className="mt-10">
-                <h2 className="text-2xl font-semibold mb-4">Public Collections</h2>
+            <div className="mt-10" aria-busy={!collectionsLoaded}>
+                <h2 className="text-2xl font-semibold mb-4">
+                    Public Collections
+                    <span className="sr-only" aria-live="polite" aria-atomic="true">{sectionStatus(filteredPublicCollections.length)}</span>
+                </h2>
                 <CollectionsList
                     collections={paginatedPublicCollections}
                     products={allProducts}

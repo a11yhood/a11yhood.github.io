@@ -52,8 +52,8 @@ export function CollectionsList({
 
   if (!collections || collections.length === 0) {
     return (
-      <div className="text-center py-12" role="status">
-        <p className="text-muted-foreground">{isFirstLoadComplete ? 'No collections found' : 'Loading...'}</p>
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">{isFirstLoadComplete ? 'No collections found' : 'Loading…'}</p>
       </div>
     )
   }

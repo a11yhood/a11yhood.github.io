@@ -66,7 +66,7 @@ export function CollectionDetail({
   const [isSubmittingCollaboratorRequest, setIsSubmittingCollaboratorRequest] = useState(false)
   const [hasPendingCollaboratorRequest, setHasPendingCollaboratorRequest] = useState(false)
   const [collaboratorError, setCollaboratorError] = useState<string>('')
-  const [resolvedNestedCollections, setResolvedNestedCollections] = useState<Record<string, Collection>>({})
+  const [resolvedNestedCollections, setResolvedNestedCollections] = useState<Record<string, Collection | null>>({})
 
   // Products individually fetched by this component (not present in globalProducts).
   // Stored in a ref so mutations don't trigger re-renders; `fetchVersion` is bumped
@@ -84,6 +84,11 @@ export function CollectionDetail({
     () => getCollectionEntries(collection),
     [collection]
   )
+
+  const collectionKey = collection.slug || collection.id
+  useEffect(() => {
+    setResolvedNestedCollections({})
+  }, [collectionKey])
 
   // Set-based key for fetch behavior: changes only when membership changes,
   // so reorder-only updates do not trigger network requests.
@@ -217,7 +222,7 @@ export function CollectionDetail({
       .map(({ entry }) => entry.targetSlug || entry.targetId || '')
       .filter(Boolean)
       .filter((targetKey) => {
-        if (resolvedNestedCollections[targetKey]) {
+        if (Object.prototype.hasOwnProperty.call(resolvedNestedCollections, targetKey)) {
           return false
         }
 
@@ -240,6 +245,9 @@ export function CollectionDetail({
             const key = unresolvedKeys[index]
             if (result.status === 'fulfilled' && result.value) {
               next[key] = result.value
+            } else {
+              // Mark failed lookups so 404/500 targets do not trigger an infinite refetch loop.
+              next[key] = null
             }
           })
           return next
@@ -578,8 +586,7 @@ export function CollectionDetail({
     }
 
     try {
-      const rawEntries = Array.isArray(collection.entries) ? collection.entries : orderedEntries
-      const nextEntries = rawEntries.filter((_, index) => index !== sourceIndex)
+      const nextEntries = orderedEntries.filter((_, index) => index !== sourceIndex)
       const updated = await APIService.updateCollection(collection.slug || collection.id, {
         entries: nextEntries.map((entry) => serializeCollectionEntryForUpdate(entry)) as unknown as CollectionEntry[],
       })

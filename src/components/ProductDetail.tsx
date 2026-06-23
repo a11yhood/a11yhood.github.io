@@ -15,7 +15,7 @@ import { AddToCollectionDialog } from './AddToCollectionDialog'
 import { CreateCollectionDialog } from './CreateCollectionDialog'
 import { ProductEditors } from './ProductEditors'
 import { CollapsibleCard } from './CollapsibleCard'
-import { Product, ProductUpdate, Rating, Discussion, UserData, Collection, CollectionCreateInput, UserAccount } from '@/lib/types'
+import { Product, ProductUpdate, Rating, Discussion, UserData, Collection, CollectionCreateInput, UserAccount, AddToCollectionTargets } from '@/lib/types'
 import { APIService, resolveApiImageUrl } from '@/lib/api'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { formatSourceLabel, getSourceIcon, calculateAverageRating, getCanonicalHost, formatRelativeTime } from '@/lib/utils'
@@ -33,8 +33,8 @@ type ProductDetailProps = {
   onRate: (rating: number) => void
   onDiscuss: (content: string, parentId?: string) => void
   onAddTag: (tag: string) => void | Promise<void>
-  onAddToCollection?: (collectionSlug: string, productSlugs?: string[]) => void
-  onRemoveFromCollection?: (collectionSlug: string, productSlugs?: string[]) => void
+  onAddToCollection?: (collectionSlug: string, targets?: AddToCollectionTargets) => void
+  onRemoveFromCollection?: (collectionSlug: string, targets?: AddToCollectionTargets) => void
   onCreateCollection?: (collection: CollectionCreateInput) => void
   allTags: string[]
   allProductTypes?: string[]

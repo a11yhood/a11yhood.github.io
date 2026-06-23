@@ -19,7 +19,7 @@ type AddToCollectionDialogProps = {
   entriesToAdd?: CollectionEntry[]
   preselectedCollectionKeys?: string[]
   onAddToCollection: (collectionSlug: string, targets?: AddToCollectionTargets) => void | Promise<void>
-  onRemoveFromCollection?: (collectionSlug: string, productSlugs?: string[]) => void | Promise<void>
+  onRemoveFromCollection?: (collectionSlug: string, targets?: AddToCollectionTargets) => void | Promise<void>
   onCreateNew: () => void
   title?: string
   description?: string
@@ -67,14 +67,28 @@ export function AddToCollectionDialog({
       .map((entry) => getCollectionEntryProductCandidates(entry))
       .filter((candidates) => candidates.length > 0)
   }, [normalizedEntriesToAdd])
+  const normalizedCollectionTargetGroups = useMemo(() => {
+    return normalizedEntriesToAdd
+      .filter((entry) => entry.kind === 'collection')
+      .map((entry) => new Set([entry.targetSlug, entry.targetId].filter(Boolean) as string[]))
+      .filter((candidates) => candidates.size > 0)
+  }, [normalizedEntriesToAdd])
   const normalizedRemovalProductTargets = useMemo(() => {
     return deriveRemovalProductTargets(normalizedEntriesToAdd, normalizedProductSlugs)
   }, [normalizedEntriesToAdd, normalizedProductSlugs])
   const canPreselectExistingCollections = useMemo(
     () => normalizedEntriesToAdd.length > 0
-      && normalizedEntriesToAdd.every((entry) => entry.kind === 'product' && !!(entry.targetSlug || entry.targetId))
-      && normalizedProductTargetGroups.length > 0,
-    [normalizedEntriesToAdd, normalizedProductTargetGroups]
+      && (
+        (
+          normalizedEntriesToAdd.every((entry) => entry.kind === 'product' && !!(entry.targetSlug || entry.targetId))
+          && normalizedProductTargetGroups.length > 0
+        )
+        || (
+          normalizedEntriesToAdd.every((entry) => entry.kind === 'collection' && !!(entry.targetSlug || entry.targetId))
+          && normalizedCollectionTargetGroups.length > 0
+        )
+      ),
+    [normalizedEntriesToAdd, normalizedProductTargetGroups, normalizedCollectionTargetGroups]
   )
 
   const collectionTargetsToAdd = useMemo(
@@ -139,32 +153,34 @@ export function AddToCollectionDialog({
           return false
         }
 
-        const sourceKeys = new Set<string>([
-          sourceCollectionId,
-          sourceCollection.id,
-          sourceCollection.slug,
-        ].filter(Boolean) as string[])
+        if (!allowRemoval) {
+          const sourceKeys = new Set<string>([
+            sourceCollectionId,
+            sourceCollection.id,
+            sourceCollection.slug,
+          ].filter(Boolean) as string[])
 
-        // Exclude targets that already include this source as a direct child
-        // to prevent duplicate entries for the same collection.
-        const hasDirectDuplicate = getCollectionEntries(collection).some((entry) => {
-          if (entry.kind !== 'collection') {
-            return false
+          // In add-only mode, hide targets that already include the source to
+          // avoid presenting no-op duplicate additions.
+          const hasDirectDuplicate = getCollectionEntries(collection).some((entry) => {
+            if (entry.kind !== 'collection') {
+              return false
+            }
+
+            const key = entry.targetId || entry.targetSlug || ''
+            return !!key && sourceKeys.has(key)
+          })
+
+          if (hasDirectDuplicate) {
+            return true
           }
-
-          const entryTarget = entry.targetId || entry.targetSlug
-          return !!entryTarget && sourceKeys.has(entryTarget)
-        })
-
-        if (hasDirectDuplicate) {
-          return true
         }
 
         // Prevent cycles: if source already contains target, target cannot include source.
         return collectionContainsCollection(sourceCollection, targetCollectionKey, collections)
       })
     })
-  }, [collectionTargetsToAdd, editableCollections, collections])
+  }, [collectionTargetsToAdd, editableCollections, collections, allowRemoval])
 
   const computedPreselectedCollectionKeys = useMemo(() => {
     if (preselectedCollectionKeysProp && preselectedCollectionKeysProp.length > 0) {
@@ -175,6 +191,23 @@ export function AddToCollectionDialog({
       return []
     }
 
+    if (normalizedCollectionTargetGroups.length > 0 && normalizedProductTargetGroups.length === 0) {
+      return eligibleCollections
+        .filter((collection) => normalizedCollectionTargetGroups.every((sourceKeys) => {
+          return getCollectionEntries(collection).some((entry) => {
+            if (entry.kind !== 'collection') {
+              return false
+            }
+
+            const key = entry.targetId || entry.targetSlug || ''
+            return !!key && sourceKeys.has(key)
+          })
+        }))
+        .map((collection) => collection.slug || collection.id)
+        .filter(Boolean)
+        .sort()
+    }
+
     return eligibleCollections
       .filter((collection) => normalizedProductTargetGroups.every((candidates) => {
         return candidates.some((candidate) => collectionContainsProduct(collection, candidate, collections))
@@ -182,7 +215,14 @@ export function AddToCollectionDialog({
       .map((c) => c.slug || c.id)
       .filter(Boolean)
       .sort()
-  }, [preselectedCollectionKeysProp, canPreselectExistingCollections, eligibleCollections, normalizedProductTargetGroups, collections])
+  }, [
+    preselectedCollectionKeysProp,
+    canPreselectExistingCollections,
+    eligibleCollections,
+    normalizedProductTargetGroups,
+    normalizedCollectionTargetGroups,
+    collections,
+  ])
 
   const preselectedCollectionSignature = computedPreselectedCollectionKeys.join('|')
 
@@ -243,10 +283,14 @@ export function AddToCollectionDialog({
     onOpenChange(false)
 
     const payload = entriesToAdd && entriesToAdd.length > 0 ? normalizedEntriesToAdd : normalizedProductSlugs
+    const hasNonProductEntries = normalizedEntriesToAdd.some((entry) => entry.kind !== 'product')
+    const removalPayload = hasNonProductEntries
+      ? normalizedEntriesToAdd
+      : normalizedRemovalProductTargets
 
     void Promise.all([
       ...added.map((slug) => onAddToCollection(slug, payload)),
-      ...(allowRemoval && onRemoveFromCollection ? removed.map((slug) => onRemoveFromCollection(slug, normalizedRemovalProductTargets)) : [])
+      ...(allowRemoval && onRemoveFromCollection ? removed.map((slug) => onRemoveFromCollection(slug, removalPayload)) : [])
     ]).catch(() => undefined)
   }
 

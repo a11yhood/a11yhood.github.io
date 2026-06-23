@@ -22,7 +22,6 @@ import { AddToCollectionDefaults, AddToCollectionTargets, Product, ProductUpdate
 import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { logger, setRuntimeLogLevel } from '@/lib/logger'
 import { createCollectionEntriesFromProductIds, createCollectionEntriesFromProductSlugs, getCollectionEntries, getCollectionProductEntries } from '@/lib/collectionUtils'
-import { normalizeProductTargets } from '@/lib/addToCollection'
 import { serializeCollectionEntryForUpdate } from '@/lib/collectionEntrySerialization'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 // API adapter disabled - using real backend API now
@@ -1835,6 +1834,27 @@ function App() {
     return `${entry.kind}:${entry.targetSlug || entry.targetId || entry.title || ''}`
   }
 
+  const collectionEntriesMatch = (entry: CollectionEntry, candidate: CollectionEntry) => {
+    if (entry.kind !== candidate.kind) {
+      return false
+    }
+
+    if (entry.kind === 'query') {
+      return JSON.stringify(entry.query || {}) === JSON.stringify(candidate.query || {})
+    }
+
+    const entryKeys = new Set([entry.targetId, entry.targetSlug].filter(Boolean) as string[])
+    const candidateKeys = [candidate.targetId, candidate.targetSlug].filter(Boolean) as string[]
+
+    if (entryKeys.size > 0 && candidateKeys.length > 0) {
+      return candidateKeys.some((key) => entryKeys.has(key))
+    }
+
+    // No stable identifier on either side — treat as non-matching to avoid
+    // accidentally deleting unrelated entries that share a title.
+    return false
+  }
+
   const normalizeAddToCollectionEntries = (targets: AddToCollectionTargets = []): CollectionEntry[] => {
     if (targets.length === 0) {
       return []
@@ -2034,6 +2054,62 @@ function App() {
     await mergeEntriesIntoCollection(baseCollection)
   }
 
+  const handleRemoveEntriesFromCollection = async (collectionSlug: string, targets: AddToCollectionTargets = []) => {
+    const rawEntriesToRemove = normalizeAddToCollectionEntries(targets)
+    if (rawEntriesToRemove.length === 0) {
+      return
+    }
+
+    const entriesToRemove = rawEntriesToRemove.map(normalizeCollectionEntryForBackend)
+    if (entriesToRemove.length === 0) {
+      return
+    }
+
+    const hasOnlyProductEntries = entriesToRemove.every((entry) => entry.kind === 'product' && !!(entry.targetSlug || entry.targetId))
+    if (hasOnlyProductEntries) {
+      const productTargets = Array.from(
+        new Set(
+          entriesToRemove
+            .map((entry) => resolveProductApiKey(entry.targetSlug || entry.targetId || ''))
+            .filter(Boolean)
+        )
+      )
+
+      const removalResults = await Promise.all(
+        productTargets.map((target) => APIService.removeProductFromCollection(collectionSlug, target))
+      )
+      const validRemovalResults = removalResults.filter((r): r is Collection => r !== null)
+      const latestRemoved = validRemovalResults.length > 0 ? validRemovalResults[validRemovalResults.length - 1] : null
+
+      await refreshCollectionInState(collectionSlug, latestRemoved)
+      return
+    }
+
+    const baseCollection = await APIService.getCollection(collectionSlug)
+    if (!baseCollection) {
+      throw new Error(`Collection not found: ${collectionSlug}`)
+    }
+
+    const filteredEntries = getCollectionEntries(baseCollection)
+      .filter((entry) => !entriesToRemove.some((candidate) => collectionEntriesMatch(entry, candidate)))
+
+    const updated = await APIService.updateCollection(collectionSlug, {
+      entries: filteredEntries.map((entry) => serializeCollectionEntryForUpdate(entry)),
+    })
+
+    if (!updated) {
+      throw new Error(`Failed to update collection: ${collectionSlug}`)
+    }
+
+    await refreshCollectionInState(collectionSlug, updated)
+  }
+
+  const isCollectionEntryMode = initialCollectionEntries.length > 0 && initialCollectionEntries.every((entry) => entry.kind === 'collection')
+  const addToCollectionDialogTitle = isCollectionEntryMode ? 'Add Collection to Collection' : 'Add Search Results to Collection'
+  const addToCollectionDialogDescription = isCollectionEntryMode
+    ? 'Select one or more collections to add this collection to'
+    : 'Select one or more collections to add the current search results to'
+
   return (
     <div className="min-h-screen bg-(--color-bg)">
       {showSignup && user ? (
@@ -2143,6 +2219,7 @@ function App() {
                     setInitialCollectionDescription(defaults.description ?? '')
                     setInitialCollectionEntries(defaults.entries)
                     setInitialPreselectedCollectionKeys(defaults.preselectedCollectionKeys ?? [])
+
                     setInitialCollectionIsPublic(defaults.isPublic ?? true)
                     setShowAddSearchResultsDialog(true)
                   }}
@@ -2222,6 +2299,7 @@ function App() {
                     setInitialCollectionDescription(defaults.description ?? '')
                     setInitialCollectionEntries(defaults.entries)
                     setInitialPreselectedCollectionKeys(defaults.preselectedCollectionKeys ?? [])
+
                     setInitialCollectionIsPublic(defaults.isPublic ?? true)
                     setShowAddSearchResultsDialog(true)
                   }}
@@ -2246,6 +2324,7 @@ function App() {
                     setInitialCollectionDescription(defaults.description ?? '')
                     setInitialCollectionEntries(defaults.entries)
                     setInitialPreselectedCollectionKeys(defaults.preselectedCollectionKeys ?? [])
+
                     setInitialCollectionIsPublic(defaults.isPublic ?? true)
                     setShowAddSearchResultsDialog(true)
                   }}
@@ -2327,18 +2406,9 @@ function App() {
                     notify.error('Failed to add items to collection')
                   }
                 }}
-                onRemoveFromCollection={async (collectionSlug, productTargets = []) => {
+                onRemoveFromCollection={async (collectionSlug, targets = []) => {
                   try {
-                    const normalizedTargets = normalizeProductTargets(productTargets || [])
-                    await Promise.all(
-                      normalizedTargets.map(async (target) => {
-                        const resolvedTarget = resolveProductApiKey(target)
-                        if (!resolvedTarget) return
-                        await APIService.removeProductFromCollection(collectionSlug, resolvedTarget)
-                      })
-                    )
-
-                    await refreshCollectionInState(collectionSlug)
+                    await handleRemoveEntriesFromCollection(collectionSlug, targets)
                     notify.success('Removed from collection')
                   } catch (error) {
                     console.error('Failed to remove items from collection:', error)
@@ -2349,8 +2419,8 @@ function App() {
                   setShowAddSearchResultsDialog(false)
                   setShowCreateCollectionDialog(true)
                 }}
-                title="Add Search Results to Collection"
-                description="Select one or more collections to add the current search results to"
+                title={addToCollectionDialogTitle}
+                description={addToCollectionDialogDescription}
                 allowRemoval={true}
                 username={user.username}
               />

@@ -354,7 +354,7 @@ describe('AddToCollectionDialog', () => {
     expect(screen.getByLabelText(/explicit two/i)).toHaveAttribute('aria-checked', 'false')
   })
 
-  it('hides source, descendants, and collections that already contain the source', () => {
+  it('hides source, descendants, and direct duplicate targets in add-only mode', () => {
     const sourceCollection: Collection = {
       ...baseCollection,
       id: 'collection-5',
@@ -477,5 +477,63 @@ describe('AddToCollectionDialog', () => {
 
     expect(screen.getByText('Ancestor Collection')).toBeInTheDocument()
     expect(screen.queryByText('Child Collection')).not.toBeInTheDocument()
+  })
+
+  it('prechecks existing direct collection membership and removes it when unchecked', async () => {
+    const user = userEvent.setup()
+    const onRemoveFromCollection = vi.fn()
+
+    const sourceCollection: Collection = {
+      ...baseCollection,
+      id: 'collection-source',
+      slug: 'collection-source',
+      name: 'Source Collection',
+      userId: 'user-123',
+    }
+
+    const targetCollection: Collection = {
+      ...baseCollection,
+      id: 'collection-target',
+      slug: 'collection-target',
+      name: 'Target Collection',
+      userId: 'user-123',
+      entries: [
+        { kind: 'collection', targetId: 'collection-source', title: 'Source Collection' },
+      ],
+    }
+
+    render(
+      <AddToCollectionDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        collections={[sourceCollection, targetCollection]}
+        currentUserId="user-123"
+        currentUsername="editor-user"
+        entriesToAdd={[
+          {
+            kind: 'collection',
+            targetId: 'collection-source',
+            targetSlug: 'collection-source',
+            title: 'Source Collection',
+            order: 0,
+          },
+        ]}
+        onAddToCollection={vi.fn()}
+        onRemoveFromCollection={onRemoveFromCollection}
+        onCreateNew={vi.fn()}
+      />
+    )
+
+    const checkbox = screen.getByLabelText(/target collection/i)
+    expect(checkbox).toHaveAttribute('aria-checked', 'true')
+
+    await user.click(checkbox)
+    await user.click(screen.getByRole('button', { name: /done/i }))
+
+    expect(onRemoveFromCollection).toHaveBeenCalledTimes(1)
+    expect(onRemoveFromCollection).toHaveBeenCalledWith(
+      'collection-target',
+      [expect.objectContaining({ kind: 'collection', targetId: 'collection-source' })]
+    )
   })
 })
