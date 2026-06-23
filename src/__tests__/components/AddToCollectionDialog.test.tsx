@@ -155,8 +155,11 @@ describe('AddToCollectionDialog', () => {
     await user.click(screen.getByRole('button', { name: /done/i }))
 
     expect(onAddToCollection).toHaveBeenCalledTimes(1)
-    expect(onAddToCollection).toHaveBeenCalledWith('collection-13', ['product-1'])
-    expect(onAddToCollection).not.toHaveBeenCalledWith('collection-12', ['product-1'])
+    expect(onAddToCollection).toHaveBeenCalledWith(
+      'collection-13',
+      [expect.objectContaining({ kind: 'product', targetId: 'product-1' })],
+    )
+    expect(onAddToCollection).not.toHaveBeenCalledWith('collection-12', expect.anything())
   })
 
   it('removes a product from a collection when an existing checked membership is unchecked', async () => {
