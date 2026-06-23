@@ -44,6 +44,7 @@ const renderPage = ({
       onDeleteCollection={vi.fn()}
       onEditCollection={vi.fn()}
       onCreateCollection={vi.fn()}
+      onOpenAddToCollection={vi.fn()}
     />
   </MemoryRouter>
 )
@@ -108,6 +109,6 @@ describe('CollectionsPage', () => {
     })
 
     expect(screen.getByRole('heading', { level: 1, name: 'Collections' })).toBeInTheDocument()
-    expect(screen.getByText('Loading...')).toBeInTheDocument()
+    expect(screen.getAllByText(/Loading/).length).toBeGreaterThan(0)
   })
 })

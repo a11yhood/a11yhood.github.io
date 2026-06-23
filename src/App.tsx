@@ -12,14 +12,17 @@ import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearch
 import { Button } from '@/components/ui/button'
 import { BlogPostDraftPage } from '@/components/BlogPostDraftPage'
 import { CreateCollectionDialog } from '@/components/CreateCollectionDialog'
+import { AddToCollectionDialog } from '@/components/AddToCollectionDialog'
 import { EditCollectionDialog } from '@/components/EditCollectionDialog'
 import { AboutPage } from '@/components/AboutPage'
 import { UserSignup } from '@/components/UserSignup'
 import { HomePage } from '@/components/HomePage'
 import { SearchPage } from '@/components/SearchPage'
-import { Product, ProductUpdate, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput } from '@/lib/types'
+import { AddToCollectionDefaults, AddToCollectionTargets, Product, ProductUpdate, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput, CollectionEntry } from '@/lib/types'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { logger, setRuntimeLogLevel } from '@/lib/logger'
+import { createCollectionEntriesFromProductIds, createCollectionEntriesFromProductSlugs, getCollectionEntries, getCollectionProductEntries } from '@/lib/collectionUtils'
+import { serializeCollectionEntryForUpdate } from '@/lib/collectionEntrySerialization'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 // API adapter disabled - using real backend API now
 // import '@/lib/api-adapter'
@@ -118,10 +121,11 @@ function App() {
   const [collections, setCollections] = useState<Collection[]>([])
   const [collectionsLoaded, setCollectionsLoaded] = useState(false)
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false)
-  const [showCreateCollectionFromSearchDialog, setShowCreateCollectionFromSearchDialog] = useState(false)
+  const [showAddSearchResultsDialog, setShowAddSearchResultsDialog] = useState(false)
   const [showEditCollectionDialog, setShowEditCollectionDialog] = useState(false)
   const [editingCollection, setEditingCollection] = useState<Collection | null>(null)
-  const [initialCollectionProductSlugs, setInitialCollectionProductSlugs] = useState<string[]>([])
+  const [initialCollectionEntries, setInitialCollectionEntries] = useState<CollectionEntry[]>([])
+  const [initialPreselectedCollectionKeys, setInitialPreselectedCollectionKeys] = useState<string[]>([])
   const [initialCollectionName, setInitialCollectionName] = useState<string>('')
   const [initialCollectionDescription, setInitialCollectionDescription] = useState<string>('')
   const [initialCollectionIsPublic, setInitialCollectionIsPublic] = useState<boolean>(true)
@@ -643,7 +647,11 @@ function App() {
     }
 
     loadData()
-  }, [location.pathname, pageSize, searchParams])
+    // Intentionally do not depend on searchParams here.
+    // Search/query updates on /products are handled by the fetch effect below,
+    // and including searchParams causes this full bootstrap load to re-run on
+    // every keystroke-driven URL update.
+  }, [location.pathname, pageSize])
 
   // Use AuthContext (supports both dev mode and production)
   const { user: authUser, loading: authLoading, getAccessToken, signIn, signOut } = useAuth()
@@ -1741,65 +1749,13 @@ function App() {
 
   const handleCreateCollection = async (collectionData: CollectionCreateInput) => {
     try {
-      const { productSlugs = [], ...rest } = collectionData
-      console.debug('[CreateCollection] Payload being sent:', {
-        ...rest,
-        productSlugs,
-      })
-      const newCollection = await APIService.createCollection({
-        ...rest,
-        productSlugs: [], // Create with empty array, then add products
-      })
-      let finalCollection = newCollection
-      if (productSlugs && productSlugs.length > 0) {
-        const collectionSlug = newCollection.slug || newCollection.id
-        const results = await Promise.all(
-          productSlugs.map(productSlug => APIService.addProductToCollection(collectionSlug, productSlug))
-        )
-        const lastUpdated = results.filter(Boolean).pop()
-        if (lastUpdated) finalCollection = lastUpdated
-      }
-      setCollections((current) => [finalCollection, ...current])
+      console.debug('[CreateCollection] Payload being sent:', collectionData)
+      const newCollection = await APIService.createCollection(collectionData)
+      setCollections((current) => [newCollection, ...current])
       notify.success('Collection created successfully')
     } catch (error) {
       console.error('Failed to create collection:', error)
       showPageError('Failed to create collection')
-    }
-  }
-
-  const handleCreateCollectionFromSearch = async (collectionData: CollectionCreateInput) => {
-    try {
-      const payload: Parameters<typeof APIService.createCollectionFromSearch>[0] = {
-        name: collectionData.name,
-        description: collectionData.description,
-        isPublic: collectionData.isPublic,
-        search: searchQuery || undefined,
-        sources: selectedSources.length > 0 ? selectedSources : undefined,
-        types: selectedTypes.length > 0 ? selectedTypes : undefined,
-        tags: selectedTags.length > 0 ? selectedTags : undefined,
-        minRating: minRating > 0 ? minRating : undefined,
-      }
-      // Only include tagsMode if tags are actually present
-      if (selectedTags.length > 0) {
-        payload.tagsMode = 'or'
-      }
-      console.debug('[CreateCollectionFromSearch] Payload being sent:', payload)
-      const newCollection = await APIService.createCollectionFromSearch(payload)
-      setCollections((current) => [newCollection, ...current])
-      setShowCreateCollectionFromSearchDialog(false)
-      notify.success('Collection created from search results!')
-    } catch (error: unknown) {
-      const apiError = error as ApiErrorLike
-      console.error('[CreateCollectionFromSearch] Error response:', {
-        message: apiError.message,
-        status: apiError.status,
-        detail: apiError.data?.detail,
-        type: apiError.data?.type,
-        debugInfo: apiError.data?.debug_info,
-        fullData: apiError.data
-      })
-      const errorDetail = apiError.data?.detail || apiError.message || 'Failed to create collection from search'
-      showPageError(errorDetail)
     }
   }
 
@@ -1869,6 +1825,290 @@ function App() {
       }
     })
   }
+
+  const getCollectionEntryIdentity = (entry: CollectionEntry) => {
+    if (entry.kind === 'query') {
+      return `${entry.kind}:${JSON.stringify(entry.query || {})}`
+    }
+
+    return `${entry.kind}:${entry.targetSlug || entry.targetId || entry.title || ''}`
+  }
+
+  const collectionEntriesMatch = (entry: CollectionEntry, candidate: CollectionEntry) => {
+    if (entry.kind !== candidate.kind) {
+      return false
+    }
+
+    if (entry.kind === 'query') {
+      return JSON.stringify(entry.query || {}) === JSON.stringify(candidate.query || {})
+    }
+
+    const entryKeys = new Set([entry.targetId, entry.targetSlug].filter(Boolean) as string[])
+    const candidateKeys = [candidate.targetId, candidate.targetSlug].filter(Boolean) as string[]
+
+    if (entryKeys.size > 0 && candidateKeys.length > 0) {
+      return candidateKeys.some((key) => entryKeys.has(key))
+    }
+
+    // No stable identifier on either side — treat as non-matching to avoid
+    // accidentally deleting unrelated entries that share a title.
+    return false
+  }
+
+  const normalizeAddToCollectionEntries = (targets: AddToCollectionTargets = []): CollectionEntry[] => {
+    if (targets.length === 0) {
+      return []
+    }
+
+    if (typeof targets[0] === 'string') {
+      return createCollectionEntriesFromProductIds((targets as string[]).map((value) => String(value).trim()).filter(Boolean))
+    }
+
+    return (targets as CollectionEntry[])
+      .filter((entry) => !!entry && !!entry.kind)
+      .map((entry, index) => ({ ...entry, order: typeof entry.order === 'number' ? entry.order : index }))
+  }
+
+  const normalizeCollectionEntryForBackend = (entry: CollectionEntry): CollectionEntry => {
+    if (entry.kind === 'product') {
+      const productKey = entry.targetId || entry.targetSlug || ''
+      const resolvedProduct = products.find((product) => product.id === productKey || product.slug === productKey)
+
+      if (resolvedProduct?.id) {
+        return {
+          ...entry,
+          targetId: resolvedProduct.id,
+          targetSlug: resolvedProduct.slug || entry.targetSlug,
+        }
+      }
+    }
+
+    if (entry.kind === 'collection') {
+      const collectionKey = entry.targetId || entry.targetSlug || ''
+      const resolvedCollection = collections.find((collection) => collection.id === collectionKey || collection.slug === collectionKey)
+
+      if (resolvedCollection?.id) {
+        return {
+          ...entry,
+          targetId: resolvedCollection.id,
+          targetSlug: resolvedCollection.slug || entry.targetSlug,
+        }
+      }
+    }
+
+    return entry
+  }
+
+  const resolveProductApiKey = (productKey: string): string => {
+    const resolvedProduct = products.find((product) => product.id === productKey || product.slug === productKey)
+    return resolvedProduct?.slug || resolvedProduct?.id || productKey
+  }
+
+  const refreshCollectionInState = async (
+    collectionSlug: string,
+    fallbackCollection?: Collection | null,
+    expectedEntries: CollectionEntry[] = [],
+  ) => {
+    if (fallbackCollection) {
+      setCollections((current) =>
+        current.map((collection) => ((collection.slug || collection.id) === collectionSlug ? fallbackCollection : collection))
+      )
+    }
+
+    const expectedEntryIdentities = new Set(expectedEntries.map(getCollectionEntryIdentity))
+
+    try {
+      const refreshed = await APIService.getCollection(collectionSlug)
+      if (refreshed) {
+        if (fallbackCollection) {
+          const fallbackEntries = getCollectionEntries(fallbackCollection)
+          const refreshedEntries = getCollectionEntries(refreshed)
+          const refreshedEntryIdentities = new Set(refreshedEntries.map(getCollectionEntryIdentity))
+          const hasExpectedEntries =
+            expectedEntryIdentities.size === 0 ||
+            Array.from(expectedEntryIdentities).every((identity) => refreshedEntryIdentities.has(identity))
+
+          const refetchLooksStale =
+            !hasExpectedEntries &&
+            fallbackEntries.length > 0 &&
+            refreshedEntries.length < fallbackEntries.length
+
+          if (refetchLooksStale) {
+            return fallbackCollection
+          }
+        }
+
+        setCollections((current) =>
+          current.map((collection) => ((collection.slug || collection.id) === collectionSlug ? refreshed : collection))
+        )
+        return refreshed
+      }
+    } catch (error) {
+      console.warn(`[App] Failed to refetch collection after mutation: ${collectionSlug}`, error)
+    }
+
+    if (fallbackCollection) {
+      return fallbackCollection
+    }
+
+    return null
+  }
+
+  const handleAddEntriesToCollection = async (collectionSlug: string, targets: AddToCollectionTargets = []) => {
+    const rawEntriesToAdd = normalizeAddToCollectionEntries(targets)
+    if (rawEntriesToAdd.length === 0) {
+      return
+    }
+
+    const entriesToAdd = rawEntriesToAdd.map(normalizeCollectionEntryForBackend)
+    if (entriesToAdd.length === 0) {
+      throw new Error('No supported items to add to collection')
+    }
+
+    const hasOnlyProductEntries = entriesToAdd.every((entry) => entry.kind === 'product' && !!(entry.targetSlug || entry.targetId))
+
+    const mergeEntriesIntoCollection = async (baseCollection: Collection) => {
+      const existingEntries = getCollectionEntries(baseCollection)
+      const seen = new Set(existingEntries.map(getCollectionEntryIdentity))
+      const mergedEntries = [...existingEntries]
+
+      entriesToAdd.forEach((entry) => {
+        const key = getCollectionEntryIdentity(entry)
+        if (!seen.has(key)) {
+          seen.add(key)
+          mergedEntries.push(entry)
+        }
+      })
+
+      const updated = await APIService.updateCollection(collectionSlug, {
+        entries: mergedEntries.map((entry) => serializeCollectionEntryForUpdate(entry)),
+      })
+
+      if (!updated) {
+        throw new Error(`Failed to update collection: ${collectionSlug}`)
+      }
+
+      await refreshCollectionInState(collectionSlug, updated, entriesToAdd)
+      return updated
+    }
+
+    if (hasOnlyProductEntries) {
+      const productTargets = Array.from(
+        new Set(
+          entriesToAdd
+            .map((entry) => resolveProductApiKey(entry.targetSlug || entry.targetId || ''))
+            .filter(Boolean)
+        )
+      )
+
+      if (productTargets.length === 1) {
+        const updated = await APIService.addProductToCollection(collectionSlug, productTargets[0])
+        if (!updated) {
+          throw new Error(`Failed to add product to collection: ${collectionSlug}`)
+        }
+
+        const directProductKeys = new Set(
+          getCollectionProductEntries(updated)
+            .map((entry) => resolveProductApiKey(entry.targetSlug || entry.targetId || ''))
+            .filter(Boolean)
+        )
+        const hasAllTargetsDirectly = productTargets.every((target) => directProductKeys.has(target))
+
+        if (!hasAllTargetsDirectly) {
+          await mergeEntriesIntoCollection(updated)
+          return
+        }
+
+        await refreshCollectionInState(collectionSlug, updated, entriesToAdd)
+        return
+      }
+
+      const updated = await APIService.addMultipleProductsToCollection(collectionSlug, productTargets)
+      if (!updated) {
+        throw new Error(`Failed to add products to collection: ${collectionSlug}`)
+      }
+
+      const directProductKeys = new Set(
+        getCollectionProductEntries(updated)
+          .map((entry) => resolveProductApiKey(entry.targetSlug || entry.targetId || ''))
+          .filter(Boolean)
+      )
+      const hasAllTargetsDirectly = productTargets.every((target) => directProductKeys.has(target))
+
+      if (!hasAllTargetsDirectly) {
+        await mergeEntriesIntoCollection(updated)
+        return
+      }
+
+      await refreshCollectionInState(collectionSlug, updated, entriesToAdd)
+      return
+    }
+
+    const collectionSnapshot = collections.find((candidate) => (candidate.slug || candidate.id) === collectionSlug)
+    const baseCollection = collectionSnapshot || await APIService.getCollection(collectionSlug)
+
+    if (!baseCollection) {
+      throw new Error(`Collection not found: ${collectionSlug}`)
+    }
+
+    await mergeEntriesIntoCollection(baseCollection)
+  }
+
+  const handleRemoveEntriesFromCollection = async (collectionSlug: string, targets: AddToCollectionTargets = []) => {
+    const rawEntriesToRemove = normalizeAddToCollectionEntries(targets)
+    if (rawEntriesToRemove.length === 0) {
+      return
+    }
+
+    const entriesToRemove = rawEntriesToRemove.map(normalizeCollectionEntryForBackend)
+    if (entriesToRemove.length === 0) {
+      return
+    }
+
+    const hasOnlyProductEntries = entriesToRemove.every((entry) => entry.kind === 'product' && !!(entry.targetSlug || entry.targetId))
+    if (hasOnlyProductEntries) {
+      const productTargets = Array.from(
+        new Set(
+          entriesToRemove
+            .map((entry) => resolveProductApiKey(entry.targetSlug || entry.targetId || ''))
+            .filter(Boolean)
+        )
+      )
+
+      const removalResults = await Promise.all(
+        productTargets.map((target) => APIService.removeProductFromCollection(collectionSlug, target))
+      )
+      const validRemovalResults = removalResults.filter((r): r is Collection => r !== null)
+      const latestRemoved = validRemovalResults.length > 0 ? validRemovalResults[validRemovalResults.length - 1] : null
+
+      await refreshCollectionInState(collectionSlug, latestRemoved)
+      return
+    }
+
+    const baseCollection = await APIService.getCollection(collectionSlug)
+    if (!baseCollection) {
+      throw new Error(`Collection not found: ${collectionSlug}`)
+    }
+
+    const filteredEntries = getCollectionEntries(baseCollection)
+      .filter((entry) => !entriesToRemove.some((candidate) => collectionEntriesMatch(entry, candidate)))
+
+    const updated = await APIService.updateCollection(collectionSlug, {
+      entries: filteredEntries.map((entry) => serializeCollectionEntryForUpdate(entry)),
+    })
+
+    if (!updated) {
+      throw new Error(`Failed to update collection: ${collectionSlug}`)
+    }
+
+    await refreshCollectionInState(collectionSlug, updated)
+  }
+
+  const isCollectionEntryMode = initialCollectionEntries.length > 0 && initialCollectionEntries.every((entry) => entry.kind === 'collection')
+  const addToCollectionDialogTitle = isCollectionEntryMode ? 'Add Collection to Collection' : 'Add Search Results to Collection'
+  const addToCollectionDialogDescription = isCollectionEntryMode
+    ? 'Select one or more collections to add this collection to'
+    : 'Select one or more collections to add the current search results to'
 
   return (
     <div className="min-h-screen bg-(--color-bg)">
@@ -1974,12 +2214,14 @@ function App() {
                   onRate={handleRate}
                   onDeleteProduct={handleDeleteProduct}
                   onCreateCollection={handleCreateCollection}
-                  onOpenCreateCollection={(defaults) => {
+                  onOpenAddToCollection={(defaults) => {
                     setInitialCollectionName(defaults.name ?? '')
                     setInitialCollectionDescription(defaults.description ?? '')
-                    setInitialCollectionProductSlugs(defaults.productSlugs ?? [])
+                    setInitialCollectionEntries(defaults.entries)
+                    setInitialPreselectedCollectionKeys(defaults.preselectedCollectionKeys ?? [])
+
                     setInitialCollectionIsPublic(defaults.isPublic ?? true)
-                    setShowCreateCollectionFromSearchDialog(true)
+                    setShowAddSearchResultsDialog(true)
                   }}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
@@ -2052,6 +2294,15 @@ function App() {
                     setShowEditCollectionDialog(true)
                   }}
                   onCreateCollection={() => setShowCreateCollectionDialog(true)}
+                  onOpenAddToCollection={(defaults) => {
+                    setInitialCollectionName(defaults.name ?? '')
+                    setInitialCollectionDescription(defaults.description ?? '')
+                    setInitialCollectionEntries(defaults.entries)
+                    setInitialPreselectedCollectionKeys(defaults.preselectedCollectionKeys ?? [])
+
+                    setInitialCollectionIsPublic(defaults.isPublic ?? true)
+                    setShowAddSearchResultsDialog(true)
+                  }}
                 />
               } />
               <Route path="/collections/:collectionSlug" element={
@@ -2067,6 +2318,15 @@ function App() {
                   onEditCollection={(collection) => {
                     setEditingCollection(collection)
                     setShowEditCollectionDialog(true)
+                  }}
+                  onOpenAddToCollection={(defaults) => {
+                    setInitialCollectionName(defaults.name ?? '')
+                    setInitialCollectionDescription(defaults.description ?? '')
+                    setInitialCollectionEntries(defaults.entries)
+                    setInitialPreselectedCollectionKeys(defaults.preselectedCollectionKeys ?? [])
+
+                    setInitialCollectionIsPublic(defaults.isPublic ?? true)
+                    setShowAddSearchResultsDialog(true)
                   }}
                 />
               } />
@@ -2122,24 +2382,47 @@ function App() {
                 open={showCreateCollectionDialog}
                 onOpenChange={setShowCreateCollectionDialog}
                 onCreateCollection={handleCreateCollection}
-                initialProductSlugs={initialCollectionProductSlugs}
+                initialEntries={initialCollectionEntries}
                 initialName={initialCollectionName}
                 initialDescription={initialCollectionDescription}
                 initialIsPublic={initialCollectionIsPublic}
                 username={user.username}
               />
 
-              <CreateCollectionDialog
-                open={showCreateCollectionFromSearchDialog}
-                onOpenChange={setShowCreateCollectionFromSearchDialog}
-                onCreateCollection={handleCreateCollectionFromSearch}
-                initialName={initialCollectionName}
-                initialDescription={initialCollectionDescription}
-                initialIsPublic={initialCollectionIsPublic}
-                title="Save Search Results as Collection"
-                description="Create a new collection from your current search and filter results"
+              <AddToCollectionDialog
+                open={showAddSearchResultsDialog}
+                onOpenChange={setShowAddSearchResultsDialog}
+                collections={collections}
+                currentUserId={userAccount?.id || user?.id}
+                currentUsername={user?.username}
+                entriesToAdd={initialCollectionEntries}
+                preselectedCollectionKeys={initialPreselectedCollectionKeys}
+                onAddToCollection={async (collectionSlug, targets = []) => {
+                  try {
+                    await handleAddEntriesToCollection(collectionSlug, targets)
+                    notify.success('Added to collection')
+                  } catch (error) {
+                    console.error('Failed to add items to collection:', error)
+                    notify.error('Failed to add items to collection')
+                  }
+                }}
+                onRemoveFromCollection={async (collectionSlug, targets = []) => {
+                  try {
+                    await handleRemoveEntriesFromCollection(collectionSlug, targets)
+                    notify.success('Removed from collection')
+                  } catch (error) {
+                    console.error('Failed to remove items from collection:', error)
+                    notify.error('Failed to remove items from collection')
+                  }
+                }}
+                onCreateNew={() => {
+                  setShowAddSearchResultsDialog(false)
+                  setShowCreateCollectionDialog(true)
+                }}
+                title={addToCollectionDialogTitle}
+                description={addToCollectionDialogDescription}
+                allowRemoval={true}
                 username={user.username}
-                hideProductSlugs
               />
 
               <EditCollectionDialog

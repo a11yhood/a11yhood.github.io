@@ -11,6 +11,7 @@ import { UserAccount, UserActivity, Product, ProductUpdate, Rating, Discussion, 
 import { logger } from './logger'
 import { ProductUrl, ProductUrlCreate, ProductUrlUpdate } from '../types/product-url'
 import { toIsoTimestamp } from './utils'
+import { serializeCollectionEntryForCreate } from './collectionEntrySerialization'
 
 // Use relative path for dev/preview (Vite proxy will handle it), or explicit URL if configured
 export function getApiBaseUrl(
@@ -669,6 +670,15 @@ export class APIService {
     const raw = collection as Collection & {
       userName?: string
       user_name?: string
+      entries?: unknown
+      productIds?: string[]
+      product_ids?: string[]
+      productSlugs?: string[]
+      product_slugs?: string[]
+      accessRole?: 'owner' | 'editor'
+      access_role?: 'owner' | 'editor'
+      isOwner?: boolean
+      is_owner?: boolean
       editorIds?: string[]
       editor_ids?: string[]
       editorUsernames?: string[]
@@ -680,6 +690,11 @@ export class APIService {
     const editorIds = collection.editorIds || raw.editor_ids || editors.map((editor) => editor?.id).filter(Boolean) as string[]
     const editorUsernames =
       collection.editorUsernames || raw.editor_usernames || editors.map((editor) => editor?.username).filter(Boolean) as string[]
+    const entries = Array.isArray(raw.entries) ? raw.entries : []
+    const productIds = collection.productIds || raw.product_ids || []
+    const productSlugs = collection.productSlugs || raw.product_slugs || []
+    const accessRole = collection.accessRole || raw.access_role
+    const isOwner = collection.isOwner ?? raw.is_owner
 
     return {
       ...collection,
@@ -688,6 +703,11 @@ export class APIService {
         raw.user_name ||
         raw.userName ||
         '',
+      entries,
+      productIds,
+      productSlugs,
+      accessRole,
+      isOwner,
       editorIds,
       editorUsernames,
     }
@@ -1908,8 +1928,8 @@ export class APIService {
       logger.debug(`[API] getCollection(${collectionSlug}):`, {
         id: result.id,
         name: result.name,
+        entriesCount: result.entries?.length || 0,
         productSlugsCount: result.productSlugs?.length || 0,
-        productSlugs: result.productSlugs,
       })
     }
     return normalized
@@ -1950,9 +1970,16 @@ export class APIService {
   }
 
   static async createCollection(collection: CollectionCreateInput): Promise<Collection> {
+    const payload: CollectionCreateInput | (CollectionCreateInput & { entries: Array<Record<string, unknown>> }) = {
+      ...collection,
+      entries: Array.isArray(collection.entries)
+        ? collection.entries.map((entry) => serializeCollectionEntryForCreate(entry))
+        : [],
+    }
+
     const result = await request<Collection>('/collections', {
       method: 'POST',
-      body: JSON.stringify(collection),
+      body: JSON.stringify(payload),
     })
     return APIService.normalizeCollection(result)
   }
@@ -1979,7 +2006,7 @@ export class APIService {
 
   static async updateCollection(
     collectionId: string,
-    updates: Partial<Omit<Collection, 'id' | 'createdAt' | 'updatedAt' | 'userId' | 'userName' | 'username' | 'productSlugs'>>
+    updates: Partial<Omit<Collection, 'id' | 'createdAt' | 'updatedAt' | 'userId' | 'userName' | 'username'>>
   ): Promise<Collection | null> {
     const result = await request<Collection | null>(`/collections/${collectionId}`, {
       method: 'PUT',
@@ -2004,8 +2031,8 @@ export class APIService {
       logger.debug(`[API] ✅ addProductToCollection response:`, {
         id: result.id,
         name: result.name,
+        entriesCount: result.entries?.length || 0,
         productSlugsCount: result.productSlugs?.length || 0,
-        productSlugs: result.productSlugs,
       })
     } else {
       console.error(`[API] ❌ addProductToCollection returned null/undefined`)
@@ -2023,7 +2050,8 @@ export class APIService {
   static async addMultipleProductsToCollection(collectionSlug: string, productSlugs: string[]): Promise<Collection | null> {
     const result = await request<Collection | null>(`/collections/${collectionSlug}/products`, {
       method: 'POST',
-      body: JSON.stringify({ productSlugs }),
+      // Backend expects ProductIdsRequest (product_ids), and accepts UUIDs or slugs.
+      body: JSON.stringify({ productIds: productSlugs }),
     })
     return result ? APIService.normalizeCollection(result) : null
   }

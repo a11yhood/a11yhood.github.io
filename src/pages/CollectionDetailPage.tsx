@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { CollectionDetail } from '@/components/CollectionDetail'
-import { Collection, Product, Rating, UserAccount, UserData } from '@/lib/types'
+import { AddToCollectionDefaults, Collection, Product, Rating, UserAccount, UserData } from '@/lib/types'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { APIService } from '@/lib/api'
 
@@ -16,16 +16,18 @@ export function CollectionDetailPage({
     onDeleteProduct,
     onDeleteCollection,
     onEditCollection,
+    onOpenAddToCollection,
 }: {
     collections: Collection[]
     ratings: Rating[]
     products: Product[]
     user: UserData | null
     userAccount: UserAccount | null
-    onRemoveProductFromCollection: (collectionSlug: string, productSlug: string) => void
+    onRemoveProductFromCollection: (collectionSlug: string, productSlug: string) => void | Promise<void>
     onDeleteProduct: (productId: string) => void
     onDeleteCollection?: (collectionSlug: string) => void
     onEditCollection?: (collection: Collection) => void
+    onOpenAddToCollection?: (defaults: AddToCollectionDefaults) => void
 }) {
     const { notify } = useNotifications()
     const { collectionSlug } = useParams()
@@ -49,6 +51,8 @@ export function CollectionDetailPage({
                 setExternalCollection(fetched)
             } catch (e) {
                 console.error('Failed to refetch collection:', e)
+                // Clear so the App-state collection wins rather than showing stale data.
+                setExternalCollection(null)
             }
         }
     }
@@ -70,7 +74,8 @@ export function CollectionDetailPage({
         load()
     }, [collection, snapshotCollection, collectionSlug])
 
-    const effectiveCollection = externalCollection || snapshotCollection || collection || null
+    const effectiveCollection = externalCollection || collection || snapshotCollection || null
+    const effectiveCurrentUserId = userAccount?.id || user?.id
 
     if (!effectiveCollection) {
         return (
@@ -86,16 +91,16 @@ export function CollectionDetailPage({
     return (
         <CollectionDetail
             collection={effectiveCollection}
+            collections={collections}
             ratings={ratings}
             products={products}
             onBack={() => navigate('/collections')}
             onRemoveProduct={async (productSlug) => {
-                onRemoveProductFromCollection(effectiveCollection.slug || effectiveCollection.id, productSlug)
-                // Refetch collection after removal to update UI
+                await onRemoveProductFromCollection(effectiveCollection.slug || effectiveCollection.id, productSlug)
                 await refetchExternalCollection()
             }}
             onSelectProduct={(productSlug) => navigate(`/product/${productSlug}`)}
-            isOwner={user?.id === effectiveCollection.userId}
+            isOwner={effectiveCurrentUserId === effectiveCollection.userId}
             userAccount={userAccount}
             onDeleteProduct={onDeleteProduct}
             onDeleteCollection={onDeleteCollection ? async () => {
@@ -103,6 +108,7 @@ export function CollectionDetailPage({
                 navigate('/collections')
             } : undefined}
             onEditCollection={onEditCollection ? () => onEditCollection(effectiveCollection) : undefined}
+            onOpenAddToCollection={onOpenAddToCollection}
             onCollectionUpdated={(updatedCollection) => {
                 setExternalCollection(updatedCollection)
             }}

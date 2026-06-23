@@ -11,6 +11,18 @@ This guide explains how to set up and run the a11yhood frontend in different env
 - If touching legacy code that still uses `login`, migrate it to `username` in the same change when practical.
 - Prefer route patterns like `/profile/:username` and `/account/:username`.
 
+## Collections Lockstep Contract
+
+Backend and frontend should stay in sync on the collection schema. The current frontend expects collections to be typed reference containers, not product slug lists.
+
+- `entries` is the canonical ordered list for a collection.
+- `CollectionEntry.kind` must be `product`, `collection`, `blogPost`, or `query`.
+- `product_ids` is a derived ordered projection of product entries.
+- `product_slugs` is index-aligned with `product_ids`.
+- Collection references are live by reference, so recursive lookup must guard against cycles.
+- Collection list and detail responses should preserve entry ordering from create/update requests.
+- On `/api/collections`, ownership markers must remain stable: owner rows return `access_role=owner` and `is_owner=true`; editor rows return `access_role=editor` and `is_owner=false`.
+
 ### Development Environment (Recommended for Active Development)
 ```bash
 # Terminal 1: Start the test backend (port 8000 with local test database)

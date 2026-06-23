@@ -1,8 +1,9 @@
-import { Collection, Product, Rating, UserAccount } from '@/lib/types'
+import { AddToCollectionDefaults, Collection, CollectionEntry, Product, Rating, UserAccount } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardHeader, CardDescription, CardContent, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Lock, LockOpen, Trash, Pencil } from '@phosphor-icons/react'
+import { ArrowLeft, FolderOpen, Lock, LockOpen, Plus, Trash, Pencil } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductFilterTag } from '@/components/ProductFilterTag'
 import { formatDistanceToNow } from 'date-fns'
@@ -12,9 +13,13 @@ import { Link, useNavigate } from 'react-router-dom'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
 import MarkdownText from '@/components/ui/MarkdownText'
 import { useNotifications } from '@/contexts/NotificationContext'
+import { collectionEntryKey, getCollectionEntries, getCollectionEntryProductCandidates, isCollectionEntry, resolveCollectionProducts } from '@/lib/collectionUtils'
+import { buildAddToCollectionDefaultsForCollection } from '@/lib/addToCollection'
+import { serializeCollectionEntryForUpdate } from '@/lib/collectionEntrySerialization'
 
 type CollectionDetailProps = {
   collection: Collection
+  collections?: Collection[]
   ratings: Rating[]
   products?: Product[]
   onBack: () => void
@@ -27,10 +32,12 @@ type CollectionDetailProps = {
   onDeleteCollection?: () => void
   onEditCollection?: () => void
   onCollectionUpdated?: (collection: Collection) => void
+  onOpenAddToCollection?: (defaults: AddToCollectionDefaults) => void
 }
 
 export function CollectionDetail({
   collection,
+  collections = [],
   ratings,
   products: globalProducts,
   onBack,
@@ -43,6 +50,7 @@ export function CollectionDetail({
   onDeleteCollection,
   onEditCollection,
   onCollectionUpdated,
+  onOpenAddToCollection,
 }: CollectionDetailProps) {
   void onDeleteProduct
   const { notify } = useNotifications()
@@ -58,6 +66,7 @@ export function CollectionDetail({
   const [isSubmittingCollaboratorRequest, setIsSubmittingCollaboratorRequest] = useState(false)
   const [hasPendingCollaboratorRequest, setHasPendingCollaboratorRequest] = useState(false)
   const [collaboratorError, setCollaboratorError] = useState<string>('')
+  const [resolvedNestedCollections, setResolvedNestedCollections] = useState<Record<string, Collection | null>>({})
 
   // Products individually fetched by this component (not present in globalProducts).
   // Stored in a ref so mutations don't trigger re-renders; `fetchVersion` is bumped
@@ -71,16 +80,27 @@ export function CollectionDetail({
   const globalProductsRef = useRef(globalProducts)
   useEffect(() => { globalProductsRef.current = globalProducts }, [globalProducts])
 
-  const orderedProductSlugs = useMemo(
-    () => collection.productSlugs ?? [],
-    [collection.productSlugs]
+  const orderedEntries = useMemo(
+    () => getCollectionEntries(collection),
+    [collection]
   )
+
+  const collectionKey = collection.slug || collection.id
+  useEffect(() => {
+    setResolvedNestedCollections({})
+  }, [collectionKey])
 
   // Set-based key for fetch behavior: changes only when membership changes,
   // so reorder-only updates do not trigger network requests.
   const slugSetKey = useMemo(
-    () => orderedProductSlugs.slice().sort().join(','),
-    [orderedProductSlugs]
+    () => orderedEntries
+      .filter((entry) => entry.kind === 'product')
+      .map((entry) => entry.targetSlug || entry.targetId || '')
+      .filter(Boolean)
+      .slice()
+      .sort()
+      .join(','),
+    [orderedEntries]
   )
 
   // Fetch effect: runs only when the slug set changes.
@@ -116,7 +136,21 @@ export function CollectionDetail({
     console.log(`[CollectionDetail] Fetching ${missingSlugs.length} missing products`)
 
     Promise.allSettled(
-      missingSlugs.map((slug) => APIService.getProduct(slug))
+      missingSlugs.map(async (slug) => {
+        const candidates = getCollectionEntryProductCandidates({ targetSlug: slug })
+        for (const candidate of candidates) {
+          try {
+            const product = await APIService.getProduct(candidate)
+            if (product) {
+              return product
+            }
+          } catch {
+            // Keep trying fallback candidates (e.g., UUID extracted from a prefixed key).
+            continue
+          }
+        }
+        return null
+      })
     ).then((results) => {
       if (cancelled) return
       results.forEach((result, i) => {
@@ -142,20 +176,104 @@ export function CollectionDetail({
   // fallbacks to produce the ordered list for rendering.  Recomputes whenever
   // the slug set, global cache, or locally-fetched set changes — without issuing
   // any network requests.
-  const collectionProducts = useMemo(() => {
+  const allProductsForResolution = useMemo(() => {
     // Read this state value so eslint recognizes the dependency that invalidates
     // memoization when fetchedBySlugRef is mutated.
     void fetchVersion
-    const slugs = orderedProductSlugs
-    if (slugs.length === 0) return []
-    const bySlug = new Map<string, Product>()
-    // Locally-fetched products (lower priority — may be slightly stale)
-    fetchedBySlugRef.current.forEach((p, slug) => bySlug.set(slug, p))
-    // Global products are always fresh and take precedence
-    ;(globalProducts || []).forEach((p) => { if (p?.slug) bySlug.set(p.slug, p) })
-    return slugs.map((s) => bySlug.get(s)).filter((p): p is Product => p != null)
-  // fetchVersion triggers recomputation when fetchedBySlugRef is mutated
-  }, [orderedProductSlugs, globalProducts, fetchVersion])
+
+    const merged: Product[] = []
+    const seen = new Set<string>()
+
+    const addProduct = (product?: Product | null) => {
+      if (!product) {
+        return
+      }
+
+      const key = product.slug || product.id
+      if (!key || seen.has(key)) {
+        return
+      }
+
+      seen.add(key)
+      merged.push(product)
+    }
+
+    ;(globalProducts || []).forEach(addProduct)
+    fetchedBySlugRef.current.forEach((product) => addProduct(product))
+
+    return merged
+  }, [globalProducts, fetchVersion])
+
+  const collectionProducts = useMemo(() => {
+    return resolveCollectionProducts(collection, collections, allProductsForResolution)
+  }, [collection, collections, allProductsForResolution])
+
+  const nestedCollections = useMemo(
+    () => orderedEntries
+      .map((entry, index) => ({ entry, sourceIndex: index }))
+      .filter((item) => item.entry.kind === 'collection'),
+    [orderedEntries]
+  )
+
+  useEffect(() => {
+    let cancelled = false
+
+    const unresolvedKeys = nestedCollections
+      .map(({ entry }) => entry.targetSlug || entry.targetId || '')
+      .filter(Boolean)
+      .filter((targetKey) => {
+        if (Object.prototype.hasOwnProperty.call(resolvedNestedCollections, targetKey)) {
+          return false
+        }
+
+        return !collections.some((candidate) => candidate.slug === targetKey || candidate.id === targetKey)
+      })
+
+    if (unresolvedKeys.length === 0) {
+      return () => { cancelled = true }
+    }
+
+    Promise.allSettled(unresolvedKeys.map((targetKey) => APIService.getCollection(targetKey)))
+      .then((results) => {
+        if (cancelled) {
+          return
+        }
+
+        setResolvedNestedCollections((current) => {
+          const next = { ...current }
+          results.forEach((result, index) => {
+            const key = unresolvedKeys[index]
+            if (result.status === 'fulfilled' && result.value) {
+              next[key] = result.value
+            } else {
+              // Mark failed lookups so 404/500 targets do not trigger an infinite refetch loop.
+              next[key] = null
+            }
+          })
+          return next
+        })
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.debug('[CollectionDetail] Failed to resolve nested collections by id:', error)
+        }
+      })
+
+    return () => { cancelled = true }
+  }, [nestedCollections, collections, resolvedNestedCollections])
+
+  const productLabelByKey = useMemo(() => {
+    const labels = new Map<string, string>()
+    allProductsForResolution.forEach((product) => {
+      if (product.slug) {
+        labels.set(product.slug, product.name)
+      }
+      if (product.id) {
+        labels.set(product.id, product.name)
+      }
+    })
+    return labels
+  }, [allProductsForResolution])
 
   // Derive top tags from the collection's products, sorted by frequency
   const topTags = useMemo(() => {
@@ -170,6 +288,30 @@ export function CollectionDetail({
       .slice(0, 8)
       .map(([tag]) => tag)
   }, [collectionProducts])
+
+  const parentCollections = useMemo(() => {
+    const collectionIdentifiers = new Set([collection.id, collection.slug].filter(Boolean) as string[])
+
+    return collections.filter((candidate) => {
+      if (candidate.id === collection.id || candidate.slug === collection.slug) {
+        return false
+      }
+
+      return getCollectionEntries(candidate).some((entry) => {
+        if (entry.kind !== 'collection') return false
+        const targetKey = entry.targetId || entry.targetSlug
+        return !!targetKey && collectionIdentifiers.has(targetKey)
+      })
+    })
+  }, [collections, collection.id, collection.slug])
+
+  const handleAddCurrentCollectionToCollection = () => {
+    if (!onOpenAddToCollection) return
+
+    const defaults = buildAddToCollectionDefaultsForCollection(collection)
+    if (defaults.entries.length === 0) return
+    onOpenAddToCollection(defaults)
+  }
 
   const creatorUsername =
     collection.username ||
@@ -438,6 +580,35 @@ export function CollectionDetail({
     }
   }
 
+  const handleRemoveNestedCollection = async (sourceIndex: number) => {
+    if (!canManageCollectionProducts) {
+      return
+    }
+
+    try {
+      // orderedEntries = real entries (from collection.entries) + synthetic product entries
+      // synthesized from productSlugs. Only real entries should be written back to the backend;
+      // synthetic ones live solely in productSlugs and must not be promoted to entries.
+      const realEntryCount = Array.isArray(collection.entries)
+        ? collection.entries.filter(isCollectionEntry).length
+        : 0
+      const nextEntries = orderedEntries
+        .slice(0, realEntryCount)
+        .filter((_, idx) => idx !== sourceIndex)
+      const updated = await APIService.updateCollection(collection.slug || collection.id, {
+        entries: nextEntries.map((entry) => serializeCollectionEntryForUpdate(entry)) as unknown as CollectionEntry[],
+      })
+
+      if (updated) {
+        onCollectionUpdated?.(updated)
+        notify.success('Collection entry removed')
+      }
+    } catch (error) {
+      console.error('Failed to remove nested collection entry:', error)
+      notify.error('Failed to remove collection entry')
+    }
+  }
+
   return (
     <div>
       <Button variant="outline" onClick={onBack} className="mb-6">
@@ -527,7 +698,7 @@ export function CollectionDetail({
             </div>
             <div>
               <span className="text-muted-foreground">Products:</span>{' '}
-              <span className="font-medium">{collection.productSlugs?.length ?? collectionProducts.length}</span>
+              <span className="font-medium">{collectionProducts.length}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Updated:</span>{' '}
@@ -536,6 +707,72 @@ export function CollectionDetail({
               </span>
             </div>
           </div>
+
+          {(parentCollections.length > 0 || onOpenAddToCollection) && (
+            <div className="mt-4 border-t pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-medium flex items-center gap-2">
+                  <FolderOpen size={16} aria-hidden="true" />
+                  Part of
+                </h3>
+                {onOpenAddToCollection && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={handleAddCurrentCollectionToCollection}
+                    aria-label={`Add ${collection.name} to another collection`}
+                  >
+                    <Plus size={14} weight="bold" />
+                  </Button>
+                )}
+              </div>
+              {parentCollections.length > 0 ? (
+                <ul className="mt-2 flex flex-wrap gap-2">
+                  {parentCollections.map((parentCollection) => (
+                    <li key={parentCollection.id}>
+                      <Link to={`/collections/${parentCollection.slug || parentCollection.id}`} className="no-underline">
+                        <Badge variant="outline">Collection: {parentCollection.name}</Badge>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">This collection is not part of another collection yet.</p>
+              )}
+            </div>
+          )}
+
+          {orderedEntries.length > 0 && (
+            <div className="mt-4">
+              <h3 className="font-medium mb-2">Included items</h3>
+              <ul className="flex flex-wrap gap-2">
+                {orderedEntries.map((entry, index) => {
+                  const key = collectionEntryKey(entry, index)
+
+                  if (entry.kind === 'product') {
+                    const candidates = getCollectionEntryProductCandidates(entry)
+                    const resolvedLabel = candidates
+                      .map((candidate) => productLabelByKey.get(candidate))
+                      .find((name): name is string => !!name)
+                    const targetRef = entry.targetSlug || entry.targetId
+                    const targetLabel = entry.title && targetRef
+                      ? `${entry.title} (${targetRef})`
+                      : (resolvedLabel || entry.title || targetRef || `Product ${index + 1}`)
+                    return (
+                      <li key={key}>
+                        <Badge variant="secondary">Product: {targetLabel}</Badge>
+                      </li>
+                    )
+                  }
+
+                  return null
+                })}
+              </ul>
+            </div>
+          )}
+
           <div className="mt-3 text-sm">
             <span className="text-muted-foreground">Collaborators:</span>{' '}
             {collaboratorIds.length > 0 ? (
@@ -645,7 +882,6 @@ export function CollectionDetail({
         </div>
       ) : !isLoading && collectionProducts.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-lg text-muted-foreground mb-2">This collection is empty</p>
           <p className="text-sm text-muted-foreground">
             {canManageCollectionProducts ? 'Add products from the product details page' : 'No products in this collection yet'}
           </p>
@@ -662,8 +898,8 @@ export function CollectionDetail({
                   product={product}
                   ratings={ratings}
                   onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
-                  onClick={() => onSelectProduct(product.slug)}
-                  onDelete={onRemoveProduct}
+                  onClick={() => onSelectProduct(product.id || product.slug)}
+                  onDelete={(productSlug) => onRemoveProduct(product.id || productSlug)}
                   userAccount={userAccount}
                 />
                 {canManageCollectionProducts && (
@@ -673,7 +909,7 @@ export function CollectionDetail({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation()
-                        onRemoveProduct(product.slug)
+                        onRemoveProduct(product.id || product.slug)
                       }}
                       aria-label="Remove from collection"
                     >
@@ -685,6 +921,63 @@ export function CollectionDetail({
             ))}
           </div>
         </div>
+      )}
+
+      {nestedCollections.length > 0 && (
+        <section className="mt-8" aria-label="Nested collections">
+          <h2 className="text-xl font-semibold mb-4">Nested collections</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {nestedCollections.map(({ entry, sourceIndex }, index) => {
+              const key = collectionEntryKey(entry, sourceIndex)
+              const targetCollection =
+                collections.find((candidate) => candidate.slug === entry.targetSlug || candidate.id === entry.targetId) ||
+                resolvedNestedCollections[entry.targetSlug || entry.targetId || '']
+              const destination = targetCollection?.slug || targetCollection?.id || entry.targetSlug || entry.targetId || ''
+              const nestedCollectionLabel = targetCollection?.name || entry.title || entry.targetSlug || targetCollection?.slug || entry.targetId
+
+              return (
+                <div key={`${key}:${index}`} className="relative">
+                  <Link to={`/collections/${destination}`} className="block no-underline">
+                    <Card className="overflow-hidden hover:shadow-md transition-shadow h-full">
+                      <div className="h-32 bg-muted/40 flex items-center justify-center">
+                        <FolderOpen size={44} className="text-muted-foreground/50" aria-hidden="true" />
+                      </div>
+                      <CardContent className="p-4 space-y-2">
+                        <div className="space-y-1">
+                          <Badge variant="outline" className="w-fit text-xs">
+                            Collection
+                          </Badge>
+                          <h3 className="font-semibold text-base line-clamp-2">
+                            {nestedCollectionLabel}
+                          </h3>
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-3">
+                          {targetCollection?.description || entry.description || 'Collection entry'}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                  {canManageCollectionProducts && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          void handleRemoveNestedCollection(sourceIndex)
+                        }}
+                        aria-label="Remove from collection"
+                      >
+                        <Trash size={16} />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </section>
       )}
     </div>
   )

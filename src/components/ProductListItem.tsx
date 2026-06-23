@@ -6,8 +6,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import MarkdownText from '@/components/ui/MarkdownText'
-import { Prohibit, Trash, FolderOpen } from '@phosphor-icons/react'
+import { Prohibit, Trash, FolderOpen, Plus } from '@phosphor-icons/react'
 import { ProductFilterTag } from '@/components/ProductFilterTag'
+import { collectionContainsProduct } from '@/lib/collectionUtils'
 
 type ProductListItemProps = {
   product: Product
@@ -23,21 +24,27 @@ type ProductListItemProps = {
   canModerate?: boolean
   onToggleBan?: () => void
   onDelete?: (productId: string) => void
+  onOpenAddToCollection?: (productTargets: string[]) => void
 }
 
-export const ProductListItem = memo(function ProductListItem({ product, ratings, collections, selectedTags = [], href, onNavigate, onTagClick, user: _user, showBannedBadge, canModerate, onToggleBan, onDelete }: ProductListItemProps) {
+export const ProductListItem = memo(function ProductListItem({ product, ratings, collections, selectedTags = [], href, onNavigate, onTagClick, user: _user, showBannedBadge, canModerate, onToggleBan, onDelete, onOpenAddToCollection }: ProductListItemProps) {
   const [imageError, setImageError] = useState(false)
   const productRatings = useMemo(() => ratings.filter((r) => r.productId === product.id), [ratings, product.id])
   const averageRating = useMemo(() => calculateAverageRating(product.sourceRating, productRatings, product.id), [product.sourceRating, productRatings, product.id])
   const productCollections = useMemo(
-    () => collections ? collections.filter((c) => product.slug && (c.productSlugs ?? []).includes(product.slug)) : [],
-    [collections, product.slug]
+    () => collections
+      ? collections.filter((c) => {
+          const productKeys = [product.slug, product.id].filter(Boolean) as string[]
+          return productKeys.some((key) => collectionContainsProduct(c, key, collections))
+        })
+      : [],
+    [collections, product.id, product.slug]
   )
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (onDelete) {
-      const targetId = product.slug || product.id
+      const targetId = product.id || product.slug
       onDelete(targetId)
     }
   }
@@ -56,6 +63,7 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
   const updatedTs = product.source_last_updated ?? product.sourceLastUpdated
   const updatedText = updatedTs ? formatRelativeTime(updatedTs) : ''
   const shouldShowImage = !!product.imageUrl && !imageError
+  const productTarget = product.slug || product.id
 
   const handleCardClick = (e: React.MouseEvent) => {
     if (href && (e.button === 1 || e.metaKey || e.ctrlKey)) {
@@ -232,27 +240,47 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
           )}
         </div>
 
-        {productCollections.length > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <FolderOpen size={12} />
-              Collections:
-            </span>
-            <ul className="flex flex-wrap gap-1">
-              {productCollections.map((c, index) => (
-                <li key={c.slug ?? (c.id != null ? String(c.id) : `collection-${index}`)}>
-                  <Link
-                    to={`/collections/${c.slug || c.id}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="no-underline"
-                  >
-                    <Badge variant="outline" className="text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground motion-safe:hover:-translate-y-0.5 transition-all">
-                      {c.name}
-                    </Badge>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+        {(productCollections.length > 0 || (onOpenAddToCollection && productTarget)) && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <FolderOpen size={12} />
+                Collections
+              </span>
+              {onOpenAddToCollection && productTarget && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 border-2 border-dashed border-foreground/60 text-foreground/80 hover:border-foreground hover:text-foreground hover:bg-transparent"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onOpenAddToCollection([String(productTarget)])
+                  }}
+                  aria-label={`Add ${product.name} to collection`}
+                >
+                  <Plus size={14} weight="bold" />
+                </Button>
+              )}
+            </div>
+            {productCollections.length > 0 ? (
+              <ul className="flex flex-wrap gap-1">
+                {productCollections.map((c, index) => (
+                  <li key={c.slug ?? (c.id != null ? String(c.id) : `collection-${index}`)}>
+                    <Link
+                      to={`/collections/${c.slug || c.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="no-underline"
+                    >
+                      <Badge variant="outline" className="text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground motion-safe:hover:-translate-y-0.5 transition-all">
+                        {c.name}
+                      </Badge>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground">No collections yet.</p>
+            )}
           </div>
         )}
       </div>
@@ -266,6 +294,7 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
   if (prevProps.showBannedBadge !== nextProps.showBannedBadge) return false
   if (prevProps.onClick !== nextProps.onClick) return false
   if (prevProps.onTagClick !== nextProps.onTagClick) return false
+  if (prevProps.onOpenAddToCollection !== nextProps.onOpenAddToCollection) return false
   if (prevProps.selectedTags !== nextProps.selectedTags) return false
   
   // Compare only this product's ratings

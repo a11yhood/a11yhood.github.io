@@ -1,15 +1,13 @@
 import { useState, useMemo } from 'react'
-import { Collection, Product } from '@/lib/types'
+import { AddToCollectionDefaults, Collection, Product } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Trash, Lock, LockOpen, Pencil, FolderOpen } from '@phosphor-icons/react'
+import { Trash, Lock, LockOpen, Pencil, FolderOpen, Plus } from '@phosphor-icons/react'
 import { formatDistanceToNow } from 'date-fns'
-import { useNavigate } from 'react-router-dom'
 import { pickCollectionImage } from '@/lib/collectionUtils'
-import { ProductFilterTag } from '@/components/ProductFilterTag'
-import { getProductsPathForTag } from '@/lib/tagRoutes'
+import { getCollectionEntries, getCollectionProductEntries, resolveCollectionProducts } from '@/lib/collectionUtils'
 import MarkdownText from '@/components/ui/MarkdownText'
+import { buildAddToCollectionDefaultsForCollection } from '@/lib/addToCollection'
 
 type CollectionsListProps = {
   collections: Collection[]
@@ -17,6 +15,7 @@ type CollectionsListProps = {
   onSelectCollection: (collection: Collection) => void
   onDeleteCollection: (collectionSlug: string) => void
   onEditCollection?: (collection: Collection) => void
+  onOpenAddToCollection?: (defaults: AddToCollectionDefaults) => void
   currentUserId?: string
   currentUsername?: string
   isFirstLoadComplete?: boolean
@@ -28,25 +27,12 @@ export function CollectionsList({
   onSelectCollection,
   onDeleteCollection,
   onEditCollection,
+  onOpenAddToCollection,
   currentUserId,
   currentUsername,
   isFirstLoadComplete = true,
 }: CollectionsListProps) {
-  const navigate = useNavigate()
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
-
-  // Index products by slug once for O(1) per-collection lookups.
-  const productsBySlug = useMemo(() => {
-    const map = new Map<string, Product>()
-    ;(products || []).forEach(p => { if (p.slug) map.set(p.slug, p) })
-    return map
-  }, [products])
-
-  const getProductsInCollection = (collection: Collection) =>
-    (collection.productSlugs || []).flatMap(slug => {
-      const p = productsBySlug.get(slug)
-      return p ? [p] : []
-    })
 
   // Compute a representative image for each collection once per data change.
   const collectionImages = useMemo(() => {
@@ -54,10 +40,7 @@ export function CollectionsList({
     const usedProductKeys = new Set<string>()
 
     collections.forEach(collection => {
-      const collectionProducts = (collection.productSlugs || []).flatMap(slug => {
-        const p = productsBySlug.get(slug)
-        return p ? [p] : []
-      })
+      const collectionProducts = resolveCollectionProducts(collection, collections, products)
       const picked = pickCollectionImage(collectionProducts, { usedProductKeys })
       result[collection.id] = picked
       if (picked?.productKey) {
@@ -65,25 +48,12 @@ export function CollectionsList({
       }
     })
     return result
-  }, [collections, productsBySlug])
-
-  const getTopTagsForCollection = (collectionProducts: Product[], limit = 5) => {
-    const tagCounts = new Map<string, number>()
-    collectionProducts.forEach(product => {
-      product?.tags?.forEach(tag => {
-        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
-      })
-    })
-    return Array.from(tagCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, limit)
-      .map(([tag]) => tag)
-  }
+  }, [collections, products])
 
   if (!collections || collections.length === 0) {
     return (
       <div className="text-center py-12" role="status">
-        <p className="text-muted-foreground">{isFirstLoadComplete ? 'No collections found' : 'Loading...'}</p>
+        <p className="text-muted-foreground">{isFirstLoadComplete ? 'No collections found' : 'Loading…'}</p>
       </div>
     )
   }
@@ -91,14 +61,15 @@ export function CollectionsList({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {collections.map((collection) => {
-        const collectionProducts = getProductsInCollection(collection)
+        const collectionEntries = getCollectionEntries(collection)
+        const productEntries = getCollectionProductEntries(collection)
         const isOwner = currentUserId === collection.userId
         const isEditorById = !!currentUserId && (collection.editorIds || []).includes(currentUserId)
         const isEditorByUsername = !!currentUsername && (collection.editorUsernames || []).includes(currentUsername)
         const isEditor = !isOwner && (isEditorById || isEditorByUsername)
         const canEdit = isOwner || isEditor
         const img = imageErrors[collection.id] ? undefined : collectionImages[collection.id]
-        const topTags = getTopTagsForCollection(collectionProducts)
+        const collectionTargetId = collection.id || collection.slug
         
         return (
           <Card
@@ -137,6 +108,10 @@ export function CollectionsList({
             <CardHeader>
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
+                  <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <FolderOpen size={12} aria-hidden="true" />
+                    Collection
+                  </div>
                   <CardTitle as="h2" className="text-lg line-clamp-2">{collection.name}</CardTitle>
                   <CardDescription className="flex items-center gap-2 mt-1">
                     {collection.isPublic ? (
@@ -147,8 +122,23 @@ export function CollectionsList({
                     <span>{collection.isPublic ? 'Public' : 'Private'}</span>
                   </CardDescription>
                 </div>
-                {canEdit && (
-                  <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1">
+                  {onOpenAddToCollection && collectionTargetId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 border-2 border-dashed border-foreground/60 text-foreground/80 hover:border-foreground hover:text-foreground hover:bg-transparent"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onOpenAddToCollection(buildAddToCollectionDefaultsForCollection(collection))
+                      }}
+                      aria-label={`Add ${collection.name} to a collection`}
+                    >
+                      <Plus size={16} />
+                    </Button>
+                  )}
+                  {canEdit && (
+                    <>
                     {onEditCollection && (
                       <Button
                         variant="ghost"
@@ -175,8 +165,9 @@ export function CollectionsList({
                         <Trash size={16} />
                       </Button>
                     )}
-                  </div>
-                )}
+                    </>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -189,8 +180,8 @@ export function CollectionsList({
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
                   {isFirstLoadComplete
-                    ? `${(collection.productSlugs || []).length} ${(collection.productSlugs || []).length === 1 ? 'product' : 'products'}`
-                    : 'Products: ?'}
+                    ? `${collectionEntries.length} ${collectionEntries.length === 1 ? 'item' : 'items'}${productEntries.length !== collectionEntries.length ? ` (${productEntries.length} products)` : ''}`
+                    : 'Items: ?'}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   Updated {formatDistanceToNow(collection.updatedAt, { addSuffix: true })}
@@ -212,34 +203,6 @@ export function CollectionsList({
                     </span>
                   ))}
                 </div>
-              )}
-              {collectionProducts.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {collectionProducts.slice(0, 3).map((product) => (
-                    <Badge key={product.id} variant="secondary" className="text-xs">
-                      {product.name}
-                    </Badge>
-                  ))}
-                  {collectionProducts.length > 3 && (
-                    <Badge variant="secondary" className="text-xs">
-                      +{collectionProducts.length - 3} more
-                    </Badge>
-                  )}
-                </div>
-              )}
-              {topTags.length > 0 && (
-                <ul className="mt-2 flex flex-wrap gap-1">
-                  {topTags.map((tag) => (
-                    <li key={tag}>
-                      <ProductFilterTag
-                        tag={tag}
-                        selected={false}
-                        onTagClick={(clickedTag) => navigate(getProductsPathForTag(clickedTag))}
-                        variant="list"
-                      />
-                    </li>
-                  ))}
-                </ul>
               )}
             </CardContent>
           </Card>
