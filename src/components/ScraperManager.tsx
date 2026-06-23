@@ -957,7 +957,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteProduct(product.slug || product.id)}
+                            onClick={() => handleDeleteProduct(product.id || product.slug)}
                           >
                             <Trash size={16} />
                           </Button>
@@ -1045,7 +1045,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteProduct(product.slug || product.id)}
+                            onClick={() => handleDeleteProduct(product.id || product.slug)}
                           >
                             <Trash size={16} />
                           </Button>

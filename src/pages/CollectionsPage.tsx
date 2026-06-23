@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { CollectionsList } from '@/components/CollectionsList'
-import { Collection, Product, UserAccount, UserData } from '@/lib/types'
+import { AddToCollectionDefaults, Collection, Product, UserAccount, UserData } from '@/lib/types'
 import { APIService } from '@/lib/api'
+import { getCollectionProductSlugs } from '@/lib/collectionUtils'
 import { useNavigate } from 'react-router-dom'
 
 
@@ -15,7 +16,8 @@ export function CollectionsPage({
     userAccount,
     onDeleteCollection,
     onEditCollection,
-    onCreateCollection
+    onCreateCollection,
+    onOpenAddToCollection
 }: {
     collections: Collection[]
     collectionsLoaded: boolean
@@ -25,6 +27,7 @@ export function CollectionsPage({
     onDeleteCollection: (collectionSlug: string) => void
     onEditCollection: (collection: Collection) => void
     onCreateCollection: () => void
+    onOpenAddToCollection: (defaults: AddToCollectionDefaults) => void
 }) {
     const navigate = useNavigate()
     const [ownerPage, setOwnerPage] = useState(1)
@@ -82,10 +85,10 @@ export function CollectionsPage({
 
             if (!unloadedCollection) return
 
-            // Get up to the first N product slugs from this collection
-            const candidateProductSlugs = (unloadedCollection.productSlugs || [])
+            // Get up to the first N product slugs from this collection.
+            // getCollectionProductSlugs handles both productSlugs and entries-based collections.
+            const candidateProductSlugs = getCollectionProductSlugs(unloadedCollection)
                 .slice(0, MAX_IMAGE_PRODUCTS_PER_COLLECTION)
-                .filter(slug => slug)
 
             if (candidateProductSlugs.length === 0) {
                 // Mark as loaded even if no products
@@ -131,10 +134,13 @@ export function CollectionsPage({
         }
 
         loadNextCollectionImages()
-    }, [paginatedOwnerCollections, paginatedEditorCollections, paginatedPublicCollections, products, collectionProducts, loadedCollectionIds])
+    }, [paginatedOwnerCollections, paginatedEditorCollections, paginatedPublicCollections, products, loadedCollectionIds])
 
     // Merge products from App and locally loaded collection products
     const allProducts = [...products, ...collectionProducts]
+
+    const sectionStatus = (count: number) =>
+        !collectionsLoaded ? 'Loading…' : count === 0 ? 'No collections found.' : `${count} ${count === 1 ? 'collection' : 'collections'}.`
 
     return (
         <div>
@@ -149,8 +155,11 @@ export function CollectionsPage({
                             </Button>
                         </div>
                     </div>
-                    <div>
-                        <h2 className="text-2xl font-semibold mb-4">Your Collections</h2>
+                    <div aria-busy={!collectionsLoaded}>
+                        <h2 className="text-2xl font-semibold mb-4">
+                            Your Collections
+                            <span className="sr-only" aria-live="polite" aria-atomic="true">{sectionStatus(ownerCollections.length)}</span>
+                        </h2>
                         <CollectionsList
                             collections={paginatedOwnerCollections}
                             products={allProducts}
@@ -162,6 +171,7 @@ export function CollectionsPage({
                             }
                             onDeleteCollection={onDeleteCollection}
                             onEditCollection={onEditCollection}
+                            onOpenAddToCollection={onOpenAddToCollection}
                             currentUserId={currentUserId}
                             currentUsername={currentUsername}
                         />
@@ -187,8 +197,11 @@ export function CollectionsPage({
                             </div>
                         )}
                     </div>
-                    <div className="mt-10">
-                        <h2 className="text-2xl font-semibold mb-4">Editor Collections</h2>
+                    <div className="mt-10" aria-busy={!collectionsLoaded}>
+                        <h2 className="text-2xl font-semibold mb-4">
+                            Editor Collections
+                            <span className="sr-only" aria-live="polite" aria-atomic="true">{sectionStatus(editorCollections.length)}</span>
+                        </h2>
                         <CollectionsList
                             collections={paginatedEditorCollections}
                             products={allProducts}
@@ -200,6 +213,7 @@ export function CollectionsPage({
                             }
                             onDeleteCollection={onDeleteCollection}
                             onEditCollection={onEditCollection}
+                            onOpenAddToCollection={onOpenAddToCollection}
                             currentUserId={currentUserId}
                             currentUsername={currentUsername}
                         />
@@ -238,8 +252,11 @@ export function CollectionsPage({
                 </div>
             )}
 
-            <div className="mt-10">
-                <h2 className="text-2xl font-semibold mb-4">Public Collections</h2>
+            <div className="mt-10" aria-busy={!collectionsLoaded}>
+                <h2 className="text-2xl font-semibold mb-4">
+                    Public Collections
+                    <span className="sr-only" aria-live="polite" aria-atomic="true">{sectionStatus(filteredPublicCollections.length)}</span>
+                </h2>
                 <CollectionsList
                     collections={paginatedPublicCollections}
                     products={allProducts}
@@ -250,6 +267,7 @@ export function CollectionsPage({
                         })
                     }
                     onDeleteCollection={() => { /* no-op for public */ }}
+                    onOpenAddToCollection={onOpenAddToCollection}
                     currentUserId={currentUserId}
                     currentUsername={currentUsername}
                 />

@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { ProductDetail } from '@/components/ProductDetail'
 import { APIService } from '@/lib/api'
-import { Collection, CollectionCreateInput, Discussion, Product, Rating, UserAccount, UserData } from '@/lib/types'
+import { AddToCollectionTargets, Collection, CollectionCreateInput, CollectionEntry, Discussion, Product, Rating, UserAccount, UserData } from '@/lib/types'
 import { ApiErrorLike } from '@/App'
 import { useNotifications } from '@/contexts/NotificationContext'
 
@@ -276,21 +276,44 @@ export function ProductDetailPageWrapper({
         localDiscussionsRef.current = localDiscussions
     }, [localDiscussions])
 
-    const handleAddToCollection = async (collectionSlug: string) => {
-        if (!slug) return
+    const resolveProductCollectionTarget = (candidate?: string): string => {
+        const normalizedCandidate = typeof candidate === 'string' ? candidate.trim() : ''
+        const resolvedProduct = products.find((item) =>
+            item.id === normalizedCandidate || item.slug === normalizedCandidate
+        )
 
-        if (!collectionSlug) return
+        if (resolvedProduct) {
+            return resolvedProduct.slug || resolvedProduct.id
+        }
 
-        const updated = await APIService.addProductToCollection(collectionSlug, slug)
+        return normalizedCandidate || slug || ''
+    }
+
+    const extractProductTarget = (targets?: AddToCollectionTargets): string | undefined => {
+        if (!targets || targets.length === 0) return undefined
+        if (typeof targets[0] === 'string') {
+            return (targets as string[]).find(Boolean)
+        }
+        const entry = (targets as CollectionEntry[]).find((e) => e.kind === 'product')
+        return entry?.targetSlug || entry?.targetId
+    }
+
+    const handleAddToCollection = async (collectionSlug: string, targets?: AddToCollectionTargets) => {
+        const targetKey = resolveProductCollectionTarget(extractProductTarget(targets))
+        if (!targetKey || !collectionSlug) return
+
+        const updated = await APIService.addProductToCollection(collectionSlug, targetKey)
         if (updated) {
             onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
             notify.success('Added to collection')
         }
     }
 
-    const handleRemoveFromCollection = async (collectionSlug: string) => {
-        if (!slug) return
-        const updated = await APIService.removeProductFromCollection(collectionSlug, slug)
+    const handleRemoveFromCollection = async (collectionSlug: string, targets?: AddToCollectionTargets) => {
+        const targetKey = resolveProductCollectionTarget(extractProductTarget(targets))
+        if (!targetKey) return
+
+        const updated = await APIService.removeProductFromCollection(collectionSlug, targetKey)
         if (updated) {
             onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
             notify.success('Removed from collection')
