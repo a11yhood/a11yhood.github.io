@@ -22,7 +22,7 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct: _onN
   const [requests, setRequests] = useState<UserRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [showRequestDialog, setShowRequestDialog] = useState(false)
-  const [requestType] = useState<'moderator' | 'admin'>('moderator')
+  const [requestType, setRequestType] = useState<'moderator' | 'admin'>('moderator')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [withdrawingRequestId, setWithdrawingRequestId] = useState<string | null>(null)
@@ -104,6 +104,22 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct: _onN
   }
 
   const productEditorRequests = requests.filter(r => r.type === 'product-ownership')
+  const roleRequests = requests.filter(r => r.type === 'moderator' || r.type === 'admin')
+
+  const hasPendingModeratorRequest = roleRequests.some(
+    (request) => request.type === 'moderator' && request.status === 'pending'
+  )
+
+  const hasPendingAdminRequest = roleRequests.some(
+    (request) => request.type === 'admin' && request.status === 'pending'
+  )
+
+  const canRequestModerator = userRole === 'user' && !hasPendingModeratorRequest
+  const canRequestAdmin = userRole === 'moderator' && !hasPendingAdminRequest
+
+  if (userRole === 'admin') {
+    return null
+  }
 
   return (
     <div className="space-y-6">
@@ -147,18 +163,81 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct: _onN
         </CardContent>
       </Card>
 
-      {/* Removed the bottom card that displayed "Editor and Admin request" */}
+      <Card>
+        <CardHeader>
+          <CardTitle as="h2">Role requests</CardTitle>
+          <CardDescription>
+            Request elevated access and track your moderator/admin request history.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!loading && (canRequestModerator || canRequestAdmin) && (
+            <Button
+              type="button"
+              onClick={() => {
+                if (canRequestAdmin) {
+                  setRequestType('admin')
+                } else {
+                  setRequestType('moderator')
+                }
+                setShowRequestDialog(true)
+              }}
+            >
+              {canRequestAdmin ? 'Request Admin Status' : 'Request Moderator Status'}
+            </Button>
+          )}
+
+          {!loading && !canRequestModerator && userRole === 'user' && hasPendingModeratorRequest && (
+            <p className="text-sm text-muted-foreground">
+              You already have a pending moderator request.
+            </p>
+          )}
+
+          {!loading && !canRequestAdmin && userRole === 'moderator' && hasPendingAdminRequest && (
+            <p className="text-sm text-muted-foreground">
+              You already have a pending admin request.
+            </p>
+          )}
+
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading role requests...</p>
+          ) : roleRequests.length === 0 ? (
+            <p className="text-sm text-muted-foreground">You have not submitted any role requests yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {roleRequests.map((request) => (
+                <RequestCard
+                  key={request.id}
+                  request={request}
+                  userLookup={{
+                    [user.id]: {
+                      name: user.username,
+                      username: user.username,
+                      role: userAccount?.role || 'user',
+                    },
+                  }}
+                  showActions={false}
+                  onWithdraw={(req) => {
+                    setWithdrawingRequestId(req.id)
+                    setShowWithdrawDialog(true)
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Dialog open={showRequestDialog} onOpenChange={setShowRequestDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {requestType === 'admin' ? 'Request Admin Status' : 'Request Editor Status'}
+              {requestType === 'admin' ? 'Request Admin Status' : 'Request Moderator Status'}
             </DialogTitle>
             <DialogDescription>
               {requestType === 'admin'
                 ? "Tell us why you'd like to become an admin. Admins have full control over the platform and can manage all users and content."
-                : "Tell us why you'd like to become an editor. Editors can edit products and help maintain the quality of the community."
+                : "Tell us why you'd like to become a moderator. Moderators can help review requests and support the community."
               }
             </DialogDescription>
           </DialogHeader>
@@ -168,7 +247,7 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct: _onN
               <Label htmlFor="request-message">
                 {requestType === 'admin' 
                   ? 'Why do you want to become an admin?' 
-                  : 'Why do you want to become an editor?'
+                  : 'Why do you want to become a moderator?'
                 }
               </Label>
               <Textarea
