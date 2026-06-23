@@ -23,7 +23,7 @@ export function CollectionDetailPage({
     products: Product[]
     user: UserData | null
     userAccount: UserAccount | null
-    onRemoveProductFromCollection: (collectionSlug: string, productSlug: string) => void
+    onRemoveProductFromCollection: (collectionSlug: string, productSlug: string) => void | Promise<void>
     onDeleteProduct: (productId: string) => void
     onDeleteCollection?: (collectionSlug: string) => void
     onEditCollection?: (collection: Collection) => void
@@ -51,6 +51,8 @@ export function CollectionDetailPage({
                 setExternalCollection(fetched)
             } catch (e) {
                 console.error('Failed to refetch collection:', e)
+                // Clear so the App-state collection wins rather than showing stale data.
+                setExternalCollection(null)
             }
         }
     }
@@ -94,8 +96,7 @@ export function CollectionDetailPage({
             products={products}
             onBack={() => navigate('/collections')}
             onRemoveProduct={async (productSlug) => {
-                onRemoveProductFromCollection(effectiveCollection.slug || effectiveCollection.id, productSlug)
-                // Refetch collection after removal to update UI
+                await onRemoveProductFromCollection(effectiveCollection.slug || effectiveCollection.id, productSlug)
                 await refetchExternalCollection()
             }}
             onSelectProduct={(productSlug) => navigate(`/product/${productSlug}`)}

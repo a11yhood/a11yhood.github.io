@@ -74,6 +74,10 @@ export function getPreselectedCollectionKeysForProducts(
 ): string[] {
   const uniqueProducts = uniqueByKey(products, (product) => `${product.slug || ''}|${product.id || ''}`)
 
+  if (uniqueProducts.length === 0) {
+    return []
+  }
+
   return collections
     .filter((collection) => {
       return uniqueProducts.every((product) => {

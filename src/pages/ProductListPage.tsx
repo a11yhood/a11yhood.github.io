@@ -20,7 +20,6 @@ import {
     CollectionCreateInput,
     BlogPost
 } from '@/lib/types'
-import { collectionContainsProduct } from '@/lib/collectionUtils'
 import { buildAddToCollectionDefaultsForCollection, buildAddToCollectionDefaultsForProducts } from '@/lib/addToCollection'
 
 
@@ -510,7 +509,7 @@ export function ProductListPage({
                             </div>
                             <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                                 {matchingCollections.map((collection) => {
-                                    const productCount = collection.productSlugs?.length || collection.productIds?.length || 0
+                                    const productCount = (collection.entries || []).filter((entry) => entry.kind === 'product').length
                                     const destination = `/collections/${collection.slug || collection.id}`
                                     return (
                                         <Card

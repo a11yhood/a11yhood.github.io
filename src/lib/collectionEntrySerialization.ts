@@ -8,6 +8,8 @@ export function serializeCollectionEntryForUpdate(entry: CollectionEntry) {
   if (entry.kind === 'collection') {
     if (entry.targetId) {
       base.collectionId = entry.targetId
+    } else if (entry.targetSlug) {
+      base.collectionId = entry.targetSlug
     }
 
     if (entry.title) {

@@ -13,7 +13,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
 import MarkdownText from '@/components/ui/MarkdownText'
 import { useNotifications } from '@/contexts/NotificationContext'
-import { collectionEntryKey, getCollectionEntries, getCollectionEntryProductCandidates, resolveCollectionProducts } from '@/lib/collectionUtils'
+import { collectionEntryKey, getCollectionEntries, getCollectionEntryProductCandidates, isCollectionEntry, resolveCollectionProducts } from '@/lib/collectionUtils'
 import { buildAddToCollectionDefaultsForCollection } from '@/lib/addToCollection'
 import { serializeCollectionEntryForUpdate } from '@/lib/collectionEntrySerialization'
 
@@ -586,16 +586,23 @@ export function CollectionDetail({
     }
 
     try {
-      const nextEntries = orderedEntries.filter((_, index) => index !== sourceIndex)
+      // orderedEntries = real entries (from collection.entries) + synthetic product entries
+      // synthesized from productSlugs. Only real entries should be written back to the backend;
+      // synthetic ones live solely in productSlugs and must not be promoted to entries.
+      const realEntryCount = Array.isArray(collection.entries)
+        ? collection.entries.filter(isCollectionEntry).length
+        : 0
+      const nextEntries = orderedEntries
+        .slice(0, realEntryCount)
+        .filter((_, idx) => idx !== sourceIndex)
       const updated = await APIService.updateCollection(collection.slug || collection.id, {
         entries: nextEntries.map((entry) => serializeCollectionEntryForUpdate(entry)) as unknown as CollectionEntry[],
       })
 
       if (updated) {
         onCollectionUpdated?.(updated)
+        notify.success('Collection entry removed')
       }
-
-      notify.success('Collection entry removed')
     } catch (error) {
       console.error('Failed to remove nested collection entry:', error)
       notify.error('Failed to remove collection entry')

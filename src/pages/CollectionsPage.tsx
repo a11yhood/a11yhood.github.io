@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { CollectionsList } from '@/components/CollectionsList'
 import { AddToCollectionDefaults, Collection, Product, UserAccount, UserData } from '@/lib/types'
 import { APIService } from '@/lib/api'
+import { getCollectionProductSlugs } from '@/lib/collectionUtils'
 import { useNavigate } from 'react-router-dom'
 
 
@@ -84,10 +85,10 @@ export function CollectionsPage({
 
             if (!unloadedCollection) return
 
-            // Get up to the first N product slugs from this collection
-            const candidateProductSlugs = (unloadedCollection.productSlugs || [])
+            // Get up to the first N product slugs from this collection.
+            // getCollectionProductSlugs handles both productSlugs and entries-based collections.
+            const candidateProductSlugs = getCollectionProductSlugs(unloadedCollection)
                 .slice(0, MAX_IMAGE_PRODUCTS_PER_COLLECTION)
-                .filter(slug => slug)
 
             if (candidateProductSlugs.length === 0) {
                 // Mark as loaded even if no products
@@ -133,7 +134,7 @@ export function CollectionsPage({
         }
 
         loadNextCollectionImages()
-    }, [paginatedOwnerCollections, paginatedEditorCollections, paginatedPublicCollections, products, collectionProducts, loadedCollectionIds])
+    }, [paginatedOwnerCollections, paginatedEditorCollections, paginatedPublicCollections, products, loadedCollectionIds])
 
     // Merge products from App and locally loaded collection products
     const allProducts = [...products, ...collectionProducts]

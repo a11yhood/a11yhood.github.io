@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -43,6 +44,7 @@ export function AddToCollectionDialog({
   description = 'Select collections to add these items to',
   allowRemoval = true,
 }: AddToCollectionDialogProps) {
+  const { notify } = useNotifications()
   const [selectedCollections, setSelectedCollections] = useState<Set<string>>(new Set())
   const [initialCollections, setInitialCollections] = useState<Set<string>>(new Set())
   const [hasManualSelectionChanges, setHasManualSelectionChanges] = useState(false)
@@ -275,23 +277,25 @@ export function AddToCollectionDialog({
   }
 
   const handleDone = async () => {
-    // Find collections that were added (in selected but not in initial)
     const added = Array.from(selectedCollections).filter(slug => !initialCollections.has(slug))
-    // Find collections that were removed (in initial but not in selected)
     const removed = Array.from(initialCollections).filter(slug => !selectedCollections.has(slug))
 
     onOpenChange(false)
 
-    const payload = entriesToAdd && entriesToAdd.length > 0 ? normalizedEntriesToAdd : normalizedProductSlugs
+    const payload = normalizedEntriesToAdd.length > 0 ? normalizedEntriesToAdd : normalizedProductSlugs
     const hasNonProductEntries = normalizedEntriesToAdd.some((entry) => entry.kind !== 'product')
     const removalPayload = hasNonProductEntries
       ? normalizedEntriesToAdd
       : normalizedRemovalProductTargets
 
-    void Promise.all([
-      ...added.map((slug) => onAddToCollection(slug, payload)),
-      ...(allowRemoval && onRemoveFromCollection ? removed.map((slug) => onRemoveFromCollection(slug, removalPayload)) : [])
-    ]).catch(() => undefined)
+    try {
+      await Promise.all([
+        ...added.map((slug) => onAddToCollection(slug, payload)),
+        ...(allowRemoval && onRemoveFromCollection ? removed.map((slug) => onRemoveFromCollection(slug, removalPayload)) : [])
+      ])
+    } catch {
+      notify.error('Some collection updates failed. Please try again.')
+    }
   }
 
   return (
