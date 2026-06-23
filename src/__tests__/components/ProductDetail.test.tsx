@@ -86,6 +86,58 @@ describe('ProductDetail rating section', () => {
     })
   })
 
+  it('preserves initially provided collection badges when /collections returns a subset', async () => {
+    const sluggedProduct = createMockProduct({ id: 'product-with-slug', slug: 'product-slug' })
+    const publicCollection: Collection = {
+      id: 'collection-public',
+      slug: 'collection-public',
+      name: 'Public Membership',
+      userId: 'someone-else',
+      username: 'someone-else',
+      entries: [],
+      productSlugs: ['product-slug'],
+      isPublic: true,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }
+
+    const editableCollection: Collection = {
+      id: 'collection-editable',
+      slug: 'collection-editable',
+      name: 'Editable Membership',
+      userId: 'user-1',
+      username: 'test-user',
+      entries: [],
+      productSlugs: ['product-slug'],
+      isPublic: true,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }
+
+    const getUserCollectionsSpy = vi
+      .spyOn(APIService, 'getUserCollections')
+      .mockResolvedValue([editableCollection])
+
+    render(
+      <MemoryRouter>
+        <ProductDetail
+          {...baseProps}
+          product={sluggedProduct}
+          user={{ id: 'user-1', username: 'test-user', avatarUrl: '' } as any}
+          userAccount={{ id: 'user-1', username: 'test-user', role: 'user' } as any}
+          userCollections={[publicCollection, editableCollection]}
+        />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(getUserCollectionsSpy).toHaveBeenCalled()
+    })
+
+    expect(screen.getByRole('link', { name: /public membership/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /editable membership/i })).toBeInTheDocument()
+  })
+
   it('does not load /collections when user and userAccount usernames mismatch', async () => {
     const getUserCollectionsSpy = vi.spyOn(APIService, 'getUserCollections').mockResolvedValue([])
 
@@ -139,7 +191,138 @@ describe('ProductDetail rating section', () => {
     await user.click(screen.getByRole('button', { name: 'Done' }))
 
     await waitFor(() => {
-      expect(onAddToCollection).toHaveBeenCalledWith('collection-1', ['product-no-slug'])
+      expect(onAddToCollection).toHaveBeenCalledWith(
+        'collection-1',
+        [
+          expect.objectContaining({
+            kind: 'product',
+            targetId: 'product-no-slug',
+          }),
+        ]
+      )
+    })
+  })
+
+  it('adds to collection using product slug when available', async () => {
+    const user = userEvent.setup()
+    const onAddToCollection = vi.fn(async () => undefined)
+    const sluggedProduct = createMockProduct({ id: 'product-with-slug', slug: 'product-slug' })
+    const editableCollection: Collection = {
+      id: 'collection-2',
+      slug: 'collection-2',
+      name: 'Collection 2',
+      userId: 'user-1',
+      username: 'test-user',
+      productSlugs: [],
+      isPublic: true,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }
+
+    render(
+      <MemoryRouter>
+        <ProductDetail
+          {...baseProps}
+          product={sluggedProduct}
+          user={{ id: 'user-1', username: 'test-user', avatarUrl: '' } as any}
+          userAccount={{ id: 'user-1', username: 'test-user', role: 'user' } as any}
+          userCollections={[editableCollection]}
+          onAddToCollection={onAddToCollection}
+          onRemoveFromCollection={vi.fn(async () => undefined)}
+        />
+      </MemoryRouter>
+    )
+
+    await user.click(screen.getByRole('button', { name: /add to collection/i }))
+    await user.click(screen.getByRole('checkbox', { name: /collection 2/i }))
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+
+    await waitFor(() => {
+      expect(onAddToCollection).toHaveBeenCalledWith(
+        'collection-2',
+        [
+          expect.objectContaining({
+            kind: 'product',
+            targetSlug: 'product-slug',
+            targetId: 'product-with-slug',
+          }),
+        ]
+      )
+    })
+  })
+
+  it('shows collection badges when membership is stored by product id', () => {
+    const sluggedProduct = createMockProduct({ id: 'product-with-slug', slug: 'product-slug' })
+    const idBackedCollection: Collection = {
+      id: 'collection-20',
+      slug: 'collection-20',
+      name: 'ID Backed Membership',
+      userId: 'user-1',
+      username: 'test-user',
+      entries: [],
+      productIds: ['product-with-slug'],
+      productSlugs: [],
+      isPublic: true,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }
+
+    render(
+      <MemoryRouter>
+        <ProductDetail
+          {...baseProps}
+          product={sluggedProduct}
+          user={{ id: 'user-1', username: 'test-user', avatarUrl: '' } as any}
+          userAccount={{ id: 'user-1', username: 'test-user', role: 'user' } as any}
+          userCollections={[idBackedCollection]}
+        />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByRole('link', { name: /id backed membership/i })).toBeInTheDocument()
+  })
+
+  it('shows collection badges when userCollections prop updates after initial render', async () => {
+    const sluggedProduct = createMockProduct({ id: 'product-with-slug', slug: 'product-slug' })
+    const incomingCollection: Collection = {
+      id: 'collection-21',
+      slug: 'collection-21',
+      name: 'Late Incoming Membership',
+      userId: 'user-1',
+      username: 'test-user',
+      entries: [],
+      productSlugs: ['product-slug'],
+      isPublic: true,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <ProductDetail
+          {...baseProps}
+          product={sluggedProduct}
+          user={{ id: 'user-1', username: 'test-user', avatarUrl: '' } as any}
+          userAccount={{ id: 'user-1', username: 'test-user', role: 'user' } as any}
+          userCollections={[]}
+        />
+      </MemoryRouter>
+    )
+
+    rerender(
+      <MemoryRouter>
+        <ProductDetail
+          {...baseProps}
+          product={sluggedProduct}
+          user={{ id: 'user-1', username: 'test-user', avatarUrl: '' } as any}
+          userAccount={{ id: 'user-1', username: 'test-user', role: 'user' } as any}
+          userCollections={[incomingCollection]}
+        />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: /late incoming membership/i })).toBeInTheDocument()
     })
   })
 })

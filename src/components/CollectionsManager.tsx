@@ -5,7 +5,8 @@ import { Link } from 'react-router-dom'
 import { collectionContainsProduct } from '@/lib/collectionUtils'
 
 type CollectionsManagerProps = {
-  productSlug?: string
+  productKey?: string
+  productKeys?: string[]
   userCollections: Collection[]
   user: UserData | null
   onOpenAddDialog: () => void
@@ -13,14 +14,19 @@ type CollectionsManagerProps = {
 }
 
 export function CollectionsManager({
-  productSlug,
+  productKey,
+  productKeys,
   userCollections,
   user,
   onOpenAddDialog,
   onRequireLogin,
 }: CollectionsManagerProps) {
-  const productCollections = productSlug
-    ? userCollections.filter(c => collectionContainsProduct(c, productSlug, userCollections))
+  const resolvedProductKeys = (productKeys && productKeys.length > 0)
+    ? productKeys.filter(Boolean)
+    : (productKey ? [productKey] : [])
+
+  const productCollections = resolvedProductKeys.length > 0
+    ? userCollections.filter((collection) => resolvedProductKeys.some((key) => collectionContainsProduct(collection, key, userCollections)))
     : []
 
   return (

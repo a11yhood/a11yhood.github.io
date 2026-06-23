@@ -44,6 +44,7 @@ const renderPage = ({
       onDeleteCollection={vi.fn()}
       onEditCollection={vi.fn()}
       onCreateCollection={vi.fn()}
+      onOpenAddToCollection={vi.fn()}
     />
   </MemoryRouter>
 )

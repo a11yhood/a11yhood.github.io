@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Plus, FolderOpen } from '@phosphor-icons/react'
-import { Collection } from '@/lib/types'
-import { collectionContainsAllProducts, getCollectionProductEntries } from '@/lib/collectionUtils'
+import { AddToCollectionTargets, Collection, CollectionEntry } from '@/lib/types'
+import { collectionContainsCollection, collectionContainsProduct, createCollectionEntriesFromProductIds, getCollectionEntries, getCollectionEntryProductCandidates, getCollectionProductEntries, isCollectionEntry } from '@/lib/collectionUtils'
+import { deriveRemovalProductTargets } from '@/lib/addToCollection'
 
 type AddToCollectionDialogProps = {
   open: boolean
@@ -15,8 +16,10 @@ type AddToCollectionDialogProps = {
   currentUsername?: string
   productSlug?: string
   productSlugs?: string[]
-  onAddToCollection: (collectionSlug: string, productSlugs?: string[]) => void
-  onRemoveFromCollection?: (collectionSlug: string, productSlugs?: string[]) => void
+  entriesToAdd?: CollectionEntry[]
+  preselectedCollectionKeys?: string[]
+  onAddToCollection: (collectionSlug: string, targets?: AddToCollectionTargets) => void | Promise<void>
+  onRemoveFromCollection?: (collectionSlug: string, productSlugs?: string[]) => void | Promise<void>
   onCreateNew: () => void
   title?: string
   description?: string
@@ -31,6 +34,8 @@ export function AddToCollectionDialog({
   currentUsername,
   productSlug,
   productSlugs,
+  entriesToAdd,
+  preselectedCollectionKeys: preselectedCollectionKeysProp,
   onAddToCollection,
   onRemoveFromCollection,
   onCreateNew,
@@ -40,12 +45,45 @@ export function AddToCollectionDialog({
 }: AddToCollectionDialogProps) {
   const [selectedCollections, setSelectedCollections] = useState<Set<string>>(new Set())
   const [initialCollections, setInitialCollections] = useState<Set<string>>(new Set())
+  const [hasManualSelectionChanges, setHasManualSelectionChanges] = useState(false)
   const prevOpenRef = useRef(false)
+  const syncedSelectionSignatureRef = useRef('')
+  const isDevMode = import.meta.env.VITE_DEV_MODE === 'true'
   const normalizedProductSlugs = useMemo(() => {
     return (productSlugs && productSlugs.length > 0)
       ? productSlugs.filter(Boolean)
       : (productSlug ? [productSlug] : [])
   }, [productSlug, productSlugs])
+  const normalizedEntriesToAdd = useMemo(() => {
+    if (entriesToAdd && entriesToAdd.length > 0) {
+      return entriesToAdd.filter(isCollectionEntry)
+    }
+
+    return createCollectionEntriesFromProductIds(normalizedProductSlugs)
+  }, [entriesToAdd, normalizedProductSlugs])
+  const normalizedProductTargetGroups = useMemo(() => {
+    return normalizedEntriesToAdd
+      .filter((entry) => entry.kind === 'product')
+      .map((entry) => getCollectionEntryProductCandidates(entry))
+      .filter((candidates) => candidates.length > 0)
+  }, [normalizedEntriesToAdd])
+  const normalizedRemovalProductTargets = useMemo(() => {
+    return deriveRemovalProductTargets(normalizedEntriesToAdd, normalizedProductSlugs)
+  }, [normalizedEntriesToAdd, normalizedProductSlugs])
+  const canPreselectExistingCollections = useMemo(
+    () => normalizedEntriesToAdd.length > 0
+      && normalizedEntriesToAdd.every((entry) => entry.kind === 'product' && !!(entry.targetSlug || entry.targetId))
+      && normalizedProductTargetGroups.length > 0,
+    [normalizedEntriesToAdd, normalizedProductTargetGroups]
+  )
+
+  const collectionTargetsToAdd = useMemo(
+    () => normalizedEntriesToAdd
+      .filter((entry) => entry.kind === 'collection')
+      .map((entry) => entry.targetId || entry.targetSlug || '')
+      .filter(Boolean),
+    [normalizedEntriesToAdd]
+  )
 
   const isCollectionOwner = (collection: Collection) => {
     return !!currentUserId && collection.userId === currentUserId
@@ -72,18 +110,121 @@ export function AddToCollectionDialog({
     return isOwner || isEditor
   })
 
-  // Update selectedCollections only when dialog opens (not every time collections change)
+  const eligibleCollections = useMemo(() => {
+    if (collectionTargetsToAdd.length === 0) {
+      return editableCollections
+    }
+
+    const sourceCollections = collectionTargetsToAdd
+      .map((sourceCollectionId) => collections.find(
+        (candidate) => candidate.id === sourceCollectionId || candidate.slug === sourceCollectionId
+      ))
+      .filter((collection): collection is Collection => !!collection)
+
+    return editableCollections.filter((collection) => {
+      const targetCollectionKey = collection.id || collection.slug
+      if (!targetCollectionKey) return false
+
+      return !collectionTargetsToAdd.some((sourceCollectionId) => {
+        if (sourceCollectionId === collection.id || sourceCollectionId === collection.slug) {
+          // A collection cannot contain itself.
+          return true
+        }
+
+        const sourceCollection = sourceCollections.find(
+          (source) => source.id === sourceCollectionId || source.slug === sourceCollectionId
+        )
+
+        if (!sourceCollection) {
+          return false
+        }
+
+        const sourceKeys = new Set<string>([
+          sourceCollectionId,
+          sourceCollection.id,
+          sourceCollection.slug,
+        ].filter(Boolean) as string[])
+
+        // Exclude targets that already include this source as a direct child
+        // to prevent duplicate entries for the same collection.
+        const hasDirectDuplicate = getCollectionEntries(collection).some((entry) => {
+          if (entry.kind !== 'collection') {
+            return false
+          }
+
+          const entryTarget = entry.targetId || entry.targetSlug
+          return !!entryTarget && sourceKeys.has(entryTarget)
+        })
+
+        if (hasDirectDuplicate) {
+          return true
+        }
+
+        // Prevent cycles: if source already contains target, target cannot include source.
+        return collectionContainsCollection(sourceCollection, targetCollectionKey, collections)
+      })
+    })
+  }, [collectionTargetsToAdd, editableCollections, collections])
+
+  const computedPreselectedCollectionKeys = useMemo(() => {
+    if (preselectedCollectionKeysProp && preselectedCollectionKeysProp.length > 0) {
+      return Array.from(new Set(preselectedCollectionKeysProp.filter(Boolean))).sort()
+    }
+
+    if (!canPreselectExistingCollections) {
+      return []
+    }
+
+    return eligibleCollections
+      .filter((collection) => normalizedProductTargetGroups.every((candidates) => {
+        return candidates.some((candidate) => collectionContainsProduct(collection, candidate, collections))
+      }))
+      .map((c) => c.slug || c.id)
+      .filter(Boolean)
+      .sort()
+  }, [preselectedCollectionKeysProp, canPreselectExistingCollections, eligibleCollections, normalizedProductTargetGroups, collections])
+
+  const preselectedCollectionSignature = computedPreselectedCollectionKeys.join('|')
+
+  // Keep the initial selection in sync until the user changes it so late
+  // collection loads still precheck existing memberships.
   useEffect(() => {
     if (open && !prevOpenRef.current) {
-      // Dialog is opening
-      const initial = new Set(editableCollections.filter(c => collectionContainsAllProducts(c, normalizedProductSlugs, collections)).map(c => c.slug || c.id))
-      setSelectedCollections(initial)
-      setInitialCollections(initial)
+      setHasManualSelectionChanges(false)
+      syncedSelectionSignatureRef.current = ''
+      if (isDevMode) {
+        console.debug('[AddToCollectionDialog] Opening dialog', {
+          title,
+          providedPreselectedCollectionKeys: preselectedCollectionKeysProp || [],
+          computedPreselectedCollectionKeys,
+          eligibleCollectionKeys: eligibleCollections.map((collection) => collection.slug || collection.id),
+          normalizedEntriesToAdd,
+        })
+      }
     }
+
+    if (open && !hasManualSelectionChanges && syncedSelectionSignatureRef.current !== preselectedCollectionSignature) {
+      const syncedInitial = new Set(computedPreselectedCollectionKeys)
+      setSelectedCollections(syncedInitial)
+      setInitialCollections(syncedInitial)
+      syncedSelectionSignatureRef.current = preselectedCollectionSignature
+    }
+
     prevOpenRef.current = open
-  }, [open, editableCollections, normalizedProductSlugs, collections])
+  }, [
+    open,
+    hasManualSelectionChanges,
+    computedPreselectedCollectionKeys,
+    preselectedCollectionSignature,
+    isDevMode,
+    title,
+    preselectedCollectionKeysProp,
+    eligibleCollections,
+    normalizedEntriesToAdd,
+  ])
 
   const handleToggleCollection = (collectionSlug: string, isChecked: boolean) => {
+    setHasManualSelectionChanges(true)
     const newSelected = new Set(selectedCollections)
     if (isChecked) {
       newSelected.add(collectionSlug)
@@ -99,13 +240,14 @@ export function AddToCollectionDialog({
     // Find collections that were removed (in initial but not in selected)
     const removed = Array.from(initialCollections).filter(slug => !selectedCollections.has(slug))
 
-    // Execute all changes
-    await Promise.all([
-      ...added.map(slug => onAddToCollection(slug, normalizedProductSlugs)),
-      ...(allowRemoval && onRemoveFromCollection ? removed.map(slug => onRemoveFromCollection(slug, normalizedProductSlugs)) : [])
-    ])
-
     onOpenChange(false)
+
+    const payload = entriesToAdd && entriesToAdd.length > 0 ? normalizedEntriesToAdd : normalizedProductSlugs
+
+    void Promise.all([
+      ...added.map((slug) => onAddToCollection(slug, payload)),
+      ...(allowRemoval && onRemoveFromCollection ? removed.map((slug) => onRemoveFromCollection(slug, normalizedRemovalProductTargets)) : [])
+    ]).catch(() => undefined)
   }
 
   return (
@@ -118,11 +260,13 @@ export function AddToCollectionDialog({
           </DialogDescription>
         </DialogHeader>
         
-        {editableCollections.length === 0 ? (
+        {eligibleCollections.length === 0 ? (
           <div className="py-8 text-center">
             <FolderOpen size={48} className="mx-auto mb-4 text-muted-foreground" />
             <p className="text-sm text-muted-foreground mb-4">
-              You don't have editor access to any collections yet
+              {collectionTargetsToAdd.length > 0
+                ? 'No valid target collections are available for this collection entry'
+                : "You don't have editor access to any collections yet"}
             </p>
             <Button onClick={onCreateNew}>
               <Plus size={18} className="mr-2" />
@@ -133,7 +277,7 @@ export function AddToCollectionDialog({
           <>
             <ScrollArea className="max-h-[300px] pr-4">
               <div className="space-y-3">
-                {editableCollections.map((collection) => {
+                {eligibleCollections.map((collection) => {
                   const collectionSlug = collection.slug || collection.id
                   const isChecked = selectedCollections.has(collectionSlug)
                   return (

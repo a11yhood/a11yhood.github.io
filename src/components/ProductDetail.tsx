@@ -19,6 +19,7 @@ import { Product, ProductUpdate, Rating, Discussion, UserData, Collection, Colle
 import { APIService, resolveApiImageUrl } from '@/lib/api'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { formatSourceLabel, getSourceIcon, calculateAverageRating, getCanonicalHost, formatRelativeTime } from '@/lib/utils'
+import { buildAddToCollectionDefaultsForProducts } from '@/lib/addToCollection'
 import MarkdownText from '@/components/ui/MarkdownText'
 
 type ProductDetailProps = {
@@ -100,7 +101,9 @@ export function ProductDetail({
     (product.editorIds?.includes(user.id) || false)
   )
   const canEditProduct = isOwner || isEditor
-  const productCollectionTarget = product.slug || product.id
+  const productCollectionKey = product.slug || product.id
+  const productCollectionKeys = [product.slug, product.id].filter(Boolean) as string[]
+  const productAddDefaults = buildAddToCollectionDefaultsForProducts([product], localCollections)
 
   useEffect(() => {
     if (import.meta.env.VITE_DEV_MODE !== 'true') return
@@ -181,7 +184,27 @@ export function ProductDetail({
 
     try {
       const userCollections = await APIService.getUserCollections()
-      setLocalCollections(userCollections)
+      setLocalCollections((current) => {
+        // Preserve collections already shown on the page (e.g. public memberships)
+        // and overlay fresh authenticated collection data from /collections.
+        const mergedByKey = new Map<string, Collection>()
+
+        current.forEach((collection) => {
+          const key = collection.slug || collection.id
+          if (key) {
+            mergedByKey.set(key, collection)
+          }
+        })
+
+        userCollections.forEach((collection) => {
+          const key = collection.slug || collection.id
+          if (key) {
+            mergedByKey.set(key, collection)
+          }
+        })
+
+        return Array.from(mergedByKey.values())
+      })
       collectionLoadStartedRef.current = true
     } catch (error) {
       // Silently handle errors - collections are optional
@@ -194,6 +217,30 @@ export function ProductDetail({
     collectionLoadStartedRef.current = false
     void loadCollections()
   }, [loadCollections, user])
+
+  useEffect(() => {
+    // Keep local state aligned when parent-provided collections update
+    // after async loads in App-level routes.
+    setLocalCollections((current) => {
+      const mergedByKey = new Map<string, Collection>()
+
+      current.forEach((collection) => {
+        const key = collection.slug || collection.id
+        if (key) {
+          mergedByKey.set(key, collection)
+        }
+      })
+
+      userCollections.forEach((collection) => {
+        const key = collection.slug || collection.id
+        if (key) {
+          mergedByKey.set(key, collection)
+        }
+      })
+
+      return Array.from(mergedByKey.values())
+    })
+  }, [userCollections])
 
   useEffect(() => {
     if (user) {
@@ -241,7 +288,7 @@ export function ProductDetail({
       : 'No ratings yet'
 
   const handleDelete = () => {
-    const targetId = product.slug || product.id
+    const targetId = product.id || product.slug
     if (onDelete && targetId) {
       onDelete(targetId)
       onBack()
@@ -471,7 +518,8 @@ export function ProductDetail({
 
           <div className="mb-6 sm:mb-8">
             <CollectionsManager
-              productSlug={product.slug}
+              productKey={productCollectionKey}
+              productKeys={productCollectionKeys}
               userCollections={localCollections}
               user={user}
               onOpenAddDialog={() => setShowAddToCollectionDialog(true)}
@@ -513,7 +561,9 @@ export function ProductDetail({
           collections={localCollections}
           currentUserId={user.id}
           currentUsername={user.username}
-          productSlug={productCollectionTarget}
+          entriesToAdd={productAddDefaults.entries}
+          preselectedCollectionKeys={productAddDefaults.preselectedCollectionKeys}
+          productSlug={productCollectionKey}
           onAddToCollection={async (collectionSlug, productSlugs) => {
             await onAddToCollection(collectionSlug, productSlugs)
             // Refresh collections after adding
@@ -541,7 +591,13 @@ export function ProductDetail({
             // Refresh collections list after creating a new one
             await loadCollections()
           }}
-          initialProductSlugs={productCollectionTarget ? [productCollectionTarget] : []}
+          initialEntries={
+            product.slug
+              ? [{ kind: 'product', targetSlug: product.slug, targetId: product.id, title: product.name, order: 0 }]
+              : product.id
+                ? [{ kind: 'product', targetId: product.id, title: product.name, order: 0 }]
+                : []
+          }
           username={user.username}
         />
       )}

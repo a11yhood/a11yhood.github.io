@@ -1,9 +1,9 @@
-import { Collection, Product, Rating, UserAccount } from '@/lib/types'
+import { AddToCollectionDefaults, Collection, CollectionEntry, Product, Rating, UserAccount } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardHeader, CardDescription, CardContent, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Lock, LockOpen, Trash, Pencil } from '@phosphor-icons/react'
+import { ArrowLeft, FolderOpen, Lock, LockOpen, Plus, Trash, Pencil } from '@phosphor-icons/react'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductFilterTag } from '@/components/ProductFilterTag'
 import { formatDistanceToNow } from 'date-fns'
@@ -14,6 +14,8 @@ import { getProductsPathForTag } from '@/lib/tagRoutes'
 import MarkdownText from '@/components/ui/MarkdownText'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { collectionEntryKey, getCollectionEntries, getCollectionEntryProductCandidates, resolveCollectionProducts } from '@/lib/collectionUtils'
+import { buildAddToCollectionDefaultsForCollection } from '@/lib/addToCollection'
+import { serializeCollectionEntryForUpdate } from '@/lib/collectionEntrySerialization'
 
 type CollectionDetailProps = {
   collection: Collection
@@ -30,6 +32,7 @@ type CollectionDetailProps = {
   onDeleteCollection?: () => void
   onEditCollection?: () => void
   onCollectionUpdated?: (collection: Collection) => void
+  onOpenAddToCollection?: (defaults: AddToCollectionDefaults) => void
 }
 
 export function CollectionDetail({
@@ -47,6 +50,7 @@ export function CollectionDetail({
   onDeleteCollection,
   onEditCollection,
   onCollectionUpdated,
+  onOpenAddToCollection,
 }: CollectionDetailProps) {
   void onDeleteProduct
   const { notify } = useNotifications()
@@ -62,6 +66,7 @@ export function CollectionDetail({
   const [isSubmittingCollaboratorRequest, setIsSubmittingCollaboratorRequest] = useState(false)
   const [hasPendingCollaboratorRequest, setHasPendingCollaboratorRequest] = useState(false)
   const [collaboratorError, setCollaboratorError] = useState<string>('')
+  const [resolvedNestedCollections, setResolvedNestedCollections] = useState<Record<string, Collection>>({})
 
   // Products individually fetched by this component (not present in globalProducts).
   // Stored in a ref so mutations don't trigger re-renders; `fetchVersion` is bumped
@@ -198,6 +203,57 @@ export function CollectionDetail({
     return resolveCollectionProducts(collection, collections, allProductsForResolution)
   }, [collection, collections, allProductsForResolution])
 
+  const nestedCollections = useMemo(
+    () => orderedEntries
+      .map((entry, index) => ({ entry, sourceIndex: index }))
+      .filter((item) => item.entry.kind === 'collection'),
+    [orderedEntries]
+  )
+
+  useEffect(() => {
+    let cancelled = false
+
+    const unresolvedKeys = nestedCollections
+      .map(({ entry }) => entry.targetSlug || entry.targetId || '')
+      .filter(Boolean)
+      .filter((targetKey) => {
+        if (resolvedNestedCollections[targetKey]) {
+          return false
+        }
+
+        return !collections.some((candidate) => candidate.slug === targetKey || candidate.id === targetKey)
+      })
+
+    if (unresolvedKeys.length === 0) {
+      return () => { cancelled = true }
+    }
+
+    Promise.allSettled(unresolvedKeys.map((targetKey) => APIService.getCollection(targetKey)))
+      .then((results) => {
+        if (cancelled) {
+          return
+        }
+
+        setResolvedNestedCollections((current) => {
+          const next = { ...current }
+          results.forEach((result, index) => {
+            const key = unresolvedKeys[index]
+            if (result.status === 'fulfilled' && result.value) {
+              next[key] = result.value
+            }
+          })
+          return next
+        })
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.debug('[CollectionDetail] Failed to resolve nested collections by id:', error)
+        }
+      })
+
+    return () => { cancelled = true }
+  }, [nestedCollections, collections, resolvedNestedCollections])
+
   const productLabelByKey = useMemo(() => {
     const labels = new Map<string, string>()
     allProductsForResolution.forEach((product) => {
@@ -224,6 +280,30 @@ export function CollectionDetail({
       .slice(0, 8)
       .map(([tag]) => tag)
   }, [collectionProducts])
+
+  const parentCollections = useMemo(() => {
+    const collectionIdentifiers = new Set([collection.id, collection.slug].filter(Boolean) as string[])
+
+    return collections.filter((candidate) => {
+      if (candidate.id === collection.id || candidate.slug === collection.slug) {
+        return false
+      }
+
+      return getCollectionEntries(candidate).some((entry) => {
+        if (entry.kind !== 'collection') return false
+        const targetKey = entry.targetId || entry.targetSlug
+        return !!targetKey && collectionIdentifiers.has(targetKey)
+      })
+    })
+  }, [collections, collection.id, collection.slug])
+
+  const handleAddCurrentCollectionToCollection = () => {
+    if (!onOpenAddToCollection) return
+
+    const defaults = buildAddToCollectionDefaultsForCollection(collection)
+    if (defaults.entries.length === 0) return
+    onOpenAddToCollection(defaults)
+  }
 
   const creatorUsername =
     collection.username ||
@@ -492,6 +572,29 @@ export function CollectionDetail({
     }
   }
 
+  const handleRemoveNestedCollection = async (sourceIndex: number) => {
+    if (!canManageCollectionProducts) {
+      return
+    }
+
+    try {
+      const rawEntries = Array.isArray(collection.entries) ? collection.entries : orderedEntries
+      const nextEntries = rawEntries.filter((_, index) => index !== sourceIndex)
+      const updated = await APIService.updateCollection(collection.slug || collection.id, {
+        entries: nextEntries.map((entry) => serializeCollectionEntryForUpdate(entry)) as unknown as CollectionEntry[],
+      })
+
+      if (updated) {
+        onCollectionUpdated?.(updated)
+      }
+
+      notify.success('Collection entry removed')
+    } catch (error) {
+      console.error('Failed to remove nested collection entry:', error)
+      notify.error('Failed to remove collection entry')
+    }
+  }
+
   return (
     <div>
       <Button variant="outline" onClick={onBack} className="mb-6">
@@ -591,15 +694,48 @@ export function CollectionDetail({
             </div>
           </div>
 
+          {(parentCollections.length > 0 || onOpenAddToCollection) && (
+            <div className="mt-4 border-t pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-medium flex items-center gap-2">
+                  <FolderOpen size={16} aria-hidden="true" />
+                  Part of
+                </h3>
+                {onOpenAddToCollection && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={handleAddCurrentCollectionToCollection}
+                    aria-label={`Add ${collection.name} to another collection`}
+                  >
+                    <Plus size={14} weight="bold" />
+                  </Button>
+                )}
+              </div>
+              {parentCollections.length > 0 ? (
+                <ul className="mt-2 flex flex-wrap gap-2">
+                  {parentCollections.map((parentCollection) => (
+                    <li key={parentCollection.id}>
+                      <Link to={`/collections/${parentCollection.slug || parentCollection.id}`} className="no-underline">
+                        <Badge variant="outline">Collection: {parentCollection.name}</Badge>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">This collection is not part of another collection yet.</p>
+              )}
+            </div>
+          )}
+
           {orderedEntries.length > 0 && (
             <div className="mt-4">
               <h3 className="font-medium mb-2">Included items</h3>
               <ul className="flex flex-wrap gap-2">
                 {orderedEntries.map((entry, index) => {
                   const key = collectionEntryKey(entry, index)
-                  const targetCollection = entry.kind === 'collection'
-                    ? collections.find((candidate) => candidate.slug === entry.targetSlug || candidate.id === entry.targetId)
-                    : null
 
                   if (entry.kind === 'product') {
                     const candidates = getCollectionEntryProductCandidates(entry)
@@ -617,33 +753,12 @@ export function CollectionDetail({
                     )
                   }
 
-                  if (entry.kind === 'collection') {
-                    return (
-                      <li key={key}>
-                        <Link
-                          to={`/collections/${targetCollection?.slug || targetCollection?.id || entry.targetSlug || entry.targetId || ''}`}
-                          className="no-underline"
-                        >
-                          <Badge variant="outline">Collection: {targetCollection?.name || entry.title || entry.targetSlug || entry.targetId}</Badge>
-                        </Link>
-                      </li>
-                    )
-                  }
-
-                  return (
-                    <li key={key}>
-                      <Link
-                        to={`/blog/${entry.targetSlug || entry.targetId || ''}`}
-                        className="no-underline"
-                      >
-                        <Badge variant="outline">Blog post: {entry.title || entry.targetSlug || entry.targetId}</Badge>
-                      </Link>
-                    </li>
-                  )
+                  return null
                 })}
               </ul>
             </div>
           )}
+
           <div className="mt-3 text-sm">
             <span className="text-muted-foreground">Collaborators:</span>{' '}
             {collaboratorIds.length > 0 ? (
@@ -753,7 +868,6 @@ export function CollectionDetail({
         </div>
       ) : !isLoading && collectionProducts.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-lg text-muted-foreground mb-2">This collection is empty</p>
           <p className="text-sm text-muted-foreground">
             {canManageCollectionProducts ? 'Add products from the product details page' : 'No products in this collection yet'}
           </p>
@@ -770,8 +884,8 @@ export function CollectionDetail({
                   product={product}
                   ratings={ratings}
                   onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
-                  onClick={() => onSelectProduct(product.slug || product.id)}
-                  onDelete={(productSlug) => onRemoveProduct(productSlug || product.id)}
+                  onClick={() => onSelectProduct(product.id || product.slug)}
+                  onDelete={(productSlug) => onRemoveProduct(product.id || productSlug)}
                   userAccount={userAccount}
                 />
                 {canManageCollectionProducts && (
@@ -781,7 +895,7 @@ export function CollectionDetail({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation()
-                        onRemoveProduct(product.slug || product.id)
+                        onRemoveProduct(product.id || product.slug)
                       }}
                       aria-label="Remove from collection"
                     >
@@ -793,6 +907,63 @@ export function CollectionDetail({
             ))}
           </div>
         </div>
+      )}
+
+      {nestedCollections.length > 0 && (
+        <section className="mt-8" aria-label="Nested collections">
+          <h2 className="text-xl font-semibold mb-4">Nested collections</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {nestedCollections.map(({ entry, sourceIndex }, index) => {
+              const key = collectionEntryKey(entry, sourceIndex)
+              const targetCollection =
+                collections.find((candidate) => candidate.slug === entry.targetSlug || candidate.id === entry.targetId) ||
+                resolvedNestedCollections[entry.targetSlug || entry.targetId || '']
+              const destination = targetCollection?.slug || targetCollection?.id || entry.targetSlug || entry.targetId || ''
+              const nestedCollectionLabel = targetCollection?.name || entry.title || entry.targetSlug || targetCollection?.slug || entry.targetId
+
+              return (
+                <div key={`${key}:${index}`} className="relative">
+                  <Link to={`/collections/${destination}`} className="block no-underline">
+                    <Card className="overflow-hidden hover:shadow-md transition-shadow h-full">
+                      <div className="h-32 bg-muted/40 flex items-center justify-center">
+                        <FolderOpen size={44} className="text-muted-foreground/50" aria-hidden="true" />
+                      </div>
+                      <CardContent className="p-4 space-y-2">
+                        <div className="space-y-1">
+                          <Badge variant="outline" className="w-fit text-xs">
+                            Collection
+                          </Badge>
+                          <h3 className="font-semibold text-base line-clamp-2">
+                            {nestedCollectionLabel}
+                          </h3>
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-3">
+                          {targetCollection?.description || entry.description || 'Collection entry'}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                  {canManageCollectionProducts && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          void handleRemoveNestedCollection(sourceIndex)
+                        }}
+                        aria-label="Remove from collection"
+                      >
+                        <Trash size={16} />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </section>
       )}
     </div>
   )

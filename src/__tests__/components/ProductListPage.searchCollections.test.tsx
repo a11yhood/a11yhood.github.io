@@ -226,6 +226,192 @@ describe('ProductListPage search collection cards', () => {
     )
   })
 
+  it('uses slug-first product targets when opening add-to-collection from search results toolbar', async () => {
+    const user = userEvent.setup()
+    const onOpenAddToCollection = vi.fn()
+    const collections: Collection[] = [
+      {
+        id: 'c1',
+        slug: 'test1',
+        name: 'test1',
+        userId: 'u1',
+        username: 'dev_user',
+        entries: [],
+        productSlugs: ['product-one'],
+        isPublic: true,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+      {
+        id: 'c2',
+        slug: 'test2',
+        name: 'test2',
+        userId: 'u1',
+        username: 'dev_user',
+        entries: [],
+        productSlugs: ['product-one'],
+        isPublic: true,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+    ]
+
+    render(
+      <MemoryRouter>
+        <ProductListPage
+          products={baseProducts}
+          ratings={emptyRatings}
+          user={{ id: 'u1', username: 'dev_user' }}
+          userAccount={null}
+          canViewBanned={false}
+          canModerate={false}
+          includeBanned={false}
+          onIncludeBannedChange={vi.fn()}
+          collections={collections}
+          blogPosts={emptyPosts}
+          allProductSources={[]}
+          allProductTypes={[]}
+          popularTags={[]}
+          filteredTags={[]}
+          totalProductCount={baseProducts.length}
+          currentPage={1}
+          onPageChange={vi.fn()}
+          pageSize={50}
+          onPageSizeChange={vi.fn()}
+          onRate={vi.fn()}
+          onDeleteProduct={vi.fn()}
+          onToggleBan={vi.fn()}
+          onCreateCollection={vi.fn()}
+          onOpenAddToCollection={onOpenAddToCollection}
+          searchQuery="test"
+          onSearchChange={vi.fn()}
+          searchInputValue="test"
+          onSearchInputChange={vi.fn()}
+          onSearchInputBlur={vi.fn()}
+          onSearchInputKeyDown={vi.fn()}
+          isSearching={false}
+          selectedTypes={[]}
+          onTypeToggle={vi.fn()}
+          selectedTags={[]}
+          onTagToggle={vi.fn()}
+          selectedSources={[]}
+          onSourceToggle={vi.fn()}
+          minRating={0}
+          onMinRatingChange={vi.fn()}
+          updatedSince={null}
+          onUpdatedSinceChange={vi.fn()}
+          sortBy="rating"
+          sortOrder="desc"
+          onSortChange={vi.fn()}
+          onClearFilters={vi.fn()}
+        />
+      </MemoryRouter>
+    )
+
+    await user.click(screen.getByRole('button', { name: /add search results to collection/i }))
+
+    expect(onOpenAddToCollection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Search: test',
+        preselectedCollectionKeys: ['test1', 'test2'],
+        entries: [
+          expect.objectContaining({
+            kind: 'product',
+            targetSlug: 'product-one',
+            targetId: 'p1',
+          }),
+        ],
+      })
+    )
+  })
+
+  it('passes slug+id and preselected keys when using product collection plus button', async () => {
+    const user = userEvent.setup()
+    const onOpenAddToCollection = vi.fn()
+    const collections: Collection[] = [
+      {
+        id: 'c-id-only',
+        slug: 'id-only-collection',
+        name: 'ID Only Collection',
+        userId: 'u1',
+        username: 'dev_user',
+        entries: [],
+        productIds: ['p1'],
+        productSlugs: [],
+        isPublic: true,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+    ]
+
+    render(
+      <MemoryRouter>
+        <ProductListPage
+          products={baseProducts}
+          ratings={emptyRatings}
+          user={{ id: 'u1', username: 'dev_user' }}
+          userAccount={null}
+          canViewBanned={false}
+          canModerate={false}
+          includeBanned={false}
+          onIncludeBannedChange={vi.fn()}
+          collections={collections}
+          blogPosts={emptyPosts}
+          allProductSources={[]}
+          allProductTypes={[]}
+          popularTags={[]}
+          filteredTags={[]}
+          totalProductCount={baseProducts.length}
+          currentPage={1}
+          onPageChange={vi.fn()}
+          pageSize={50}
+          onPageSizeChange={vi.fn()}
+          onRate={vi.fn()}
+          onDeleteProduct={vi.fn()}
+          onToggleBan={vi.fn()}
+          onCreateCollection={vi.fn()}
+          onOpenAddToCollection={onOpenAddToCollection}
+          searchQuery=""
+          onSearchChange={vi.fn()}
+          searchInputValue=""
+          onSearchInputChange={vi.fn()}
+          onSearchInputBlur={vi.fn()}
+          onSearchInputKeyDown={vi.fn()}
+          isSearching={false}
+          selectedTypes={[]}
+          onTypeToggle={vi.fn()}
+          selectedTags={[]}
+          onTagToggle={vi.fn()}
+          selectedSources={[]}
+          onSourceToggle={vi.fn()}
+          minRating={0}
+          onMinRatingChange={vi.fn()}
+          updatedSince={null}
+          onUpdatedSinceChange={vi.fn()}
+          sortBy="rating"
+          sortOrder="desc"
+          onSortChange={vi.fn()}
+          onClearFilters={vi.fn()}
+        />
+      </MemoryRouter>
+    )
+
+    await user.click(screen.getByRole('button', { name: /add visible product to collection/i }))
+
+    expect(onOpenAddToCollection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        preselectedCollectionKeys: ['id-only-collection'],
+        entries: [
+          expect.objectContaining({
+            kind: 'product',
+            targetSlug: 'product-one',
+            targetId: 'p1',
+          }),
+        ],
+      })
+    )
+  })
+
   it('shows matching blog post cards when search query matches blog title', () => {
     const posts: BlogPost[] = [
       {

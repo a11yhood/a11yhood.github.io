@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { CollectionsList } from '@/components/CollectionsList'
-import { Collection, Product, UserAccount, UserData } from '@/lib/types'
+import { AddToCollectionDefaults, Collection, Product, UserAccount, UserData } from '@/lib/types'
 import { APIService } from '@/lib/api'
 import { useNavigate } from 'react-router-dom'
 
@@ -15,7 +15,8 @@ export function CollectionsPage({
     userAccount,
     onDeleteCollection,
     onEditCollection,
-    onCreateCollection
+    onCreateCollection,
+    onOpenAddToCollection
 }: {
     collections: Collection[]
     collectionsLoaded: boolean
@@ -25,6 +26,7 @@ export function CollectionsPage({
     onDeleteCollection: (collectionSlug: string) => void
     onEditCollection: (collection: Collection) => void
     onCreateCollection: () => void
+    onOpenAddToCollection: (defaults: AddToCollectionDefaults) => void
 }) {
     const navigate = useNavigate()
     const [ownerPage, setOwnerPage] = useState(1)
@@ -162,6 +164,7 @@ export function CollectionsPage({
                             }
                             onDeleteCollection={onDeleteCollection}
                             onEditCollection={onEditCollection}
+                            onOpenAddToCollection={onOpenAddToCollection}
                             currentUserId={currentUserId}
                             currentUsername={currentUsername}
                         />
@@ -200,6 +203,7 @@ export function CollectionsPage({
                             }
                             onDeleteCollection={onDeleteCollection}
                             onEditCollection={onEditCollection}
+                            onOpenAddToCollection={onOpenAddToCollection}
                             currentUserId={currentUserId}
                             currentUsername={currentUsername}
                         />
@@ -250,6 +254,7 @@ export function CollectionsPage({
                         })
                     }
                     onDeleteCollection={() => { /* no-op for public */ }}
+                    onOpenAddToCollection={onOpenAddToCollection}
                     currentUserId={currentUserId}
                     currentUsername={currentUsername}
                 />

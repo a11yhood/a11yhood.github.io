@@ -276,14 +276,27 @@ export function ProductDetailPageWrapper({
         localDiscussionsRef.current = localDiscussions
     }, [localDiscussions])
 
+    const resolveProductCollectionTarget = (candidate?: string): string => {
+        const normalizedCandidate = typeof candidate === 'string' ? candidate.trim() : ''
+        const resolvedProduct = products.find((item) =>
+            item.id === normalizedCandidate || item.slug === normalizedCandidate
+        )
+
+        if (resolvedProduct) {
+            return resolvedProduct.slug || resolvedProduct.id
+        }
+
+        return normalizedCandidate || slug || ''
+    }
+
     const handleAddToCollection = async (collectionSlug: string, productSlugs?: string[]) => {
         const explicitTarget = productSlugs?.find((value) => !!value)
-        const targetSlug = explicitTarget || slug
-        if (!targetSlug) return
+        const targetKey = resolveProductCollectionTarget(explicitTarget)
+        if (!targetKey) return
 
         if (!collectionSlug) return
 
-        const updated = await APIService.addProductToCollection(collectionSlug, targetSlug)
+        const updated = await APIService.addProductToCollection(collectionSlug, targetKey)
         if (updated) {
             onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
             notify.success('Added to collection')
@@ -292,10 +305,10 @@ export function ProductDetailPageWrapper({
 
     const handleRemoveFromCollection = async (collectionSlug: string, productSlugs?: string[]) => {
         const explicitTarget = productSlugs?.find((value) => !!value)
-        const targetSlug = explicitTarget || slug
-        if (!targetSlug) return
+        const targetKey = resolveProductCollectionTarget(explicitTarget)
+        if (!targetKey) return
 
-        const updated = await APIService.removeProductFromCollection(collectionSlug, targetSlug)
+        const updated = await APIService.removeProductFromCollection(collectionSlug, targetKey)
         if (updated) {
             onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
             notify.success('Removed from collection')

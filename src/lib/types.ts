@@ -235,6 +235,16 @@ export type CollectionEntry = {
   pinned?: boolean
 }
 
+export type AddToCollectionTargets = CollectionEntry[] | string[]
+
+export type AddToCollectionDefaults = {
+  name?: string
+  description?: string
+  entries: CollectionEntry[]
+  preselectedCollectionKeys?: string[]
+  isPublic?: boolean
+}
+
 export type CollectionCreateInput = {
   name: string
   description?: string

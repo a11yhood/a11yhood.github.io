@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { ProductCard } from '@/components/ProductCard'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 import type { Product, Rating } from '@/lib/types'
@@ -131,6 +132,37 @@ describeWithBackend('ProductCard - API-backed', () => {
     fireEvent.click(card)
 
     expect(onClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('should show collection badges for backend productId entries', () => {
+    const collection = {
+      id: 'collection-1',
+      slug: 'collection-1',
+      name: 'Collection 1',
+      userId: 'owner-1',
+      username: 'owner-user',
+      entries: [
+        { kind: 'product', productId: productFromApi.id, label: productFromApi.name },
+      ],
+      productSlugs: [],
+      productIds: [],
+      isPublic: true,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    } as any
+
+    render(
+      <MemoryRouter>
+        <ProductCard
+          product={{ ...productFromApi, slug: `slug-${productFromApi.id}` }}
+          ratings={ratingsFromApi}
+          collections={[collection]}
+          onClick={vi.fn()}
+        />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('Collection 1')).toBeInTheDocument()
   })
 
   it('should handle keyboard navigation', () => {

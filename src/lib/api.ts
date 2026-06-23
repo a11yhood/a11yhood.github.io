@@ -11,6 +11,7 @@ import { UserAccount, UserActivity, Product, ProductUpdate, Rating, Discussion, 
 import { logger } from './logger'
 import { ProductUrl, ProductUrlCreate, ProductUrlUpdate } from '../types/product-url'
 import { toIsoTimestamp } from './utils'
+import { serializeCollectionEntryForCreate } from './collectionEntrySerialization'
 
 // Use relative path for dev/preview (Vite proxy will handle it), or explicit URL if configured
 export function getApiBaseUrl(
@@ -1969,9 +1970,16 @@ export class APIService {
   }
 
   static async createCollection(collection: CollectionCreateInput): Promise<Collection> {
+    const payload: CollectionCreateInput | (CollectionCreateInput & { entries: Array<Record<string, unknown>> }) = {
+      ...collection,
+      entries: Array.isArray(collection.entries)
+        ? collection.entries.map((entry) => serializeCollectionEntryForCreate(entry))
+        : [],
+    }
+
     const result = await request<Collection>('/collections', {
       method: 'POST',
-      body: JSON.stringify(collection),
+      body: JSON.stringify(payload),
     })
     return APIService.normalizeCollection(result)
   }
@@ -2042,7 +2050,8 @@ export class APIService {
   static async addMultipleProductsToCollection(collectionSlug: string, productSlugs: string[]): Promise<Collection | null> {
     const result = await request<Collection | null>(`/collections/${collectionSlug}/products`, {
       method: 'POST',
-      body: JSON.stringify({ productSlugs }),
+      // Backend expects ProductIdsRequest (product_ids), and accepts UUIDs or slugs.
+      body: JSON.stringify({ productIds: productSlugs }),
     })
     return result ? APIService.normalizeCollection(result) : null
   }

@@ -18,9 +18,12 @@ import { AboutPage } from '@/components/AboutPage'
 import { UserSignup } from '@/components/UserSignup'
 import { HomePage } from '@/components/HomePage'
 import { SearchPage } from '@/components/SearchPage'
-import { Product, ProductUpdate, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput } from '@/lib/types'
+import { AddToCollectionDefaults, AddToCollectionTargets, Product, ProductUpdate, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput, CollectionEntry } from '@/lib/types'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { logger, setRuntimeLogLevel } from '@/lib/logger'
+import { createCollectionEntriesFromProductIds, createCollectionEntriesFromProductSlugs, getCollectionEntries, getCollectionProductEntries } from '@/lib/collectionUtils'
+import { normalizeProductTargets } from '@/lib/addToCollection'
+import { serializeCollectionEntryForUpdate } from '@/lib/collectionEntrySerialization'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 // API adapter disabled - using real backend API now
 // import '@/lib/api-adapter'
@@ -122,7 +125,8 @@ function App() {
   const [showAddSearchResultsDialog, setShowAddSearchResultsDialog] = useState(false)
   const [showEditCollectionDialog, setShowEditCollectionDialog] = useState(false)
   const [editingCollection, setEditingCollection] = useState<Collection | null>(null)
-  const [initialCollectionProductSlugs, setInitialCollectionProductSlugs] = useState<string[]>([])
+  const [initialCollectionEntries, setInitialCollectionEntries] = useState<CollectionEntry[]>([])
+  const [initialPreselectedCollectionKeys, setInitialPreselectedCollectionKeys] = useState<string[]>([])
   const [initialCollectionName, setInitialCollectionName] = useState<string>('')
   const [initialCollectionDescription, setInitialCollectionDescription] = useState<string>('')
   const [initialCollectionIsPublic, setInitialCollectionIsPublic] = useState<boolean>(true)
@@ -644,7 +648,11 @@ function App() {
     }
 
     loadData()
-  }, [location.pathname, pageSize, searchParams])
+    // Intentionally do not depend on searchParams here.
+    // Search/query updates on /products are handled by the fetch effect below,
+    // and including searchParams causes this full bootstrap load to re-run on
+    // every keystroke-driven URL update.
+  }, [location.pathname, pageSize])
 
   // Use AuthContext (supports both dev mode and production)
   const { user: authUser, loading: authLoading, getAccessToken, signIn, signOut } = useAuth()
@@ -1819,6 +1827,213 @@ function App() {
     })
   }
 
+  const getCollectionEntryIdentity = (entry: CollectionEntry) => {
+    if (entry.kind === 'query') {
+      return `${entry.kind}:${JSON.stringify(entry.query || {})}`
+    }
+
+    return `${entry.kind}:${entry.targetSlug || entry.targetId || entry.title || ''}`
+  }
+
+  const normalizeAddToCollectionEntries = (targets: AddToCollectionTargets = []): CollectionEntry[] => {
+    if (targets.length === 0) {
+      return []
+    }
+
+    if (typeof targets[0] === 'string') {
+      return createCollectionEntriesFromProductIds((targets as string[]).map((value) => String(value).trim()).filter(Boolean))
+    }
+
+    return (targets as CollectionEntry[])
+      .filter((entry) => !!entry && !!entry.kind)
+      .map((entry, index) => ({ ...entry, order: typeof entry.order === 'number' ? entry.order : index }))
+  }
+
+  const normalizeCollectionEntryForBackend = (entry: CollectionEntry): CollectionEntry => {
+    if (entry.kind === 'product') {
+      const productKey = entry.targetId || entry.targetSlug || ''
+      const resolvedProduct = products.find((product) => product.id === productKey || product.slug === productKey)
+
+      if (resolvedProduct?.id) {
+        return {
+          ...entry,
+          targetId: resolvedProduct.id,
+          targetSlug: resolvedProduct.slug || entry.targetSlug,
+        }
+      }
+    }
+
+    if (entry.kind === 'collection') {
+      const collectionKey = entry.targetId || entry.targetSlug || ''
+      const resolvedCollection = collections.find((collection) => collection.id === collectionKey || collection.slug === collectionKey)
+
+      if (resolvedCollection?.id) {
+        return {
+          ...entry,
+          targetId: resolvedCollection.id,
+          targetSlug: resolvedCollection.slug || entry.targetSlug,
+        }
+      }
+    }
+
+    return entry
+  }
+
+  const resolveProductApiKey = (productKey: string): string => {
+    const resolvedProduct = products.find((product) => product.id === productKey || product.slug === productKey)
+    return resolvedProduct?.slug || resolvedProduct?.id || productKey
+  }
+
+  const refreshCollectionInState = async (
+    collectionSlug: string,
+    fallbackCollection?: Collection | null,
+    expectedEntries: CollectionEntry[] = [],
+  ) => {
+    if (fallbackCollection) {
+      setCollections((current) =>
+        current.map((collection) => ((collection.slug || collection.id) === collectionSlug ? fallbackCollection : collection))
+      )
+    }
+
+    const expectedEntryIdentities = new Set(expectedEntries.map(getCollectionEntryIdentity))
+
+    try {
+      const refreshed = await APIService.getCollection(collectionSlug)
+      if (refreshed) {
+        if (fallbackCollection) {
+          const fallbackEntries = getCollectionEntries(fallbackCollection)
+          const refreshedEntries = getCollectionEntries(refreshed)
+          const refreshedEntryIdentities = new Set(refreshedEntries.map(getCollectionEntryIdentity))
+          const hasExpectedEntries =
+            expectedEntryIdentities.size === 0 ||
+            Array.from(expectedEntryIdentities).every((identity) => refreshedEntryIdentities.has(identity))
+
+          const refetchLooksStale =
+            !hasExpectedEntries &&
+            fallbackEntries.length > 0 &&
+            refreshedEntries.length < fallbackEntries.length
+
+          if (refetchLooksStale) {
+            return fallbackCollection
+          }
+        }
+
+        setCollections((current) =>
+          current.map((collection) => ((collection.slug || collection.id) === collectionSlug ? refreshed : collection))
+        )
+        return refreshed
+      }
+    } catch (error) {
+      console.warn(`[App] Failed to refetch collection after mutation: ${collectionSlug}`, error)
+    }
+
+    if (fallbackCollection) {
+      return fallbackCollection
+    }
+
+    return null
+  }
+
+  const handleAddEntriesToCollection = async (collectionSlug: string, targets: AddToCollectionTargets = []) => {
+    const rawEntriesToAdd = normalizeAddToCollectionEntries(targets)
+    if (rawEntriesToAdd.length === 0) {
+      return
+    }
+
+    const entriesToAdd = rawEntriesToAdd.map(normalizeCollectionEntryForBackend)
+    if (entriesToAdd.length === 0) {
+      throw new Error('No supported items to add to collection')
+    }
+
+    const hasOnlyProductEntries = entriesToAdd.every((entry) => entry.kind === 'product' && !!(entry.targetSlug || entry.targetId))
+
+    const mergeEntriesIntoCollection = async (baseCollection: Collection) => {
+      const existingEntries = getCollectionEntries(baseCollection)
+      const seen = new Set(existingEntries.map(getCollectionEntryIdentity))
+      const mergedEntries = [...existingEntries]
+
+      entriesToAdd.forEach((entry) => {
+        const key = getCollectionEntryIdentity(entry)
+        if (!seen.has(key)) {
+          seen.add(key)
+          mergedEntries.push(entry)
+        }
+      })
+
+      const updated = await APIService.updateCollection(collectionSlug, {
+        entries: mergedEntries.map((entry) => serializeCollectionEntryForUpdate(entry)),
+      })
+
+      if (!updated) {
+        throw new Error(`Failed to update collection: ${collectionSlug}`)
+      }
+
+      await refreshCollectionInState(collectionSlug, updated, entriesToAdd)
+      return updated
+    }
+
+    if (hasOnlyProductEntries) {
+      const productTargets = Array.from(
+        new Set(
+          entriesToAdd
+            .map((entry) => resolveProductApiKey(entry.targetSlug || entry.targetId || ''))
+            .filter(Boolean)
+        )
+      )
+
+      if (productTargets.length === 1) {
+        const updated = await APIService.addProductToCollection(collectionSlug, productTargets[0])
+        if (!updated) {
+          throw new Error(`Failed to add product to collection: ${collectionSlug}`)
+        }
+
+        const directProductKeys = new Set(
+          getCollectionProductEntries(updated)
+            .map((entry) => resolveProductApiKey(entry.targetSlug || entry.targetId || ''))
+            .filter(Boolean)
+        )
+        const hasAllTargetsDirectly = productTargets.every((target) => directProductKeys.has(target))
+
+        if (!hasAllTargetsDirectly) {
+          await mergeEntriesIntoCollection(updated)
+          return
+        }
+
+        await refreshCollectionInState(collectionSlug, updated, entriesToAdd)
+        return
+      }
+
+      const updated = await APIService.addMultipleProductsToCollection(collectionSlug, productTargets)
+      if (!updated) {
+        throw new Error(`Failed to add products to collection: ${collectionSlug}`)
+      }
+
+      const directProductKeys = new Set(
+        getCollectionProductEntries(updated)
+          .map((entry) => resolveProductApiKey(entry.targetSlug || entry.targetId || ''))
+          .filter(Boolean)
+      )
+      const hasAllTargetsDirectly = productTargets.every((target) => directProductKeys.has(target))
+
+      if (!hasAllTargetsDirectly) {
+        await mergeEntriesIntoCollection(updated)
+        return
+      }
+
+      await refreshCollectionInState(collectionSlug, updated, entriesToAdd)
+      return
+    }
+
+    const collectionSnapshot = collections.find((candidate) => (candidate.slug || candidate.id) === collectionSlug)
+    const baseCollection = collectionSnapshot || await APIService.getCollection(collectionSlug)
+
+    if (!baseCollection) {
+      throw new Error(`Collection not found: ${collectionSlug}`)
+    }
+
+    await mergeEntriesIntoCollection(baseCollection)
+  }
+
   return (
     <div className="min-h-screen bg-(--color-bg)">
       {showSignup && user ? (
@@ -1926,7 +2141,8 @@ function App() {
                   onOpenAddToCollection={(defaults) => {
                     setInitialCollectionName(defaults.name ?? '')
                     setInitialCollectionDescription(defaults.description ?? '')
-                    setInitialCollectionProductSlugs(defaults.productSlugs)
+                    setInitialCollectionEntries(defaults.entries)
+                    setInitialPreselectedCollectionKeys(defaults.preselectedCollectionKeys ?? [])
                     setInitialCollectionIsPublic(defaults.isPublic ?? true)
                     setShowAddSearchResultsDialog(true)
                   }}
@@ -2001,6 +2217,14 @@ function App() {
                     setShowEditCollectionDialog(true)
                   }}
                   onCreateCollection={() => setShowCreateCollectionDialog(true)}
+                  onOpenAddToCollection={(defaults) => {
+                    setInitialCollectionName(defaults.name ?? '')
+                    setInitialCollectionDescription(defaults.description ?? '')
+                    setInitialCollectionEntries(defaults.entries)
+                    setInitialPreselectedCollectionKeys(defaults.preselectedCollectionKeys ?? [])
+                    setInitialCollectionIsPublic(defaults.isPublic ?? true)
+                    setShowAddSearchResultsDialog(true)
+                  }}
                 />
               } />
               <Route path="/collections/:collectionSlug" element={
@@ -2016,6 +2240,14 @@ function App() {
                   onEditCollection={(collection) => {
                     setEditingCollection(collection)
                     setShowEditCollectionDialog(true)
+                  }}
+                  onOpenAddToCollection={(defaults) => {
+                    setInitialCollectionName(defaults.name ?? '')
+                    setInitialCollectionDescription(defaults.description ?? '')
+                    setInitialCollectionEntries(defaults.entries)
+                    setInitialPreselectedCollectionKeys(defaults.preselectedCollectionKeys ?? [])
+                    setInitialCollectionIsPublic(defaults.isPublic ?? true)
+                    setShowAddSearchResultsDialog(true)
                   }}
                 />
               } />
@@ -2071,7 +2303,7 @@ function App() {
                 open={showCreateCollectionDialog}
                 onOpenChange={setShowCreateCollectionDialog}
                 onCreateCollection={handleCreateCollection}
-                initialProductSlugs={initialCollectionProductSlugs}
+                initialEntries={initialCollectionEntries}
                 initialName={initialCollectionName}
                 initialDescription={initialCollectionDescription}
                 initialIsPublic={initialCollectionIsPublic}
@@ -2084,12 +2316,34 @@ function App() {
                 collections={collections}
                 currentUserId={userAccount?.id || user?.id}
                 currentUsername={user?.username}
-                productSlugs={initialCollectionProductSlugs}
-                onAddToCollection={async (collectionSlug, productSlugs = []) => {
-                  if (productSlugs.length === 0) return
-                  await APIService.addMultipleProductsToCollection(collectionSlug, productSlugs)
-                  const refreshed = await APIService.getUserCollections()
-                  setCollections(refreshed)
+                entriesToAdd={initialCollectionEntries}
+                preselectedCollectionKeys={initialPreselectedCollectionKeys}
+                onAddToCollection={async (collectionSlug, targets = []) => {
+                  try {
+                    await handleAddEntriesToCollection(collectionSlug, targets)
+                    notify.success('Added to collection')
+                  } catch (error) {
+                    console.error('Failed to add items to collection:', error)
+                    notify.error('Failed to add items to collection')
+                  }
+                }}
+                onRemoveFromCollection={async (collectionSlug, productTargets = []) => {
+                  try {
+                    const normalizedTargets = normalizeProductTargets(productTargets || [])
+                    await Promise.all(
+                      normalizedTargets.map(async (target) => {
+                        const resolvedTarget = resolveProductApiKey(target)
+                        if (!resolvedTarget) return
+                        await APIService.removeProductFromCollection(collectionSlug, resolvedTarget)
+                      })
+                    )
+
+                    await refreshCollectionInState(collectionSlug)
+                    notify.success('Removed from collection')
+                  } catch (error) {
+                    console.error('Failed to remove items from collection:', error)
+                    notify.error('Failed to remove items from collection')
+                  }
                 }}
                 onCreateNew={() => {
                   setShowAddSearchResultsDialog(false)
@@ -2097,7 +2351,7 @@ function App() {
                 }}
                 title="Add Search Results to Collection"
                 description="Select one or more collections to add the current search results to"
-                allowRemoval={false}
+                allowRemoval={true}
                 username={user.username}
               />
 

@@ -75,4 +75,39 @@ describe('collectionUtils', () => {
     expect(resolved).toHaveLength(1)
     expect(resolved[0].name).toBe('Human Product Name')
   })
+
+  it('hydrates backend collection and blog post entry ids into targetId', () => {
+    const collection = {
+      entries: [
+        { kind: 'collection', collectionId: 'child-collection', label: 'Child Collection' },
+        { kind: 'blogPost', blogPostId: 'post-1', label: 'Blog Post' },
+      ],
+      productSlugs: [],
+      productIds: [],
+    } as Pick<Collection, 'entries' | 'productIds' | 'productSlugs'>
+
+    const entries = getCollectionEntries(collection)
+
+    expect(entries).toHaveLength(2)
+    expect(entries[0].kind).toBe('collection')
+    expect(entries[0].targetId).toBe('child-collection')
+    expect(entries[1].kind).toBe('blogPost')
+    expect(entries[1].targetId).toBe('post-1')
+  })
+
+  it('hydrates backend product entries using productId', () => {
+    const collection = {
+      entries: [
+        { kind: 'product', productId: 'product-1', label: 'Product 1' },
+      ],
+      productSlugs: [],
+      productIds: [],
+    } as Pick<Collection, 'entries' | 'productIds' | 'productSlugs'>
+
+    const entries = getCollectionEntries(collection)
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0].kind).toBe('product')
+    expect(entries[0].targetId).toBe('product-1')
+  })
 })

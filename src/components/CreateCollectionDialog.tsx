@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
-import { CollectionCreateInput } from '@/lib/types'
+import { CollectionCreateInput, CollectionEntry } from '@/lib/types'
 import { createCollectionEntriesFromProductSlugs } from '@/lib/collectionUtils'
 
 type CreateCollectionDialogProps = {
@@ -12,6 +12,7 @@ type CreateCollectionDialogProps = {
   onOpenChange: (open: boolean) => void
   onCreateCollection: (collection: CollectionCreateInput) => void
   initialProductSlugs?: string[]
+  initialEntries?: CollectionEntry[]
   initialName?: string
   initialDescription?: string
   initialIsPublic?: boolean
@@ -26,6 +27,7 @@ export function CreateCollectionDialog({
   onOpenChange,
   onCreateCollection,
   initialProductSlugs = [],
+  initialEntries = [],
   initialName,
   initialDescription,
   initialIsPublic,
@@ -72,7 +74,7 @@ export function CreateCollectionDialog({
       name: name.trim(),
       description: collectionDescription.trim() || undefined,
       username,
-      entries: createCollectionEntriesFromProductSlugs(initialProductSlugs),
+      entries: initialEntries.length > 0 ? initialEntries : createCollectionEntriesFromProductSlugs(initialProductSlugs),
       isPublic,
     })
 

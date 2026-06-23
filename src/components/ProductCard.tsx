@@ -17,7 +17,7 @@ import { Card } from '@/components/ui/card'
 import { StarRating } from './StarRating'
 import { Product, Rating, UserData, UserAccount, Collection } from '@/lib/types'
 import { cn, formatSourceLabel, getSourceIcon, calculateAverageRating, formatRelativeTime } from '@/lib/utils'
-import { Trash, ArrowUpRight, Prohibit, CheckCircle, FolderOpen } from '@phosphor-icons/react'
+import { Trash, ArrowUpRight, Prohibit, CheckCircle, FolderOpen, Plus } from '@phosphor-icons/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import MarkdownText from '@/components/ui/MarkdownText'
 import { ProductFilterTag } from '@/components/ProductFilterTag'
@@ -50,9 +50,10 @@ type ProductCardProps = {
   showBannedBadge?: boolean
   canModerate?: boolean
   onToggleBan?: () => void
+  onOpenAddToCollection?: (productTargets: string[]) => void
 }
 
-export const ProductCard = memo(function ProductCard({ product, ratings, collections, selectedTags = [], href, onNavigate, onClick, onTagClick, onDelete, user, onRate, userAccount, showBannedBadge, canModerate, onToggleBan }: ProductCardProps) {
+export const ProductCard = memo(function ProductCard({ product, ratings, collections, selectedTags = [], href, onNavigate, onClick, onTagClick, onDelete, user, onRate, userAccount, showBannedBadge, canModerate, onToggleBan, onOpenAddToCollection }: ProductCardProps) {
   const [imageError, setImageError] = useState(false)
   // Only filter and compute ratings for this specific product to avoid unnecessary work
   const productRatings = useMemo(() => ratings.filter((r) => r.productId === product.id), [ratings, product.id])
@@ -60,8 +61,13 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
   const displayRating = Number.isFinite(averageRating) ? averageRating : 0
   const userRating = useMemo(() => user ? productRatings.find((r) => r.userId === user.id)?.rating : undefined, [user, productRatings])
   const productCollections = useMemo(
-    () => collections ? collections.filter((c) => product.slug && collectionContainsProduct(c, product.slug, collections)) : [],
-    [collections, product.slug]
+    () => collections
+      ? collections.filter((c) => {
+          const productKeys = [product.slug, product.id].filter(Boolean) as string[]
+          return productKeys.some((key) => collectionContainsProduct(c, key, collections))
+        })
+      : [],
+    [collections, product.id, product.slug]
   )
 
   // Support both snake_case and camelCase from API
@@ -77,7 +83,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
       userAccountRole: userAccount?.role,
       canModerate
     })
-    const targetId = product.slug || product.id
+    const targetId = product.id || product.slug
     if (onDelete && targetId) {
       console.log('[ProductCard.handleDelete] Calling onDelete with ID:', targetId)
       onDelete(targetId)
@@ -115,6 +121,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
   }
 
   const shouldShowImage = !!product.imageUrl && !imageError
+  const productTarget = product.slug || product.id
 
   return (
     <Card
@@ -218,28 +225,48 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
               )}
             </ul>
           )}
-	  
-          {productCollections.length > 0 && (
+
+          {(productCollections.length > 0 || (onOpenAddToCollection && productTarget)) && (
             <>
-              <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <FolderOpen size={14} />
-                Collections
-              </h4>
-              <ul className="flex flex-wrap gap-2 -mt-1">
-                {productCollections.map((c, index) => (
-                  <li key={c.slug ?? (c.id != null ? String(c.id) : `collection-${index}`)}>
-                    <Link
-                      to={`/collections/${c.slug || c.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="no-underline"
-                    >
-                      <Badge variant="outline" className="text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground motion-safe:hover:-translate-y-0.5 transition-all">
-                        {c.name}
-                      </Badge>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                  <FolderOpen size={14} />
+                  Collections
+                </h4>
+                {onOpenAddToCollection && productTarget && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 border-2 border-dashed border-foreground/60 text-foreground/80 hover:border-foreground hover:text-foreground hover:bg-transparent"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onOpenAddToCollection([String(productTarget)])
+                    }}
+                    aria-label={`Add ${product.name} to collection`}
+                  >
+                    <Plus size={14} weight="bold" />
+                  </Button>
+                )}
+              </div>
+              {productCollections.length > 0 ? (
+                <ul className="flex flex-wrap gap-2 -mt-1">
+                  {productCollections.map((c, index) => (
+                    <li key={c.slug ?? (c.id != null ? String(c.id) : `collection-${index}`)}>
+                      <Link
+                        to={`/collections/${c.slug || c.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="no-underline"
+                      >
+                        <Badge variant="outline" className="text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground motion-safe:hover:-translate-y-0.5 transition-all">
+                          {c.name}
+                        </Badge>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-muted-foreground -mt-1">No collections yet.</p>
+              )}
             </>
           )}
 
@@ -342,6 +369,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
   if (prevProps.onClick !== nextProps.onClick) return false
   if (prevProps.onNavigate !== nextProps.onNavigate) return false
   if (prevProps.onTagClick !== nextProps.onTagClick) return false
+  if (prevProps.onOpenAddToCollection !== nextProps.onOpenAddToCollection) return false
   if (prevProps.selectedTags !== nextProps.selectedTags) return false
   
   // Compare only this product's ratings

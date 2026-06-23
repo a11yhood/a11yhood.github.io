@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { Card, CardContent } from '@/components/ui/card'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductListItem } from '@/components/ProductListItem'
 import { ProductFilters } from '@/components/ProductFilters'
-import { MagnifyingGlass, SquaresFour, Rows } from '@phosphor-icons/react'
+import { MagnifyingGlass, SquaresFour, Rows, FolderOpen, NotePencil, Plus } from '@phosphor-icons/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faLayerGroup } from '@fortawesome/free-solid-svg-icons'
 import {
+    AddToCollectionDefaults,
     Product,
     Rating,
     UserData,
@@ -18,6 +20,8 @@ import {
     CollectionCreateInput,
     BlogPost
 } from '@/lib/types'
+import { collectionContainsProduct } from '@/lib/collectionUtils'
+import { buildAddToCollectionDefaultsForCollection, buildAddToCollectionDefaultsForProducts } from '@/lib/addToCollection'
 
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -120,7 +124,7 @@ export function ProductListPage({
     onDeleteProduct: (productId: string) => void
     onToggleBan: (product: Product) => void
     onCreateCollection: (data: CollectionCreateInput) => void
-    onOpenAddToCollection: (defaults: { name?: string; description?: string; productSlugs: string[]; isPublic?: boolean }) => void
+    onOpenAddToCollection: (defaults: AddToCollectionDefaults) => void
     searchQuery: string
     onSearchChange: (query: string) => void
     searchInputValue: string
@@ -149,7 +153,6 @@ export function ProductListPage({
     const [page, setPage] = useState(1)
 
     // These are intentionally accepted for API compatibility with SearchPage props.
-    void blogPosts
     void popularTags
     void onCreateCollection
     void onSearchChange
@@ -179,6 +182,106 @@ export function ProductListPage({
 
     const totalPages = Math.max(1, Math.ceil(totalProductCount / pageSize))
     const paginatedProducts = products
+    const normalizedSearchQuery = searchQuery.trim().toLowerCase()
+    const canAddToCollection = !!user
+    const isDevMode = import.meta.env.VITE_DEV_MODE === 'true'
+
+    const handleOpenAddForTargets = (productTargets: string[], defaults?: { name?: string; description?: string; isPublic?: boolean }) => {
+        const sanitizedTargets = productTargets
+            .map((target) => String(target).trim())
+            .filter(Boolean)
+
+        if (sanitizedTargets.length === 0) {
+            return
+        }
+
+        const matchedProducts = sanitizedTargets
+            .map((target) => products.find((product) => product.slug === target || product.id === target))
+            .filter((product): product is Product => !!product)
+
+        const resolvedDefaults = matchedProducts.length > 0
+            ? buildAddToCollectionDefaultsForProducts(matchedProducts, collections, {
+                name: defaults?.name,
+                description: defaults?.description,
+                isPublic: defaults?.isPublic,
+            })
+            : {
+                name: defaults?.name,
+                description: defaults?.description,
+                isPublic: defaults?.isPublic,
+                entries: sanitizedTargets.map((target, index) => ({ kind: 'product' as const, targetSlug: target, order: index })),
+                preselectedCollectionKeys: [],
+            }
+
+        if (isDevMode) {
+            console.debug('[ProductListPage] Open add-to-collection (product plus)', {
+                productTargets: sanitizedTargets,
+                matchedProductCount: matchedProducts.length,
+                entryCount: resolvedDefaults.entries.length,
+                preselectedCollectionKeys: resolvedDefaults.preselectedCollectionKeys,
+                entriesPreview: resolvedDefaults.entries.map((entry) => ({ targetSlug: entry.targetSlug, targetId: entry.targetId })),
+            })
+        }
+
+        onOpenAddToCollection(resolvedDefaults)
+    }
+
+    const matchingCollections = useMemo(() => {
+        if (!normalizedSearchQuery) {
+            return []
+        }
+
+        const currentUserId = userAccount?.id || user?.id
+        const currentUsername = user?.username
+
+        return (collections || []).filter((collection) => {
+            const isOwner = !!currentUserId && collection.userId === currentUserId
+            const isEditorById = !!currentUserId && (collection.editorIds || []).includes(currentUserId)
+            const isEditorByUsername = !!currentUsername && (collection.editorUsernames || []).includes(currentUsername)
+            const canAccess = collection.isPublic || isOwner || isEditorById || isEditorByUsername
+
+            if (!canAccess) {
+                return false
+            }
+
+            const searchableText = [
+                collection.name,
+                collection.description,
+                collection.username,
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase()
+
+            return searchableText.includes(normalizedSearchQuery)
+        })
+    }, [collections, normalizedSearchQuery, userAccount?.id, user?.id, user?.username])
+
+    const matchingBlogPosts = useMemo(() => {
+        if (!normalizedSearchQuery) {
+            return []
+        }
+
+        const canViewUnpublished = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
+
+        return (blogPosts || []).filter((post) => {
+            if (!canViewUnpublished && !post.published) {
+                return false
+            }
+
+            const searchableText = [
+                post.title,
+                post.excerpt,
+                post.authorName,
+                ...(post.tags || []),
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase()
+
+            return searchableText.includes(normalizedSearchQuery)
+        })
+    }, [blogPosts, normalizedSearchQuery, userAccount?.role])
 
     // Combine API-filtered tags with tags from current page of products, plus selected tags
     const allTags = useMemo(() => {
@@ -281,11 +384,21 @@ export function ProductListPage({
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => onOpenAddToCollection({
-                                        name: searchQuery ? `Search: ${searchQuery}` : 'Filtered Products',
-                                        productSlugs: products.map(p => p.slug).filter((s): s is string => !!s),
-                                        isPublic: false
-                                    })}
+                                    onClick={() => {
+                                        const resolvedDefaults = buildAddToCollectionDefaultsForProducts(products, collections, {
+                                            name: searchQuery ? `Search: ${searchQuery}` : 'Filtered Products',
+                                            isPublic: false,
+                                        })
+                                        if (isDevMode) {
+                                            console.debug('[ProductListPage] Open add-to-collection (summary button)', {
+                                                productCount: products.length,
+                                                entryCount: resolvedDefaults.entries.length,
+                                                preselectedCollectionKeys: resolvedDefaults.preselectedCollectionKeys,
+                                                productTargets: resolvedDefaults.entries.map((entry) => ({ targetSlug: entry.targetSlug, targetId: entry.targetId })),
+                                            })
+                                        }
+                                        onOpenAddToCollection(resolvedDefaults)
+                                    }}
                                     className="text-xs"
                                 >
                                     Add to Collection
@@ -361,12 +474,20 @@ export function ProductListPage({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => {
-                                        onOpenAddToCollection({
+                                        const resolvedDefaults = buildAddToCollectionDefaultsForProducts(products, collections, {
                                             name: searchQuery ? `Search: ${searchQuery}` : 'My Collection',
                                             description: `Collection with ${products.length} products`,
-                                            productSlugs: products.map(p => p.slug).filter((s): s is string => !!s),
                                             isPublic: true,
                                         })
+                                        if (isDevMode) {
+                                            console.debug('[ProductListPage] Open add-to-collection (toolbar button)', {
+                                                productCount: products.length,
+                                                entryCount: resolvedDefaults.entries.length,
+                                                preselectedCollectionKeys: resolvedDefaults.preselectedCollectionKeys,
+                                                productTargets: resolvedDefaults.entries.map((entry) => ({ targetSlug: entry.targetSlug, targetId: entry.targetId })),
+                                            })
+                                        }
+                                        onOpenAddToCollection(resolvedDefaults)
                                     }}
                                     className="flex items-center gap-2"
                                     aria-label={searchQuery ? 'Add search results to collection' : 'Add products to collection'}
@@ -380,6 +501,111 @@ export function ProductListPage({
                     </div>
 
                     <h2 className="sr-only">Search Results</h2>
+
+                    {matchingCollections.length > 0 && (
+                        <section className="mb-6" aria-label="Matching collections">
+                            <div className="flex items-center gap-2 mb-3">
+                                <FolderOpen size={18} className="text-muted-foreground" aria-hidden="true" />
+                                <h3 className="text-lg font-semibold">Collections ({matchingCollections.length})</h3>
+                            </div>
+                            <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                                {matchingCollections.map((collection) => {
+                                    const productCount = collection.productSlugs?.length || collection.productIds?.length || 0
+                                    const destination = `/collections/${collection.slug || collection.id}`
+                                    return (
+                                        <Card
+                                            key={collection.id}
+                                            className="cursor-pointer hover:shadow-md transition-shadow"
+                                            onClick={() => navigate(destination)}
+                                            role="link"
+                                            tabIndex={0}
+                                            onKeyDown={(event) => {
+                                                if (event.key === 'Enter' || event.key === ' ') {
+                                                    event.preventDefault()
+                                                    navigate(destination)
+                                                }
+                                            }}
+                                            aria-label={`View collection ${collection.name}`}
+                                        >
+                                            <CardContent className="space-y-2 pt-5">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="space-y-1 min-w-0">
+                                                        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                                            <FolderOpen size={12} aria-hidden="true" />
+                                                            Collection
+                                                        </p>
+                                                        <h4 className="text-base font-semibold line-clamp-2">{collection.name}</h4>
+                                                    </div>
+                                                    {canAddToCollection && (collection.id || collection.slug) && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-7 w-7 p-0"
+                                                            onClick={(event) => {
+                                                                event.stopPropagation()
+                                                                onOpenAddToCollection(buildAddToCollectionDefaultsForCollection(collection))
+                                                            }}
+                                                            aria-label={`Add ${collection.name} to a collection`}
+                                                        >
+                                                            <Plus size={14} weight="bold" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                                {collection.description && (
+                                                    <p className="text-sm text-muted-foreground line-clamp-2">{collection.description}</p>
+                                                )}
+                                                <p className="text-xs text-muted-foreground">
+                                                    By @{collection.username} • {productCount} {productCount === 1 ? 'product' : 'products'}
+                                                </p>
+                                            </CardContent>
+                                        </Card>
+                                    )
+                                })}
+                            </div>
+                        </section>
+                    )}
+
+                    {matchingBlogPosts.length > 0 && (
+                        <section className="mb-6" aria-label="Matching blog posts">
+                            <div className="flex items-center gap-2 mb-3">
+                                <NotePencil size={18} className="text-muted-foreground" aria-hidden="true" />
+                                <h3 className="text-lg font-semibold">Blog Posts ({matchingBlogPosts.length})</h3>
+                            </div>
+                            <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                                {matchingBlogPosts.map((post) => {
+                                    const destination = `/blog/${post.slug}`
+                                    const dateLabel = new Date(post.publishDate || post.createdAt).toLocaleDateString()
+                                    return (
+                                        <Card
+                                            key={post.id}
+                                            className="cursor-pointer hover:shadow-md transition-shadow"
+                                            onClick={() => navigate(destination)}
+                                            role="link"
+                                            tabIndex={0}
+                                            onKeyDown={(event) => {
+                                                if (event.key === 'Enter' || event.key === ' ') {
+                                                    event.preventDefault()
+                                                    navigate(destination)
+                                                }
+                                            }}
+                                            aria-label={`View blog post ${post.title}`}
+                                        >
+                                            <CardContent className="space-y-2 pt-5">
+                                                <h4 className="text-base font-semibold">{post.title}</h4>
+                                                {post.excerpt && (
+                                                    <p className="text-sm text-muted-foreground line-clamp-2">{post.excerpt}</p>
+                                                )}
+                                                <p className="text-xs text-muted-foreground">
+                                                    By {post.authorName} • {dateLabel}
+                                                </p>
+                                            </CardContent>
+                                        </Card>
+                                    )
+                                })}
+                            </div>
+                        </section>
+                    )}
 
                     {isSearching && products.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-24">
@@ -415,6 +641,7 @@ export function ProductListPage({
                                     canModerate={canModerate}
                                     onToggleBan={() => onToggleBan(product)}
                                     onDelete={onDeleteProduct}
+                                    onOpenAddToCollection={canAddToCollection ? handleOpenAddForTargets : undefined}
                                 />
                             ))}
                         </div>
@@ -437,6 +664,7 @@ export function ProductListPage({
                                     showBannedBadge={canViewBanned}
                                     canModerate={canModerate}
                                     onToggleBan={() => onToggleBan(product)}
+                                    onOpenAddToCollection={canAddToCollection ? handleOpenAddForTargets : undefined}
                                 />
                             ))}
                         </div>
