@@ -607,7 +607,7 @@ export function ProductListPage({
                             <p className="text-lg text-muted-foreground">
                                 No products found. Try adjusting your filters.
                             </p>
-                            {(selectedTags.length > 0 || minRating > 0) && (
+                            {((searchQuery.trim().length > 0) || selectedTags.length > 0 || selectedSources.length > 0 || minRating > 0 || updatedSince !== null) && (
                                 <Button variant="outline" onClick={onClearFilters} className="mt-4">
                                     Clear all filters
                                 </Button>

@@ -405,7 +405,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
     
     const productData = {
       name: name.trim(),
-      type: type || 'Other',
+      type: type.trim() || 'Other',
       sourceUrl: sourceUrl.trim() || undefined,
       sourceUrls,
       source: source || 'user-submitted',

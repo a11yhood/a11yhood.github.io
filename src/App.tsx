@@ -376,15 +376,18 @@ function App() {
 
   // Sync search query from URL params when navigating to /products
   useEffect(() => {
-    if (location.pathname !== '/products') return
+    if (location.pathname !== '/' && location.pathname !== '/products') return
 
     // Strip legacy ?type= params — types are no longer user-facing
     if (searchParams.has('type')) {
+      setSelectedTypes([])
       const cleaned = new URLSearchParams(searchParams)
       cleaned.delete('type')
       setSearchParams(cleaned, { replace: true })
       return
     }
+
+    if (location.pathname !== '/products') return
 
     const urlQuery = searchParams.get('q') || ''
 
