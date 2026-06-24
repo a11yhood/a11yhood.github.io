@@ -22,7 +22,6 @@ type ProductEditDialogProps = {
   onSave: (updatedProduct: ProductUpdate) => void | Promise<void>
   userAccount?: UserAccount | null
   autoOpen?: boolean
-  allProductTypes?: string[]
 }
 
 function resolveImageUrlFromProduct(product: Product): string | undefined {
@@ -105,7 +104,7 @@ function buildImagePayload(
   return undefined
 }
 
-export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allProductTypes = [] }: ProductEditDialogProps) {
+export function ProductEditDialog({ product, onSave, userAccount, autoOpen }: ProductEditDialogProps) {
   const [open, setOpen] = useState(!!autoOpen)
   const [formData, setFormData] = useState<ProductUpdate>(() => normalizeProductForEdit(product))
   const [tagInput, setTagInput] = useState('')
@@ -133,9 +132,6 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
   const isEditor = userAccount?.id && product.editorIds?.includes(userAccount.id)
   const canEdit = userAccount?.role === 'admin' || userAccount?.role === 'moderator' || !!isOwner || !!isEditor
   const canUploadFile = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
-
-  // allProductTypes is kept in the prop interface for API compatibility but is no longer used in the UI
-  void allProductTypes
 
   if (!canEdit) return null
 

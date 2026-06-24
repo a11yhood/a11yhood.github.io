@@ -94,19 +94,19 @@ describe('ARIA Live Regions for Dynamic Content', () => {
   it('should announce filter changes via live region', () => {
     const { container } = render(
       <ProductFilters
-        types={['Software', 'Hardware']}
         tags={['accessibility', 'testing']}
-        sources={['GitHub', 'Ravelry']}
-        selectedTypes={['Software']}
+        sources={[{ name: 'GitHub', count: 0 }, { name: 'Ravelry', count: 0 }]}
         selectedTags={['accessibility']}
         selectedSources={[]}
         minRating={3}
         updatedSince={null}
-        onTypeToggle={() => {}}
+        sortBy="created_at"
+        sortOrder="desc"
         onTagToggle={() => {}}
         onSourceToggle={() => {}}
         onMinRatingChange={() => {}}
         onUpdatedSinceChange={() => {}}
+        onSortChange={() => {}}
         onClearFilters={() => {}}
       />
     )
@@ -123,19 +123,19 @@ describe('ARIA Live Regions for Dynamic Content', () => {
   it('should announce no filters when none are active', () => {
     const { container } = render(
       <ProductFilters
-        types={['Software', 'Hardware']}
         tags={['accessibility']}
-        sources={['GitHub']}
-        selectedTypes={[]}
+        sources={[{ name: 'GitHub', count: 0 }]}
         selectedTags={[]}
         selectedSources={[]}
         minRating={0}
         updatedSince={null}
-        onTypeToggle={() => {}}
+        sortBy="created_at"
+        sortOrder="desc"
         onTagToggle={() => {}}
         onSourceToggle={() => {}}
         onMinRatingChange={() => {}}
         onUpdatedSinceChange={() => {}}
+        onSortChange={() => {}}
         onClearFilters={() => {}}
       />
     )

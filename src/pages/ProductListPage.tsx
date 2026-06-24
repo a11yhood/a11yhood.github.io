@@ -65,7 +65,6 @@ export function ProductListPage({
     collections,
     blogPosts,
     allProductSources,
-    allProductTypes,
     popularTags,
     filteredTags,
     totalProductCount,
@@ -85,8 +84,6 @@ export function ProductListPage({
     onSearchInputBlur,
     onSearchInputKeyDown,
     isSearching,
-    selectedTypes,
-    onTypeToggle,
     selectedTags,
     onTagToggle,
     selectedSources,
@@ -111,7 +108,6 @@ export function ProductListPage({
     collections: Collection[]
     blogPosts: BlogPost[]
     allProductSources: Array<{ name: string; count: number }>
-    allProductTypes: string[]
     popularTags: string[]
     filteredTags: string[]
     totalProductCount: number
@@ -131,8 +127,6 @@ export function ProductListPage({
     onSearchInputBlur: () => void
     onSearchInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void
     isSearching: boolean
-    selectedTypes: string[]
-    onTypeToggle: (type: string) => void
     selectedTags: string[]
     onTagToggle: (tag: string) => void
     selectedSources: string[]
@@ -350,17 +344,14 @@ export function ProductListPage({
                         </div>
                     )}
                     <ProductFilters
-                        types={allProductTypes}
                         tags={allTags}
                         sources={allProductSources}
-                        selectedTypes={selectedTypes}
                         selectedTags={selectedTags}
                         selectedSources={selectedSources}
                         minRating={minRating}
                         updatedSince={updatedSince}
                         sortBy={sortBy}
                         sortOrder={sortOrder}
-                        onTypeToggle={onTypeToggle}
                         onTagToggle={onTagToggle}
                         onSourceToggle={onSourceToggle}
                         onMinRatingChange={onMinRatingChange}
@@ -616,7 +607,7 @@ export function ProductListPage({
                             <p className="text-lg text-muted-foreground">
                                 No products found. Try adjusting your filters.
                             </p>
-                            {(selectedTypes.length > 0 || selectedTags.length > 0 || minRating > 0) && (
+                            {(selectedTags.length > 0 || minRating > 0) && (
                                 <Button variant="outline" onClick={onClearFilters} className="mt-4">
                                     Clear all filters
                                 </Button>

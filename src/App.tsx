@@ -93,7 +93,7 @@ function App() {
   const [discussions, setDiscussions] = useState<Discussion[]>([])
   const [dataLoaded, setDataLoaded] = useState(false)
   const [allProductSources, setAllProductSources] = useState<Array<{ name: string; count: number }>>([])
-  const [allProductTypes, setAllProductTypes] = useState<string[]>([])
+
   const [popularTags, setPopularTags] = useState<string[]>([])
   const [filteredTags, setFilteredTags] = useState<string[]>([])
   const [totalProductCount, setTotalProductCount] = useState(0)
@@ -390,6 +390,15 @@ function App() {
   // Sync search query from URL params when navigating to /products
   useEffect(() => {
     if (location.pathname !== '/products') return
+
+    // Strip legacy ?type= params — types are no longer user-facing
+    if (searchParams.has('type')) {
+      const cleaned = new URLSearchParams(searchParams)
+      cleaned.delete('type')
+      setSearchParams(cleaned, { replace: true })
+      return
+    }
+
     const urlQuery = searchParams.get('q') || ''
 
     // Guard primitives too — avoid enqueuing a state update when nothing changed.
@@ -478,16 +487,13 @@ function App() {
         if (needsFilterMetadata) {
           void Promise.allSettled([
             APIService.getProductSources(),
-            APIService.getProductTypes(),
             APIService.getPopularTags(10),
           ])
             .then((metadataResults) => {
               const loadedSources = metadataResults[0].status === 'fulfilled' ? metadataResults[0].value : []
-              const loadedTypes = metadataResults[1].status === 'fulfilled' ? metadataResults[1].value : []
-              const loadedTags = metadataResults[2].status === 'fulfilled' ? metadataResults[2].value : []
+              const loadedTags = metadataResults[1].status === 'fulfilled' ? metadataResults[1].value : []
 
               setAllProductSources(loadedSources)
-              setAllProductTypes(loadedTypes)
               setPopularTags(loadedTags)
             })
             .catch((error) => {
@@ -2197,7 +2203,6 @@ function App() {
                   collections={collections}
                   blogPosts={blogPosts}
                   allProductSources={allProductSources}
-                  allProductTypes={allProductTypes}
                   popularTags={popularTags}
                   filteredTags={filteredTags}
                   totalProductCount={totalProductCount}
@@ -2224,8 +2229,6 @@ function App() {
                   onSearchInputBlur={handleSearchInputBlur}
                   onSearchInputKeyDown={handleSearchInputKeyDown}
                   isSearching={isSearching}
-                  selectedTypes={selectedTypes}
-                  onTypeToggle={handleTypeToggle}
                   selectedTags={selectedTags}
                   onTagToggle={handleTagToggle}
                   selectedSources={selectedSources}
@@ -2263,7 +2266,6 @@ function App() {
                   onToggleBlockDiscussion={handleToggleBlockDiscussion}
                   onLogin={handleLogin}
                   allTags={allTags}
-                  allProductTypes={allProductTypes}
                 />
               } />
               <Route path="/blog" element={

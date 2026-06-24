@@ -4,17 +4,14 @@ import { ProductFilters } from '@/components/ProductFilters'
 
 describe('ProductFilters', () => {
   const mockProps = {
-    types: ['Software', 'Fabrication', 'Knitting'],
     tags: ['accessibility', 'grip', '3d-printing', 'software'],
-    sources: ['Github', 'Ravelry', 'Thingiverse'],
-    selectedTypes: [],
+    sources: [{ name: 'Github', count: 0 }, { name: 'Ravelry', count: 0 }, { name: 'Thingiverse', count: 0 }],
     selectedTags: [],
     selectedSources: [],
     minRating: 0,
     updatedSince: null,
     sortBy: 'created_at' as const,
     sortOrder: 'desc' as const,
-    onTypeToggle: vi.fn(),
     onTagToggle: vi.fn(),
     onSourceToggle: vi.fn(),
     onMinRatingChange: vi.fn(),
@@ -82,17 +79,6 @@ describe('ProductFilters', () => {
     render(<ProductFilters {...mockProps} />)
 
     expect(screen.getByText(/minimum rating/i)).toBeInTheDocument()
-  })
-
-  it('should handle empty types array', () => {
-    const propsWithNoTypes = {
-      ...mockProps,
-      types: [],
-    }
-
-    render(<ProductFilters {...propsWithNoTypes} />)
-
-    expect(screen.getByText('Search')).toBeInTheDocument()
   })
 
   it('should display selected tags with different styling', () => {

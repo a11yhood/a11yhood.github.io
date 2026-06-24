@@ -37,7 +37,6 @@ type ProductDetailProps = {
   onRemoveFromCollection?: (collectionSlug: string, targets?: AddToCollectionTargets) => void
   onCreateCollection?: (collection: CollectionCreateInput) => void
   allTags: string[]
-  allProductTypes?: string[]
   onDelete?: (productId: string) => void
   onEdit?: (updatedProduct: ProductUpdate) => void
   onToggleBan?: (product: Product, reason?: string) => void
@@ -64,7 +63,6 @@ export function ProductDetail({
   onRemoveFromCollection,
   onCreateCollection,
   allTags,
-  allProductTypes = [],
   onDelete,
   onEdit,
   onToggleBan,
@@ -341,7 +339,6 @@ export function ProductDetail({
                   onSave={onEdit}
                   userAccount={userAccount}
                   autoOpen={autoOpenEdit}
-                  allProductTypes={allProductTypes}
                 />
               )}
               {canModerate && onDelete && (

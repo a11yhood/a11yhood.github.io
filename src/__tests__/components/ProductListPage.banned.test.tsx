@@ -59,7 +59,6 @@ function renderPage({ canViewBanned, includeBanned, onIncludeBannedChange, user,
         collections={emptyCollections}
         blogPosts={emptyPosts}
         allProductSources={[]}
-        allProductTypes={[]}
         popularTags={[]}
         filteredTags={[]}
         totalProductCount={visibleProducts.length}
@@ -79,8 +78,6 @@ function renderPage({ canViewBanned, includeBanned, onIncludeBannedChange, user,
         onSearchInputBlur={vi.fn()}
         onSearchInputKeyDown={vi.fn()}
         isSearching={false}
-        selectedTypes={[]}
-        onTypeToggle={vi.fn()}
         selectedTags={[]}
         onTagToggle={vi.fn()}
         selectedSources={[]}

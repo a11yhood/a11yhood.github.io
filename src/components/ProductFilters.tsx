@@ -8,17 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Star, X } from '@phosphor-icons/react'
 
 type ProductFiltersProps = {
-  types: string[]
   tags: string[]
   sources: Array<{ name: string; count: number }>
-  selectedTypes: string[]
   selectedTags: string[]
   selectedSources: string[]
   minRating: number
   updatedSince: string | null // ISO date string
   sortBy: 'rating' | 'updated_at' | 'created_at'
   sortOrder: 'asc' | 'desc'
-  onTypeToggle: (type: string) => void
   onTagToggle: (tag: string) => void
   onSourceToggle: (source: string) => void
   onMinRatingChange: (rating: number) => void
@@ -28,17 +25,14 @@ type ProductFiltersProps = {
 }
 
 export function ProductFilters({
-  types: _types = [],
   tags = [],
   sources = [],
-  selectedTypes: _selectedTypes,
   selectedTags,
   selectedSources,
   minRating,
   updatedSince = null,
   sortBy,
   sortOrder,
-  onTypeToggle: _onTypeToggle,
   onTagToggle,
   onSourceToggle,
   onMinRatingChange,

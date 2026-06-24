@@ -78,6 +78,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
+  const [type, setType] = useState('')
   const [sourceUrl, setSourceUrl] = useState('')
   const [sourceUrls, setSourceUrls] = useState<string[] | undefined>(undefined)
   const [source, setSource] = useState<string | undefined>(undefined)
@@ -124,6 +125,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
 
   const resetForm = () => {
     setName('')
+    setType('')
     setSourceUrl('')
     setSourceUrls(undefined)
     setSource(undefined)
@@ -202,6 +204,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
         setSourceUrl(normalized)
         if (p.name) setName(p.name)
         if (p.description) setDescription(p.description)
+        if (p.type) setType(p.type)
         if (p.tags) setTags(p.tags)
         const scrapedImageUrl = resolveScrapedImageReference(p.imageId)
         if (scrapedImageUrl) {
@@ -402,7 +405,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
     
     const productData = {
       name: name.trim(),
-      type: 'Other',
+      type: type || 'Other',
       sourceUrl: sourceUrl.trim() || undefined,
       sourceUrls,
       source: source || 'user-submitted',
