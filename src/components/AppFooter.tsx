@@ -5,6 +5,7 @@
  * - Project tagline
  * - Link to GitHub repository
  * - Call to action to join the mailing list
+ * - Link to report bugs on GitHub Issues
  * 
  * Accessibility:
  * - Uses semantic <footer> landmark (screen readers can jump to it with R key or landmark navigation)
@@ -12,7 +13,7 @@
  * - <nav> element creates a navigation landmark for footer links
  * - All links have descriptive text and proper ARIA attributes
  */
-import { GithubLogo, EnvelopeSimple } from '@phosphor-icons/react'
+import { GithubLogo, EnvelopeSimple, Bug } from '@phosphor-icons/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGithub } from '@fortawesome/free-brands-svg-icons'
 
@@ -42,6 +43,16 @@ export function AppFooter() {
               >
                 <EnvelopeSimple size={18} weight="fill" aria-hidden="true" />
                 <span>Join our mailing list</span>
+              </a>
+              <span className="text-muted-foreground/50" aria-hidden="true">•</span>
+              <a
+                href="https://github.com/a11yhood/a11yhood.github.io/issues"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Bug size={18} weight="fill" aria-hidden="true" />
+                <span>Report a bug</span>
               </a>
             </div>
             <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm">
