@@ -238,19 +238,6 @@ function App() {
   const latestSearchIdRef = useRef(0)
   const userAccountFetchRef = useRef<string | null>(null) // Track which user we've fetched account for
 
-  const handleTypeToggle = (type: string) => {
-    setSelectedTypes((currentTypes) => {
-      const nextTypes = currentTypes.includes(type)
-        ? currentTypes.filter((t) => t !== type)
-        : [...currentTypes, type]
-      const newParams = new URLSearchParams(searchParams)
-      newParams.delete('type')
-      nextTypes.forEach((t) => newParams.append('type', t))
-      setSearchParams(newParams, { replace: false })
-      return nextTypes
-    })
-  }
-
   const handleSourceToggle = (source: string) => {
     setSelectedSources((currentSources) => {
       const nextSources = currentSources.includes(source)
@@ -437,7 +424,7 @@ function App() {
       // so state does not appear to be driven by a stale sort parameter.
       setSortHasChanged(false)
     }
-  }, [searchParams, location.pathname])
+  }, [searchParams, location.pathname, setSearchParams])
 
   // Combine filtered tags with tags from current page of products, plus any selected tags
   // Sort by frequency in current results (most common first)
