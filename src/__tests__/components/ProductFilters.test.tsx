@@ -29,21 +29,12 @@ describe('ProductFilters', () => {
     expect(screen.getByText('Search')).toBeInTheDocument()
   })
 
-  it('should render all product types', () => {
+  it('should not render product type filter', () => {
     render(<ProductFilters {...mockProps} />)
 
-    expect(screen.getByText('Software')).toBeInTheDocument()
-    expect(screen.getByText('Fabrication')).toBeInTheDocument()
-    expect(screen.getByText('Knitting')).toBeInTheDocument()
-  })
-
-  it('should call onTypeToggle when type is clicked', () => {
-    render(<ProductFilters {...mockProps} />)
-
-    const softwareCheckbox = screen.getByRole('checkbox', { name: /software/i })
-    fireEvent.click(softwareCheckbox)
-
-    expect(mockProps.onTypeToggle).toHaveBeenCalledWith('Software')
+    expect(screen.queryByText('Software')).not.toBeInTheDocument()
+    expect(screen.queryByText('Fabrication')).not.toBeInTheDocument()
+    expect(screen.queryByText('Knitting')).not.toBeInTheDocument()
   })
 
   it('should call onTagToggle when tag is clicked', () => {
@@ -54,22 +45,10 @@ describe('ProductFilters', () => {
     expect(mockProps.onTagToggle).toHaveBeenCalledWith('accessibility')
   })
 
-  it('should show selected types as checked', () => {
-    const propsWithSelection = {
-      ...mockProps,
-      selectedTypes: ['Software'],
-    }
-
-    render(<ProductFilters {...propsWithSelection} />)
-
-    const softwareCheckbox = screen.getByRole('checkbox', { name: /software/i })
-    expect(softwareCheckbox).toBeChecked()
-  })
-
-  it('should show clear filters button when filters are active', () => {
+  it('should show clear filters button when tag filters are active', () => {
     const propsWithFilters = {
       ...mockProps,
-      selectedTypes: ['Software'],
+      selectedTags: ['accessibility'],
     }
 
     render(<ProductFilters {...propsWithFilters} />)
@@ -88,7 +67,7 @@ describe('ProductFilters', () => {
   it('should call onClearFilters when clear button is clicked', () => {
     const propsWithFilters = {
       ...mockProps,
-      selectedTypes: ['Software'],
+      selectedTags: ['accessibility'],
     }
 
     render(<ProductFilters {...propsWithFilters} />)
@@ -128,10 +107,10 @@ describe('ProductFilters', () => {
     expect(accessibilityTag).toBeInTheDocument()
   })
 
-  it('should show count of active filters', () => {
+  it('should show clear filters button when multiple tag filters are active', () => {
     const propsWithMultipleFilters = {
       ...mockProps,
-      selectedTypes: ['Software', 'Fabrication'],
+      selectedTags: ['accessibility', 'grip'],
       minRating: 3,
     }
 

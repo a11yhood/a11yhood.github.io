@@ -435,7 +435,6 @@ export function ProductDetail({
               </h1>
               <div className="flex items-center gap-2">
                 {product.banned && <Badge variant="destructive">Banned</Badge>}
-                <Badge className="shrink-0">{product.type}</Badge>
               </div>
             </div>
 

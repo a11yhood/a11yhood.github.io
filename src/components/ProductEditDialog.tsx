@@ -13,13 +13,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { logger } from '@/lib/logger'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Product, ProductUpdate, UserAccount } from '@/lib/types'
 import { extractInternalImageIdFromReference, resolveApiImageUrl } from '@/lib/api'
 import { ProductImageManager, ProductImageManagerRef } from './ProductImageManager'
@@ -141,14 +134,8 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
   const canEdit = userAccount?.role === 'admin' || userAccount?.role === 'moderator' || !!isOwner || !!isEditor
   const canUploadFile = userAccount?.role === 'admin' || userAccount?.role === 'moderator'
 
-  // Ensure current product type is in the list
-  const availableTypes = React.useMemo(() => {
-    const types = [...allProductTypes]
-    if (product.type && !types.includes(product.type)) {
-      types.push(product.type)
-    }
-    return types
-  }, [allProductTypes, product.type])
+  // allProductTypes is kept in the prop interface for API compatibility but is no longer used in the UI
+  void allProductTypes
 
   if (!canEdit) return null
 
@@ -208,10 +195,6 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
 
     if (!finalFormData.description.trim()) {
       validationErrors.push({ id: 'description', message: 'Product description is required.' })
-    }
-
-    if (!finalFormData.type.trim()) {
-      validationErrors.push({ id: 'type', message: 'Product type is required.' })
     }
 
     if (!finalFormData.source.trim()) {
@@ -362,26 +345,6 @@ export function ProductEditDialog({ product, onSave, userAccount, autoOpen, allP
                   className="mt-1"
                 />
               </label>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
-                <label className="block text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
-                  Type <span aria-hidden="true" className="text-destructive">*</span>
-                  <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
-                    <SelectTrigger className="mt-1 w-full">
-                      <SelectValue placeholder="Select a type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableTypes.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </label>
-              </div>
             </div>
 
             <div className="space-y-2">

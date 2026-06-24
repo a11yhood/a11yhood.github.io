@@ -1,16 +1,9 @@
-import { useState, useImperativeHandle, forwardRef, useRef, useMemo, useEffect } from 'react'
+import { useState, useImperativeHandle, forwardRef, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -38,20 +31,6 @@ type ProductSubmissionProps = {
 
 export interface ProductSubmissionRef {
   close: () => void
-}
-
-const PRODUCT_TYPES_BY_SOURCE: Record<string, string[]> = {
-  github: ['Software', 'Tool', 'Library'],
-  ravelry: ['Knitting', 'Crochet', 'Weaving'],
-  thingiverse: ['3D Print', 'Fabrication', 'Model'],
-  'user-submitted': ['Software', 'Pattern', 'Tool', '3D Print', 'Other'],
-}
-
-const FALLBACK_PRODUCT_TYPES = ['Software', 'Fabrication', 'Knitting', 'Crochet', 'Hardware', 'Other']
-
-function getTypeOptionsForSource(source: string | undefined): string[] {
-  const normalizedSource = (source || 'user-submitted').trim().toLowerCase()
-  return PRODUCT_TYPES_BY_SOURCE[normalizedSource] || FALLBACK_PRODUCT_TYPES
 }
 
 /**
@@ -99,7 +78,6 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
-  const [type, setType] = useState('')
   const [sourceUrl, setSourceUrl] = useState('')
   const [sourceUrls, setSourceUrls] = useState<string[] | undefined>(undefined)
   const [source, setSource] = useState<string | undefined>(undefined)
@@ -122,13 +100,6 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
   const [existingProduct, setExistingProduct] = useState<Product | null>(null)
   const [isScrapingUrl, setIsScrapingUrl] = useState(false)
   const [urlToCheck, setUrlToCheck] = useState('')
-  const availableTypeOptions = useMemo(() => getTypeOptionsForSource(source), [source])
-
-  useEffect(() => {
-    if (type && !availableTypeOptions.includes(type)) {
-      setType('')
-    }
-  }, [availableTypeOptions, type])
 
   const resolveScrapedImageReference = (imageId: unknown): string | undefined => {
     if (typeof imageId !== 'string') {
@@ -153,7 +124,6 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
 
   const resetForm = () => {
     setName('')
-    setType('')
     setSourceUrl('')
     setSourceUrls(undefined)
     setSource(undefined)
@@ -232,7 +202,6 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
         setSourceUrl(normalized)
         if (p.name) setName(p.name)
         if (p.description) setDescription(p.description)
-        if (p.type) setType(p.type)
         if (p.tags) setTags(p.tags)
         const scrapedImageUrl = resolveScrapedImageReference(p.imageId)
         if (scrapedImageUrl) {
@@ -319,12 +288,6 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
 
     if (!name.trim()) {
       newErrors.name = 'Product name is required'
-    }
-
-    if (!type.trim()) {
-      newErrors.type = 'Product type is required'
-    } else if (!availableTypeOptions.includes(type.trim())) {
-      newErrors.type = 'Please choose a valid product type for this source'
     }
 
     if (!description.trim()) {
@@ -439,7 +402,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
     
     const productData = {
       name: name.trim(),
-      type: type.trim(),
+      type: 'Other',
       sourceUrl: sourceUrl.trim() || undefined,
       sourceUrls,
       source: source || 'user-submitted',
@@ -616,7 +579,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
 
         {(urlCheckState === 'form') && (
           <form onSubmit={handleSubmit} className="space-y-6">
-            {Object.entries(errors).filter(([key]) => ['name', 'type', 'sourceUrl', 'description', 'imageAlt'].includes(key)).length > 0 && (
+            {Object.entries(errors).filter(([key]) => ['name', 'sourceUrl', 'description', 'imageAlt'].includes(key)).length > 0 && (
               <div
                 ref={errorSummaryRef}
                 role="alert"
@@ -627,11 +590,10 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                 <p className="font-semibold">Please fix the following:</p>
                 <ul className="list-disc pl-5 space-y-1">
                   {Object.entries(errors)
-                    .filter(([key]) => ['name', 'type', 'sourceUrl', 'description', 'imageAlt'].includes(key))
+                    .filter(([key]) => ['name', 'sourceUrl', 'description', 'imageAlt'].includes(key))
                     .map(([key, message]) => {
                       const idMap: Record<string, string> = {
                         name: 'product-name',
-                        type: 'product-type',
                         sourceUrl: 'product-url',
                         description: 'product-description',
                         imageAlt: 'image-alt-text',
@@ -682,45 +644,6 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                 {errors.name && (
                   <p id="name-error" className="text-sm text-destructive" role="alert">
                     {errors.name}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="product-type">
-                  Product Type <span aria-hidden="true" className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={type}
-                  onValueChange={(value) => {
-                    setType(value)
-                    setErrors((prev) => {
-                      const updated = { ...prev }
-                      delete updated.type
-                      return updated
-                    })
-                  }}
-                >
-                  <SelectTrigger
-                    id="product-type"
-                    aria-label="Product Type"
-                    role="combobox"
-                    aria-required="true"
-                    aria-invalid={errors.type || (validationAttempted && !type.trim()) ? 'true' : undefined}
-                    aria-describedby={errors.type ? 'type-error' : undefined}
-                  >
-                    <SelectValue placeholder="Choose a type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableTypeOptions.map((option) => (
-                      <SelectItem key={option} value={option}>{option}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <input type="hidden" name="type" value={type} />
-                {errors.type && (
-                  <p id="type-error" className="text-sm text-destructive" role="alert">
-                    {errors.type}
                   </p>
                 )}
               </div>
