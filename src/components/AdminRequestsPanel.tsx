@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import { CollapsibleCard } from '@/components/CollapsibleCard'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -25,7 +23,6 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
   const [loading, setLoading] = useState(true)
   // Collapsible handled by CollapsibleCard
   const [reviewingRequest, setReviewingRequest] = useState<UserRequest | null>(null)
-  const [reviewNote, setReviewNote] = useState('')
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [userLookup, setUserLookup] = useState<Record<string, UserAccount>>({})
@@ -52,7 +49,7 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
           missing.map(async (id) => {
             try {
               const account = await APIService.getUserAccount(id)
-              return [id, account] as const
+              return [id, account ?? { role: 'user' } as UserAccount] as const
             } catch (error) {
               console.warn('Failed to load user account', { id, error })
               return [id, { role: 'user' } as UserAccount] as const
@@ -149,7 +146,6 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
       }
       setReviewingRequest(freshRequest)
       setReviewAction(action)
-      setReviewNote('')
     } catch (error) {
       console.error('Failed to load fresh request:', error)
       notify.error('Failed to load request details')
@@ -187,14 +183,13 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
       }
 
       const result = reviewAction === 'approve'
-        ? await APIService.approveRequest(stillExists.id, adminId, reviewNote)
-        : await APIService.rejectRequest(stillExists.id, adminId, reviewNote)
+        ? await APIService.approveRequest(stillExists.id, adminId)
+        : await APIService.rejectRequest(stillExists.id, adminId)
 
       if (result) {
         notify.success(`Request ${reviewAction}d successfully`)
         setReviewingRequest(null)
         setReviewAction(null)
-        setReviewNote('')
         await loadRequests()
       } else {
         notify.error('Failed to process request')
@@ -340,7 +335,6 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
         if (!open) {
           setReviewingRequest(null)
           setReviewAction(null)
-          setReviewNote('')
         }
       }}>
         <DialogContent>
@@ -353,15 +347,15 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
                 ? reviewingRequest?.type === 'admin'
                   ? `Approve ${reviewingRequest?.userName}'s request to become an admin. They will have full control over the platform.`
                   : reviewingRequest?.type === 'moderator'
-                  ? `Approve ${reviewingRequest?.userName}'s request to become an editor. They will be able to edit products.`
+                  ? `Approve ${reviewingRequest?.userName}'s request to become a moderator. They will be able to review requests and support the community.`
                   : reviewingRequest?.type === 'source-domain'
                   ? `Approve this request to add a new source domain. The domain will be added to the allowed sources list.`
                   : reviewingRequest?.type === 'collection-ownership'
                   ? `Approve ${reviewingRequest?.userName}'s request to become an editor of this collection.`
                   : `Approve ${reviewingRequest?.userName}'s request to become an editor of this product.`
                 : reviewingRequest?.type === 'source-domain'
-                ? `Reject this source domain request. You can optionally provide a reason.`
-                : `Reject ${reviewingRequest?.userName}'s request. You can optionally provide a reason.`
+                ? `Reject this source domain request.`
+                : `Reject ${reviewingRequest?.userName}'s request.`
               }
             </DialogDescription>
           </DialogHeader>
@@ -375,25 +369,6 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
                 </p>
               </div>
             )}
-            {reviewingRequest?.type !== 'source-domain' && (
-              <div>
-                <Label htmlFor="review-note">
-                  {reviewAction === 'approve' ? 'Welcome message (optional)' : 'Reason for rejection (optional)'}
-                </Label>
-                <Textarea
-                  id="review-note"
-                  placeholder={
-                    reviewAction === 'approve'
-                      ? 'Welcome to the editor team! Please review our guidelines...'
-                      : 'We appreciate your interest, but...'
-                  }
-                  value={reviewNote}
-                  onChange={(e) => setReviewNote(e.target.value)}
-                  rows={4}
-                  className="mt-2"
-                />
-              </div>
-            )}
           </div>
 
           <DialogFooter>
@@ -402,7 +377,6 @@ export function AdminRequestsPanel({ adminId, products = [], canManageRoleReques
               onClick={() => {
                 setReviewingRequest(null)
                 setReviewAction(null)
-                setReviewNote('')
               }}
               disabled={submitting}
             >
