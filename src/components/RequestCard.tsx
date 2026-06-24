@@ -105,7 +105,7 @@ export function RequestCard({
       <CardHeader>
         <CardTitle as="h3" className="text-base">
           {request.type === 'moderator'
-            ? 'Editor Request'
+            ? 'Moderator Request'
             : request.type === 'admin'
               ? 'Admin Request'
               : request.type === 'collection-ownership'
@@ -140,7 +140,7 @@ export function RequestCard({
                 })()}
                 <p className="text-sm text-muted-foreground">
                   {request.type === 'moderator'
-                    ? 'Editor Request'
+                    ? 'Moderator Request'
                     : request.type === 'admin'
                       ? 'Admin Request'
                       : request.type === 'collection-ownership'

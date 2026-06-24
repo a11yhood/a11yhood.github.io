@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { routeNeedsFullProductList } from '@/App'
+import { routeNeedsFullProductList } from '@/lib/routeUtils'
 
 describe('routeNeedsFullProductList', () => {
   it('returns true for nested admin routes that depend on shared product data', () => {
