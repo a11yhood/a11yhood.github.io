@@ -134,7 +134,7 @@ export function CollectionsPage({
         }
 
         loadNextCollectionImages()
-    }, [paginatedOwnerCollections, paginatedEditorCollections, paginatedPublicCollections, products, loadedCollectionIds])
+    }, [paginatedOwnerCollections, paginatedEditorCollections, paginatedPublicCollections, products, collectionProducts, loadedCollectionIds])
 
     // Merge products from App and locally loaded collection products
     const allProducts = [...products, ...collectionProducts]

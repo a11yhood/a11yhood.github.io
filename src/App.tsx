@@ -18,10 +18,10 @@ import { AboutPage } from '@/components/AboutPage'
 import { UserSignup } from '@/components/UserSignup'
 import { HomePage } from '@/components/HomePage'
 import { SearchPage } from '@/components/SearchPage'
-import { AddToCollectionDefaults, AddToCollectionTargets, Product, ProductUpdate, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput, CollectionEntry } from '@/lib/types'
+import { AddToCollectionTargets, Product, ProductUpdate, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput, CollectionEntry } from '@/lib/types'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { logger, setRuntimeLogLevel } from '@/lib/logger'
-import { createCollectionEntriesFromProductIds, createCollectionEntriesFromProductSlugs, getCollectionEntries, getCollectionProductEntries } from '@/lib/collectionUtils'
+import { createCollectionEntriesFromProductIds, getCollectionEntries, getCollectionProductEntries } from '@/lib/collectionUtils'
 import { serializeCollectionEntryForUpdate } from '@/lib/collectionEntrySerialization'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
 // API adapter disabled - using real backend API now
@@ -41,6 +41,7 @@ import { ProfilePage } from '@/pages/ProfilePage'
 import { CollectionsPage } from '@/pages/CollectionsPage'
 import { CollectionDetailPage } from '@/pages/CollectionDetailPage'
 import { asProductArray } from '@/pages/ProductListPage'
+import { routeNeedsFullProductList } from '@/lib/routeUtils'
 import { ProductDetailPageWrapper } from '@/pages/ProductDetailPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { AlertBanner } from '@/components/AlertBanner'
@@ -60,12 +61,6 @@ export type ApiErrorLike = {
 }
 
 const POST_AUTH_REDIRECT_KEY = 'a11yhood:post-auth-redirect'
-
-export const routeNeedsFullProductList = (pathname: string) => (
-  pathname === '/products' ||
-  pathname === '/submit' ||
-  pathname.startsWith('/admin')
-)
 
 const routeNeedsCollections = (pathname: string) => (
   pathname === '/products' ||
@@ -647,10 +642,9 @@ function App() {
     }
 
     loadData()
-    // Intentionally do not depend on searchParams here.
-    // Search/query updates on /products are handled by the fetch effect below,
-    // and including searchParams causes this full bootstrap load to re-run on
-    // every keystroke-driven URL update.
+    // Intentionally omit searchParams: search/query updates on /products are handled
+    // by the fetch effect below; including it causes bootstrap to re-run on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, pageSize])
 
   // Use AuthContext (supports both dev mode and production)
