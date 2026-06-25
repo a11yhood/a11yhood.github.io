@@ -91,7 +91,6 @@ describe('ProductSubmission Accessibility Tests', () => {
 
     it('should have all form inputs with associated labels via htmlFor', async () => {
       expect(screen.getByLabelText(/product name/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/product type/i)).toBeInTheDocument()
       // Check for description textarea
       const descriptionFields = screen.queryAllByLabelText(/description/i)
       expect(descriptionFields.length).toBeGreaterThan(0)

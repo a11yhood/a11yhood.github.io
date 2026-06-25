@@ -271,9 +271,6 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
           )}
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="shrink-0 text-xs">
-              {product.type}
-            </Badge>
             {sourceLabel && (
               <Badge variant="secondary" className="shrink-0 text-xs">
                 {sourceLabel}

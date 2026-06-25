@@ -17,7 +17,6 @@ type SearchPageProps = {
   collections: Collection[]
   blogPosts: BlogPost[]
   allProductSources: Array<{ name: string; count: number }>
-  allProductTypes: string[]
   popularTags: string[]
   filteredTags: string[]
   totalProductCount: number
@@ -37,8 +36,6 @@ type SearchPageProps = {
   onSearchInputBlur: () => void
   onSearchInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void
   isSearching: boolean
-  selectedTypes: string[]
-  onTypeToggle: (type: string) => void
   selectedTags: string[]
   onTagToggle: (tag: string) => void
   selectedSources: string[]
