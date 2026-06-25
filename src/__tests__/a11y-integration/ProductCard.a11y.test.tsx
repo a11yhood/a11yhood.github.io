@@ -139,7 +139,7 @@ describeWithBackend('ProductCard Accessibility Tests', () => {
     expect(article).toHaveAttribute('tabIndex')
   })
 
-  it('should display product type', () => {
+  it('should not display product type', () => {
     render(
       <ProductCard
         product={product}
@@ -150,7 +150,7 @@ describeWithBackend('ProductCard Accessibility Tests', () => {
       />
     )
 
-    expect(screen.getByText(product.type)).toBeInTheDocument()
+    expect(screen.queryByText(product.type)).not.toBeInTheDocument()
   })
 
   it('should show delete button for admins', () => {

@@ -43,7 +43,6 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct: _onN
   }
 
   useEffect(() => {
-    if (userRole === 'admin') return
     loadRequests()
   }, [user.id, userRole])
 
@@ -114,12 +113,10 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct: _onN
     (request) => request.type === 'admin' && request.status === 'pending'
   )
 
-  const canRequestModerator = userRole === 'user' && !hasPendingModeratorRequest
-  const canRequestAdmin = userRole === 'moderator' && !hasPendingAdminRequest
-
-  if (userRole === 'admin') {
-    return null
-  }
+  const requestableRole: 'moderator' | 'admin' | null =
+    userRole === 'user' && !hasPendingModeratorRequest ? 'moderator' :
+    userRole === 'moderator' && !hasPendingAdminRequest ? 'admin' :
+    null
 
   return (
     <div className="space-y-6">
@@ -171,29 +168,25 @@ export function UserRequestsPanel({ user, userAccount, onNavigateToProduct: _onN
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!loading && (canRequestModerator || canRequestAdmin) && (
+          {!loading && requestableRole !== null && (
             <Button
               type="button"
               onClick={() => {
-                if (canRequestAdmin) {
-                  setRequestType('admin')
-                } else {
-                  setRequestType('moderator')
-                }
+                setRequestType(requestableRole)
                 setShowRequestDialog(true)
               }}
             >
-              {canRequestAdmin ? 'Request Admin Status' : 'Request Moderator Status'}
+              {requestableRole === 'admin' ? 'Request Admin Status' : 'Request Moderator Status'}
             </Button>
           )}
 
-          {!loading && !canRequestModerator && userRole === 'user' && hasPendingModeratorRequest && (
+          {!loading && userRole === 'user' && hasPendingModeratorRequest && (
             <p className="text-sm text-muted-foreground">
               You already have a pending moderator request.
             </p>
           )}
 
-          {!loading && !canRequestAdmin && userRole === 'moderator' && hasPendingAdminRequest && (
+          {!loading && userRole === 'moderator' && hasPendingAdminRequest && (
             <p className="text-sm text-muted-foreground">
               You already have a pending admin request.
             </p>

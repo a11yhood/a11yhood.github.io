@@ -7,7 +7,7 @@
  */
 console.log('📦 [App.tsx] Loading imports...')
 
-import { useEffect, useLayoutEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useState, useMemo, useRef, type MouseEvent } from 'react'
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { BlogPostDraftPage } from '@/components/BlogPostDraftPage'
@@ -93,7 +93,7 @@ function App() {
   const [discussions, setDiscussions] = useState<Discussion[]>([])
   const [dataLoaded, setDataLoaded] = useState(false)
   const [allProductSources, setAllProductSources] = useState<Array<{ name: string; count: number }>>([])
-  const [allProductTypes, setAllProductTypes] = useState<string[]>([])
+
   const [popularTags, setPopularTags] = useState<string[]>([])
   const [filteredTags, setFilteredTags] = useState<string[]>([])
   const [totalProductCount, setTotalProductCount] = useState(0)
@@ -238,19 +238,6 @@ function App() {
   const latestSearchIdRef = useRef(0)
   const userAccountFetchRef = useRef<string | null>(null) // Track which user we've fetched account for
 
-  const handleTypeToggle = (type: string) => {
-    setSelectedTypes((currentTypes) => {
-      const nextTypes = currentTypes.includes(type)
-        ? currentTypes.filter((t) => t !== type)
-        : [...currentTypes, type]
-      const newParams = new URLSearchParams(searchParams)
-      newParams.delete('type')
-      nextTypes.forEach((t) => newParams.append('type', t))
-      setSearchParams(newParams, { replace: false })
-      return nextTypes
-    })
-  }
-
   const handleSourceToggle = (source: string) => {
     setSelectedSources((currentSources) => {
       const nextSources = currentSources.includes(source)
@@ -389,7 +376,15 @@ function App() {
 
   // Sync search query from URL params when navigating to /products
   useEffect(() => {
+    // Strip legacy ?type= params — types are no longer user-facing
+    if ((location.pathname === '/' || location.pathname === '/products') && searchParams.has('type')) {
+      const cleaned = new URLSearchParams(searchParams)
+      cleaned.delete('type')
+      setSearchParams(cleaned, { replace: true })
+    }
+
     if (location.pathname !== '/products') return
+
     const urlQuery = searchParams.get('q') || ''
 
     // Guard primitives too — avoid enqueuing a state update when nothing changed.
@@ -428,7 +423,7 @@ function App() {
       // so state does not appear to be driven by a stale sort parameter.
       setSortHasChanged(false)
     }
-  }, [searchParams, location.pathname])
+  }, [searchParams, location.pathname, setSearchParams])
 
   // Combine filtered tags with tags from current page of products, plus any selected tags
   // Sort by frequency in current results (most common first)
@@ -478,16 +473,13 @@ function App() {
         if (needsFilterMetadata) {
           void Promise.allSettled([
             APIService.getProductSources(),
-            APIService.getProductTypes(),
             APIService.getPopularTags(10),
           ])
             .then((metadataResults) => {
               const loadedSources = metadataResults[0].status === 'fulfilled' ? metadataResults[0].value : []
-              const loadedTypes = metadataResults[1].status === 'fulfilled' ? metadataResults[1].value : []
-              const loadedTags = metadataResults[2].status === 'fulfilled' ? metadataResults[2].value : []
+              const loadedTags = metadataResults[1].status === 'fulfilled' ? metadataResults[1].value : []
 
               setAllProductSources(loadedSources)
-              setAllProductTypes(loadedTypes)
               setPopularTags(loadedTags)
             })
             .catch((error) => {
@@ -2197,7 +2189,6 @@ function App() {
                   collections={collections}
                   blogPosts={blogPosts}
                   allProductSources={allProductSources}
-                  allProductTypes={allProductTypes}
                   popularTags={popularTags}
                   filteredTags={filteredTags}
                   totalProductCount={totalProductCount}
@@ -2224,8 +2215,6 @@ function App() {
                   onSearchInputBlur={handleSearchInputBlur}
                   onSearchInputKeyDown={handleSearchInputKeyDown}
                   isSearching={isSearching}
-                  selectedTypes={selectedTypes}
-                  onTypeToggle={handleTypeToggle}
                   selectedTags={selectedTags}
                   onTagToggle={handleTagToggle}
                   selectedSources={selectedSources}
@@ -2263,7 +2252,6 @@ function App() {
                   onToggleBlockDiscussion={handleToggleBlockDiscussion}
                   onLogin={handleLogin}
                   allTags={allTags}
-                  allProductTypes={allProductTypes}
                 />
               } />
               <Route path="/blog" element={
@@ -2334,7 +2322,7 @@ function App() {
                 ) : (
                   <div className="text-center py-12">
                     <p className="text-lg text-muted-foreground">Please sign in to view your account</p>
-                    <Button onClick={handleLogin} className="mt-4">Sign In</Button>
+                    <Button onClick={() => handleLogin()} className="mt-4">Sign In</Button>
                   </div>
                 )
               } />
@@ -2416,7 +2404,6 @@ function App() {
                 title={addToCollectionDialogTitle}
                 description={addToCollectionDialogDescription}
                 allowRemoval={true}
-                username={user.username}
               />
 
               <EditCollectionDialog

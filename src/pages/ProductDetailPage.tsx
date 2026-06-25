@@ -28,7 +28,6 @@ export function ProductDetailPage({
     onToggleBlockDiscussion,
     onLogin,
     allTags,
-    allProductTypes = [],
 }: {
     products: Product[]
     ratings: Rating[]
@@ -50,7 +49,6 @@ export function ProductDetailPage({
     onToggleBlockDiscussion: (id: string, block: boolean) => Promise<void> | void
     onLogin: (returnToPath?: string) => void
     allTags: string[]
-    allProductTypes?: string[]
 }) {
     const { slug: productSlug } = useParams()
     const [searchParams] = useSearchParams()
@@ -157,7 +155,6 @@ export function ProductDetailPage({
             onRemoveFromCollection={onRemoveFromCollection}
             onCreateCollection={onCreateCollection}
             allTags={allTags}
-            allProductTypes={allProductTypes}
             onDelete={onDelete}
             onEdit={onEdit}
             onToggleBan={onToggleBan}
@@ -191,7 +188,6 @@ export function ProductDetailPageWrapper({
     onToggleBlockDiscussion,
     onLogin,
     allTags,
-    allProductTypes = [],
 }: {
     products: Product[]
     ratings: Rating[]
@@ -212,7 +208,6 @@ export function ProductDetailPageWrapper({
     onToggleBlockDiscussion: (id: string, block: boolean) => Promise<void> | void
     onLogin: (returnToPath?: string) => void
     allTags: string[]
-    allProductTypes?: string[]
 }) {
     const { notify } = useNotifications()
     const { slug } = useParams()
@@ -360,7 +355,6 @@ export function ProductDetailPageWrapper({
             onToggleBlockDiscussion={onToggleBlockDiscussion}
             onLogin={onLogin}
             allTags={allTags}
-            allProductTypes={allProductTypes}
         />
     )
 }

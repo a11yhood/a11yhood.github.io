@@ -101,15 +101,14 @@ describeWithBackend('ProductCard - API-backed', () => {
     // Name appears in both fallback image text and title; assert heading specifically.
     expect(screen.getByRole('heading', { name: /Test Product/ })).toBeInTheDocument()
     expect(screen.getByText('A test product for accessibility')).toBeInTheDocument()
-    expect(screen.getByText('Software')).toBeInTheDocument()
+    expect(screen.queryByText('Software')).not.toBeInTheDocument()
   })
 
   it('should display tags', () => {
     render(<ProductCard product={productFromApi} ratings={ratingsFromApi} onClick={vi.fn()} />)
 
-    // Backend responses may normalize or omit freeform tags; assert the visible
-    // badges rendered from canonical product fields are present.
-    expect(screen.getByText('Software')).toBeInTheDocument()
+    // Product type is no longer rendered in the card UI.
+    expect(screen.queryByText('Software')).not.toBeInTheDocument()
     expect(screen.getAllByText('GitHub').length).toBeGreaterThan(0)
   })
 

@@ -637,7 +637,6 @@ describe('ProductSubmission', () => {
       expect(screen.getByLabelText(/Source URL/i)).toBeInTheDocument()
       // Source field no longer exists - it's auto-determined from URL domain
       expect(screen.getByLabelText('Description *')).toBeInTheDocument()
-      expect(screen.getByLabelText(/Product Type/i)).toBeInTheDocument()
     })
   })
 
@@ -804,19 +803,13 @@ describe('ProductSubmission', () => {
         expect(screen.getByLabelText(/Product Name/i)).toBeInTheDocument()
       })
 
-      const user = userEvent.setup()
-
       // Fill in form
       const nameInput = screen.getByLabelText(/Product Name/i)
       const descriptionInput = screen.getByLabelText('Description *')
-      const typeInput = screen.getByLabelText(/Product Type/i)
       const urlInput = screen.getByLabelText(/Source URL/i)
 
       fireEvent.change(nameInput, { target: { value: 'New Product to Log' } })
       fireEvent.change(descriptionInput, { target: { value: 'This is a product submission that should log activity' } })
-      await user.click(typeInput)
-      const softwareOption = await screen.findByRole('option', { name: 'Software' })
-      await user.click(softwareOption)
       fireEvent.change(urlInput, { target: { value: 'https://github.com/new-product' } })
 
       // Submit form
@@ -1108,11 +1101,6 @@ describe('ProductSubmission', () => {
       fireEvent.change(screen.getByLabelText('Description *'), {
         target: { value: 'This product description is long enough to satisfy validation checks.' },
       })
-
-      const typeInput = screen.getByLabelText(/Product Type/i)
-      await user.click(typeInput)
-      const softwareOption = await screen.findByRole('option', { name: 'Software' })
-      await user.click(softwareOption)
 
       const imageUrlInput = screen.getByLabelText(/Image URL/i)
       fireEvent.change(imageUrlInput, { target: { value: 'https://example.com/alt-sync-image.png' } })

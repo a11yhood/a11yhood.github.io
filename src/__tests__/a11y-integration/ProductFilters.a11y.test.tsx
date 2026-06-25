@@ -5,19 +5,19 @@ import { ProductFilters } from '@/components/ProductFilters'
 import { APIService } from '@/lib/api'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 
-let typesFromApi: string[] = []
 let tagsFromApi: string[] = []
-let sourcesFromApi: string[] = []
+let sourcesFromApi: Array<{ name: string; count: number }> = []
 const testRole = DEV_USERS.user.role
 
 beforeAll(async () => {
   APIService.setAuthTokenGetter(async () => getDevToken(testRole))
 
-  // Seed a couple of products to derive real types/tags
+  // Seed a couple of products to derive real tags/sources
   const products = await Promise.all([
     APIService.createProduct({
       name: 'Filterable Software',
       type: 'Software',
+      source: 'github',
       sourceUrl: `https://github.com/test/filter-software-${Date.now()}`,
       description: 'Software product for filter tests with sufficient description',
       tags: ['accessibility', 'software'],
@@ -25,32 +25,31 @@ beforeAll(async () => {
     APIService.createProduct({
       name: 'Filterable Print',
       type: 'Fabrication',
+      source: 'thingiverse',
       sourceUrl: `https://thingiverse.com/thing:${Date.now()}`,
       description: 'Fabrication product for filter tests with sufficient description',
       tags: ['grip', 'accessibility'],
     }),
   ])
 
-  typesFromApi = Array.from(new Set(products.map((p) => p.type)))
   tagsFromApi = Array.from(new Set(products.flatMap((p) => p.tags)))
-  sourcesFromApi = Array.from(new Set(products.map((p) => p.source).filter(Boolean)))
+  sourcesFromApi = Array.from(new Set(products.map((p) => p.source).filter(Boolean))).map(
+    (name) => ({ name, count: 1 })
+  )
 })
 
 describeWithBackend('ProductFilters Accessibility Tests', () => {
   it('should have proper heading hierarchy', () => {
     render(
       <ProductFilters
-        types={typesFromApi}
         tags={tagsFromApi}
         sources={sourcesFromApi}
-        selectedTypes={[]}
         selectedTags={[]}
         selectedSources={[]}
         minRating={0}
         updatedSince={null}
         sortBy="created_at"
         sortOrder="desc"
-        onTypeToggle={vi.fn()}
         onTagToggle={vi.fn()}
         onSourceToggle={vi.fn()}
         onMinRatingChange={vi.fn()}
@@ -63,20 +62,17 @@ describeWithBackend('ProductFilters Accessibility Tests', () => {
     expect(screen.getByRole('heading', { name: /search/i })).toBeInTheDocument()
   })
 
-  it('should have accessible checkboxes for types', () => {
+  it('should not render a product type filter', () => {
     render(
       <ProductFilters
-        types={typesFromApi}
         tags={tagsFromApi}
         sources={sourcesFromApi}
-        selectedTypes={[]}
         selectedTags={[]}
         selectedSources={[]}
         minRating={0}
         updatedSince={null}
         sortBy="created_at"
         sortOrder="desc"
-        onTypeToggle={vi.fn()}
         onTagToggle={vi.fn()}
         onSourceToggle={vi.fn()}
         onMinRatingChange={vi.fn()}
@@ -86,27 +82,20 @@ describeWithBackend('ProductFilters Accessibility Tests', () => {
       />
     )
 
-    typesFromApi.forEach((type) => {
-      const checkbox = screen.getByRole('checkbox', { name: new RegExp(type, 'i') })
-      expect(checkbox).toBeInTheDocument()
-      expect(checkbox).not.toBeChecked()
-    })
+    expect(screen.queryByRole('group', { name: /filter by product type/i })).not.toBeInTheDocument()
   })
 
-  it('should show selected states correctly', () => {
+  it('should show selected tag states correctly', () => {
     render(
       <ProductFilters
-        types={typesFromApi}
         tags={tagsFromApi}
         sources={sourcesFromApi}
-        selectedTypes={['Software']}
         selectedTags={['accessibility']}
         selectedSources={[]}
         minRating={0}
         updatedSince={null}
         sortBy="created_at"
         sortOrder="desc"
-        onTypeToggle={vi.fn()}
         onTagToggle={vi.fn()}
         onSourceToggle={vi.fn()}
         onMinRatingChange={vi.fn()}
@@ -116,31 +105,24 @@ describeWithBackend('ProductFilters Accessibility Tests', () => {
       />
     )
 
-    const softwareCheckbox = screen.getByRole('checkbox', { name: /software/i })
     const accessibilitySwitch = screen.getByRole('switch', { name: /accessibility/i })
-
-    expect(softwareCheckbox).toBeChecked()
     expect(accessibilitySwitch).toBeChecked()
   })
 
-  it('should call toggle handlers on checkbox change', () => {
-    const handleTypeToggle = vi.fn()
+  it('should call toggle handlers on filter change', () => {
     const handleTagToggle = vi.fn()
     const handleSourceToggle = vi.fn()
 
     render(
       <ProductFilters
-        types={typesFromApi}
         tags={tagsFromApi}
         sources={sourcesFromApi}
-        selectedTypes={[]}
         selectedTags={[]}
         selectedSources={[]}
         minRating={0}
         updatedSince={null}
         sortBy="created_at"
         sortOrder="desc"
-        onTypeToggle={handleTypeToggle}
         onTagToggle={handleTagToggle}
         onSourceToggle={handleSourceToggle}
         onMinRatingChange={vi.fn()}
@@ -150,31 +132,24 @@ describeWithBackend('ProductFilters Accessibility Tests', () => {
       />
     )
 
-    const softwareCheckbox = screen.getByRole('checkbox', { name: /software/i })
-    fireEvent.click(softwareCheckbox)
-    expect(handleTypeToggle).toHaveBeenCalledWith('Software')
-
     const accessibilitySwitch = screen.getByRole('switch', { name: /accessibility/i })
     fireEvent.click(accessibilitySwitch)
     expect(handleTagToggle).toHaveBeenCalledWith('accessibility')
   })
 
-  it('should have accessible clear filters button', () => {
+  it('should have accessible clear filters button when tag filter is active', () => {
     const handleClear = vi.fn()
 
     render(
       <ProductFilters
-        types={typesFromApi}
         tags={tagsFromApi}
         sources={sourcesFromApi}
-        selectedTypes={['Software']}
-        selectedTags={[]}
+        selectedTags={['accessibility']}
         selectedSources={[]}
         minRating={0}
         updatedSince={null}
         sortBy="created_at"
         sortOrder="desc"
-        onTypeToggle={vi.fn()}
         onTagToggle={vi.fn()}
         onSourceToggle={vi.fn()}
         onMinRatingChange={vi.fn()}
@@ -194,17 +169,14 @@ describeWithBackend('ProductFilters Accessibility Tests', () => {
   it('should be keyboard navigable through all filter controls', () => {
     render(
       <ProductFilters
-        types={typesFromApi}
         tags={tagsFromApi}
         sources={sourcesFromApi}
-        selectedTypes={[]}
         selectedTags={[]}
         selectedSources={[]}
         minRating={0}
         updatedSince={null}
         sortBy="created_at"
         sortOrder="desc"
-        onTypeToggle={vi.fn()}
         onTagToggle={vi.fn()}
         onSourceToggle={vi.fn()}
         onMinRatingChange={vi.fn()}
@@ -214,9 +186,8 @@ describeWithBackend('ProductFilters Accessibility Tests', () => {
       />
     )
 
-    const allCheckboxes = screen.getAllByRole('checkbox')
     const allSwitches = screen.getAllByRole('switch')
-    ;[...allCheckboxes, ...allSwitches].forEach((control) => {
+    allSwitches.forEach((control) => {
       expect(control).not.toBeDisabled()
     })
   })
