@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { describeWithBackend } from '../helpers/with-backend'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
 import { ProductSubmission } from '@/components/ProductSubmission'
 import type { UserData } from '@/lib/types'
@@ -163,7 +162,6 @@ describeWithBackend('ProductSubmission - Tag Entry (Backend Integration)', () =>
   }, 30000)
 
   it('should save tags when submitting a new product', async () => {
-    const user = userEvent.setup()
     let submittedProduct: any = null
     
     const testUser: UserData = {
@@ -196,11 +194,6 @@ describeWithBackend('ProductSubmission - Tag Entry (Backend Integration)', () =>
     // Fill required fields first
     const nameInput = screen.getByLabelText(/Product Name/i)
     fireEvent.change(nameInput, { target: { value: 'Test Product with Tags' } })
-
-    const typeInput = screen.getByLabelText(/Product Type/i)
-    await user.click(typeInput)
-    const softwareOption = await screen.findByRole('option', { name: 'Software' })
-    await user.click(softwareOption)
 
     const descInput = screen.getByLabelText(/Description/i)
     fireEvent.change(descInput, { target: { value: 'A test product with tags' } })
