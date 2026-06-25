@@ -110,7 +110,7 @@ export function CollectionsPage({
                 if (slugsToFetch.length > 0) {
                     // Fetch products for this collection
                     const results = await Promise.allSettled(
-                        slugsToFetch.map(slug => APIService.getProductBySlug(slug))
+                        slugsToFetch.map(slug => APIService.getProduct(slug))
                     )
 
                     const newProducts: Product[] = []

@@ -54,7 +54,7 @@ describe('CollectionsPage', () => {
     vi.clearAllMocks()
     vi.spyOn(APIService, 'getPublicCollections').mockResolvedValue([])
     vi.spyOn(APIService, 'getUserCollections').mockResolvedValue([])
-    vi.spyOn(APIService, 'getProductBySlug').mockResolvedValue(null as never)
+    vi.spyOn(APIService, 'getProduct').mockResolvedValue(null as never)
   })
 
   it('renders shared collection state without refetching collection lists', () => {

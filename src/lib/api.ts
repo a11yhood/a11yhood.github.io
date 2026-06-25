@@ -1365,10 +1365,6 @@ export class APIService {
     return request<Product | null>(`/products/${encodeURIComponent(productId)}`)
   }
 
-  static async getProductBySlug(slug: string): Promise<Product | null> {
-    return request<Product | null>(`/products/slug/${encodeURIComponent(slug)}`)
-  }
-
   static async productExistsByUrl(url: string): Promise<{ exists: boolean; product?: Product }> {
     // Use a manual fetch so we can treat 404 as {exists:false} without throwing
     const endpoint = `/products/exists?source_url=${encodeURIComponent(url)}`
