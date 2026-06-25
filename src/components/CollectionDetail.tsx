@@ -119,12 +119,13 @@ export function CollectionDetail({
 
     // Snapshot global products at the start of this cycle.  Slugs already
     // present here don't need a network call.
-    const globalBySlug = new Map<string, Product>()
+    const globalByKey = new Map<string, Product>()
     ;(globalProductsRef.current || []).forEach((p) => {
-      if (p?.slug) globalBySlug.set(p.slug, p)
+      if (p?.slug) globalByKey.set(p.slug, p)
+      if (p?.id) globalByKey.set(p.id, p)
     })
 
-    const missingSlugs = slugs.filter((slug) => !globalBySlug.has(slug))
+    const missingSlugs = slugs.filter((slug) => !globalByKey.has(slug))
     if (missingSlugs.length === 0) {
       console.log('[CollectionDetail] All products already cached, skipping API calls')
       setIsLoading(false)
@@ -870,7 +871,7 @@ export function CollectionDetail({
                   ratings={ratings}
                   onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
                   onClick={() => onSelectProduct(product.slug || product.id)}
-                  onDelete={(productSlug) => onRemoveProduct(product.id || productSlug)}
+                  onDelete={(productKey) => onRemoveProduct(productKey)}
                   userAccount={userAccount}
                 />
                 {canManageCollectionProducts && (
@@ -880,7 +881,7 @@ export function CollectionDetail({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation()
-                        onRemoveProduct(product.id || product.slug)
+                        onRemoveProduct(product.slug || product.id)
                       }}
                       aria-label="Remove from collection"
                     >

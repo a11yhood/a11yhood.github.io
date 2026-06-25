@@ -22,6 +22,7 @@ describeWithBackend('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', ()
     const product = await APIService.createProduct({
       name: 'Collection Test Product',
       type: 'Software',
+      source: 'github',
       sourceUrl: `https://github.com/collection-test-${Date.now()}`,
       description: 'Product for collection tests with sufficient description content',
       tags: ['test'],

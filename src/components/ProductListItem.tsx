@@ -44,8 +44,8 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (onDelete) {
-      const targetId = product.id || product.slug
-      onDelete(targetId)
+      const productKey = product.slug || product.id
+      onDelete(productKey)
     }
   }
 

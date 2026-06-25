@@ -23,6 +23,7 @@ beforeAll(async () => {
   const product = await APIService.createProduct({
     name: 'Discussion Target',
     type: 'Software',
+    source: 'github',
     sourceUrl: productUrl,
     description: 'Product for discussion accessibility tests with sufficient description',
     tags: ['discussion', 'a11y'],

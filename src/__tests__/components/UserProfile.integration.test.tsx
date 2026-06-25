@@ -27,6 +27,8 @@ async function createOwnedProduct(): Promise<void> {
     type: getValidProductType('user-submitted'),
     source: 'user-submitted',
     sourceUrl: `https://github.com/test/user-profile-${Date.now()}`,
+    description: 'Test product for user profile integration tests',
+    tags: [],
     editorIds: [userAccount.id],
   })
 

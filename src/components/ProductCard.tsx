@@ -83,10 +83,10 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
       userAccountRole: userAccount?.role,
       canModerate
     })
-    const targetId = product.id || product.slug
-    if (onDelete && targetId) {
-      console.log('[ProductCard.handleDelete] Calling onDelete with ID:', targetId)
-      onDelete(targetId)
+    const productKey = product.slug || product.id
+    if (onDelete && productKey) {
+      console.log('[ProductCard.handleDelete] Calling onDelete with ID:', productKey)
+      onDelete(productKey)
     }
   }
 

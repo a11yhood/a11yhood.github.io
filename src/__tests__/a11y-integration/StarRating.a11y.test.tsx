@@ -53,6 +53,7 @@ beforeAll(async () => {
   const product = await APIService.createProduct({
     name: 'Star Rating Target',
     type: 'Software',
+    source: 'github',
     sourceUrl: productUrl,
     description: 'Product for star rating accessibility tests with sufficient description',
     tags: ['a11y', 'rating'],
