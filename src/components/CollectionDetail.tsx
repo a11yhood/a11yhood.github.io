@@ -744,35 +744,6 @@ export function CollectionDetail({
             </div>
           )}
 
-          {orderedEntries.length > 0 && (
-            <div className="mt-4">
-              <h3 className="font-medium mb-2">Included items</h3>
-              <ul className="flex flex-wrap gap-2">
-                {orderedEntries.map((entry, index) => {
-                  const key = collectionEntryKey(entry, index)
-
-                  if (entry.kind === 'product') {
-                    const candidates = getCollectionEntryProductCandidates(entry)
-                    const resolvedLabel = candidates
-                      .map((candidate) => productLabelByKey.get(candidate))
-                      .find((name): name is string => !!name)
-                    const targetRef = entry.targetSlug || entry.targetId
-                    const targetLabel = entry.title && targetRef
-                      ? `${entry.title} (${targetRef})`
-                      : (resolvedLabel || entry.title || targetRef || `Product ${index + 1}`)
-                    return (
-                      <li key={key}>
-                        <Badge variant="secondary">Product: {targetLabel}</Badge>
-                      </li>
-                    )
-                  }
-
-                  return null
-                })}
-              </ul>
-            </div>
-          )}
-
           <div className="mt-3 text-sm">
             <span className="text-muted-foreground">Collaborators:</span>{' '}
             {collaboratorIds.length > 0 ? (
