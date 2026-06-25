@@ -76,10 +76,10 @@ describe('CollectionDetail', () => {
 
     expect(await screen.findByText('Fetched Product')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /products \(1\)/i })).toBeInTheDocument()
-    expect(screen.getByText('Product: Fetched Product (fetched-product)')).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: 'Fetched Product' })).toBeInTheDocument()
   })
 
-  it('shows human-readable included item label for prefixed UUID product targets', async () => {
+  it('renders a human-readable product card for prefixed UUID product targets', async () => {
     const productUuid = '3be25bdd-9d94-4ba2-ae22-1f394bc9038d'
     const collection: Collection = {
       id: 'collection-2',
@@ -133,10 +133,11 @@ describe('CollectionDetail', () => {
       </MemoryRouter>
     )
 
-    expect(await screen.findByText('Product: Readable Name')).toBeInTheDocument()
+    expect(await screen.findByText('Readable Name')).toBeInTheDocument()
     expect(getProductSpy).toHaveBeenCalledWith(`test-product-${productUuid}`)
     expect(getProductSpy).toHaveBeenCalledWith(productUuid)
     expect(screen.getByRole('heading', { name: /products \(1\)/i })).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: 'Readable Name' })).toBeInTheDocument()
   })
 
   it('prefers product slug when selecting a product card', async () => {
