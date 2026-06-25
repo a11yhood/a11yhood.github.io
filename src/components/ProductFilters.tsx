@@ -14,7 +14,7 @@ type ProductFiltersProps = {
   selectedTypes?: string[]
   onTypeToggle?: (type: string) => void
   tags: string[]
-  sources: Array<{ name: string; count: number } | string>
+  sources: Array<{ name: string; count: number }>
   selectedTags: string[]
   selectedSources: string[]
   minRating: number
@@ -47,17 +47,12 @@ export function ProductFilters({
 }: ProductFiltersProps) {
   const [tagSearch, setTagSearch] = useState('')
   const safeTags = tags.filter(Boolean)
-  
-  // Ensure sources are in the correct format (handle both old string[] and new object[] formats)
-  const safeSources = sources.map(source => 
-    typeof source === 'string' ? { name: source, count: 0 } : source
-  )
 
   // Group small-count sources under "Other"
   const MAJOR_THRESHOLD = 5
-  const majorSources = safeSources.filter(s => (s?.count ?? 0) >= MAJOR_THRESHOLD)
-  const minorSources = safeSources.filter(s => (s?.count ?? 0) < MAJOR_THRESHOLD)
-  const otherTotal = minorSources.reduce((sum, s) => sum + (s?.count ?? 0), 0)
+  const majorSources = sources.filter(s => s.count >= MAJOR_THRESHOLD)
+  const minorSources = sources.filter(s => s.count < MAJOR_THRESHOLD)
+  const otherTotal = minorSources.reduce((sum, s) => sum + s.count, 0)
   const groupedSources = otherTotal > 0 
     ? [...majorSources, { name: 'Other', count: otherTotal }]
     : majorSources

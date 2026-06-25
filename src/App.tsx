@@ -7,7 +7,7 @@
  */
 console.log('📦 [App.tsx] Loading imports...')
 
-import { useEffect, useLayoutEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useState, useMemo, useRef, type MouseEvent } from 'react'
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { BlogPostDraftPage } from '@/components/BlogPostDraftPage'
@@ -376,15 +376,11 @@ function App() {
 
   // Sync search query from URL params when navigating to /products
   useEffect(() => {
-    if (location.pathname !== '/' && location.pathname !== '/products') return
-
     // Strip legacy ?type= params — types are no longer user-facing
-    if (searchParams.has('type')) {
-      setSelectedTypes([])
+    if ((location.pathname === '/' || location.pathname === '/products') && searchParams.has('type')) {
       const cleaned = new URLSearchParams(searchParams)
       cleaned.delete('type')
       setSearchParams(cleaned, { replace: true })
-      return
     }
 
     if (location.pathname !== '/products') return
@@ -2326,7 +2322,7 @@ function App() {
                 ) : (
                   <div className="text-center py-12">
                     <p className="text-lg text-muted-foreground">Please sign in to view your account</p>
-                    <Button onClick={handleLogin} className="mt-4">Sign In</Button>
+                    <Button onClick={() => handleLogin()} className="mt-4">Sign In</Button>
                   </div>
                 )
               } />
@@ -2408,7 +2404,6 @@ function App() {
                 title={addToCollectionDialogTitle}
                 description={addToCollectionDialogDescription}
                 allowRemoval={true}
-                username={user.username}
               />
 
               <EditCollectionDialog

@@ -2006,7 +2006,7 @@ export class APIService {
 
   static async updateCollection(
     collectionId: string,
-    updates: Partial<Omit<Collection, 'id' | 'createdAt' | 'updatedAt' | 'userId' | 'userName' | 'username'>>
+    updates: Partial<Omit<Collection, 'id' | 'createdAt' | 'updatedAt' | 'userId' | 'userName' | 'username' | 'entries'>> & { entries?: Record<string, unknown>[] }
   ): Promise<Collection | null> {
     const result = await request<Collection | null>(`/collections/${collectionId}`, {
       method: 'PUT',
