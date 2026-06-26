@@ -76,10 +76,10 @@ describe('CollectionDetail', () => {
 
     expect(await screen.findByText('Fetched Product')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /products \(1\)/i })).toBeInTheDocument()
-    expect(screen.getByText('Product: Fetched Product (fetched-product)')).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: 'Fetched Product' })).toBeInTheDocument()
   })
 
-  it('shows human-readable included item label for prefixed UUID product targets', async () => {
+  it('renders a human-readable product card for prefixed UUID product targets', async () => {
     const productUuid = '3be25bdd-9d94-4ba2-ae22-1f394bc9038d'
     const collection: Collection = {
       id: 'collection-2',
@@ -133,10 +133,64 @@ describe('CollectionDetail', () => {
       </MemoryRouter>
     )
 
-    expect(await screen.findByText('Product: Readable Name')).toBeInTheDocument()
+    expect(await screen.findByText('Readable Name')).toBeInTheDocument()
     expect(getProductSpy).toHaveBeenCalledWith(`test-product-${productUuid}`)
     expect(getProductSpy).toHaveBeenCalledWith(productUuid)
     expect(screen.getByRole('heading', { name: /products \(1\)/i })).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: 'Readable Name' })).toBeInTheDocument()
+  })
+
+  it('prefers product slug when selecting a product card', async () => {
+    const user = userEvent.setup()
+    const onSelectProduct = vi.fn()
+    const collection: Collection = {
+      id: 'collection-select',
+      slug: 'collection-select',
+      name: 'Collection Select',
+      userId: 'owner-1',
+      username: 'owner-user',
+      entries: [
+        {
+          kind: 'product',
+          targetSlug: 'selectable-product',
+        },
+      ],
+      productSlugs: ['selectable-product'],
+      isPublic: true,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }
+    const selectableProduct = createMockProduct({
+      id: 'product-uuid-1',
+      slug: 'selectable-product',
+      name: 'Selectable Product',
+    })
+
+    vi.spyOn(APIService, 'getCollectionEditors').mockResolvedValue({
+      collectionId: collection.id,
+      editorIds: [],
+    })
+
+    render(
+      <MemoryRouter>
+        <CollectionDetail
+          collection={collection}
+          collections={[collection]}
+          ratings={[]}
+          products={[selectableProduct]}
+          onBack={vi.fn()}
+          onRemoveProduct={vi.fn()}
+          onSelectProduct={onSelectProduct}
+          isOwner={false}
+          userAccount={null}
+          onDeleteProduct={vi.fn()}
+        />
+      </MemoryRouter>
+    )
+
+    await user.click(screen.getByText('Selectable Product'))
+
+    expect(onSelectProduct).toHaveBeenCalledWith('selectable-product')
   })
 
   it('shows parent collections and exposes an add button for collection membership', async () => {

@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AdminUsersStats } from '@/components/AdminUsersStats'
 import { APIService } from '@/lib/api'
+import type { UserAccount } from '@/lib/types'
 import { runA11yScan } from '../helpers/a11y'
 
 const notify = {
@@ -41,7 +42,7 @@ describe('AdminUsersStats accessibility', () => {
       totalContributions: 7,
     })
     vi.spyOn(APIService, 'getOwnedProducts').mockResolvedValue([])
-    vi.spyOn(APIService, 'setUserRole').mockResolvedValue(true)
+    vi.spyOn(APIService, 'setUserRole').mockResolvedValue({ id: 'u1', role: 'admin' } as UserAccount)
   })
 
   it('has no obvious axe violations with loaded user data', async () => {

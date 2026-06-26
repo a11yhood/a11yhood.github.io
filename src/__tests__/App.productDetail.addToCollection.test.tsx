@@ -31,7 +31,7 @@ describe('App product detail add-to-collection flow', () => {
       slug: 'collection-1',
       name: 'First Collection',
       userId: userAccount.id,
-      username: userAccount.username,
+      username: userAccount.username!,
       productSlugs: [],
       entries: [],
       isPublic: true,
@@ -44,7 +44,7 @@ describe('App product detail add-to-collection flow', () => {
       slug: 'collection-2',
       name: 'Second Collection',
       userId: userAccount.id,
-      username: userAccount.username,
+      username: userAccount.username!,
       productSlugs: [],
       entries: [],
       isPublic: true,
@@ -55,7 +55,7 @@ describe('App product detail add-to-collection flow', () => {
     vi.spyOn(APIService, 'getCurrentUser').mockResolvedValue(userAccount)
     vi.spyOn(APIService, 'getUserCollections').mockResolvedValue([firstCollection, secondCollection])
     vi.spyOn(APIService, 'getPublicCollections').mockResolvedValue([])
-    vi.spyOn(APIService, 'getProductBySlug').mockResolvedValue(product)
+    vi.spyOn(APIService, 'getProduct').mockResolvedValue(product)
     vi.spyOn(APIService, 'getAllRatings').mockResolvedValue([])
     vi.spyOn(APIService, 'getAllDiscussions').mockResolvedValue([])
     vi.spyOn(APIService, 'getProductOwners').mockResolvedValue([])
@@ -116,7 +116,7 @@ describe('App product detail add-to-collection flow', () => {
       slug: 'collection-1',
       name: 'Existing Collection',
       userId: userAccount.id,
-      username: userAccount.username,
+      username: userAccount.username!,
       productSlugs: ['product-slug'],
       entries: [{ kind: 'product', targetSlug: 'product-slug', order: 0 }],
       isPublic: true,
@@ -127,7 +127,7 @@ describe('App product detail add-to-collection flow', () => {
     vi.spyOn(APIService, 'getCurrentUser').mockResolvedValue(userAccount)
     vi.spyOn(APIService, 'getUserCollections').mockResolvedValue([existingCollection])
     vi.spyOn(APIService, 'getPublicCollections').mockResolvedValue([])
-    vi.spyOn(APIService, 'getProductBySlug').mockResolvedValue(product)
+    vi.spyOn(APIService, 'getProduct').mockResolvedValue(product)
     vi.spyOn(APIService, 'getAllRatings').mockResolvedValue([])
     vi.spyOn(APIService, 'getAllDiscussions').mockResolvedValue([])
     vi.spyOn(APIService, 'getProductOwners').mockResolvedValue([])

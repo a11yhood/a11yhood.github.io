@@ -44,8 +44,8 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (onDelete) {
-      const targetId = product.id || product.slug
-      onDelete(targetId)
+      const productKey = product.slug || product.id
+      onDelete(productKey)
     }
   }
 
@@ -97,7 +97,7 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          onNavigate()
+          onNavigate?.()
         }
       }}
     >
@@ -292,7 +292,6 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
   if (prevProps.user?.id !== nextProps.user?.id) return false
   if (prevProps.onRate !== nextProps.onRate) return false
   if (prevProps.showBannedBadge !== nextProps.showBannedBadge) return false
-  if (prevProps.onClick !== nextProps.onClick) return false
   if (prevProps.onTagClick !== nextProps.onTagClick) return false
   if (prevProps.onOpenAddToCollection !== nextProps.onOpenAddToCollection) return false
   if (prevProps.selectedTags !== nextProps.selectedTags) return false

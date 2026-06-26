@@ -286,9 +286,9 @@ export function ProductDetail({
       : 'No ratings yet'
 
   const handleDelete = () => {
-    const targetId = product.id || product.slug
-    if (onDelete && targetId) {
-      onDelete(targetId)
+    const productKey = product.slug || product.id
+    if (onDelete && productKey) {
+      onDelete(productKey)
       onBack()
     }
   }

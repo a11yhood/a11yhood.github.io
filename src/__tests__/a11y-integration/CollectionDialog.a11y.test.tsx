@@ -22,6 +22,7 @@ describeWithBackend('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', ()
     const product = await APIService.createProduct({
       name: 'Collection Test Product',
       type: 'Software',
+      source: 'github',
       sourceUrl: `https://github.com/collection-test-${Date.now()}`,
       description: 'Product for collection tests with sufficient description content',
       tags: ['test'],
@@ -33,7 +34,7 @@ describeWithBackend('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', ()
       name: 'My Favorites',
       description: 'Products I love',
       username: testUsername,
-      productSlugs: [],
+      entries: [],
       isPublic: true,
     })
 
@@ -41,7 +42,7 @@ describeWithBackend('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', ()
       name: 'Work Tools',
       description: 'Tools for work',
       username: testUsername,
-      productSlugs: [testProductSlug],
+      entries: [{ kind: 'product', targetSlug: testProductSlug, order: 0 }],
       isPublic: false,
     })
 

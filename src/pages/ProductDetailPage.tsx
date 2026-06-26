@@ -50,30 +50,30 @@ export function ProductDetailPage({
     onLogin: (returnToPath?: string) => void
     allTags: string[]
 }) {
-    const { slug: productSlug } = useParams()
+    const { slug: productKey } = useParams()
     const [searchParams] = useSearchParams()
     const autoOpenEdit = searchParams.get('edit') === '1'
     const autoOpenOwnershipRequest = searchParams.get('requestEdit') === '1'
     const navigate = useNavigate()
     const [product, setProduct] = useState<Product | null>(null)
     const [loading, setLoading] = useState(true)
-    const previousProductSlugRef = useRef<string | undefined>(undefined)
+    const previousProductKeyRef = useRef<string | undefined>(undefined)
 
     useEffect(() => {
         let isActive = true
 
-        const slugChanged = previousProductSlugRef.current !== productSlug
-        previousProductSlugRef.current = productSlug
+        const productChanged = previousProductKeyRef.current !== productKey
+        previousProductKeyRef.current = productKey
 
-        // Clear stale product data immediately when navigating between slugs.
+        // Clear stale product data immediately when navigating between route params.
         // Without this, child effects can issue requests for the previous product ID.
-        if (slugChanged) {
+        if (productChanged) {
             setLoading(true)
             setProduct(null)
         }
 
         const fetchProduct = async () => {
-            if (!productSlug) {
+            if (!productKey) {
                 if (isActive) {
                     setLoading(false)
                 }
@@ -82,19 +82,19 @@ export function ProductDetailPage({
 
             try {
                 // First check if product is already in the products array (from home page navigation)
-                const cachedProduct = products.find(p => p.slug === productSlug)
+                const cachedProduct = products.find(p => p.slug === productKey || p.id === productKey)
                 if (cachedProduct) {
                     if (isActive) {
-                        setProduct({ ...cachedProduct, slug: cachedProduct.slug ?? productSlug })
+                        setProduct({ ...cachedProduct, slug: cachedProduct.slug ?? productKey })
                         setLoading(false)
                     }
                     return
                 }
 
-                // Otherwise fetch just this product
-                const fetchedProduct = await APIService.getProductBySlug(productSlug)
+                // Otherwise fetch by slug first, then fall back to id if the route uses a raw product id.
+                const fetchedProduct = await APIService.getProduct(productKey)
                 if (isActive) {
-                    setProduct(fetchedProduct ? { ...fetchedProduct, slug: fetchedProduct.slug ?? productSlug } : null)
+                    setProduct(fetchedProduct ? { ...fetchedProduct, slug: fetchedProduct.slug ?? productKey } : null)
                 }
             } catch (error) {
                 const status = (error as ApiErrorLike | undefined)?.status
@@ -118,7 +118,7 @@ export function ProductDetailPage({
         return () => {
             isActive = false
         }
-    }, [productSlug, products])
+    }, [productKey, products])
 
     if (loading) {
         return (

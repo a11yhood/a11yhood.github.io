@@ -49,7 +49,9 @@ describeWithBackend('Submission Dialog Edit Flow', () => {
       name: 'Edit Flow Test Product',
       description: 'Integration test product for the submission edit flow',
       type: 'Software',
+      source: 'github',
       sourceUrl: createdUrl,
+      tags: [],
     })
     testProductUrl = createdUrl
   }, 60000)

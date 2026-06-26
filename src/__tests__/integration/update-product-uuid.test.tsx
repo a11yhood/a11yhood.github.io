@@ -74,7 +74,7 @@ describe('updateProduct UUID enforcement', () => {
     vi.spyOn(APIService, 'getFilteredTags').mockResolvedValue([])
     vi.spyOn(APIService, 'getAllProducts').mockResolvedValue([testProduct])
     vi.spyOn(APIService, 'getProductCount').mockResolvedValue(1)
-    vi.spyOn(APIService, 'getProductBySlug').mockResolvedValue(testProduct)
+    vi.spyOn(APIService, 'getProduct').mockResolvedValue(testProduct)
     // Ratings / discussions / blog
     vi.spyOn(APIService, 'getAllRatings').mockResolvedValue([])
     vi.spyOn(APIService, 'getAllDiscussions').mockResolvedValue([])

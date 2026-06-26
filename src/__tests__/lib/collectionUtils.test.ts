@@ -79,12 +79,12 @@ describe('collectionUtils', () => {
   it('hydrates backend collection and blog post entry ids into targetId', () => {
     const collection = {
       entries: [
-        { kind: 'collection', collectionId: 'child-collection', label: 'Child Collection' },
-        { kind: 'blogPost', blogPostId: 'post-1', label: 'Blog Post' },
+        { kind: 'collection', collectionId: 'child-collection' },
+        { kind: 'blogPost', blogPostId: 'post-1' },
       ],
       productSlugs: [],
       productIds: [],
-    } as Pick<Collection, 'entries' | 'productIds' | 'productSlugs'>
+    } as unknown as Pick<Collection, 'entries' | 'productIds' | 'productSlugs'>
 
     const entries = getCollectionEntries(collection)
 
@@ -98,11 +98,11 @@ describe('collectionUtils', () => {
   it('hydrates backend product entries using productId', () => {
     const collection = {
       entries: [
-        { kind: 'product', productId: 'product-1', label: 'Product 1' },
+        { kind: 'product', productId: 'product-1' },
       ],
       productSlugs: [],
       productIds: [],
-    } as Pick<Collection, 'entries' | 'productIds' | 'productSlugs'>
+    } as unknown as Pick<Collection, 'entries' | 'productIds' | 'productSlugs'>
 
     const entries = getCollectionEntries(collection)
 

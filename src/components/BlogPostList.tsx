@@ -131,12 +131,6 @@ function BlogPostCard({
     >
       {post.headerImage && (
         <div className="relative w-full h-48 overflow-hidden bg-muted">
-          {post.headerImage && console.debug('[BlogPostCard] headerImage', {
-            preview: post.headerImage.slice(0, 30),
-            isDataUrl: post.headerImage.startsWith('data:'),
-            isHttp: post.headerImage.startsWith('http'),
-            length: post.headerImage.length,
-          })}
           <img
             src={post.headerImage}
             alt={post.headerImageAlt || ''}

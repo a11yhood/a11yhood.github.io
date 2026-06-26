@@ -367,14 +367,14 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
     notify.success('Product updated successfully')
   }
 
-  const handleDeleteProduct = async (productId: string) => {
-    console.log('[ScraperManager.handleDeleteProduct] Delete clicked for product:', productId)
+  const handleDeleteProduct = async (productKey: string) => {
+    console.log('[ScraperManager.handleDeleteProduct] Delete clicked for product:', productKey)
     try {
       console.log('[ScraperManager.handleDeleteProduct] Calling APIService.deleteProduct...')
-      await APIService.deleteProduct(productId)
+      await APIService.deleteProduct(productKey)
       console.log('[ScraperManager.handleDeleteProduct] API call successful, updating local state')
-      
-      const updatedProducts = products.filter(p => p.id !== productId)
+
+      const updatedProducts = products.filter(p => p.id !== productKey && p.slug !== productKey)
       onProductsUpdate(updatedProducts)
       notify.success('Product deleted')
     } catch (error) {
@@ -957,7 +957,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteProduct(product.id || product.slug)}
+                            onClick={() => handleDeleteProduct(product.slug || product.id)}
                           >
                             <Trash size={16} />
                           </Button>
@@ -1045,7 +1045,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteProduct(product.id || product.slug)}
+                            onClick={() => handleDeleteProduct(product.slug || product.id)}
                           >
                             <Trash size={16} />
                           </Button>

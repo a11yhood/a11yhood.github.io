@@ -143,7 +143,7 @@ describe('DiscussionSection Component Tests (APIService mocked)', () => {
       createdAt: Date.now(),
     }
     store = [...store, created]
-    resolveCreate?.(created)
+    resolveCreate!(created)
 
     // Ensure submission settles before teardown so we don't race product cleanup.
     await waitFor(() => {

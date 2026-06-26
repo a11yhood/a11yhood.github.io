@@ -52,7 +52,6 @@ export class ScraperService {
           description: scraped.description,
           tags: scraped.tags || [],
           createdAt: Date.now(),
-          origin: `scraped-${scraped.source?.toLowerCase?.() ?? 'unknown'}`,
           imageUrl: scraped.imageUrl,
           imageAlt: scraped.imageAlt,
           sourceRating: scraped.sourceRating,

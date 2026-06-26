@@ -42,6 +42,7 @@ describeWithBackend('ProductCard Accessibility Tests', () => {
     product = await APIService.createProduct({
       name: 'Accessible Widget',
       type: 'Software',
+      source: 'github',
       sourceUrl: productSourceUrl,
       description: 'A test accessible widget with sufficient description for testing purposes',
       tags: ['accessibility', 'test'],

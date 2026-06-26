@@ -106,7 +106,9 @@ beforeAll(async () => {
     name: `Shared Workflow Product ${Date.now()}`,
     description: 'Shared product for user-workflows integration tests',
     type: 'Software',
+    source: 'github',
     sourceUrl: `https://github.com/test/shared-product-${Date.now()}`,
+    tags: [],
   })
   testProductId = product.id
 }, 30000)
