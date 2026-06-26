@@ -29,19 +29,18 @@ describe('APIService createCollection payload', () => {
     await APIService.createCollection({
       name: 'Payload Contract Test',
       description: 'contract',
+      username: 'test-user',
       isPublic: false,
       entries: [
         {
           kind: 'product',
           targetId: 'product-1',
-          label: 'Product 1',
-          position: 0,
+          order: 0,
         },
         {
           kind: 'collection',
           targetId: 'collection-2',
-          label: 'Collection 2',
-          position: 1,
+          order: 1,
         },
       ],
     })

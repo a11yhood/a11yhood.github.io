@@ -98,7 +98,7 @@ describeWithBackend('Owned + edited membership sequence', () => {
       description: 'Owned collection fixture for membership sequence',
       isPublic: true,
       username: user.username,
-      productSlugs: [],
+      entries: [],
     })
     ownedCollectionSlug = ownedCollection.slug || ownedCollection.id
 
@@ -121,7 +121,7 @@ describeWithBackend('Owned + edited membership sequence', () => {
       description: 'Edited collection fixture for membership sequence',
       isPublic: true,
       username: DEV_USERS.moderator.username,
-      productSlugs: [],
+      entries: [],
     })
     editedCollectionSlug = editedCollection.slug || editedCollection.id
     await APIService.addCollectionEditor(editedCollectionSlug, user.id)

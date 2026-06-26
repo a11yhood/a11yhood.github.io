@@ -11,6 +11,7 @@ const baseCollection: Collection = {
   userId: 'owner-1',
   username: 'owner-1',
   productSlugs: [],
+  entries: [],
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
   isPublic: true,

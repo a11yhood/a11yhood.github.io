@@ -34,7 +34,7 @@ describeWithBackend('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', ()
       name: 'My Favorites',
       description: 'Products I love',
       username: testUsername,
-      productSlugs: [],
+      entries: [],
       isPublic: true,
     })
 
@@ -42,7 +42,7 @@ describeWithBackend('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', ()
       name: 'Work Tools',
       description: 'Tools for work',
       username: testUsername,
-      productSlugs: [testProductSlug],
+      entries: [{ kind: 'product', targetSlug: testProductSlug, order: 0 }],
       isPublic: false,
     })
 

@@ -21,6 +21,7 @@ const baseCollection = {
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
   productSlugs: [],
+  entries: [],
 } satisfies Partial<Collection>
 
 const renderPage = ({

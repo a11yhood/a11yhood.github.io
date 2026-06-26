@@ -54,7 +54,7 @@ describe('ScraperManager source bulk delete', () => {
   it('calls backend bulk delete even when current page has no products for that source', async () => {
     const onProductsUpdate = vi.fn()
 
-    vi.spyOn(APIService, 'getProductSources').mockResolvedValue(['AbleData'])
+    vi.spyOn(APIService, 'getProductSources').mockResolvedValue([{ name: 'AbleData', count: 32 }])
     vi.spyOn(APIService, 'getProductCountBySource').mockImplementation(async (source: string) => {
       return source === 'AbleData' ? 32 : 0
     })

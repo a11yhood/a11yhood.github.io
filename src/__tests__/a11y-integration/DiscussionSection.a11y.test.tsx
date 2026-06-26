@@ -192,7 +192,6 @@ describeWithBackend('DiscussionSection Accessibility Tests', () => {
             username: currentUser.username,
             content,
             parentId,
-            createdAt: Date.now(),
           })
           handleDiscuss(content, parentId)
         }}

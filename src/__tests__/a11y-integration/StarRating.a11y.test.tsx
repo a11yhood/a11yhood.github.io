@@ -9,7 +9,7 @@ import type { Rating } from '@/lib/types'
 const testRole = DEV_USERS.user.role
 const productUrl = `https://github.com/test/a11y-star-${Date.now()}`
 const defaultSeedRating = 4
-let testUserId = DEV_USERS.user.id  // will be overwritten with actual backend ID in beforeAll
+let testUserId: string = DEV_USERS.user.id  // will be overwritten with actual backend ID in beforeAll
 let productId: string
 let seededRating: Rating | null = null
 
@@ -27,7 +27,6 @@ const ensureRating = async (value = defaultSeedRating) => {
       userId: testUserId,
       rating: value,
       createdAt: Date.now(),
-      id: `${productId}-${testUserId}`,
     })
     return seededRating
   } catch (error) {

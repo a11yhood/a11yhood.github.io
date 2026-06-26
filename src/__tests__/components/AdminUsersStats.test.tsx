@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 
 import { AdminUsersStats } from '@/components/AdminUsersStats'
 import { APIService } from '@/lib/api'
+import type { UserAccount } from '@/lib/types'
 
 const notify = {
   success: vi.fn(),
@@ -69,7 +70,7 @@ describe('AdminUsersStats', () => {
       },
     ] as never[])
 
-    vi.spyOn(APIService, 'setUserRole').mockResolvedValue(true)
+    vi.spyOn(APIService, 'setUserRole').mockResolvedValue({ id: 'u1', role: 'admin' } as UserAccount)
   })
 
   it('does not fetch owned products when backend stats are trusted', async () => {
