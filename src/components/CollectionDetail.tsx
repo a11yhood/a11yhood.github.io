@@ -871,7 +871,6 @@ export function CollectionDetail({
                   ratings={ratings}
                   onTagClick={(tag) => navigate(getProductsPathForTag(tag))}
                   onClick={() => onSelectProduct(product.slug || product.id)}
-                  onDelete={(productKey) => onRemoveProduct(productKey)}
                   userAccount={userAccount}
                 />
                 {canManageCollectionProducts && (
