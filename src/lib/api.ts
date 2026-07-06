@@ -1966,7 +1966,7 @@ export class APIService {
   }
 
   static async createCollection(collection: CollectionCreateInput): Promise<Collection> {
-    const payload: CollectionCreateInput | (CollectionCreateInput & { entries: Array<Record<string, unknown>> }) = {
+    const payload: Omit<CollectionCreateInput, 'entries'> & { entries: Array<Record<string, unknown>> } = {
       ...collection,
       entries: Array.isArray(collection.entries)
         ? collection.entries.map((entry) => serializeCollectionEntryForCreate(entry))

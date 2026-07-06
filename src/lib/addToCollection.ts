@@ -65,7 +65,7 @@ export function createProductEntriesForCollection(products: Pick<Product, 'id' |
         order: index,
       }
     })
-    .filter((entry): entry is CollectionEntry => !!entry)
+    .filter((entry): entry is NonNullable<typeof entry> => !!entry)
 }
 
 export function getPreselectedCollectionKeysForProducts(
