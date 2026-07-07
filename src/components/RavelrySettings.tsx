@@ -504,7 +504,7 @@ export function RavelrySettings({ onAuthComplete, products: _products = [], onPr
           <AlertDescription className="text-sm space-y-2">
             <p className="font-semibold">🔒 Security & Privacy:</p>
             <ul className="list-disc list-inside space-y-1 text-xs ml-2">
-              <li>Your Client ID and Secret are stored encrypted in Spark KV storage</li>
+              <li>Your Client ID and Secret are stored securely on the backend</li>
               <li>Only you (the app owner) can access them</li>
               <li>They never appear in your repository or code</li>
               <li>You can revoke access anytime from Ravelry's developer settings</li>
