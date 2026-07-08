@@ -13,6 +13,7 @@ describeWithBackend('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', ()
   const testRole = DEV_USERS.user.role
   const testUsername = DEV_USERS.user.username
   let testProductSlug: string
+  let testProductId: string
   let testCollections: Collection[] = []
 
   beforeAll(async () => {
@@ -28,6 +29,7 @@ describeWithBackend('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', ()
       tags: ['test'],
     })
     testProductSlug = product.slug || product.id
+    testProductId = product.id
 
     // Create test collections
     const collection1 = await APIService.createCollection({
@@ -38,11 +40,14 @@ describeWithBackend('CollectionDialog Accessibility Tests (Stories 6.1-6.2)', ()
       isPublic: true,
     })
 
+    // Backend requires a real product UUID for entries[].product_id (no slug
+    // resolution happens on this path, unlike the dedicated
+    // /collections/{slug}/products/{slug} endpoints), so pass targetId here.
     const collection2 = await APIService.createCollection({
       name: 'Work Tools',
       description: 'Tools for work',
       username: testUsername,
-      entries: [{ kind: 'product', targetSlug: testProductSlug, order: 0 }],
+      entries: [{ kind: 'product', targetId: testProductId, targetSlug: testProductSlug, order: 0 }],
       isPublic: false,
     })
 
