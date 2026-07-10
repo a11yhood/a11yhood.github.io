@@ -280,13 +280,3 @@ if (!Element.prototype.hasPointerCapture) {
 if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => {}
 }
-
-global.window.spark = {
-  user: vi.fn().mockResolvedValue(null),
-  kv: {
-    keys: vi.fn().mockResolvedValue([]),
-    get: vi.fn().mockResolvedValue(undefined),
-    set: vi.fn().mockResolvedValue(undefined),
-    delete: vi.fn().mockResolvedValue(undefined),
-  },
-}

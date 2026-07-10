@@ -19,8 +19,7 @@ const kvStore = new Map<string, number>()
 
 export class ScraperService {
   /**
-   * Frontend-safe wrapper that attempts to call spark.llm for scraping.
-   * Falls back to an empty array on error or missing implementation.
+   * Frontend no longer runs scrapers directly; the backend owns scraping.
    */
   static async scrapeProducts(): Promise<ScrapedProduct[]> {
     // Frontend no longer runs scrapers; rely on backend. Return empty list safely.

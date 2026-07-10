@@ -17,7 +17,7 @@ export const ErrorFallback = ({ error, resetErrorBoundary }) => {
           <AlertTriangleIcon />
           <AlertTitle>We have encountered a runtime error</AlertTitle>
           <AlertDescription>
-            Something unexpected happened while running the application. The error details are shown below. Contact the spark author and let them know about this issue.
+            Something unexpected happened while running the application. The error details are shown below. Please report this as an issue on GitHub so we can fix it.
           </AlertDescription>
         </Alert>
         
