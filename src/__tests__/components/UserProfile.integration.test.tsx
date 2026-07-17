@@ -79,7 +79,7 @@ describeWithBackend('UserProfile owned products navigation', () => {
     }
     userData = {
       id: userAccount.id,
-      username: userAccount.username,
+      username: userAccount.username ?? '',
       avatarUrl: userAccount.avatarUrl,
     }
     authHeader = { Authorization: `Bearer ${getDevToken('admin')}` }
