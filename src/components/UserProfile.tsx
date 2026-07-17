@@ -371,8 +371,8 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                   }}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      <h3 className="font-semibold leading-tight">{product.name}</h3>
+                    <div className="space-y-1 min-w-0">
+                      <h3 className="font-semibold leading-tight break-words">{product.name}</h3>
                       {product.description && (
                         <MarkdownText
                           text={product.description}
@@ -380,7 +380,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                         />
                       )}
                     </div>
-                    <div className="flex gap-1 flex-wrap justify-end">
+                    <div className="flex gap-1 flex-wrap justify-end shrink-0">
                       {product.type && (
                         <Badge variant="outline" className="text-xs capitalize">
                           {product.type}
