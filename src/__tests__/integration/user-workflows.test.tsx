@@ -92,7 +92,7 @@ beforeAll(async () => {
   if (!(globalThis as any).__BACKEND_AVAILABLE__) return
 
   testUserId = DEV_USERS.user.id
-  testUsername = DEV_USERS.user.username
+  let testUsername : string = DEV_USERS.user.username
   authToken = getDevToken(DEV_USERS.user.role)
   setAuthTokenGetter(async () => authToken)
 
