@@ -65,6 +65,10 @@ async function fetchBackendProducts(limit = 10): Promise<void> {
     raw = await retryResp.json()
   }
 
+  if (!Array.isArray(raw)) {
+    throw new Error('Expected raw to be an array of backend products')
+  }
+
   backendProducts = raw.map((p: any): Product => ({
     id: p.id?.toString() || p.source_url || p.name,
     name: p.name,
