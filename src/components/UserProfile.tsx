@@ -380,7 +380,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                         />
                       )}
                     </div>
-                    <div className="flex gap-1 flex-wrap justify-end shrink-0">
+                    <div className="flex gap-1 flex-wrap justify-end">
                       {product.type && (
                         <Badge variant="outline" className="text-xs capitalize">
                           {product.type}
