@@ -28,7 +28,7 @@ import { DEV_USERS, getDevToken } from '@/lib/dev-users'
 let testUserId: string
 let testProductId: string
 let authToken: string
-let testUsername = DEV_USERS.user.username
+let testUsername : string = DEV_USERS.user.username
 let fallbackUploadedImageId: string | null = null
 
 type SeedManifest = {
@@ -92,7 +92,7 @@ beforeAll(async () => {
   if (!(globalThis as any).__BACKEND_AVAILABLE__) return
 
   testUserId = DEV_USERS.user.id
-  let testUsername : string = DEV_USERS.user.username
+  testUsername = DEV_USERS.user.username
   authToken = getDevToken(DEV_USERS.user.role)
   setAuthTokenGetter(async () => authToken)
 
@@ -385,7 +385,7 @@ describeWithBackend('Product Editor Management Workflow', () => {
       <MemoryRouter>
         <ProductEditors
           productId={testProductId}
-          userId={testUserId}
+          username={testUsername}
           isEditor={false}
           userAccount={userAccount || undefined}
         />
@@ -411,7 +411,7 @@ describeWithBackend('Product Editor Management Workflow', () => {
       <MemoryRouter>
         <ProductEditors
           productId={testProductId}
-          userId={testUserId}
+          username={testUsername}
           isEditor={false}
           userAccount={undefined}
         />
