@@ -15,7 +15,6 @@ class MockResizeObserver {
 }
 
 if (!('ResizeObserver' in globalThis)) {
-  // @ts-expect-error jsdom does not implement ResizeObserver
   globalThis.ResizeObserver = MockResizeObserver
 }
 
