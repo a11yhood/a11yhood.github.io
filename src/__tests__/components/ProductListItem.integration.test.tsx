@@ -47,7 +47,7 @@ describeWithBackend('ProductListItem - Integration', () => {
   })
 
   it('renders product name and image/stars when available', () => {
-    render(<ProductListItem product={product} ratings={[]} onClick={vi.fn()} />)
+    render(<ProductListItem product={product} ratings={[]} />)
 
     expect(screen.getByText(product.name)).toBeInTheDocument()
     // image optional; stars badge optional; ensure component renders

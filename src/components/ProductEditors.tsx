@@ -140,7 +140,7 @@ export function ProductEditors({
 
       await APIService.createUserRequest({
         userId: userAccount.id,
-        userName: userAccount.username,
+        userName: userAccount.username ?? '',
         userAvatarUrl: userAccount.avatarUrl,
         type: 'product-ownership',
         message: requestMessage,
