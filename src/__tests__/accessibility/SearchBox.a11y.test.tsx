@@ -214,7 +214,7 @@ describe('SearchBox Accessibility Tests (Story 2.2)', () => {
       const searchInput = screen.getByRole('searchbox') as HTMLInputElement
       await user.click(searchInput)
       
-      await user.type(searchInput, 'keyboard', { delay: 10 })
+      await user.type(searchInput, 'keyboard')
 
       expect(searchInput.value).toBe('keyboard')
     })

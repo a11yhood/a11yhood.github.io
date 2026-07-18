@@ -180,7 +180,7 @@ describe('APIService.uploadImage', () => {
     const formBody = body as FormData
     const uploaded = formBody.get('file')
     expect(uploaded).toBeTruthy()
-    expect(uploaded instanceof File || uploaded instanceof Blob).toBe(true)
+    expect((uploaded as any) instanceof File || (uploaded as any) instanceof Blob).toBe(true)
     const uploadedBlob = uploaded as Blob
     expect(uploadedBlob.type).not.toContain('\r')
     expect(uploadedBlob.type).not.toContain('\n')

@@ -30,8 +30,11 @@ describeWithBackend('ProductSubmission (existing product via backend)', () => {
 
     // Derive authenticated user identity from runtime auth token
     const authUser = await APIService.getCurrentUser()
+    if (!authUser) {
+      throw new Error('Test setup failed: could not get current user (authUser)')
+    }
     user.id = authUser.id
-    user.username = authUser.username
+    user.username = authUser.username ?? ''
 
     // Create a product owned by this user
     await APIService.createProduct({

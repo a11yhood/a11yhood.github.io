@@ -28,18 +28,24 @@ describeWithBackend('Submission Dialog Edit Flow', () => {
   beforeAll(async () => {
     setAuthTokenGetter(async () => getDevToken(DEV_USERS.user.role))
     const ownerAuth = await APIService.getCurrentUser()
+    if (!ownerAuth) {
+      throw new Error('Test setup failed: could not get current user (ownerAuth)')
+    }
     ownerUser = {
       id: ownerAuth.id,
-      username: ownerAuth.username,
-      avatarUrl: ownerAuth.avatarUrl || `https://avatars.githubusercontent.com/${ownerAuth.username}`,
+      username: ownerAuth.username ?? '',
+      avatarUrl: ownerAuth.avatarUrl || `https://avatars.githubusercontent.com/${ownerAuth.username ?? ''}`,
     }
 
     setAuthTokenGetter(async () => getDevToken(DEV_USERS.moderator.role))
     const moderatorAuth = await APIService.getCurrentUser()
+    if (!moderatorAuth) {
+      throw new Error('Test setup failed: could not get current user (moderatorAuth)')
+    }
     nonOwnerUser = {
       id: moderatorAuth.id,
-      username: moderatorAuth.username,
-      avatarUrl: moderatorAuth.avatarUrl || `https://avatars.githubusercontent.com/${moderatorAuth.username}`,
+      username: moderatorAuth.username ?? '',
+      avatarUrl: moderatorAuth.avatarUrl || `https://avatars.githubusercontent.com/${moderatorAuth.username ?? ''}`,
     }
 
     // Create a real product owned by the 'user' dev user.

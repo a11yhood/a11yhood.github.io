@@ -397,7 +397,7 @@ export function AdminUsersStats({ currentUserRole = 'admin' }: { currentUserRole
                           <Avatar className="w-10 h-10">
                             <AvatarImage src={user.avatarUrl} alt={user.username} />
                             <AvatarFallback>
-                              {user.username.slice(0, 2).toUpperCase()}
+                              {(user.username ?? '').slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div>

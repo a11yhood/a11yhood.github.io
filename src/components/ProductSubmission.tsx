@@ -271,7 +271,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
   
   const handleRequestOwnership = () => {
     if (existingProduct && onRequestOwnership) {
-      onRequestOwnership(existingProduct.slug)
+      onRequestOwnership(existingProduct.slug ?? '')
     }
   }
 
@@ -523,7 +523,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                 </div>
                 <div className="flex gap-2">
                   {user && (existingProduct.createdBy === user.id || existingProduct.submittedBy === user.id || existingProduct.editorIds?.includes(user.id)) ? (
-                    <Button size="sm" onClick={() => handleNavigateToProduct(existingProduct.slug, { edit: true })}>
+                    <Button size="sm" onClick={() => handleNavigateToProduct(existingProduct.slug ?? '', { edit: true })}>
                       Edit product
                     </Button>
                   ) : (
@@ -533,7 +533,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                         if (onRequestOwnership) {
                           handleRequestOwnership()
                         }
-                        handleNavigateToProduct(existingProduct.slug, { requestEdit: true })
+                        handleNavigateToProduct(existingProduct.slug ?? '', { requestEdit: true })
                       }}
                     >
                       Request to Edit Product
@@ -555,11 +555,11 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                 className="block cursor-pointer"
                 role="button"
                 tabIndex={0}
-                onClick={() => handleNavigateToProduct(existingProduct.slug)}
+                onClick={() => handleNavigateToProduct(existingProduct.slug ?? '')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    handleNavigateToProduct(existingProduct.slug)
+                    handleNavigateToProduct(existingProduct.slug ?? '')
                   }
                 }}
               >

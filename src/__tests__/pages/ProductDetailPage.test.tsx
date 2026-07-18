@@ -34,11 +34,11 @@ describe('ProductDetailPage', () => {
       imageUrl: '',
       imageAlt: '',
       tags: [],
-      createdAt: '2026-01-01T00:00:00Z',
-      updatedAt: '2026-01-01T00:00:00Z',
+      createdAt: new Date('2026-01-01T00:00:00Z').getTime(),
       createdBy: 'user-1',
       submittedBy: 'user-1',
-      isBanned: false,
+      banned: false,
+      type: 'sample_type'
     }
 
     const getProductSpy = vi.spyOn(APIService, 'getProduct').mockResolvedValue(product)
