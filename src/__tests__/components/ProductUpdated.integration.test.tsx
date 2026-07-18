@@ -63,7 +63,7 @@ describeWithBackend('Updated timestamp integration (backend)', () => {
     const ts = productWithUpdated.sourceLastUpdated as number | string | undefined
     const fmt = formatRelativeTime(ts)
     console.log('[Test] ProductListItem sourceLastUpdated:', ts, 'formatted:', fmt)
-    render(<ProductListItem product={productWithUpdated as Product} ratings={ratings} onClick={vi.fn()} />)
+    render(<ProductListItem product={productWithUpdated as Product} ratings={ratings} />)
     expect(fmt).toBeTruthy()
     const updatedEls = screen.getAllByText(/Updated/i)
     expect(updatedEls.length).toBeGreaterThan(0)

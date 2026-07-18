@@ -383,7 +383,7 @@ export function RavelryOAuthDiagnostics() {
               <h3 className="text-sm font-semibold mb-3">Latest Flow Log Entry</h3>
               <div className="rounded-lg border border-border p-4 space-y-3 bg-muted/30">
                 <div className="flex items-center gap-2 mb-2">
-                  {getStepIcon(flowLog.step)}
+                  {getStepIcon(flowLog.step ?? '')}
                   <span className="text-sm font-medium">{flowLog.step}</span>
                 </div>
                 
@@ -403,7 +403,7 @@ export function RavelryOAuthDiagnostics() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleCopyToClipboard(flowLog.authUrl)}
+                        onClick={() => handleCopyToClipboard(flowLog.authUrl ?? '')}
                         className="h-6 gap-1"
                       >
                         <Copy size={12} />

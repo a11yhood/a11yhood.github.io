@@ -27,7 +27,9 @@ describe('ProductUrls mocked component tests', () => {
         productId,
         url: data.url,
         description: data.description,
-        createdAt: Date.now(),
+        createdAt: new Date().toISOString(),
+        createdBy: 'testUserId',
+        updatedAt: new Date().toISOString(),
       }
       mockUrls = [...mockUrls, next]
       return next

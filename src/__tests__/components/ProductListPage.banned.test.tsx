@@ -70,7 +70,7 @@ function renderPage({ canViewBanned, includeBanned, onIncludeBannedChange, user,
         onDeleteProduct={vi.fn()}
         onToggleBan={vi.fn()}
         onCreateCollection={vi.fn()}
-        onOpenCreateCollection={vi.fn()}
+        onOpenAddToCollection={vi.fn()}
         searchQuery=""
         onSearchChange={vi.fn()}
         searchInputValue=""

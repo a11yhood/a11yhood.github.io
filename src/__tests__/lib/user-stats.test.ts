@@ -69,7 +69,9 @@ describeWithBackend('User Stats Integration Tests - joined_at and last_active', 
 
   it('includes timestamps when loading a user account', async () => {
     const result = await APIService.getUserAccount(testUserId)
-
+    if(!result) {
+      throw new Error('Test setup failed: could not get result (null result)')
+    }
     expect(result).toBeDefined()
     expect(result.id).toBe(testUserId)
     expect(result.createdAt).toBeDefined()
