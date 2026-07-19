@@ -215,7 +215,7 @@ describeWithBackend('ProfileEdit Accessibility Tests (Story 1.3)', () => {
       )
 
       // Username should be visible but not as an editable input in the main view
-      expect(screen.getByText(testAccount.username)).toBeInTheDocument()
+      expect(screen.getByText(testAccount.username!)).toBeInTheDocument()
     })
   })
 
