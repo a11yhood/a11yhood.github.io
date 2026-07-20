@@ -41,7 +41,17 @@ export function PublicProfile({ username }: { username: string }) {
           const effectiveUsername = acct.username ?? username
           const statsUserRef = acct.id || effectiveUsername
           const s = await APIService.getUserStats(statsUserRef)
-          setStats(s)
+          setStats({
+            productsSubmitted: s.productsSubmitted ?? 0,
+            collectionsCreated: s.collectionsCreated ?? 0,
+            productsOwnedSubmitted: s.productsOwnedSubmitted ?? 0,
+            productsEditedManaged: s.productsEditedManaged ?? 0,
+            collectionsOwnedSubmitted: s.collectionsOwnedSubmitted ?? 0,
+            collectionsEditedManaged: s.collectionsEditedManaged ?? 0,
+            ratingsGiven: s.ratingsGiven ?? 0,
+            discussionsParticipated: s.discussionsParticipated ?? 0,
+            totalContributions: s.totalContributions ?? 0,
+          })
 
           // Load products the user can edit (owner or editor) from the
           // relationship-backed endpoint.
