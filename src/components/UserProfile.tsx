@@ -63,8 +63,18 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
 
   useEffect(() => {
     const loadStats = async () => {
-      const userStats = await APIService.getUserStats(userAccount.id || userAccount.username)
-      setStats(userStats)
+      const userStats = await APIService.getUserStats(userAccount.id || userAccount.username || '')
+      setStats({
+        productsSubmitted: userStats.productsSubmitted ?? 0,
+        collectionsCreated: userStats.collectionsCreated ?? 0,
+        productsOwnedSubmitted: userStats.productsOwnedSubmitted ?? 0,
+        productsEditedManaged: userStats.productsEditedManaged ?? 0,
+        collectionsOwnedSubmitted: userStats.collectionsOwnedSubmitted ?? 0,
+        collectionsEditedManaged: userStats.collectionsEditedManaged ?? 0,
+        ratingsGiven: userStats.ratingsGiven ?? 0,
+        discussionsParticipated: userStats.discussionsParticipated ?? 0,
+        totalContributions: userStats.totalContributions ?? 0,
+      })
     }
     loadStats()
   }, [userAccount.id, userAccount.username])
@@ -153,7 +163,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
             <div className="flex items-start gap-4">
               <Avatar className="w-20 h-20">
                 <AvatarImage src={userAccount.avatarUrl} alt={userAccount.username} />
-                <AvatarFallback>{userAccount.username.slice(0, 2).toUpperCase()}</AvatarFallback>
+                <AvatarFallback>{(userAccount.username ?? '').slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="space-y-2">
                 <div>
