@@ -421,8 +421,8 @@ export function ProductDetail({
                 )}
               </div>
             ) : (
-              <div className="float-left mr-4 mb-3 sm:mr-6 sm:mb-4 rounded-lg max-w-[300px] w-full h-auto min-h-[180px] bg-muted text-muted-foreground flex items-center justify-center text-sm">
-                <span>Image unavailable for {product.name}</span>
+              <div className="float-left mr-4 mb-3 sm:mr-6 sm:mb-4 rounded-lg max-w-[300px] w-full h-auto min-h-[180px] bg-muted text-muted-foreground flex items-center justify-center text-sm p-2">
+                <span className="min-w-0 break-words text-center">Image unavailable for {product.name}</span>
               </div>
             )}
 
