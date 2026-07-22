@@ -371,12 +371,12 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                   }}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1 min-w-0">
-                      <h3 className="font-semibold leading-tight break-words">{product.name}</h3>
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <h3 className="font-semibold leading-tight wrap-anywhere">{product.name}</h3>
                       {product.description && (
                         <MarkdownText
                           text={product.description}
-                          className="text-sm text-muted-foreground line-clamp-2"
+                          className="text-sm text-muted-foreground line-clamp-2 wrap-anywhere"
                         />
                       )}
                     </div>
