@@ -55,7 +55,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
   useEffect(() => {
     const loadStats = async () => {
       const userStats = await fetchUserStats(userAccount.id || userAccount.username || '')
-      setStats()
+      setStats(userStats)
     }
     loadStats()
   }, [userAccount.id, userAccount.username])
