@@ -81,6 +81,12 @@ describe('ProductFilters', () => {
     expect(screen.getByText(/minimum rating/i)).toBeInTheDocument()
   })
 
+  it('should center the last updated date', () => {
+    render(<ProductFilters {...mockProps} />)
+
+    expect(screen.getByLabelText('Filter by last update date')).toHaveClass('text-center')
+  })
+
   it('should display selected tags with different styling', () => {
     const propsWithSelectedTags = {
       ...mockProps,
