@@ -144,7 +144,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
             <div className="flex items-start gap-4">
               <Avatar className="w-20 h-20">
                 <AvatarImage src={userAccount.avatarUrl} alt={userAccount.username} />
-                <AvatarFallback>{(userAccount.username ?? '[missing]').slice(0, 2).toUpperCase()}</AvatarFallback>
+                <AvatarFallback>{(userAccount.username || '?').slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="space-y-2">
                 <div>
