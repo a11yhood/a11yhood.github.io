@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog'
 import { UserAccount, UserData, Product, BlogPost } from '@/lib/types'
 import { APIService } from '@/lib/api'
+import { EMPTY_USER_STATS, fetchUserStats } from '@/lib/userStats'
 import { UserRequestsPanel } from '@/components/UserRequestsPanel'
 import { Pencil, MapPin, Globe, CalendarBlank, ChartBar, Package, Article, CaretDown, CaretRight } from '@phosphor-icons/react'
 import { useNotifications } from '@/contexts/NotificationContext'
@@ -44,17 +45,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
   const [bio, setBio] = useState(userAccount.bio || '')
   const [location, setLocation] = useState(userAccount.location || '')
   const [website, setWebsite] = useState(userAccount.website || '')
-  const [stats, setStats] = useState({
-    productsSubmitted: 0,
-    collectionsCreated: 0,
-    productsOwnedSubmitted: 0,
-    productsEditedManaged: 0,
-    collectionsOwnedSubmitted: 0,
-    collectionsEditedManaged: 0,
-    ratingsGiven: 0,
-    discussionsParticipated: 0,
-    totalContributions: 0,
-  })
+  const [stats, setStats] = useState(EMPTY_USER_STATS)
   const [ownedProducts, setOwnedProducts] = useState<Product[]>([])
   const [loadingOwnedProducts, setLoadingOwnedProducts] = useState(false)
   const [ownedProductsError, setOwnedProductsError] = useState<string | null>(null)
@@ -63,7 +54,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
 
   useEffect(() => {
     const loadStats = async () => {
-      const userStats = await APIService.getUserStats(userAccount.id || userAccount.username)
+      const userStats = await fetchUserStats(userAccount.id || userAccount.username || '')
       setStats(userStats)
     }
     loadStats()
@@ -153,7 +144,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
             <div className="flex items-start gap-4">
               <Avatar className="w-20 h-20">
                 <AvatarImage src={userAccount.avatarUrl} alt={userAccount.username} />
-                <AvatarFallback>{userAccount.username.slice(0, 2).toUpperCase()}</AvatarFallback>
+                <AvatarFallback>{(userAccount.username || '?').slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="space-y-2">
                 <div>
