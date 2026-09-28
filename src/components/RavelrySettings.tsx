@@ -25,6 +25,7 @@ type SaveLog = {
   message?: string
   status?: number
   error?: string
+  data?: unknown
 }
 
 type RavelrySettingsProps = {
@@ -537,7 +538,7 @@ export function RavelrySettings({ onAuthComplete, products: _products = [], onPr
                 <div className="space-y-1">
                   <p className="text-xs font-medium">Timestamp:</p>
                   <code className="block text-xs bg-(--color-bg) p-2 rounded">
-                    {new Date(oauthFlowLog.timestamp).toLocaleString()}
+                    {oauthFlowLog.timestamp ? new Date(oauthFlowLog.timestamp).toLocaleString() : 'Unknown time'}
                   </code>
                 </div>
                 {oauthFlowLog.authUrl && (

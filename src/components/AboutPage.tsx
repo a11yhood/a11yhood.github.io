@@ -18,7 +18,7 @@ export function AboutPage() {
           throw new Error(`Failed to load about content (status ${response.status})`)
         }
         const markdown = await response.text()
-        const html = marked.parse(markdown)
+        const html = await marked.parse(markdown)
         const safeHtml = DOMPurify.sanitize(html)
         setContent(safeHtml)
       } catch (err) {

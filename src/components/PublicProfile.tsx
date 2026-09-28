@@ -6,20 +6,11 @@ import { Badge } from '@/components/ui/badge'
 import { CalendarBlank, Globe, MapPin, ChartBar, BookOpen, Article } from '@phosphor-icons/react'
 import { APIService } from '@/lib/api'
 import { UserAccount, Product, Collection, BlogPost } from '@/lib/types'
+import { EMPTY_USER_STATS, fetchUserStats } from '@/lib/userStats'
 
 export function PublicProfile({ username }: { username: string }) {
   const [account, setAccount] = useState<UserAccount | null>(null)
-  const [stats, setStats] = useState({
-    productsSubmitted: 0,
-    collectionsCreated: 0,
-    productsOwnedSubmitted: 0,
-    productsEditedManaged: 0,
-    collectionsOwnedSubmitted: 0,
-    collectionsEditedManaged: 0,
-    ratingsGiven: 0,
-    discussionsParticipated: 0,
-    totalContributions: 0,
-  })
+  const [stats, setStats] = useState(EMPTY_USER_STATS)
   const [managedProducts, setManagedProducts] = useState<Product[]>([])
   const [userCollections, setUserCollections] = useState<Collection[]>([])
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
@@ -40,7 +31,7 @@ export function PublicProfile({ username }: { username: string }) {
           setAccount(acct)
           const effectiveUsername = acct.username ?? username
           const statsUserRef = acct.id || effectiveUsername
-          const s = await APIService.getUserStats(statsUserRef)
+          const s = await fetchUserStats(statsUserRef)
           setStats(s)
 
           // Load products the user can edit (owner or editor) from the
