@@ -139,11 +139,12 @@ describeWithBackend('Owned + edited membership sequence', () => {
       await APIService.deleteCollection(editedCollectionSlug).catch(() => undefined)
     }
 
-    if (ownedProduct?.slug || ownedProduct?.id) {
-      await APIService.deleteProduct(ownedProduct.slug || ownedProduct.id).catch(() => undefined)
+    // DELETE requires the UUID id, not a slug.
+    if (ownedProduct?.id) {
+      await APIService.deleteProduct(ownedProduct.id).catch(() => undefined)
     }
-    if (editedProduct?.slug || editedProduct?.id) {
-      await APIService.deleteProduct(editedProduct.slug || editedProduct.id).catch(() => undefined)
+    if (editedProduct?.id) {
+      await APIService.deleteProduct(editedProduct.id).catch(() => undefined)
     }
   })
 

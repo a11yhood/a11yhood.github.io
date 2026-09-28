@@ -1501,30 +1501,33 @@ export class APIService {
     })
   }
 
-  static async deleteProduct(productSlug: string): Promise<void> {
-    logger.debug('[API.deleteProduct] Starting delete for product slug:', productSlug)
-    const endpoint = `/products/${productSlug}`
+  static async deleteProduct(productId: string): Promise<void> {
+    // DELETE requires the UUID id, not a slug — the backend 404s on a slug
+    // here (writes are scoped to the immutable identifier; only GET accepts
+    // a slug lookup).
+    logger.debug('[API.deleteProduct] Starting delete for product id:', productId)
+    const endpoint = `/products/${productId}`
     const requestOptions = {
       method: 'DELETE',
     }
-    
+
     logger.debug('[API.deleteProduct] Request details:', {
       endpoint,
       method: requestOptions.method,
       fullUrl: `${getApiBaseUrl()}/api${endpoint}`
     })
-    
+
     try {
       const result = await request<void>(endpoint, requestOptions)
       logger.debug('[API.deleteProduct] Delete successful:', {
-        productSlug,
+        productId,
         result,
         resultType: typeof result
       })
       return result
     } catch (error) {
       console.error('[API.deleteProduct] Delete failed:', {
-        productSlug,
+        productId,
         endpoint,
         error: error instanceof Error ? error.message : String(error),
         errorStatus: (error as { status?: number; data?: unknown })?.status,

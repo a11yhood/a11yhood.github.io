@@ -1588,11 +1588,13 @@ function App() {
     console.log('[App] handleDeleteProduct called with slug/id:', productSlug)
     console.log('[App] Current user:', user)
     console.log('[App] Current userAccount:', userAccount)
-    const resolvedSlug = products.find(p => p.slug === productSlug || p.id === productSlug)?.slug || productSlug
+    // DELETE requires the UUID id, not a slug (writes are scoped to the
+    // immutable identifier; only GET accepts a slug lookup).
+    const resolvedId = products.find(p => p.slug === productSlug || p.id === productSlug)?.id || productSlug
 
     try {
       console.log('[App] Calling APIService.deleteProduct...')
-      await APIService.deleteProduct(resolvedSlug)
+      await APIService.deleteProduct(resolvedId)
       console.log('[App] Delete successful, updating local state')
 
       setProducts((currentProducts) =>
