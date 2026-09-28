@@ -1080,10 +1080,10 @@ export class APIService {
   static async getUserStats(username: string): Promise<{
     productsSubmitted: number
     collectionsCreated: number
-    productsOwnedSubmitted?: number
-    productsEditedManaged?: number
-    collectionsOwnedSubmitted?: number
-    collectionsEditedManaged?: number
+    productsOwnedSubmitted: number
+    productsEditedManaged: number
+    collectionsOwnedSubmitted: number
+    collectionsEditedManaged: number
     ratingsGiven: number
     discussionsParticipated: number
     totalContributions: number
