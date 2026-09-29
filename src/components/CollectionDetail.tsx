@@ -503,7 +503,7 @@ export function CollectionDetail({
         return
       }
 
-      const updated = await APIService.addCollectionEditor(collection.slug || collection.id, collaboratorAccount.id)
+      const updated = await APIService.addCollectionEditor(collection.id, collaboratorAccount.id)
       if (updated) {
         setCollectionEditorIds(updated.editorIds || [])
         onCollectionUpdated?.(updated)
@@ -529,7 +529,7 @@ export function CollectionDetail({
     setRemovingCollaboratorId(editorUserId)
 
     try {
-      const updated = await APIService.removeCollectionEditor(collection.slug || collection.id, editorUserId)
+      const updated = await APIService.removeCollectionEditor(collection.id, editorUserId)
       if (updated) {
         setCollectionEditorIds(updated.editorIds || [])
         onCollectionUpdated?.(updated)

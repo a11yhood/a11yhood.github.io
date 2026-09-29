@@ -55,6 +55,7 @@ describe('App product detail add-to-collection flow', () => {
     vi.spyOn(APIService, 'getCurrentUser').mockResolvedValue(userAccount)
     vi.spyOn(APIService, 'getUserCollections').mockResolvedValue([firstCollection, secondCollection])
     vi.spyOn(APIService, 'getPublicCollections').mockResolvedValue([])
+    vi.spyOn(APIService, 'getAllProducts').mockResolvedValue([product])
     vi.spyOn(APIService, 'getProduct').mockResolvedValue(product)
     vi.spyOn(APIService, 'getAllRatings').mockResolvedValue([])
     vi.spyOn(APIService, 'getAllDiscussions').mockResolvedValue([])
@@ -63,7 +64,7 @@ describe('App product detail add-to-collection flow', () => {
     const addProductToCollectionSpy = vi.spyOn(APIService, 'addProductToCollection').mockResolvedValue({
       ...secondCollection,
       productSlugs: ['product-slug'],
-      entries: [{ kind: 'product', targetSlug: 'product-slug', order: 0 }],
+      entries: [{ kind: 'product', targetSlug: 'product-slug', targetId: 'product-1', order: 0 }],
     } as Collection)
 
     render(
@@ -94,8 +95,9 @@ describe('App product detail add-to-collection flow', () => {
       expect(addProductToCollectionSpy).toHaveBeenCalledTimes(1)
     })
 
-    expect(addProductToCollectionSpy).toHaveBeenCalledWith('collection-2', 'product-slug')
-    expect(addProductToCollectionSpy).not.toHaveBeenCalledWith('collection-1', 'product-slug')
+    // Write endpoint: must receive UUID ids, not slugs, for both the collection and the product.
+    expect(addProductToCollectionSpy).toHaveBeenCalledWith('collection-2', 'product-1')
+    expect(addProductToCollectionSpy).not.toHaveBeenCalledWith('collection-1', 'product-1')
   })
 
   it('removes a product only from the unchecked existing collection', async () => {
@@ -127,6 +129,7 @@ describe('App product detail add-to-collection flow', () => {
     vi.spyOn(APIService, 'getCurrentUser').mockResolvedValue(userAccount)
     vi.spyOn(APIService, 'getUserCollections').mockResolvedValue([existingCollection])
     vi.spyOn(APIService, 'getPublicCollections').mockResolvedValue([])
+    vi.spyOn(APIService, 'getAllProducts').mockResolvedValue([product])
     vi.spyOn(APIService, 'getProduct').mockResolvedValue(product)
     vi.spyOn(APIService, 'getAllRatings').mockResolvedValue([])
     vi.spyOn(APIService, 'getAllDiscussions').mockResolvedValue([])
@@ -169,6 +172,7 @@ describe('App product detail add-to-collection flow', () => {
       expect(removeProductFromCollectionSpy).toHaveBeenCalledTimes(1)
     })
 
-    expect(removeProductFromCollectionSpy).toHaveBeenCalledWith('collection-1', 'product-slug')
+    // Write endpoint: must receive UUID ids, not slugs, for both the collection and the product.
+    expect(removeProductFromCollectionSpy).toHaveBeenCalledWith('collection-1', 'product-1')
   })
 })

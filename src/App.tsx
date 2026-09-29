@@ -1755,7 +1755,7 @@ function App() {
     updates: Partial<Omit<Collection, 'slug' | 'createdAt' | 'username'>>
   ) => {
     try {
-      const updated = await APIService.updateCollection(collectionSlug, updates)
+      const updated = await APIService.updateCollection(resolveCollectionId(collectionSlug), updates)
       if (updated) {
         setCollections((current) =>
           current.map((c) => (c.slug === collectionSlug ? updated : c))
@@ -1770,7 +1770,7 @@ function App() {
 
   const handleDeleteCollection = async (collectionSlug: string) => {
     try {
-      await APIService.deleteCollection(collectionSlug)
+      await APIService.deleteCollection(resolveCollectionId(collectionSlug))
       setCollections((current) => current.filter((c) => c.slug !== collectionSlug && c.id !== collectionSlug))
       notify.success('Collection deleted successfully')
     } catch (error) {
@@ -1781,7 +1781,10 @@ function App() {
 
   const handleRemoveProductFromCollection = async (collectionSlug: string, productSlug: string) => {
     try {
-      const updated = await APIService.removeProductFromCollection(collectionSlug, productSlug)
+      const updated = await APIService.removeProductFromCollection(
+        resolveCollectionId(collectionSlug),
+        resolveProductApiKey(productSlug)
+      )
       if (updated) {
         setCollections((current) =>
           current.map((c) => (c.slug === collectionSlug ? updated : c))
@@ -1891,8 +1894,15 @@ function App() {
   }
 
   const resolveProductApiKey = (productKey: string): string => {
+    // Collection write endpoints require the product's UUID id, not a slug.
     const resolvedProduct = products.find((product) => product.id === productKey || product.slug === productKey)
-    return resolvedProduct?.slug || resolvedProduct?.id || productKey
+    return resolvedProduct?.id || productKey
+  }
+
+  const resolveCollectionId = (collectionKey: string): string => {
+    // Collection write endpoints require the collection's UUID id, not a slug.
+    const resolvedCollection = collections.find((collection) => collection.id === collectionKey || collection.slug === collectionKey)
+    return resolvedCollection?.id || collectionKey
   }
 
   const refreshCollectionInState = async (
@@ -1971,7 +1981,7 @@ function App() {
         }
       })
 
-      const updated = await APIService.updateCollection(collectionSlug, {
+      const updated = await APIService.updateCollection(resolveCollectionId(collectionSlug), {
         entries: mergedEntries.map((entry) => serializeCollectionEntryForUpdate(entry)),
       })
 
@@ -1993,7 +2003,7 @@ function App() {
       )
 
       if (productTargets.length === 1) {
-        const updated = await APIService.addProductToCollection(collectionSlug, productTargets[0])
+        const updated = await APIService.addProductToCollection(resolveCollectionId(collectionSlug), productTargets[0])
         if (!updated) {
           throw new Error(`Failed to add product to collection: ${collectionSlug}`)
         }
@@ -2014,7 +2024,7 @@ function App() {
         return
       }
 
-      const updated = await APIService.addMultipleProductsToCollection(collectionSlug, productTargets)
+      const updated = await APIService.addMultipleProductsToCollection(resolveCollectionId(collectionSlug), productTargets)
       if (!updated) {
         throw new Error(`Failed to add products to collection: ${collectionSlug}`)
       }
@@ -2066,8 +2076,9 @@ function App() {
         )
       )
 
+      const resolvedCollectionId = resolveCollectionId(collectionSlug)
       const removalResults = await Promise.all(
-        productTargets.map((target) => APIService.removeProductFromCollection(collectionSlug, target))
+        productTargets.map((target) => APIService.removeProductFromCollection(resolvedCollectionId, target))
       )
       const validRemovalResults = removalResults.filter((r): r is Collection => r !== null)
       const latestRemoved = validRemovalResults.length > 0 ? validRemovalResults[validRemovalResults.length - 1] : null
@@ -2084,7 +2095,7 @@ function App() {
     const filteredEntries = getCollectionEntries(baseCollection)
       .filter((entry) => !entriesToRemove.some((candidate) => collectionEntriesMatch(entry, candidate)))
 
-    const updated = await APIService.updateCollection(collectionSlug, {
+    const updated = await APIService.updateCollection(resolveCollectionId(collectionSlug), {
       entries: filteredEntries.map((entry) => serializeCollectionEntryForUpdate(entry)),
     })
 
