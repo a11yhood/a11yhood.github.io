@@ -1597,21 +1597,24 @@ function App() {
       await APIService.deleteProduct(resolvedId)
       console.log('[App] Delete successful, updating local state')
 
+      // Filter by resolvedId (and the original productSlug, in case the caller
+      // passed a slug and local state predates resolution) so ratings/discussions
+      // keyed only by productId are still cleared when invoked with a slug.
       setProducts((currentProducts) =>
-        (currentProducts || []).filter(p => p.id !== productSlug && p.slug !== productSlug)
+        (currentProducts || []).filter(p => p.id !== resolvedId && p.slug !== productSlug)
       )
 
       setRatings((currentRatings) =>
         (currentRatings || []).filter(r => {
           const maybeWithProductSlug = r as Rating & { productSlug?: string }
-          return r.productId !== productSlug && maybeWithProductSlug.productSlug !== productSlug
+          return r.productId !== resolvedId && maybeWithProductSlug.productSlug !== productSlug
         })
       )
 
       setDiscussions((currentDiscussions) =>
         (currentDiscussions || []).filter(d => {
           const maybeWithProductSlug = d as Discussion & { productSlug?: string }
-          return d.productId !== productSlug && maybeWithProductSlug.productSlug !== productSlug
+          return d.productId !== resolvedId && maybeWithProductSlug.productSlug !== productSlug
         })
       )
       
