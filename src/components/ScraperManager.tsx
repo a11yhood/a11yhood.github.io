@@ -367,14 +367,14 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
     notify.success('Product updated successfully')
   }
 
-  const handleDeleteProduct = async (productKey: string) => {
-    console.log('[ScraperManager.handleDeleteProduct] Delete clicked for product:', productKey)
+  const handleDeleteProduct = async (productId: string) => {
+    console.log('[ScraperManager.handleDeleteProduct] Delete clicked for product:', productId)
     try {
       console.log('[ScraperManager.handleDeleteProduct] Calling APIService.deleteProduct...')
-      await APIService.deleteProduct(productKey)
+      await APIService.deleteProduct(productId)
       console.log('[ScraperManager.handleDeleteProduct] API call successful, updating local state')
 
-      const updatedProducts = products.filter(p => p.id !== productKey && p.slug !== productKey)
+      const updatedProducts = products.filter(p => p.id !== productId)
       onProductsUpdate(updatedProducts)
       notify.success('Product deleted')
     } catch (error) {
@@ -957,7 +957,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteProduct(product.slug || product.id)}
+                            onClick={() => handleDeleteProduct(product.id)}
                           >
                             <Trash size={16} />
                           </Button>
@@ -1045,7 +1045,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteProduct(product.slug || product.id)}
+                            onClick={() => handleDeleteProduct(product.id)}
                           >
                             <Trash size={16} />
                           </Button>
@@ -1103,7 +1103,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                     const productsToDelete = products.filter(p => !isSystemOwned(p))
                     
                     await Promise.all(
-                      productsToDelete.map(p => APIService.deleteProduct(p.slug || p.id))
+                      productsToDelete.map(p => APIService.deleteProduct(p.id))
                     )
                     
                     const updatedProducts = products.filter(isSystemOwned)

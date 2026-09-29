@@ -1,9 +1,13 @@
 /**
- * Regression tests: handleEditProduct and handleAddTag must send UUID to
- * the backend PATCH endpoint, never a human-readable slug.
+ * Regression tests: handleEditProduct and handleAddTag send the product's
+ * UUID id to the backend PATCH endpoint, never the human-readable slug.
  *
- * The backend PATCH /api/products/{product_id} looks up by UUID primary key.
- * Sending a slug returns a 404 / silently fails.
+ * The backend PATCH /api/products/{id} (like PUT and DELETE on the same
+ * resource) requires the UUID id and 404s on a slug — see
+ * a11yhood-backend's _get_product_by_id(). Writes are scoped to the
+ * immutable identifier on purpose, so a mutating request can't be
+ * misrouted if a product's slug is ever reassigned; slug-friendly lookups
+ * are reserved for GET.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
