@@ -596,7 +596,7 @@ export function CollectionDetail({
       const nextEntries = orderedEntries
         .slice(0, realEntryCount)
         .filter((_, idx) => idx !== sourceIndex)
-      const updated = await APIService.updateCollection(collection.slug || collection.id, {
+      const updated = await APIService.updateCollection(collection.id, {
         entries: nextEntries.map((entry) => serializeCollectionEntryForUpdate(entry)) as unknown as CollectionEntry[],
       })
 
