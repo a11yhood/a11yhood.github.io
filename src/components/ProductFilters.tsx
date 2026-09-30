@@ -161,7 +161,7 @@ export function ProductFilters({
             type="date"
             value={updatedSince || ''}
             onChange={(e) => onUpdatedSinceChange(e.target.value || null)}
-            className="text-sm flex-1"
+            className="text-sm text-center flex-1"
             aria-label="Filter by last update date"
           />
         </div>
