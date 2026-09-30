@@ -271,14 +271,31 @@ export function ProductDetailPageWrapper({
         localDiscussionsRef.current = localDiscussions
     }, [localDiscussions])
 
-    const resolveProductCollectionTarget = (candidate?: string): string => {
+    const resolveProductCollectionTarget = async (candidate?: string): Promise<string> => {
+        // Collection write endpoints require the product's UUID id, not a slug.
         const normalizedCandidate = typeof candidate === 'string' ? candidate.trim() : ''
-        const resolvedProduct = products.find((item) =>
+        if (!normalizedCandidate) {
+            return normalizedCandidate || slug || ''
+        }
+
+        // Mirrors ProductDetailPage's own product resolution above: check the
+        // cached products list first, then fall back to a direct fetch --
+        // this page can be loaded directly (e.g. from a URL), so `products`
+        // (the full list) may not yet include the product being viewed.
+        const cachedProduct = products.find((item) =>
             item.id === normalizedCandidate || item.slug === normalizedCandidate
         )
+        if (cachedProduct) {
+            return cachedProduct.id
+        }
 
-        if (resolvedProduct) {
-            return resolvedProduct.slug || resolvedProduct.id
+        try {
+            const fetchedProduct = await APIService.getProduct(normalizedCandidate)
+            if (fetchedProduct?.id) {
+                return fetchedProduct.id
+            }
+        } catch (error) {
+            console.warn('[ProductDetailPageWrapper] Failed to resolve product id for collection write:', error)
         }
 
         return normalizedCandidate || slug || ''
@@ -293,11 +310,19 @@ export function ProductDetailPageWrapper({
         return entry?.targetSlug || entry?.targetId
     }
 
+    // Collection write endpoints require the collection's UUID id, not a slug.
+    const resolveCollectionId = (collectionSlug: string): string => {
+        const resolvedCollection = userCollections.find(
+            (collection) => collection.id === collectionSlug || collection.slug === collectionSlug
+        )
+        return resolvedCollection?.id || collectionSlug
+    }
+
     const handleAddToCollection = async (collectionSlug: string, targets?: AddToCollectionTargets) => {
-        const targetKey = resolveProductCollectionTarget(extractProductTarget(targets))
+        const targetKey = await resolveProductCollectionTarget(extractProductTarget(targets))
         if (!targetKey || !collectionSlug) return
 
-        const updated = await APIService.addProductToCollection(collectionSlug, targetKey)
+        const updated = await APIService.addProductToCollection(resolveCollectionId(collectionSlug), targetKey)
         if (updated) {
             onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
             notify.success('Added to collection')
@@ -305,10 +330,10 @@ export function ProductDetailPageWrapper({
     }
 
     const handleRemoveFromCollection = async (collectionSlug: string, targets?: AddToCollectionTargets) => {
-        const targetKey = resolveProductCollectionTarget(extractProductTarget(targets))
+        const targetKey = await resolveProductCollectionTarget(extractProductTarget(targets))
         if (!targetKey) return
 
-        const updated = await APIService.removeProductFromCollection(collectionSlug, targetKey)
+        const updated = await APIService.removeProductFromCollection(resolveCollectionId(collectionSlug), targetKey)
         if (updated) {
             onCollectionsChange((current) => current.map((c) => ((c.slug || c.id) === collectionSlug ? updated : c)))
             notify.success('Removed from collection')

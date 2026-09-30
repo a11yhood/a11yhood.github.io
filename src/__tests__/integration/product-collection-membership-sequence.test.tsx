@@ -38,8 +38,9 @@ describeWithBackend('Owned + edited membership sequence', () => {
   let ownedProduct: Product
   let editedProduct: Product
 
-  let ownedCollectionSlug = ''
-  let editedCollectionSlug = ''
+  // Collection write endpoints require the UUID id, not a slug.
+  let ownedCollectionId = ''
+  let editedCollectionId = ''
   let ownedCollectionName = ''
   let editedCollectionName = ''
 
@@ -100,7 +101,7 @@ describeWithBackend('Owned + edited membership sequence', () => {
       username: user.username,
       entries: [],
     })
-    ownedCollectionSlug = ownedCollection.slug || ownedCollection.id
+    ownedCollectionId = ownedCollection.id
 
     setToken(moderatorToken)
 
@@ -123,8 +124,8 @@ describeWithBackend('Owned + edited membership sequence', () => {
       username: DEV_USERS.moderator.username,
       entries: [],
     })
-    editedCollectionSlug = editedCollection.slug || editedCollection.id
-    await APIService.addCollectionEditor(editedCollectionSlug, user.id)
+    editedCollectionId = editedCollection.id
+    await APIService.addCollectionEditor(editedCollectionId, user.id)
 
     setToken(userToken)
   }, 30000)
@@ -132,11 +133,11 @@ describeWithBackend('Owned + edited membership sequence', () => {
   afterAll(async () => {
     setToken(adminToken)
 
-    if (ownedCollectionSlug) {
-      await APIService.deleteCollection(ownedCollectionSlug).catch(() => undefined)
+    if (ownedCollectionId) {
+      await APIService.deleteCollection(ownedCollectionId).catch(() => undefined)
     }
-    if (editedCollectionSlug) {
-      await APIService.deleteCollection(editedCollectionSlug).catch(() => undefined)
+    if (editedCollectionId) {
+      await APIService.deleteCollection(editedCollectionId).catch(() => undefined)
     }
 
     // DELETE requires the UUID id, not a slug.

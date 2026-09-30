@@ -76,16 +76,18 @@ describe('APIService collection editors', () => {
         })
       )
 
+    // getCollectionEditors (GET) accepts a slug; addCollectionEditor/removeCollectionEditor
+    // are writes and require the collection's UUID id.
     const editorData = await APIService.getCollectionEditors('screen-reader-tools')
-    const afterAdd = await APIService.addCollectionEditor('screen-reader-tools', 'editor-2')
-    const afterRemove = await APIService.removeCollectionEditor('screen-reader-tools', 'editor-1')
+    const afterAdd = await APIService.addCollectionEditor('c1', 'editor-2')
+    const afterRemove = await APIService.removeCollectionEditor('c1', 'editor-1')
 
     expect(fetchSpy).toHaveBeenCalledTimes(3)
     expect(editorData).toEqual({ collectionId: 'c1', editorIds: ['editor-1'] })
     expect(afterAdd?.editorIds).toEqual(['editor-1', 'editor-2'])
     expect(afterRemove?.editorIds).toEqual(['editor-2'])
     expect(String(fetchSpy.mock.calls[0][0])).toContain('/api/collections/screen-reader-tools/editors')
-    expect(String(fetchSpy.mock.calls[1][0])).toContain('/api/collections/screen-reader-tools/editors/editor-2')
-    expect(String(fetchSpy.mock.calls[2][0])).toContain('/api/collections/screen-reader-tools/editors/editor-1')
+    expect(String(fetchSpy.mock.calls[1][0])).toContain('/api/collections/c1/editors/editor-2')
+    expect(String(fetchSpy.mock.calls[2][0])).toContain('/api/collections/c1/editors/editor-1')
   })
 })

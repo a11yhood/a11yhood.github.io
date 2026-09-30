@@ -25,9 +25,10 @@ describe('APIService addMultipleProductsToCollection payload', () => {
       )
     )
 
-    await APIService.addMultipleProductsToCollection('bulk-add-contract-test', [
-      'product-slug-1',
-      'product-slug-2',
+    // Write endpoint: requires UUID ids, not slugs, for both the collection and each product.
+    await APIService.addMultipleProductsToCollection('collection-1', [
+      '11111111-1111-1111-1111-111111111111',
+      '22222222-2222-2222-2222-222222222222',
     ])
 
     expect(fetchSpy).toHaveBeenCalledTimes(1)
@@ -37,7 +38,10 @@ describe('APIService addMultipleProductsToCollection payload', () => {
 
     const body = JSON.parse(String(requestInit?.body))
     expect(body).toEqual({
-      product_ids: ['product-slug-1', 'product-slug-2'],
+      product_ids: [
+        '11111111-1111-1111-1111-111111111111',
+        '22222222-2222-2222-2222-222222222222',
+      ],
     })
     expect(body.product_slugs).toBeUndefined()
   })
