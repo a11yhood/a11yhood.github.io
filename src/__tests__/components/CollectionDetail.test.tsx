@@ -335,7 +335,7 @@ describe('CollectionDetail', () => {
 
     const parentCollection: Collection = {
       id: 'collection-parent',
-      slug: 'collection-parent',
+      slug: 'parent-collection-slug',
       name: 'Parent Collection',
       userId: 'owner-1',
       username: 'owner-user',
@@ -384,8 +384,9 @@ describe('CollectionDetail', () => {
 
     await user.click(screen.getByRole('button', { name: /remove from collection/i }))
 
+    // Write endpoint: must receive the collection's UUID id, not its slug.
     await waitFor(() => {
-      expect(updateSpy).toHaveBeenCalledWith(parentCollection.slug, {
+      expect(updateSpy).toHaveBeenCalledWith(parentCollection.id, {
         entries: [],
       })
     })

@@ -1501,30 +1501,33 @@ export class APIService {
     })
   }
 
-  static async deleteProduct(productSlug: string): Promise<void> {
-    logger.debug('[API.deleteProduct] Starting delete for product slug:', productSlug)
-    const endpoint = `/products/${productSlug}`
+  static async deleteProduct(productId: string): Promise<void> {
+    // DELETE requires the UUID id, not a slug — the backend 404s on a slug
+    // here (writes are scoped to the immutable identifier; only GET accepts
+    // a slug lookup).
+    logger.debug('[API.deleteProduct] Starting delete for product id:', productId)
+    const endpoint = `/products/${productId}`
     const requestOptions = {
       method: 'DELETE',
     }
-    
+
     logger.debug('[API.deleteProduct] Request details:', {
       endpoint,
       method: requestOptions.method,
       fullUrl: `${getApiBaseUrl()}/api${endpoint}`
     })
-    
+
     try {
       const result = await request<void>(endpoint, requestOptions)
       logger.debug('[API.deleteProduct] Delete successful:', {
-        productSlug,
+        productId,
         result,
         resultType: typeof result
       })
       return result
     } catch (error) {
       console.error('[API.deleteProduct] Delete failed:', {
-        productSlug,
+        productId,
         endpoint,
         error: error instanceof Error ? error.message : String(error),
         errorStatus: (error as { status?: number; data?: unknown })?.status,
@@ -2011,15 +2014,17 @@ export class APIService {
     return result ? APIService.normalizeCollection(result) : null
   }
 
-  static async deleteCollection(collectionSlug: string): Promise<{ message: string }> {
-    return request<{ message: string }>(`/collections/${collectionSlug}`, {
+  static async deleteCollection(collectionId: string): Promise<{ message: string }> {
+    // Write endpoint: requires the collection's UUID id, not a slug.
+    return request<{ message: string }>(`/collections/${collectionId}`, {
       method: 'DELETE',
     })
   }
 
-  static async addProductToCollection(collectionSlug: string, productSlug: string): Promise<Collection | null> {
-    logger.debug(`[API] addProductToCollection(${collectionSlug}, ${productSlug}) - sending POST request`)
-    const result = await request<Collection | null>(`/collections/${collectionSlug}/products/${productSlug}`, {
+  static async addProductToCollection(collectionId: string, productId: string): Promise<Collection | null> {
+    // Write endpoint: requires UUID ids for both the collection and the product, not slugs.
+    logger.debug(`[API] addProductToCollection(${collectionId}, ${productId}) - sending POST request`)
+    const result = await request<Collection | null>(`/collections/${collectionId}/products/${productId}`, {
       method: 'POST',
     })
     const normalized = result ? APIService.normalizeCollection(result) : null
@@ -2036,18 +2041,19 @@ export class APIService {
     return normalized
   }
 
-  static async removeProductFromCollection(collectionSlug: string, productSlug: string): Promise<Collection | null> {
-    const result = await request<Collection | null>(`/collections/${collectionSlug}/products/${productSlug}`, {
+  static async removeProductFromCollection(collectionId: string, productId: string): Promise<Collection | null> {
+    // Write endpoint: requires UUID ids for both the collection and the product, not slugs.
+    const result = await request<Collection | null>(`/collections/${collectionId}/products/${productId}`, {
       method: 'DELETE',
     })
     return result ? APIService.normalizeCollection(result) : null
   }
 
-  static async addMultipleProductsToCollection(collectionSlug: string, productSlugs: string[]): Promise<Collection | null> {
-    const result = await request<Collection | null>(`/collections/${collectionSlug}/products`, {
+  static async addMultipleProductsToCollection(collectionId: string, productIds: string[]): Promise<Collection | null> {
+    // Write endpoint: requires the collection's UUID id and each product's UUID id, not slugs.
+    const result = await request<Collection | null>(`/collections/${collectionId}/products`, {
       method: 'POST',
-      // Backend expects ProductIdsRequest (product_ids), and accepts UUIDs or slugs.
-      body: JSON.stringify({ productIds: productSlugs }),
+      body: JSON.stringify({ productIds }),
     })
     return result ? APIService.normalizeCollection(result) : null
   }
@@ -2060,15 +2066,17 @@ export class APIService {
     }
   }
 
-  static async addCollectionEditor(collectionSlug: string, editorUserId: string): Promise<Collection | null> {
-    const result = await request<Collection | null>(`/collections/${collectionSlug}/editors/${editorUserId}`, {
+  static async addCollectionEditor(collectionId: string, editorUserId: string): Promise<Collection | null> {
+    // Write endpoint: requires the collection's UUID id, not a slug.
+    const result = await request<Collection | null>(`/collections/${collectionId}/editors/${editorUserId}`, {
       method: 'POST',
     })
     return result ? APIService.normalizeCollection(result) : null
   }
 
-  static async removeCollectionEditor(collectionSlug: string, editorUserId: string): Promise<Collection | null> {
-    const result = await request<Collection | null>(`/collections/${collectionSlug}/editors/${editorUserId}`, {
+  static async removeCollectionEditor(collectionId: string, editorUserId: string): Promise<Collection | null> {
+    // Write endpoint: requires the collection's UUID id, not a slug.
+    const result = await request<Collection | null>(`/collections/${collectionId}/editors/${editorUserId}`, {
       method: 'DELETE',
     })
     return result ? APIService.normalizeCollection(result) : null
