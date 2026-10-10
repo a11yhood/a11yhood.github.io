@@ -80,7 +80,7 @@ pixi --version
 ```
 ### Using Pixi
 
-Use Pixi to provide the project runtime, then run npm commands inside that environment.
+Pixi provides the pinned Node version and the project tasks defined in `pixi.toml` (`pixi task list` shows them all). Prefer `pixi run <task>`; inside `pixi shell` the equivalent npm scripts also work. See [DEVELOPMENT.md](DEVELOPMENT.md) for the full local-development guide.
 
 ### Installation
 
@@ -98,8 +98,7 @@ We assume throughout that you are already running pixi.
 
 2. **Install Node + npm dependencies via Pixi**
    ```bash
-   pixi shell
-   npm install
+   pixi run install-dev
    ```
 
 3. **Set up environment variables**
@@ -120,35 +119,24 @@ We assume throughout that you are already running pixi.
 
 4. **Start the development server**
    ```bash
-   npm run dev
+   pixi run dev
    ```
 
-   The application will be available at `http://localhost:5173`
+   The application will be available at `https://localhost:5173` (Vite picks the next free port if it is taken; the URL is printed in the terminal).
 
 ### Running Tests
 
 ```bash
-pixi shell
+pixi run test          # reduced Vitest suite (same as PR preview CI)
+pixi run test-full     # full suite (integration tests need a running backend)
+pixi run lint          # ESLint
 
-# Run tests in watch mode
-npm test
-
-# Run tests once
-npm run test:run
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run tests with UI
-npm run test:ui
-
-# Lint
-npm run lint
-
-# Accessibility
-npm run test:a11y
-npm run test:a11y-integration
-
+# Other test commands, from inside `pixi shell`:
+npm test                       # watch mode
+npm run test:coverage          # with coverage
+npm run test:ui                # with Vitest UI
+npm run test:a11y              # accessibility tests
+npm run test:a11y:integration  # accessibility integration tests (need a backend)
 ```
 
 Notes:
@@ -158,21 +146,9 @@ Notes:
 ### Building for Production
 
 ```bash
-# Build the application
-npm run build
-
-# Preview the production build
-npm run preview
-```
-
-### Bundle-only Vite build via Pixi task
-Note: this skips tests and TypeScript type checking
-
-```bash
-pixi run build-vite
-
-# Production preview
-npm run preview
+pixi run build-vite      # production bundle only (dist/); skips tests and type-checking
+pixi run build-ghpages   # reduced tests, type-check, then bundle (what deploys use)
+pixi run preview         # build the bundle and serve it locally on https://localhost:4173
 ```
 
 # Code Quality

@@ -1,8 +1,6 @@
 # Development Guide for a11yhood Frontend
 
-This guide explains how to set up and run the a11yhood frontend in different environments. 
-
-## Quick Start
+This guide explains how to set up and run the a11yhood frontend in different environments.
 
 ## Identity Field Best Practice
 
@@ -23,51 +21,94 @@ Backend and frontend should stay in sync on the collection schema. The current f
 - Collection list and detail responses should preserve entry ordering from create/update requests.
 - On `/api/collections`, ownership markers must remain stable: owner rows return `access_role=owner` and `is_owner=true`; editor rows return `access_role=editor` and `is_owner=false`.
 
-### Development Environment (Recommended for Active Development)
-```bash
-# Terminal 1: Start the test backend (port 8000 with local test database)
-# (Backend repository setup - outside scope of this guide)
+## Quick Start
 
-# Terminal 2: Start the frontend
-./scripts/start-dev.sh
+This project uses [pixi](https://pixi.prefix.dev) as its toolchain. It provides the pinned Node version and the project tasks (see `pixi.toml`), so you don't need a system Node install. Run everything through pixi:
+
+```bash
+pixi task list        # see all tasks
+pixi run <task>       # run one task (installs npm dependencies first when needed)
+pixi shell            # or open a shell with Node on PATH and use npm directly
+```
+
+| Task | What it does |
+|------|--------------|
+| `pixi run dev` | Vite dev server with hot reload (`npm run dev`) |
+| `pixi run preview` | Production build + `vite preview` on port 4173 |
+| `pixi run test` | Reduced Vitest suite (what CI's PR preview runs) |
+| `pixi run test-full` | Full Vitest suite (needs a backend for integration tests) |
+| `pixi run lint` | ESLint across all source files |
+| `pixi run build-vite` | Production bundle only (`dist/`) |
+| `pixi run build-ghpages` | Full gh-pages build: reduced tests, type-check, bundle |
+
+Inside `pixi shell`, the equivalent npm scripts (`npm run dev`, `npm run build`, `npm run preview`) work the same way.
+
+### Development Environment (Recommended for Active Development)
+
+Hot-reload development against a local dev backend:
+
+```bash
+# Terminal 1: Start the dev backend (port 8002 with the test database).
+# From the backend repository: pixi run dev
+# Backend runs on: http://localhost:8002
+
+# Terminal 2: Start the frontend dev server (from this repository)
+pixi run dev
 # Frontend runs on: https://localhost:5173
 # Hot reload: Enabled (changes reflect immediately)
 ```
 
 ### Production Environment (For Testing Production Build)
-```bash
-# Terminal 1: Start the production backend (port 8001 with Supabase)
-# (Backend repository setup - outside scope of this guide)
 
-# Terminal 2: Start the frontend
-./scripts/start-prod.sh
+Test the actual production build against a local production backend:
+
+```bash
+# Terminal 1: Start the production backend (port 8001 with Supabase).
+# From the backend repository: pixi run prod
+# Backend runs on: https://localhost:8001
+
+# Terminal 2: Build and preview the production bundle
+pixi run preview
 # Frontend runs on: https://localhost:4173
 # Tests actual production build with real database
 ```
+
+## Backend Ports
+
+- **Dev backend**: `:8002` (HTTP by default; HTTPS on `:8443` when `certs/localhost.pem` exists in the backend repo) - active development with the test database
+- **Prod backend**: `:8001` (HTTPS, Supabase) - testing production builds locally
+- **Real servers**: use their domain URLs via `VITE_API_URL` (see below)
 
 ## Environment Comparison
 
 | Aspect | Development (Dev) | Production (Prod) |
 |--------|-------------------|-------------------|
-| **Script** | `./scripts/start-dev.sh` | `./scripts/start-prod.sh` |
+| **Command** | `pixi run dev` | `pixi run preview` |
 | **Env File** | `.env.local` | `.env.production.local` |
 | **Frontend Port** | 5173 | 4173 |
 | **Frontend URL** | https://localhost:5173 | https://localhost:4173 |
-| **Backend Port** | 8000 (HTTP) | 8001 (HTTPS) |
+| **Backend Port** | 8002 (HTTP) | 8001 (HTTPS) |
 | **Backend URL** | http://localhost:8002 | https://localhost:8001 |
 | **Database** | Local test database | Supabase (production) |
 | **Build Type** | Dev server (no build step) | Production build (minified) |
 | **Hot Reload** | ✅ Enabled | ❌ Disabled |
-| **API Proxying** | ✅ Vite proxy (no CORS) | ❌ Direct requests (CORS required) |
+| **API Proxying** | ✅ Vite proxy (no CORS) | ✅ Vite preview proxy for a localhost backend; ❌ direct requests (CORS required) for a real server |
 | **Use Case** | Development & unit testing | Integration testing, production verification |
 
 ## Development Environment Details
 
 ### Setup
 
-1. **Start Test Backend**: Run your backend on `http://localhost:8002` with local test database configured
-2. **Environment File**: Uses `.env.local` with `VITE_API_URL=http://localhost:8002`
-3. **Start Frontend**: Run `./scripts/start-dev.sh`
+1. **Start Dev Backend**: Run your backend on `http://localhost:8002` with the local test database configured
+2. **Environment File**: `.env.local` with `VITE_API_URL=http://localhost:8002` (optional: Vite proxies to this by default)
+3. **Start Frontend**: Run `pixi run dev`
+
+To use a backend on a real server instead:
+
+```bash
+echo "VITE_API_URL=https://your-api-domain.com" >> .env.local
+pixi run dev
+```
 
 ### Key Features
 
@@ -80,11 +121,11 @@ Backend and frontend should stay in sync on the collection schema. The current f
 ### Workflow
 
 ```bash
-# 1. Backend must be running on port 8000
+# 1. Backend must be running on port 8002 (or reachable via VITE_API_URL)
 curl http://localhost:8002/health  # Should return success
 
 # 2. Start development environment
-./scripts/start-dev.sh
+pixi run dev
 
 # 3. Open frontend in browser
 # Frontend auto-opens or navigate to: https://localhost:5173
@@ -98,15 +139,19 @@ curl http://localhost:8002/health  # Should return success
 
 1. **Start Production Backend**: Run your backend on `https://localhost:8001` with Supabase configured
 2. **Environment File**: Uses `.env.production.local` with `VITE_API_URL=https://localhost:8001`
-3. **Start Frontend**: Run `./scripts/start-prod.sh`
+3. **Build and Preview Frontend**: Run `pixi run preview`
+
+To use a backend on a real server instead, set `VITE_API_URL` in `.env.production.local` to its URL before building (it is read at build time).
 
 ### Important: CORS Configuration
 
-In production preview mode, the frontend makes **direct requests** to the backend (no proxy). This means:
+`vite preview` proxies `/api` the same way the dev server does (see `preview.proxy` in `vite.config.ts`), and when both the frontend and `VITE_API_URL` are on `localhost` the app uses relative `/api` paths. So against a **local** production backend (`https://localhost:8001`) you normally do not hit CORS.
 
-- Frontend origin: `https://localhost:4173`
-- Backend origin: `https://localhost:8001`
-- **Required**: Backend must be configured to accept CORS from `https://localhost:4173`
+CORS **is** required when `VITE_API_URL` points at a real (non-localhost) server, because the browser then makes direct cross-origin requests:
+
+- Frontend origin: `https://localhost:4173` (or your deployed frontend domain)
+- Backend origin: your server, e.g. `https://api.example.com`
+- **Required**: that backend must accept CORS from the frontend origin
 
 #### Backend CORS Configuration
 
@@ -133,27 +178,24 @@ app.add_middleware(
 - **No Hot Reload**: Changes require rebuilding (not suitable for active development)
 - **Real Database**: Uses Supabase with real data
 - **Tests Build Output**: Ensures production build works correctly
-- **CORS Handling**: Tests cross-origin request handling
+- **CORS Handling**: With a real-server `VITE_API_URL`, exercises real cross-origin request handling
 
 ### Workflow
 
 ```bash
-# 1. Backend must be running on port 8001 with CORS enabled
+# 1. Backend must be running on port 8001 (with CORS enabled if you point VITE_API_URL at a real server)
 curl -k https://localhost:8001/health  # Should return success
 
-# 2. Start production environment
-./scripts/start-prod.sh
-# This will:
-# - Run tests
-# - Build the frontend for production
-# - Serve the built files on port 4173
+# 2. Build the production bundle and serve it locally
+pixi run preview
+# Frontend serves on: https://localhost:4173
+# (Want the reduced tests and type-check gate first? Run `pixi run build-ghpages`.)
 
-# 3. Open frontend in browser
+# 4. Open frontend in browser
 # Navigate to: https://localhost:4173
 
-# 4. Make changes? You must rebuild:
-# - Either restart ./scripts/start-prod.sh
-# - Or manually run: npm run build && npm run preview
+# 5. Make changes? You must rebuild:
+# - Stop the preview and re-run: pixi run preview
 ```
 
 ## Environment Variables
@@ -201,7 +243,7 @@ lsof -i :5173
 kill -9 <PID>
 ```
 
-**Problem**: Backend not responding on port 8000
+**Problem**: Backend not responding on port 8002 (or at `VITE_API_URL`)
 ```bash
 # Check if backend is running
 curl http://localhost:8002/health
@@ -219,7 +261,9 @@ Check that VITE_API_URL=http://localhost:8002 in .env.local
 
 **Problem**: CORS error: "No 'Access-Control-Allow-Origin' header"
 ```
-This is expected if backend CORS is not configured.
+This only happens when VITE_API_URL points at a real (non-localhost) server and
+that backend does not allow your frontend origin. A local backend is reached through
+the Vite preview proxy and should not produce CORS errors.
 See "Backend CORS Configuration" section above.
 Make sure backend allows: https://localhost:4173
 ```
@@ -228,8 +272,6 @@ Make sure backend allows: https://localhost:4173
 ```bash
 # Kill existing preview server
 pkill -f "vite preview"
-# Or run the stop script
-./scripts/stop-prod.sh
 ```
 
 **Problem**: Frontend builds but shows blank page
@@ -253,17 +295,28 @@ Test Database
 ✅ No CORS issues - same origin
 ```
 
-### Production (direct requests)
+### Production preview with a local backend (via Vite preview proxy)
 ```
 Browser (https://localhost:4173)
   ↓
-Direct Request (CORS required)
+Vite Preview Proxy (localhost:4173)
   ↓
 Backend (https://localhost:8001)
   ↓
 Supabase Database
 
-⚠️ CORS must be configured on backend
+✅ No CORS issues - same origin
+```
+
+### Production preview with a real server (direct requests)
+```
+Browser (https://localhost:4173)
+  ↓
+Direct Request (VITE_API_URL, CORS required)
+  ↓
+Backend (https://api.example.com)
+
+⚠️ CORS must be configured on that backend
 ```
 
 ## Common Tasks
@@ -273,14 +326,8 @@ Supabase Database
 # Stop the current environment
 pkill -f "npm.*dev"
 
-# Start production environment
-./scripts/start-prod.sh
-```
-
-### Rebuild Production Without Restarting
-```bash
-npm run build -- --mode production
-npm run preview
+# Start production build and preview
+pixi run preview
 ```
 
 ### View Build Output
@@ -307,8 +354,7 @@ du -sh dist/
 
 Check these resources:
 - [`vite.config.ts`](vite.config.ts) - Vite configuration with proxy settings
-- [`.env.local`](.env.local) - Development environment variables
-- [`.env.production.local`](.env.production.local) - Production environment variables
+- [`env.example`](env.example) and [`env.example.test`](env.example.test) - Example environment variables (copy to `.env.local` / `.env.production.local`)
 - [`.github/workflows/`](.github/workflows/) - CI/CD configuration for reference
 
 ## Full Backend Validation in CI
