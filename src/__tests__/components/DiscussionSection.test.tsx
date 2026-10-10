@@ -210,7 +210,7 @@ describe('DiscussionSection Component Tests (APIService mocked)', () => {
 
     render(<DiscussionHarness productId={productId} user={owner} />)
 
-    const threads = await screen.findByRole('list', { name: 'Discussion threads' })
+    const threads = await screen.findByRole('list', { name: 'All threads' })
     expect(threads).not.toHaveAttribute('role', 'group')
 
     const replies = await screen.findByRole('list', { name: 'Replies' })

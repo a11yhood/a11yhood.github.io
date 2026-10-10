@@ -343,7 +343,7 @@ export function DiscussionSection({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Discussion</h2>
+        <h2 className="text-xl font-semibold">Threads</h2>
         <span className="text-sm text-muted-foreground">{visibleDiscussions.length} messages</span>
       </div>
 
@@ -387,7 +387,7 @@ export function DiscussionSection({
             </p>
           </Card>
         ) : (
-          <ul className="space-y-6" aria-label="Discussion threads">
+          <ul className="space-y-6" aria-label="All threads">
             {topLevelDiscussions
               .filter((d) => canSee(d))
               .sort((a, b) => b.createdAt - a.createdAt)
