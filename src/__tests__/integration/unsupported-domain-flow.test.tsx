@@ -7,7 +7,7 @@ import type { UserData, UserAccount } from '@/lib/types'
 
 /**
  * Integration: Unsupported domain triggers request dialog using live backend.
- * Requires backend running at http://localhost:8002 (run: npm run dev).
+ * Requires a live backend reachable at http://localhost:8000 (override with VITE_API_URL).
  */
 describe('Unsupported domain flow (live backend)', () => {
   const user: UserData = {
