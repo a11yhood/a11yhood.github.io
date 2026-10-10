@@ -1470,7 +1470,9 @@ function App() {
     }
   }
 
-  const handleLogin = (returnToPath?: string) => {
+  const handleLogin = (rawReturnToPath?: string) => {
+    // Guard against being wired directly to onClick, which would pass the click event here.
+    const returnToPath = typeof rawReturnToPath === 'string' ? rawReturnToPath : undefined
     console.log('[App] 🔐 handleLogin called')
     console.log('[App] → isTestEnv:', isTestEnv)
     console.log('[App] → signIn function:', typeof signIn)

@@ -329,8 +329,10 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
     }
   }, [cropDialogOpen, cropSourceUrl, notify])
 
-  const handleUrlSubmit = useCallback(() => {
-    const trimmedUrl = urlInput.trim()
+  // rawUrl lets paste commit the pasted text directly (state may not have updated yet).
+  // Ignore non-string args so this is safe to wire straight to onClick.
+  const handleUrlSubmit = useCallback((rawUrl?: unknown) => {
+    const trimmedUrl = (typeof rawUrl === 'string' ? rawUrl : urlInput).trim()
     if (!trimmedUrl) {
       notify.error('Please enter an image URL')
       return
@@ -622,6 +624,16 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
                     type="url"
                     value={urlInput}
                     onChange={(e) => setUrlInput(e.target.value)}
+                    onPaste={(e) => {
+                      // Replace the field with the pasted URL and show the preview right away,
+                      // instead of requiring a separate "Add URL" click.
+                      const pasted = e.clipboardData.getData('text').trim()
+                      if (/^https?:\/\//i.test(pasted)) {
+                        e.preventDefault()
+                        setUrlInput(pasted)
+                        handleUrlSubmit(pasted)
+                      }
+                    }}
                     placeholder="https://example.com/image.jpg"
                     disabled={disabled}
                     aria-describedby="image-url-help"
