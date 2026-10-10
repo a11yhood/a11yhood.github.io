@@ -76,7 +76,7 @@ npm run build && npm run preview
 ### Setup for Local Dev Backend
 
 1. **Start Dev Backend**: Run your backend on `http://localhost:8002` with local test database configured
-2. **Environment File**: Creates `.env.local` with `VITE_API_URL=http://localhost:8002` (optional—Vite proxies by default)
+2. **Environment File**: Create `.env.local` with `VITE_API_URL=http://localhost:8002` (required—Vite's default proxy target is `https://localhost:8000`)
 3. **Start Frontend**: Run `npm run dev`
 
 ### Setup for Real Server Backend
