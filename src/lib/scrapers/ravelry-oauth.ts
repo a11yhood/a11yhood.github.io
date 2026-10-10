@@ -35,10 +35,22 @@ function generateState(): string {
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
+/** Result of loading the OAuth config, including what the backend said (if we asked). */
+type LoadedConfig = {
+  config: OAuth2Config | null
+  /** True when the backend was reached and answered (even with "no config"). */
+  backendChecked: boolean
+  /** The backend's config, or null when it has none. Only meaningful if backendChecked. */
+  backendConfig: Awaited<ReturnType<typeof APIService.getOAuthConfig>> | null
+}
+
 /**
- * Get OAuth configuration from localStorage
+ * Load OAuth configuration from localStorage, falling back to the backend.
+ *
+ * Also returns the backend response when one was fetched so callers that need the
+ * backend's view (isAuthorized) can reuse it instead of issuing a second request.
  */
-async function getConfig(): Promise<OAuth2Config | null> {
+async function loadConfig(): Promise<LoadedConfig> {
   try {
     const configStr = localStorage.getItem(CONFIG_KEY)
     if (configStr) {
@@ -47,7 +59,8 @@ async function getConfig(): Promise<OAuth2Config | null> {
       // Backend validation is best-effort and should never block local usage.
       if (parsed.accessToken) {
         try {
-          await APIService.getOAuthConfig('ravelry')
+          const backendConfig = await APIService.getOAuthConfig('ravelry')
+          return { config: parsed, backendChecked: true, backendConfig }
         } catch (error) {
           // If backend is temporarily unavailable or auth/session is still warming up,
           // keep using local config so callback handling and re-auth continue to work.
@@ -55,10 +68,10 @@ async function getConfig(): Promise<OAuth2Config | null> {
             status: (error as ApiErrorLike)?.status,
             message: (error as ApiErrorLike)?.message,
           })
-          return parsed
+          return { config: parsed, backendChecked: false, backendConfig: null }
         }
       }
-      return parsed
+      return { config: parsed, backendChecked: false, backendConfig: null }
     }
 
     // If not in localStorage, try backend
@@ -66,19 +79,27 @@ async function getConfig(): Promise<OAuth2Config | null> {
       const response = await APIService.getOAuthConfig('ravelry')
       if (response) {
         localStorage.setItem(CONFIG_KEY, JSON.stringify(response))
-        return response
+        return { config: response, backendChecked: true, backendConfig: response }
       }
+      return { config: null, backendChecked: true, backendConfig: null }
     } catch (error) {
       // Ignore if not found; treat as no config
-      if ((error as ApiErrorLike)?.status === 404) return null
+      if ((error as ApiErrorLike)?.status === 404) {
+        return { config: null, backendChecked: true, backendConfig: null }
+      }
       throw error
     }
-
-    return null
   } catch (error) {
     console.error('[Ravelry OAuth] Error retrieving config:', error)
-    return null
+    return { config: null, backendChecked: false, backendConfig: null }
   }
+}
+
+/**
+ * Get OAuth configuration from localStorage (or the backend if nothing is stored locally)
+ */
+async function getConfig(): Promise<OAuth2Config | null> {
+  return (await loadConfig()).config
 }
 
 /**
@@ -212,9 +233,19 @@ async function clearConfig(): Promise<void> {
  * Check if authorized (has valid credentials)
  */
 async function isAuthorized(): Promise<boolean> {
-  const config = await getConfig()
+  const { config, backendChecked, backendConfig } = await loadConfig()
   // Backend responses may omit clientSecret; accessToken is the primary signal of an active connection.
-  return !!(config && config.accessToken)
+  if (!config?.accessToken) return false
+
+  // loadConfig() prefers the copy in localStorage, which can outlive the backend's
+  // token (reset, disconnect from another browser, ...). The backend is what the
+  // scrapers actually use, so when we reached it, it decides whether we are connected.
+  if (backendChecked) {
+    return !!(backendConfig && (backendConfig.accessToken || backendConfig.hasAccessToken))
+  }
+
+  // Backend unreachable: fall back to what we know locally.
+  return true
 }
 
 /**
