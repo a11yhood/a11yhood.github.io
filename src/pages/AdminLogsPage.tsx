@@ -19,7 +19,7 @@ export function AdminLogsPage({
     if (userAccount?.role !== 'admin') {
         return (
             <div className="text-center py-12">
-                <p className="text-lg text-muted-foreground">Access denied</p>
+                <h1 className="text-2xl font-bold">Access denied</h1>
                 <Button variant="outline" onClick={() => navigate('/admin')} className="mt-4">
                     Back to Admin
                 </Button>

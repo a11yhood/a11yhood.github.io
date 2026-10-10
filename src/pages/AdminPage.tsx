@@ -27,7 +27,7 @@ export function AdminPage({
     if (!canAccess) {
         return (
             <div className="text-center py-12">
-                <p className="text-lg text-muted-foreground">Access denied</p>
+                <h1 className="text-2xl font-bold">Access denied</h1>
                 <Button variant="outline" onClick={() => navigate('/')} className="mt-4">
                     Back to Home
                 </Button>

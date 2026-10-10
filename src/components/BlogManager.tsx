@@ -222,6 +222,7 @@ export function BlogManager({ onCreateNew, onEditPost, userAccount, onPostsUpdat
                             handleTogglePublish(post)
                           }}
                           title={post.published ? 'Unpublish' : 'Publish'}
+                          aria-label={post.published ? `Unpublish ${post.title}` : `Publish ${post.title}`}
                         >
                           {post.published ? (
                             <Eye className="w-4 h-4" />
@@ -239,6 +240,7 @@ export function BlogManager({ onCreateNew, onEditPost, userAccount, onPostsUpdat
                             handleToggleFeatured(post)
                           }}
                           title={post.featured ? 'Remove from featured' : 'Add to featured'}
+                          aria-label={post.featured ? `Remove ${post.title} from featured` : `Add ${post.title} to featured`}
                         >
                           <Star
                             className="w-4 h-4"
@@ -254,6 +256,7 @@ export function BlogManager({ onCreateNew, onEditPost, userAccount, onPostsUpdat
                             e.stopPropagation()
                             onEditPost(post)
                           }}
+                          aria-label={`Edit ${post.title}`}
                         >
                           <Pen className="w-4 h-4" />
                         </Button>
@@ -266,6 +269,7 @@ export function BlogManager({ onCreateNew, onEditPost, userAccount, onPostsUpdat
                             e.stopPropagation()
                             handleDelete(post)
                           }}
+                          aria-label={`Delete ${post.title}`}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash className="w-4 h-4" />
