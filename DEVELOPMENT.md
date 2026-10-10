@@ -128,7 +128,7 @@ curl http://localhost:8002/health  # Should return success
 pixi run dev
 
 # 3. Open frontend in browser
-# Frontend auto-opens or navigate to: https://localhost:5173
+Frontend auto-opens or navigate to: https://localhost:5173
 
 # 4. Make code changes - they hot reload automatically
 ```
