@@ -6,8 +6,9 @@
  * the SPA's index.html.  Because the redirect double-encodes search params, URLs
  * with many query parameters can balloon past server URI length limits (HTTP 414).
  *
- * These tests mirror the script logic so we can verify the URL-length guard that
- * drops the query string when the redirect target would exceed 6000 characters.
+ * These tests mirror the script logic so we can verify URL-length guards that
+ * first drop the encoded query string while preserving route, then fall back to
+ * base path only for extreme route lengths.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -39,13 +40,20 @@ function computeRedirectTarget(loc: {
     basePath + '?/' + encodedRoute + (searchPayload ? '&' + encodedSearch : '')
   let target =
     loc.protocol + '//' + loc.hostname + (loc.port ? ':' + loc.port : '') + redirectPath + loc.hash
+  const routeTarget =
+    loc.protocol + '//' + loc.hostname + (loc.port ? ':' + loc.port : '') + basePath + '?/' + encodedRoute + loc.hash
 
   // Self-redirect loop guard (mirrors 404.html)
   if (target === loc.href) {
     target = loc.protocol + '//' + loc.hostname + (loc.port ? ':' + loc.port : '') + basePath + loc.hash
   }
 
-  // URI-length guard (mirrors 404.html): drop query string when redirect URL is too long.
+  // URI-length guard (mirrors 404.html): first drop query params but keep route.
+  if (target.length > 2000) {
+    target = routeTarget
+  }
+
+  // Extremely defensive fallback for massive route payloads.
   if (target.length > 6000) {
     target =
       loc.protocol +
@@ -53,8 +61,6 @@ function computeRedirectTarget(loc: {
       loc.hostname +
       (loc.port ? ':' + loc.port : '') +
       basePath +
-      '?/' +
-      encodedRoute +
       loc.hash
   }
 
@@ -138,9 +144,9 @@ describe('SPA redirect – PR preview paths', () => {
 })
 
 describe('SPA redirect – URI-length guard', () => {
-  it('drops query string when redirect URL would exceed 6000 characters', () => {
+  it('drops query string but preserves route when redirect URL would exceed 2000 characters', () => {
     // Deterministically build an oversized query payload until the pre-guard target
-    // exceeds the 6000-char threshold.
+    // exceeds the 2000-char threshold.
     const params: string[] = []
     let manyParams = ''
     let initialTarget = ''
@@ -149,12 +155,12 @@ describe('SPA redirect – URI-length guard', () => {
       params.push(`tag=${'x'.repeat(40)}${i}`)
       manyParams = params.join('&')
       initialTarget = computeInitialRedirectTarget(makeLocation('/products', `?${manyParams}`))
-      if (initialTarget.length > 6000) {
+      if (initialTarget.length > 2000) {
         break
       }
     }
 
-    expect(initialTarget.length).toBeGreaterThan(6000)
+    expect(initialTarget.length).toBeGreaterThan(2000)
 
     const loc = makeLocation('/products', `?${manyParams}`)
 
@@ -162,21 +168,29 @@ describe('SPA redirect – URI-length guard', () => {
 
     // Redirect must still happen (not null)
     expect(target).not.toBeNull()
-    // The resulting URL must be within the safe limit
-    expect((target as string).length).toBeLessThanOrEqual(6000)
+    // The resulting URL should be route-only and under the primary safety limit.
+    expect((target as string).length).toBeLessThanOrEqual(2000)
     // It must still point at the correct route
     expect(target).toContain(encodeURIComponent('products'))
     // It must NOT include the oversized search params
     expect(target).not.toContain(encodeURIComponent(manyParams))
   })
 
-  it('returns a redirect URL under 6000 characters when params are dropped', () => {
+  it('returns a redirect URL under 2000 characters when params are dropped', () => {
     const manyParams = Array.from({ length: 100 }, (_, i) => `tag=verylongtagnumber${i}`).join('&')
     const loc = makeLocation('/pr-preview/359/products', '?' + manyParams)
 
     const target = computeRedirectTarget(loc)
     expect(target).not.toBeNull()
-    expect((target as string).length).toBeLessThanOrEqual(6000)
+    expect((target as string).length).toBeLessThanOrEqual(2000)
+  })
+
+  it('falls back to base path only when route-only URL is still over 6000 characters', () => {
+    const hugeRoute = '/' + 'very-long-segment-'.repeat(500)
+    const loc = makeLocation(hugeRoute)
+
+    const target = computeRedirectTarget(loc)
+    expect(target).toBe('https://example.github.io/')
   })
 
   it('does not drop params when URL is comfortably under the limit', () => {

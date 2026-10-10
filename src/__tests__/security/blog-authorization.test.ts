@@ -69,7 +69,11 @@ describeWithBackend('Blog Post Authorization (backend enforced)', () => {
 
     expect(createRes.status).toBe(201)
 
-    const publicList = await fetch(`${API_BASE}/blog-posts`)
+    // The public list is served with `Cache-Control: public, max-age=300`, and the deployed
+    // test backend sits behind an edge cache, so a plain GET can return a list from before
+    // this post existed. Use a unique query string to bypass the cache, and ask for the
+    // maximum page size so accumulated test posts can't push the new one off the first page.
+    const publicList = await fetch(`${API_BASE}/blog-posts?limit=100&_cb=${Date.now()}`)
     expect(publicList.status).toBe(200)
     const posts = await publicList.json()
     expect(posts.some((p: any) => p.slug === slug)).toBe(true)
@@ -106,7 +110,9 @@ describeWithBackend('Blog Post Authorization (backend enforced)', () => {
 
     expect(createRes.status).toBe(201)
 
-    const publicList = await fetch(`${API_BASE}/blog-posts`)
+    // Bypass the public list's edge cache so "not listed" reflects the current state
+    // instead of passing trivially against a stale list.
+    const publicList = await fetch(`${API_BASE}/blog-posts?limit=100&_cb=${Date.now()}`)
     const posts = await publicList.json()
     expect(posts.some((p: any) => p.slug === slug)).toBe(false)
 

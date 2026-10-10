@@ -203,4 +203,18 @@ describe('DiscussionSection Component Tests (APIService mocked)', () => {
       expect(screen.getAllByText(/sign in/i).length).toBeGreaterThan(0)
     })
   })
+
+  it('exposes thread and reply lists as named lists without a group role override', async () => {
+    const parent = await seedDiscussion(owner, 'Parent thread')
+    await seedDiscussion(helper, 'A reply', parent.id)
+
+    render(<DiscussionHarness productId={productId} user={owner} />)
+
+    const threads = await screen.findByRole('list', { name: 'All threads' })
+    expect(threads).not.toHaveAttribute('role', 'group')
+
+    const replies = await screen.findByRole('list', { name: 'Replies' })
+    expect(replies).not.toHaveAttribute('role', 'group')
+    expect(replies).toHaveTextContent('A reply')
+  })
 })
