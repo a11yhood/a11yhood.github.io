@@ -66,7 +66,10 @@ describeWithBackend('ProductDetail - Integration', () => {
     expect(screen.getByText(product.name)).toBeInTheDocument()
     // Key sections exist
     expect(screen.getByRole('heading', { name: 'Rating' })).toBeInTheDocument()
-    expect(screen.getAllByRole('heading', { name: /Discussion/i }).length).toBeGreaterThan(0)
+    // The collapsible card is the only place the word "Discussion" is announced; its inner
+    // heading is "Threads" so screen readers don't read the same name repeatedly.
+    expect(screen.getByText('Discussion', { selector: '[data-slot="card-title"]' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Threads' })).toBeInTheDocument()
   })
 
   it('shows canonical host in source link', () => {

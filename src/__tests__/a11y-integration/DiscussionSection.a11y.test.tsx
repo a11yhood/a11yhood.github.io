@@ -66,7 +66,7 @@ describeWithBackend('DiscussionSection Accessibility Tests', () => {
       />
     )
 
-    const heading = screen.getByRole('heading', { name: /discussion/i })
+    const heading = screen.getByRole('heading', { name: 'Threads' })
     expect(heading).toBeInTheDocument()
   })
 
@@ -91,7 +91,7 @@ describeWithBackend('DiscussionSection Accessibility Tests', () => {
       />
     )
 
-    const list = screen.getByRole('list')
+    const list = screen.getByRole('list', { name: 'All threads' })
     expect(list).toBeInTheDocument()
   })
 
