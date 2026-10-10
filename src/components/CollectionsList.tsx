@@ -82,16 +82,6 @@ export function CollectionsList({
               }
               onSelectCollection(collection)
             }}
-            role="button"
-            tabIndex={0}
-            aria-label={`View collection: ${collection.name}`}
-            onKeyDown={(e) => {
-              if (e.target !== e.currentTarget) return
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                onSelectCollection(collection)
-              }
-            }}
           >
             <div className="w-full h-40 bg-muted overflow-hidden flex items-center justify-center">
               {img ? (
@@ -112,7 +102,17 @@ export function CollectionsList({
                     <FolderOpen size={12} aria-hidden="true" />
                     Collection
                   </div>
-                  <CardTitle as="h2" className="text-lg line-clamp-2">{collection.name}</CardTitle>
+                  <CardTitle as="h2" className="text-lg line-clamp-2">
+                    {/* The card's click handler is a mouse convenience; this button is the keyboard/AT entry point
+                        (a role="button" card would nest the action buttons below inside another control). */}
+                    <button
+                      type="button"
+                      className="text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                      onClick={() => onSelectCollection(collection)}
+                    >
+                      {collection.name}
+                    </button>
+                  </CardTitle>
                   <CardDescription className="flex items-center gap-2 mt-1">
                     {collection.isPublic ? (
                       <LockOpen size={14} className="text-muted-foreground" />

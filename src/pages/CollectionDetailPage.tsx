@@ -80,7 +80,7 @@ export function CollectionDetailPage({
     if (!effectiveCollection) {
         return (
             <div className="text-center py-12">
-                <p className="text-lg text-muted-foreground">Collection not found</p>
+                <h1 className="text-2xl font-bold">Collection not found</h1>
                 <Button variant="outline" onClick={() => navigate('/collections')} className="mt-4">
                     Back to Collections
                 </Button>

@@ -941,6 +941,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEditProduct(product)}
+                            aria-label={`Edit ${product.name}`}
                           >
                             <Pencil size={16} />
                           </Button>
@@ -950,6 +951,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                               size="sm"
                               onClick={() => handleToggleBan(product)}
                               title={product.banned ? 'Unban product' : 'Ban product'}
+                              aria-label={`${product.banned ? 'Unban' : 'Ban'} ${product.name}`}
                             >
                               {product.banned ? <CheckCircle size={16} /> : <XCircle size={16} />}
                             </Button>
@@ -958,6 +960,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteProduct(product.id)}
+                            aria-label={`Delete ${product.name}`}
                           >
                             <Trash size={16} />
                           </Button>
@@ -1029,6 +1032,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEditProduct(product)}
+                            aria-label={`Edit ${product.name}`}
                           >
                             <Pencil size={16} />
                           </Button>
@@ -1038,6 +1042,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                               size="sm"
                               onClick={() => handleToggleBan(product)}
                               title={product.banned ? 'Unban product' : 'Ban product'}
+                              aria-label={`${product.banned ? 'Unban' : 'Ban'} ${product.name}`}
                             >
                               {product.banned ? <CheckCircle size={16} /> : <XCircle size={16} />}
                             </Button>
@@ -1046,6 +1051,7 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteProduct(product.id)}
+                            aria-label={`Delete ${product.name}`}
                           >
                             <Trash size={16} />
                           </Button>

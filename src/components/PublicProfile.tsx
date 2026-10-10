@@ -97,7 +97,7 @@ export function PublicProfile({ username }: { username: string }) {
     return <p className="text-sm text-muted-foreground">Loading profile...</p>
   }
   if (error || !account) {
-    return <p className="text-sm text-destructive">{error || 'User not found'}</p>
+    return <h1 className="text-lg font-semibold text-destructive">{error || 'User not found'}</h1>
   }
 
   const formatDate = (timestamp: number) => {

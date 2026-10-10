@@ -2341,7 +2341,7 @@ function App() {
                   />
                 ) : (
                   <div className="text-center py-12">
-                    <p className="text-lg text-muted-foreground">Please sign in to view your account</p>
+                    <h1 className="text-2xl font-bold">Please sign in to view your account</h1>
                     <Button onClick={() => handleLogin()} className="mt-4">Sign In</Button>
                   </div>
                 )
