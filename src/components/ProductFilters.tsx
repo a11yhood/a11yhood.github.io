@@ -68,7 +68,7 @@ export function ProductFilters({
     : safeTags.slice(0, 20)
 
   return (
-    <Card className="p-4 lg:p-6 sticky top-6 max-h-[calc(100vh-120px)] overflow-y-auto lg:max-h-none" role="search">
+    <Card className="p-4 lg:p-6 sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto" role="search">
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {hasActiveFilters ? `Filters active: ${selectedTags.length + selectedSources.length + (minRating > 0 ? 1 : 0) + (updatedSince ? 1 : 0)} filters applied` : 'No filters active'}
       </div>
