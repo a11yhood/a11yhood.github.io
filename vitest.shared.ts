@@ -15,6 +15,7 @@ export const REDUCED_TEST_INCLUDE = [
   '**/__tests__/lib/normalize-image-url.test.ts',
   '**/__tests__/lib/spa-redirect.test.ts',
   '**/__tests__/components/MarkdownText.test.tsx',
+  '**/__tests__/components/RavelrySettings.test.tsx',
   '**/__tests__/components/PublicProfile.test.tsx',
   '**/__tests__/components/UserProfile.website.test.tsx',
   '**/__tests__/components/HomePage.test.tsx',
