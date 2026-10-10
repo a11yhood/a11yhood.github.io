@@ -91,7 +91,7 @@ describeWithBackend('DiscussionSection Accessibility Tests', () => {
       />
     )
 
-    const list = screen.getByRole('list')
+    const list = screen.getByRole('list', { name: 'Discussion threads' })
     expect(list).toBeInTheDocument()
   })
 
