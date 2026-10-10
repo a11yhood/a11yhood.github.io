@@ -3,6 +3,37 @@
 @import './theme.css';
 
 /*
+  Semantic color utilities (bg-primary, text-muted-foreground, border-border, ...).
+
+  These used to live only in tailwind.config.js, but Tailwind CSS v4 does not read
+  that file unless it is loaded with @config, so none of these utilities were being
+  generated: default Buttons had no background, text-muted-foreground was plain
+  text, and so on. Declaring them here makes Tailwind emit them, mapped onto the
+  existing Radix-based tokens from theme.css.
+*/
+@theme inline {
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-fg);
+  --color-card: var(--color-bg-overlay);
+  --color-card-foreground: var(--color-fg);
+  --color-popover: var(--color-bg-overlay);
+  --color-popover-foreground: var(--color-fg);
+  --color-primary: var(--color-accent-9);
+  --color-primary-foreground: var(--color-accent-contrast);
+  --color-secondary: var(--color-bg-inset);
+  --color-secondary-foreground: var(--color-neutral-12);
+  --color-destructive: var(--red-10, #cd2c2c);
+  --color-destructive-foreground: #ffffff;
+  --color-muted: var(--color-bg-inset);
+  --color-muted-foreground: var(--color-neutral-11);
+  --color-accent: var(--color-accent-9);
+  --color-accent-foreground: var(--color-accent-contrast);
+  --color-border: var(--color-neutral-8);
+  --color-input: var(--color-bg-inset);
+  --color-ring: var(--color-focus-ring);
+}
+
+/*
   The default border color has changed to `currentColor` in Tailwind CSS v4,
   so we've added these compatibility styles to make sure everything still
   looks the same as it did with Tailwind CSS v3.
