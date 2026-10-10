@@ -309,7 +309,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
             </div>
             {canModerateFlag && (onToggleBan || onDelete) && (
               <div className="flex items-center gap-2" role="group" aria-label="Moderation actions">
-                {canModerateFlag && onToggleBan && (
+                {onToggleBan && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -323,7 +323,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
                     {product.banned ? <CheckCircle size={16} /> : <Prohibit size={16} />}
                   </Button>
                 )}
-                {canModerateFlag && onDelete && (
+                {onDelete && (
                   <Button
                     variant="ghost"
                     size="sm"
