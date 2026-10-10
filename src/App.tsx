@@ -649,6 +649,18 @@ function App() {
     setAuthTokenGetter(getAccessToken)
   }, [getAccessToken])
 
+  // Reset to page 1 when the filters change. Done here (not after the fetch) so that
+  // a plain page change with filters active is not mistaken for a filter change (#521).
+  const filterKey = JSON.stringify([
+    searchQuery, includeBanned, selectedTypes, selectedSources, selectedTags, minRating, committedUpdatedSince,
+  ])
+  const previousFilterKeyRef = useRef(filterKey)
+  useEffect(() => {
+    if (previousFilterKeyRef.current === filterKey) return
+    previousFilterKeyRef.current = filterKey
+    setCurrentPage(1)
+  }, [filterKey])
+
   // Refetch products when filters, search, or page changes (consolidated effect to avoid duplicates)
   useEffect(() => {
     console.log('[App.fetchEffect] Triggered. dataLoaded:', dataLoaded, 'currentPage:', currentPage, 'sortBy:', sortBy, 'sortOrder:', sortOrder, 'location:', location.pathname)
@@ -798,16 +810,6 @@ function App() {
         const finalCount = countResult.status === 'fulfilled' ? countResult.value : fallbackCount
 
         setTotalProductCount(finalCount)
-
-        // Only reset to page 1 if this was triggered by search/filter change (not page change)
-        if (currentPage === 1) {
-          console.log('[App.fetchEffect] Already on page 1')
-        } else if (searchQuery === '' && selectedSources.length === 0 && selectedTypes.length === 0 && selectedTags.length === 0 && minRating === 0 && committedUpdatedSince === null) {
-          // Page change without filter change - don't reset page
-        } else {
-          // Filter change - reset to page 1
-          setCurrentPage(1)
-        }
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
           console.debug('[App.fetchEffect] Request was aborted')
