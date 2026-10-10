@@ -357,27 +357,29 @@ export const ProductImageManager = forwardRef<ProductImageManagerRef, ProductIma
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
     getPendingImageData: () => {
-      // Always return the manager's current image state first. This prevents
-      // submit-time races where parent form state is stale immediately after
-      // selecting/uploading an image.
-      const currentImageUrl = previewUrl ?? cropSourceUrl
-      if (currentImageUrl) {
-        return { url: currentImageUrl, alt: altText.trim() }
-      }
-
-      // Return pending URL input even if alt text is empty so the dialog's
-      // validation can catch missing alt text rather than dropping the URL.
+      // In input mode (preview hidden, e.g. after clicking the image to edit), a
+      // typed URL that hasn't been committed with "Add URL" takes precedence over
+      // the previous image still held in cropSourceUrl. Return it even if alt text
+      // is empty so the dialog's validation can catch missing alt text rather than
+      // dropping the URL.
       const trimmedUrl = urlInput.trim()
-      if (trimmedUrl) {
+      if (!previewUrl && trimmedUrl) {
         try {
           // Validate and normalize the URL before returning
           new URL(trimmedUrl)
           const normalizedUrl = normalizeImageUrl(trimmedUrl)
           return { url: normalizedUrl, alt: altText.trim() }
         } catch {
-          // Invalid URL, return null
-          return null
+          // Invalid URL: fall through to the last confirmed image, if any
         }
+      }
+
+      // Otherwise return the manager's current image state. This prevents
+      // submit-time races where parent form state is stale immediately after
+      // selecting/uploading an image.
+      const currentImageUrl = previewUrl ?? cropSourceUrl
+      if (currentImageUrl) {
+        return { url: currentImageUrl, alt: altText.trim() }
       }
       return null
     },
