@@ -241,7 +241,7 @@ function DiscussionItem({
       )}
 
       {replies.length > 0 && (
-        <ul className="ml-12 mt-4 space-y-4" role="group">
+        <ul className="ml-12 mt-4 space-y-4" aria-label="Replies">
           {replies.map((reply) => (
             <DiscussionItem
               key={reply.id}
@@ -387,7 +387,7 @@ export function DiscussionSection({
             </p>
           </Card>
         ) : (
-          <ul className="space-y-6">
+          <ul className="space-y-6" aria-label="Discussion threads">
             {topLevelDiscussions
               .filter((d) => canSee(d))
               .sort((a, b) => b.createdAt - a.createdAt)
