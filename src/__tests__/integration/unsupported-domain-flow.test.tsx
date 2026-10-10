@@ -8,7 +8,7 @@ import type { UserData, UserAccount } from '@/lib/types'
 
 /**
  * Integration: Unsupported domain triggers request dialog using live backend.
- * Requires backend running at http://localhost:8002 (start with start-dev.sh).
+ * Requires the dev backend running at http://localhost:8002 (from the backend repo: pixi run dev).
  */
 describeWithBackend('Unsupported domain flow (live backend)', () => {
   const user: UserData = {
