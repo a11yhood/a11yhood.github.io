@@ -151,7 +151,7 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
             )}
 
             <div className="flex flex-wrap gap-1.5 text-sm text-muted-foreground">
-	    <ul className="flex flex-wrap gap-1.5">
+	    <ul className="flex flex-wrap gap-1.5" aria-label="Tags">
                 {Array.from(new Set(product.tags)).slice(0, 20).map((tag) => (
                   <li key={tag}>
                     <ProductFilterTag
@@ -189,7 +189,11 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
           )}
         </div>
 
-        <div className="flex items-center gap-2 justify-end text-sm text-muted-foreground">
+        <div
+          className="flex items-center gap-2 justify-end text-sm text-muted-foreground"
+          role="group"
+          aria-label="Source details and actions"
+        >
           {sourceIcon && (
             <span className="flex items-center gap-1 whitespace-nowrap">
               <FontAwesomeIcon

@@ -402,7 +402,7 @@ export function ProductDetail({
         <div className="lg:col-span-2 min-w-0">
           <div className="mb-6">
             {shouldShowImage ? (
-              <div className="float-left mr-4 mb-3 sm:mr-6 sm:mb-4 max-w-[300px] w-full">
+              <div className="mb-4 sm:float-left sm:mr-6 max-w-[300px] w-full">
                 <img
                   src={resolvedImageUrl}
                   alt={product.imageAlt || `${product.name} product image`}
@@ -421,13 +421,13 @@ export function ProductDetail({
                 )}
               </div>
             ) : (
-              <div className="float-left mr-4 mb-3 sm:mr-6 sm:mb-4 rounded-lg max-w-[300px] w-full h-auto min-h-[180px] bg-muted text-muted-foreground flex items-center justify-center text-sm p-2">
+              <div className="mb-4 sm:float-left sm:mr-6 rounded-lg max-w-[300px] w-full h-auto min-h-[180px] bg-muted text-muted-foreground flex items-center justify-center text-sm p-2">
                 <span className="min-w-0 wrap-anywhere text-center">Image unavailable for {product.name}</span>
               </div>
             )}
 
             <div className="flex items-start justify-between gap-3 sm:gap-4 mb-2 sm:mb-3">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight line-clamp-2 sm:line-clamp-none wrap-anywhere min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight wrap-anywhere min-w-0">
                 {product.name}
               </h1>
               <div className="flex items-center gap-2 shrink-0">
@@ -460,7 +460,7 @@ export function ProductDetail({
 
             <MarkdownText
               text={product.description}
-              className="text-base leading-relaxed text-foreground prose prose-sm max-w-none line-clamp-2 sm:line-clamp-none"
+              className="text-base leading-relaxed text-foreground prose prose-sm max-w-none"
             />
 
             {updatedText && (
