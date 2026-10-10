@@ -109,7 +109,7 @@ export function buildSocialMetadata({
     const slug = decodeURIComponent(pathname.slice('/blog/'.length))
     const post = blogPosts.find((candidate) => candidate.slug === slug)
     if (post) {
-      const descriptionSource = post.excerpt || stripMarkdown(post.content || '')
+      const descriptionSource = stripMarkdown(post.excerpt || post.content || '')
       const description = truncate(descriptionSource || DEFAULT_DESCRIPTION)
       return {
         title: `${post.title} | a11yhood blog`,
@@ -217,7 +217,8 @@ export function applySocialMetadata(metadata: SocialMetadata): void {
   if (typeof document === 'undefined') return
 
   document.title = metadata.title
-  const usesFallbackImage = metadata.image.endsWith(DEFAULT_SHARE_IMAGE_PATH)
+  const fallbackImage = new URL(DEFAULT_SHARE_IMAGE_PATH, metadata.url).toString()
+  const usesFallbackImage = metadata.image === fallbackImage
 
   setMeta('name', 'description', metadata.description)
   setMeta('property', 'og:title', metadata.title)

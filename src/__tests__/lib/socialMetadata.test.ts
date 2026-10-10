@@ -19,7 +19,7 @@ const baseBlogPost: BlogPost = {
   slug: 'accessible-testing',
   title: 'Accessible Testing',
   content: 'Helpful content',
-  excerpt: 'How to test accessibly',
+  excerpt: 'How to **test** [accessibly](/guide)',
   authorId: 'author-1',
   authorName: 'Author',
   createdAt: new Date().toISOString(),
@@ -127,5 +127,17 @@ describe('applySocialMetadata', () => {
     expect(document.head.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe('https://a11yhood.example/image.png')
     expect(document.head.querySelector('meta[name="twitter:card"]')?.getAttribute('content')).toBe('summary_large_image')
     expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe('https://a11yhood.example/products?q=screen')
+  })
+
+  it('uses summary card when only fallback image is available', () => {
+    applySocialMetadata({
+      title: 'Fallback page',
+      description: 'Fallback description',
+      image: 'https://a11yhood.example/favicon.ico',
+      url: 'https://a11yhood.example/collections',
+      type: 'website',
+    })
+
+    expect(document.head.querySelector('meta[name="twitter:card"]')?.getAttribute('content')).toBe('summary')
   })
 })
