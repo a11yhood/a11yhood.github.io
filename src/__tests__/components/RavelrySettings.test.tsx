@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { RavelryOAuthManager } from '@/lib/scrapers/ravelry-oauth'
+import { APIService } from '@/lib/api'
 
 // Backend as the admin API would return it: tokens cleared, client credentials kept.
 const backend: { cfg: Record<string, unknown> | null } = { cfg: null }
@@ -81,6 +82,18 @@ describe('RavelrySettings connection states', () => {
     await renderSettings()
 
     expect(screen.getByText('Connected to Ravelry')).toBeInTheDocument()
+  })
+
+  it('checks the backend only once per isAuthorized() call', async () => {
+    localStorage.setItem(
+      'ravelry-oauth-config',
+      JSON.stringify({ clientId: 'abc', clientSecret: 'secret', accessToken: 'token' }),
+    )
+    backend.cfg = { ...backend.cfg, accessToken: 'token' }
+    vi.mocked(APIService.getOAuthConfig).mockClear()
+
+    expect(await RavelryOAuthManager.isAuthorized()).toBe(true)
+    expect(APIService.getOAuthConfig).toHaveBeenCalledTimes(1)
   })
 
   it('shows a persistent error when saving credentials fails', async () => {
