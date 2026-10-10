@@ -87,9 +87,10 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
   }, [user?.id, notify])
 
   return (
-    <header className="border-b border-border bg-card sticky top-0 z-50 shadow-sm h-[60px]">
-      <nav aria-label="Primary navigation" className="max-w-7xl mx-auto px-6 h-full">
-        <div className="flex items-center justify-between gap-4 h-full bg-(--color-bg)">
+    <header className="border-b border-border bg-card sticky top-0 z-50 shadow-sm min-h-[60px]">
+      <nav aria-label="Primary navigation" className="max-w-7xl mx-auto px-6">
+        {/* min-h + wrap (not a fixed height) so enlarged text or spacing reflows instead of overflowing */}
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 min-h-[60px] py-2 bg-(--color-bg)">
           <div className="flex items-center gap-3">
             {/* Logo link: aria-label provides the accessible name; image is decorative */}
             <Link

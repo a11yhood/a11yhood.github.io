@@ -190,6 +190,21 @@ describeWithBackend('ProductCard - API-backed', () => {
     expect(deleteButton).toBeInTheDocument()
   })
 
+  it('should not render an empty moderation actions group for non-moderators', () => {
+    render(
+      <ProductCard
+        product={productFromApi}
+        ratings={ratingsFromApi}
+        onClick={vi.fn()}
+        userAccount={{ id: 'user-1', username: 'regular-user', role: 'user' } as any}
+        onDelete={vi.fn()}
+        onToggleBan={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByRole('group', { name: /moderation actions/i })).not.toBeInTheDocument()
+  })
+
   it('should display source rating when no user ratings exist', () => {
     // Render with no user ratings; label content varies by backend data, so just ensure badge exists
     render(

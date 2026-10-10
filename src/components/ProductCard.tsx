@@ -204,7 +204,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
           />
 
           {product.tags && product.tags.length > 0 && (
-            <ul className="flex flex-wrap gap-2">
+            <ul className="flex flex-wrap gap-2" aria-label="Tags">
               {Array.from(new Set(product.tags)).slice(0, 10).map((tag) => {
                 const isSelected = selectedTags.includes(tag)
                 return (
@@ -287,7 +287,7 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
           </div>
 
           <div className="flex items-center justify-between">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1" role="group" aria-label="Source and last updated">
               <a
                 href={product.sourceUrl}
                 target="_blank"
@@ -307,33 +307,35 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              {canModerateFlag && onToggleBan && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onToggleBan()
-                  }}
-                  className="h-8 w-8 p-0"
-                  aria-label={product.banned ? 'Unban product' : 'Ban product'}
-                >
-                  {product.banned ? <CheckCircle size={16} /> : <Prohibit size={16} />}
-                </Button>
-              )}
-              {canModerateFlag && onDelete && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleDelete}
-                  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  aria-label="Delete product"
-                >
-                  <Trash size={16} />
-                </Button>
-              )}
-            </div>
+            {canModerateFlag && (onToggleBan || onDelete) && (
+              <div className="flex items-center gap-2" role="group" aria-label="Moderation actions">
+                {onToggleBan && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onToggleBan()
+                    }}
+                    className="h-8 w-8 p-0"
+                    aria-label={product.banned ? 'Unban product' : 'Ban product'}
+                  >
+                    {product.banned ? <CheckCircle size={16} /> : <Prohibit size={16} />}
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleDelete}
+                    className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    aria-label="Delete product"
+                  >
+                    <Trash size={16} />
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           {isInteractiveRating && (

@@ -410,7 +410,10 @@ export function ProductListPage({
                                 className="sr-only"
                             >
                                 {isSearching && 'Searching products'}
-                                {!isSearching && products.length > 0 && `Showing ${products.length} products`}
+                                {!isSearching && products.length > 0 &&
+                                    (totalPages > 1
+                                        ? `Page ${page} of ${totalPages}, showing ${products.length} products`
+                                        : `Showing ${products.length} products`)}
                                 {!isSearching && products.length === 0 && 'No products found'}
                             </div>
                         </div>
