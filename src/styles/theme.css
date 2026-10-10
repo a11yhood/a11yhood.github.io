@@ -96,6 +96,8 @@
     --iris-contrast: #fff;
     --indigo-contrast: #fff;
     --blue-contrast: #fff;
+    --blue-9-accessible: #005fcc;
+    --blue-10-accessible: #0053b3;
     --cyan-contrast: #fff;
     --teal-contrast: #fff;
     --jade-contrast: #fff;
@@ -209,8 +211,8 @@
     --color-accent-6: var(--blue-6);
     --color-accent-7: var(--blue-7);
     --color-accent-8: var(--blue-8);
-    --color-accent-9: var(--blue-9);
-    --color-accent-10: var(--blue-10);
+    --color-accent-9: var(--blue-9-accessible);
+    --color-accent-10: var(--blue-10-accessible);
     --color-accent-11: var(--blue-11);
     --color-accent-12: var(--blue-12);
     --color-accent-contrast: var(--blue-contrast);
