@@ -50,6 +50,7 @@ export function RavelrySettings({ onAuthComplete, products: _products = [], onPr
   const [oauthFlowLog, setOauthFlowLog] = useState<RavelryFlowLog | null>(null)
   const [saveLog, setSaveLog] = useState<SaveLog | null>(null)
   const [showDiagnostics, setShowDiagnostics] = useState(false)
+  const [credentialsError, setCredentialsError] = useState<string | null>(null)
 
   /** Safe JSON parse for flow log, returns null if parsing fails. */
   const parseFlowLog = (json: string): RavelryFlowLog | null => {
@@ -162,6 +163,7 @@ export function RavelrySettings({ onAuthComplete, products: _products = [], onPr
     }
 
     setIsSaving(true)
+    setCredentialsError(null)
     try {
       console.log('[Ravelry] ========== SAVING CREDENTIALS ==========')
       console.log('[Ravelry] → Client ID length:', clientId.trim().length)
@@ -211,6 +213,8 @@ export function RavelrySettings({ onAuthComplete, products: _products = [], onPr
         console.error('[Ravelry] Error message:', error.message)
         console.error('[Ravelry] Error stack:', error.stack)
       }
+      const detail = error instanceof Error && error.message ? ` (${error.message})` : ''
+      setCredentialsError(`Failed to save credentials${detail}. Please try again.`)
       notify.error('Failed to save credentials. Please try again.')
     } finally {
       setIsSaving(false)
@@ -368,7 +372,7 @@ export function RavelrySettings({ onAuthComplete, products: _products = [], onPr
           </p>
         </div>
 
-        {!isAuthorized && (!hasCredentials || showSetupForm) ? (
+        {(!hasCredentials || showSetupForm) && (
           <div className="space-y-4">
             <div className="rounded-lg border border-border p-4 space-y-4">
               <div className="space-y-2">
@@ -399,6 +403,10 @@ export function RavelrySettings({ onAuthComplete, products: _products = [], onPr
                 These credentials are stored locally for setup and saved to the backend only after you complete OAuth.
               </p>
 
+              {credentialsError && (
+                <p role="alert" className="text-sm text-destructive">{credentialsError}</p>
+              )}
+
               <div className="flex gap-2">
                 <Button
                   onClick={handleSaveCredentials}
@@ -406,7 +414,7 @@ export function RavelrySettings({ onAuthComplete, products: _products = [], onPr
                 >
                   {isSaving ? 'Saving...' : 'Save Credentials'}
                 </Button>
-                {showSetupForm && isAuthorized && (
+                {showSetupForm && hasCredentials && (
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -421,7 +429,9 @@ export function RavelrySettings({ onAuthComplete, products: _products = [], onPr
               </div>
             </div>
           </div>
-        ) : !isAuthorized && hasCredentials ? (
+        )}
+
+        {!isAuthorized && hasCredentials && (
           <div className="space-y-4">
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
               <div className="flex items-center justify-between gap-4">
@@ -450,7 +460,9 @@ export function RavelrySettings({ onAuthComplete, products: _products = [], onPr
               </Button>
             </div>
           </div>
-        ) : (
+        )}
+
+        {isAuthorized && (
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 border rounded-lg bg-green-50 border-green-200">
               <div className="flex items-center gap-3">
