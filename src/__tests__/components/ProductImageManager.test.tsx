@@ -1,7 +1,8 @@
+import { createRef } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
-import { ProductImageManager } from '@/components/ProductImageManager'
+import { ProductImageManager, type ProductImageManagerRef } from '@/components/ProductImageManager'
 
 const notify = {
   error: vi.fn(),
@@ -156,5 +157,29 @@ describe('ProductImageManager', () => {
 
     const imageUrlInput = screen.getByRole('textbox', { name: /image url/i })
     expect((imageUrlInput as HTMLInputElement).value).toMatch(/\/api\/images\/24680$/)
+  })
+
+  it('returns the typed URL, not the previous image, when "Add URL" was not clicked (#520)', async () => {
+    const user = userEvent.setup()
+    const ref = createRef<ProductImageManagerRef>()
+
+    render(
+      <ProductImageManager
+        ref={ref}
+        imageUrl="https://example.com/old.png"
+        imageAlt="Old alt"
+        onImageChange={vi.fn()}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: /edit image url and alt text/i }))
+    const input = screen.getByRole('textbox', { name: /image url/i })
+    await user.clear(input)
+    await user.type(input, 'https://example.com/new.png')
+
+    expect(ref.current?.getPendingImageData()).toEqual({
+      url: 'https://example.com/new.png',
+      alt: 'Old alt',
+    })
   })
 })
