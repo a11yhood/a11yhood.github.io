@@ -45,6 +45,7 @@ import { routeNeedsFullProductList } from '@/lib/routeUtils'
 import { ProductDetailPageWrapper } from '@/pages/ProductDetailPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { AlertBanner } from '@/components/AlertBanner'
+import { applySocialMetadata, buildSocialMetadata } from '@/lib/socialMetadata'
 // API adapter disabled - using real backend API now
 // import '@/lib/api-adapter'
 
@@ -133,6 +134,21 @@ function App() {
   const isTestEnv = import.meta.env.MODE === 'test'
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
   const [adminVerboseLoggingEnabled, setAdminVerboseLoggingEnabled] = useState(true)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const metadata = buildSocialMetadata({
+      pathname: location.pathname,
+      search: location.search,
+      origin: window.location.origin,
+      products,
+      blogPosts,
+      collections,
+    })
+
+    applySocialMetadata(metadata)
+  }, [location.pathname, location.search, products, blogPosts, collections])
 
   useEffect(() => {
     const saved = localStorage.getItem('admin-verbose-logging-enabled')
