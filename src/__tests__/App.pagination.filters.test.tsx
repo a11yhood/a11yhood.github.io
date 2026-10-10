@@ -5,7 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import App from '@/App'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { APIService } from '@/lib/api'
-import { createMockProduct } from './helpers/create-mocks'
+import { createMockProduct, createMockUserAccount } from './helpers/create-mocks'
 
 /**
  * Regression tests for #521: with a source filter enabled, clicking "Next" on the
@@ -42,7 +42,13 @@ describe('App products pagination with filters (#521)', () => {
   let getAllProductsSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
-    vi.spyOn(APIService, 'getCurrentUser').mockResolvedValue(null as never)
+    // A plain user keeps the admin/moderator "auto-enable banned" effect from firing late
+    // and resetting the page, which would make these tests timing-dependent.
+    vi.spyOn(APIService, 'getCurrentUser').mockResolvedValue(
+      createMockUserAccount({ id: 'user-1', username: 'test-user', role: 'user' }),
+    )
+    vi.spyOn(APIService, 'getUserCollections').mockResolvedValue([])
+    vi.spyOn(APIService, 'getPublicCollections').mockResolvedValue([])
     vi.spyOn(APIService, 'getProductSources').mockResolvedValue([
       { name: 'GitHub', count: 100 },
       { name: 'Ravelry', count: 20 },
