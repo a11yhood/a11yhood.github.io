@@ -73,6 +73,11 @@ description = "start frontend dev server connected to local backend (default por
 cmd = "npm run dev"
 depends-on = ["install-dev"]
 
+[tasks.preview]
+description = "build the production bundle and serve it locally with vite preview (default port 4173; /api is proxied to the backend)"
+cmd = "npm run preview"
+depends-on = ["build-vite"]
+
 [tasks.lint]
 description = "run ESLint across all source files"
 cmd = "npm run lint"
