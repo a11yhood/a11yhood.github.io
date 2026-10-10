@@ -20,7 +20,7 @@ function relativeLuminance(hex: string) {
   const { r, g, b } = hexToRgb(hex)
   const channels = [r, g, b].map((channel) => {
     const normalized = channel / 255
-    return normalized <= 0.03928
+    return normalized <= 0.04045
       ? normalized / 12.92
       : ((normalized + 0.055) / 1.055) ** 2.4
   })
@@ -37,13 +37,35 @@ function contrastRatio(foreground: string, background: string) {
 }
 
 describe('theme color contrast', () => {
+  const themeCss = readFileSync(resolve(process.cwd(), 'src/styles/theme.css'), 'utf-8')
+
+  const resolveThemeColor = (token: string): string => {
+    const escapedToken = token.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+    const declarations = [...themeCss.matchAll(new RegExp(`(^|\\s)${escapedToken}\\s*:\\s*(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|var\\(--[a-z0-9-]+\\))`, 'g'))]
+    const match = declarations[declarations.length - 1]
+
+    if (!match) {
+      throw new Error(`Could not resolve theme token ${token}`)
+    }
+
+    const raw = match[2]
+    if (raw.startsWith('var(')) {
+      const variableName = raw.slice(4, -1)
+      return resolveThemeColor(variableName)
+    }
+
+    return raw
+  }
+
   it('keeps the default primary button background above the WCAG AA ratio for white text', () => {
-    const themeCss = readFileSync(resolve(process.cwd(), 'src/styles/theme.css'), 'utf-8')
-    const match = themeCss.match(/--color-accent-9:\s*(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3})/)
+    const bg = resolveThemeColor('--color-accent-9')
+    const ratio = contrastRatio('#ffffff', bg)
 
-    expect(match).not.toBeNull()
+    expect(ratio).toBeGreaterThanOrEqual(4.5)
+  })
 
-    const bg = (match as RegExpMatchArray)[1]
+  it('keeps the hover background for primary buttons above the WCAG AA ratio for white text', () => {
+    const bg = resolveThemeColor('--color-accent-10')
     const ratio = contrastRatio('#ffffff', bg)
 
     expect(ratio).toBeGreaterThanOrEqual(4.5)
