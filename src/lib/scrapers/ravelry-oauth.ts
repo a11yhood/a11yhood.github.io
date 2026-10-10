@@ -214,7 +214,18 @@ async function clearConfig(): Promise<void> {
 async function isAuthorized(): Promise<boolean> {
   const config = await getConfig()
   // Backend responses may omit clientSecret; accessToken is the primary signal of an active connection.
-  return !!(config && config.accessToken)
+  if (!config?.accessToken) return false
+
+  // getConfig() prefers the copy in localStorage, which can outlive the backend's
+  // token (reset, disconnect from another browser, ...). The backend is what the
+  // scrapers actually use, so it decides whether we are really connected.
+  try {
+    const backend = await APIService.getOAuthConfig('ravelry')
+    return !!(backend && (backend.accessToken || backend.hasAccessToken))
+  } catch {
+    // Backend unreachable: fall back to what we know locally.
+    return true
+  }
 }
 
 /**

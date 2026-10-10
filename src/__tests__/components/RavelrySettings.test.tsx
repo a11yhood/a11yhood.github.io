@@ -60,6 +60,29 @@ describe('RavelrySettings connection states', () => {
     expect(screen.getByLabelText('Ravelry Client ID')).toBeInTheDocument()
   })
 
+  it('does not claim to be connected when localStorage has a token the backend no longer has', async () => {
+    localStorage.setItem(
+      'ravelry-oauth-config',
+      JSON.stringify({ clientId: 'abc', clientSecret: 'secret', accessToken: 'stale-token' }),
+    )
+    // backend.cfg has accessToken: null (set in beforeEach)
+    await renderSettings()
+
+    expect(screen.queryByText('Connected to Ravelry')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Connect to Ravelry' })).toBeInTheDocument()
+  })
+
+  it('trusts the local token when the backend has one', async () => {
+    localStorage.setItem(
+      'ravelry-oauth-config',
+      JSON.stringify({ clientId: 'abc', clientSecret: 'secret', accessToken: 'token' }),
+    )
+    backend.cfg = { ...backend.cfg, accessToken: 'token' }
+    await renderSettings()
+
+    expect(screen.getByText('Connected to Ravelry')).toBeInTheDocument()
+  })
+
   it('shows a persistent error when saving credentials fails', async () => {
     vi.spyOn(RavelryOAuthManager, 'saveConfig').mockRejectedValueOnce(new Error('boom'))
     await renderSettings()
