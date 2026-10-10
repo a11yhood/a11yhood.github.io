@@ -20,10 +20,11 @@ type BuildSocialMetadataOptions = {
 
 const DEFAULT_TITLE = 'a11yhood'
 const DEFAULT_DESCRIPTION = 'Discover and share accessible products, collections, and stories on a11yhood.'
+const DEFAULT_SHARE_IMAGE_PATH = '/favicon.ico'
 
 const stripMarkdown = (value: string): string => value
   .replace(/!\[[^\]]*]\([^)]+\)/g, ' ')
-  .replace(/\[[^\]]+]\([^)]+\)/g, '$1')
+  .replace(/\[([^\]]+)]\([^)]+\)/g, '$1')
   .replace(/[`*_>#-]/g, ' ')
   .replace(/\s+/g, ' ')
   .trim()
@@ -59,7 +60,7 @@ const pickRepresentativeSearchImage = (products: Product[], seed: string): strin
 
 const routeUrl = (origin: string, pathname: string, search: string): string => `${origin}${pathname}${search}`
 
-const buildSearchDescription = (query: string, params: URLSearchParams, resultCount: number): string => {
+const buildSearchDescription = (query: string, params: URLSearchParams): string => {
   const tags = params.getAll('tag').filter(Boolean)
   const sources = params.getAll('source').filter(Boolean)
   const minRating = params.get('minRating')
@@ -70,12 +71,11 @@ const buildSearchDescription = (query: string, params: URLSearchParams, resultCo
   if (minRating) details.push(`minimum rating: ${minRating}`)
 
   const label = query ? `Search results for “${query}”` : 'Product search results'
-  const results = `${resultCount} ${resultCount === 1 ? 'product' : 'products'}`
   if (details.length === 0) {
-    return `${label} on a11yhood (${results}).`
+    return `${label} on a11yhood.`
   }
 
-  return `${label} on a11yhood (${results}) filtered by ${details.join('; ')}.`
+  return `${label} on a11yhood filtered by ${details.join('; ')}.`
 }
 
 export function buildSocialMetadata({
@@ -87,7 +87,7 @@ export function buildSocialMetadata({
   collections,
 }: BuildSocialMetadataOptions): SocialMetadata {
   const params = new URLSearchParams(search)
-  const fallbackImage = `${origin}/favicon.ico`
+  const fallbackImage = `${origin}${DEFAULT_SHARE_IMAGE_PATH}`
   const url = routeUrl(origin, pathname, search)
 
   if (pathname.startsWith('/product/')) {
@@ -147,7 +147,7 @@ export function buildSocialMetadata({
     const pickedImage = pickRepresentativeSearchImage(products, `${pathname}?${params.toString()}`)
     return {
       title: query ? `Search: ${query} | a11yhood` : 'Search products | a11yhood',
-      description: buildSearchDescription(query, params, products.length),
+      description: buildSearchDescription(query, params),
       image: toAbsoluteUrl(pickedImage, origin) || fallbackImage,
       url,
       type: 'website',
@@ -217,6 +217,7 @@ export function applySocialMetadata(metadata: SocialMetadata): void {
   if (typeof document === 'undefined') return
 
   document.title = metadata.title
+  const usesFallbackImage = metadata.image.endsWith(DEFAULT_SHARE_IMAGE_PATH)
 
   setMeta('name', 'description', metadata.description)
   setMeta('property', 'og:title', metadata.title)
@@ -224,7 +225,7 @@ export function applySocialMetadata(metadata: SocialMetadata): void {
   setMeta('property', 'og:type', metadata.type)
   setMeta('property', 'og:url', metadata.url)
   setMeta('property', 'og:image', metadata.image)
-  setMeta('name', 'twitter:card', metadata.image ? 'summary_large_image' : 'summary')
+  setMeta('name', 'twitter:card', usesFallbackImage ? 'summary' : 'summary_large_image')
   setMeta('name', 'twitter:title', metadata.title)
   setMeta('name', 'twitter:description', metadata.description)
   setMeta('name', 'twitter:image', metadata.image)
