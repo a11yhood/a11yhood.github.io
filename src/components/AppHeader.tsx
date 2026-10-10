@@ -262,7 +262,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                 </DropdownMenu>
               </div>
             ) : (
-              <Button onClick={onLogin} size="sm">
+              <Button onClick={() => onLogin()} size="sm">
                 <UserCircle size={20} className="mr-2" />
                 Sign in
               </Button>
