@@ -433,7 +433,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
   }
 
   const submissionErrors = Object.entries(errors).filter(([key]) =>
-    ['name', 'sourceUrl', 'description', 'imageAlt'].includes(key)
+    Object.prototype.hasOwnProperty.call(errorFieldIds, key)
   )
 
   return (
