@@ -46,14 +46,14 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
   const location = useLocation()
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
   const canAccessAdmin = (userAccount?.role === 'admin' || userAccount?.role === 'moderator')
-  const [requestSource, setRequestSource] = useState<{ domain: string; url?: string } | null>(null)
+  const [requestSource, setRequestSource] = useState<{ domain: string; url?: string; message?: string } | null>(null)
   const productSubmissionRef = useRef<ProductSubmissionRef>(null)
 
   // Listen for unsupported domain events from ProductSubmission
   useEffect(() => {
     const handleUnsupportedDomain = async (event: Event) => {
       const customEvent = event as CustomEvent
-      const { domain, url } = customEvent.detail || {}
+      const { domain, url, message } = customEvent.detail || {}
       
       // Check if user already has a pending request for this domain
       if (user?.id) {
@@ -76,7 +76,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
       }
       
       // Keep submission dialog open so users see the inline error before requesting a new source
-      setRequestSource({ domain, url })
+      setRequestSource({ domain, url, message })
       notify.info(
         `The domain "${domain}" is not yet in our allowed sources. Would you like to request it?`
       )
@@ -284,6 +284,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
           }}
           domain={requestSource.domain}
           url={requestSource.url}
+          notice={requestSource.message}
           userId={user?.id}
           userName={userAccount?.username || user?.username}
           userAvatarUrl={userAccount?.avatarUrl || user?.avatarUrl}

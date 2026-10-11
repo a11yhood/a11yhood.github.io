@@ -28,6 +28,8 @@ export interface AppNotification {
   id: string
   type: NotificationType
   message: string
+  /** Set when raised while a modal dialog was open: rendered inside that dialog, not in the page banner. */
+  modalId?: string
 }
 
 interface NotificationContextValue {
@@ -38,9 +40,20 @@ interface NotificationContextValue {
     info: (message: string) => void
   }
   dismiss: (id: string) => void
+  /** Remove every notification scoped to a dialog (called when the dialog unmounts). */
+  dismissModal?: (modalId: string) => void
 }
 
 const NotificationContext = createContext<NotificationContextValue | undefined>(undefined)
+
+const OPEN_MODAL_SELECTOR = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
+
+/** id of the topmost open modal (portals append in open order), if any. */
+function topmostModalId(): string | undefined {
+  if (typeof document === 'undefined') return undefined
+  const modals = document.querySelectorAll<HTMLElement>(OPEN_MODAL_SELECTOR)
+  return modals[modals.length - 1]?.id || undefined
+}
 
 /** Auto-dismiss delay per type (ms). Errors require explicit dismissal. */
 const AUTO_DISMISS_MS: Record<NotificationType, number | null> = {
@@ -66,9 +79,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const addNotification = useCallback(
     (type: NotificationType, message: string) => {
       const id = crypto.randomUUID()
-      setNotifications((prev) => [...prev, { id, type, message }])
+      // Raised from inside a dialog: show it in that dialog (the page banner is covered and aria-hidden).
+      const modalId = topmostModalId()
+      // Replace an identical message instead of stacking duplicates; the new id makes it re-announce.
+      setNotifications((prev) => [
+        ...prev.filter((n) => !(n.type === type && n.message === message && n.modalId === modalId)),
+        { id, type, message, modalId },
+      ])
 
-      const delay = AUTO_DISMISS_MS[type]
+      // Dialog-scoped messages persist until dismissed or the dialog closes.
+      const delay = modalId ? null : AUTO_DISMISS_MS[type]
       if (delay !== null) {
         const timer = setTimeout(() => dismiss(id), delay)
         timers.current.set(id, timer)
@@ -76,6 +96,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     },
     [dismiss],
   )
+
+  const dismissModal = useCallback((modalId: string) => {
+    setNotifications((prev) => prev.filter((n) => n.modalId !== modalId))
+  }, [])
 
   const notify = useMemo(
     () => ({
@@ -97,8 +121,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ notifications, notify, dismiss }),
-    [notifications, notify, dismiss],
+    () => ({ notifications, notify, dismiss, dismissModal }),
+    [notifications, notify, dismiss, dismissModal],
   )
 
   return (

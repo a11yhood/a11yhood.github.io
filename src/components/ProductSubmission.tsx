@@ -236,14 +236,15 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
         console.info('Unsupported domain during URL check:', errorMessage)
         try {
           const domain = new URL(normalized).hostname
-          // Pass the error to parent via setting the URL and showing unsupported error
-          setErrors({ urlToCheck: errorMessage })
+          // Raised as a dialog notification (not inline state): a new element is created and focused on
+          // every attempt, so the same rejection is announced again when the user resubmits.
+          notify.error(errorMessage)
           // Allow manual form entry even when the domain is unsupported
           setSourceUrl(normalizeProductUrl(normalized))
           setUrlCheckState('form')
           notify.info('This source is not supported yet. Please submit details manually.')
           // Trigger parent component to show request dialog
-          const event = new CustomEvent('unsupported-domain', { detail: { domain, url: normalized } })
+          const event = new CustomEvent('unsupported-domain', { detail: { domain, url: normalized, message: errorMessage } })
           window.dispatchEvent(event)
         } catch {
           setErrors({ urlToCheck: 'Invalid URL format' })
@@ -251,7 +252,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
         }
       } else {
         console.error('Error checking URL:', error)
-        setErrors({ urlToCheck: errorMessage || 'Error checking URL' })
+        notify.error(errorMessage || 'Error checking URL')
         // Let users proceed with manual entry when scraping fails for other reasons
         setSourceUrl(normalizeProductUrl(normalized))
         setUrlCheckState('form')
@@ -456,11 +457,13 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
           </DialogDescription>
         </DialogHeader>
 
-        {errors.urlToCheck && (
-          <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
-            {errors.urlToCheck}
-          </div>
-        )}
+        {/* Always mounted so screen readers register the live region before the error text arrives. */}
+        <div
+          role="alert"
+          className={errors.urlToCheck ? 'mb-4 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive' : undefined}
+        >
+          {errors.urlToCheck}
+        </div>
 
         {urlCheckState === 'initial' && (
           <div className="space-y-4">
@@ -491,7 +494,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                 </Button>
               </div>
               {errors.urlToCheck && (
-                <p id="url-check-error" className="text-sm text-destructive" role="alert">{errors.urlToCheck}</p>
+                <p id="url-check-error" className="text-sm text-destructive">{errors.urlToCheck}</p>
               )}
               <p id="url-check-help" className="text-sm text-muted-foreground">
                 Enter a URL to check if it's already in our database or if we can automatically fetch its details.
