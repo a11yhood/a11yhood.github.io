@@ -101,6 +101,21 @@ describe('ProductSubmission Accessibility Tests', () => {
       expect(nameLabel?.textContent).toContain('*')
     })
 
+    it('keeps the error summary live region mounted before validation and focuses it after invalid submission', async () => {
+      const summary = document.querySelector('[data-testid="product-submission-error-summary"]')
+      expect(summary).toHaveAttribute('aria-live', 'assertive')
+      expect(summary).toBeEmptyDOMElement()
+
+      const form = summary?.closest('form')
+      expect(form).not.toBeNull()
+      fireEvent.submit(form!)
+
+      await waitFor(() => {
+        expect(summary).toHaveTextContent('Please fix the following:')
+        expect(document.activeElement).toBe(summary)
+      })
+    })
+
     it('should use aria-invalid for form fields with validation errors', async () => {
       // Try to submit without filling required fields
       const submitButton = screen.getAllByRole('button', { name: /submit/i }).find(btn => btn.textContent?.includes('Submit Product'))

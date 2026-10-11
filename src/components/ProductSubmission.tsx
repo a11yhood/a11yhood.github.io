@@ -425,6 +425,10 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
     return null
   }
 
+  const submissionErrors = Object.entries(errors).filter(([key]) =>
+    ['name', 'sourceUrl', 'description', 'imageAlt'].includes(key)
+  )
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
       setOpen(isOpen)
@@ -581,37 +585,41 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
 
         {(urlCheckState === 'form') && (
           <form onSubmit={handleSubmit} className="space-y-6">
-            {Object.entries(errors).filter(([key]) => ['name', 'sourceUrl', 'description', 'imageAlt'].includes(key)).length > 0 && (
-              <div
-                ref={errorSummaryRef}
-                role="alert"
-                aria-live="assertive"
-                tabIndex={-1}
-                className="border border-destructive/50 bg-destructive/5 text-destructive rounded-md p-4 space-y-2"
-              >
+            <div
+              ref={errorSummaryRef}
+              data-testid="product-submission-error-summary"
+              role="alert"
+              aria-live="assertive"
+              aria-atomic="true"
+              tabIndex={-1}
+              className={submissionErrors.length > 0
+                ? 'border border-destructive/50 bg-destructive/5 text-destructive rounded-md p-4 space-y-2'
+                : 'sr-only'}
+            >
+              {submissionErrors.length > 0 && (
+                <>
                 <p className="font-semibold">Please fix the following:</p>
                 <ul className="list-disc pl-5 space-y-1">
-                  {Object.entries(errors)
-                    .filter(([key]) => ['name', 'sourceUrl', 'description', 'imageAlt'].includes(key))
-                    .map(([key, message]) => {
-                      const idMap: Record<string, string> = {
-                        name: 'product-name',
-                        sourceUrl: 'product-url',
-                        description: 'product-description',
-                        imageAlt: 'image-alt-text',
-                      }
-                      const targetId = idMap[key] || 'product-form-help'
-                      return (
-                        <li key={key}>
-                          <a href={`#${targetId}`} className="underline">
-                            {message}
-                          </a>
-                        </li>
-                      )
-                    })}
+                  {submissionErrors.map(([key, message]) => {
+                    const idMap: Record<string, string> = {
+                      name: 'product-name',
+                      sourceUrl: 'product-url',
+                      description: 'product-description',
+                      imageAlt: 'image-alt-text',
+                    }
+                    const targetId = idMap[key] || 'product-form-help'
+                    return (
+                      <li key={key}>
+                        <a href={`#${targetId}`} className="underline">
+                          {message}
+                        </a>
+                      </li>
+                    )
+                  })}
                 </ul>
-              </div>
-            )}
+                </>
+              )}
+            </div>
 
             <fieldset className="space-y-6" aria-describedby="product-form-help">
               <legend className="text-lg font-semibold">Product Details</legend>
