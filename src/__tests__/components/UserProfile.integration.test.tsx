@@ -7,7 +7,6 @@ import { UserProfile } from '@/components/UserProfile'
 import { ProductDetail } from '@/components/ProductDetail'
 import { APIService } from '@/lib/api'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
-import { getValidProductType } from '../testData'
 import type { Product, UserAccount, UserData } from '@/lib/types'
 
 vi.mock('@/components/UserRequestsPanel', () => ({
