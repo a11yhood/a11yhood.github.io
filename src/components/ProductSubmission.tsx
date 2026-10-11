@@ -33,6 +33,13 @@ export interface ProductSubmissionRef {
   close: () => void
 }
 
+const errorFieldIds = {
+  name: 'product-name',
+  sourceUrl: 'product-url',
+  description: 'product-description',
+  imageAlt: 'image-alt-text',
+} as const
+
 /**
  * Extract image ID from /api/images/{id} references for ID-only API payloads.
  * Returns undefined when no image ID reference is available.
@@ -601,13 +608,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
                 <p className="font-semibold">Please fix the following:</p>
                 <ul className="list-disc pl-5 space-y-1">
                   {submissionErrors.map(([key, message]) => {
-                    const idMap: Record<string, string> = {
-                      name: 'product-name',
-                      sourceUrl: 'product-url',
-                      description: 'product-description',
-                      imageAlt: 'image-alt-text',
-                    }
-                    const targetId = idMap[key] || 'product-form-help'
+                    const targetId = errorFieldIds[key as keyof typeof errorFieldIds] || 'product-form-help'
                     return (
                       <li key={key}>
                         <a href={`#${targetId}`} className="underline">
