@@ -12,6 +12,8 @@
  *   immediately—errors require the user's attention before continuing.
  * - Each banner has a visible dismiss button with an accessible label.
  * - Error banners do not auto-dismiss; they must be explicitly closed.
+ * - Notifications raised while a dialog is open carry a modalId and are rendered by
+ *   DialogNotifications inside that dialog instead (this banner is covered and aria-hidden then).
  */
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react'
 import { useNotifications, type NotificationType } from '@/contexts/NotificationContext'
@@ -33,7 +35,8 @@ const icons: Record<NotificationType, React.ReactElement> = {
 }
 
 export function AlertBanner() {
-  const { notifications, dismiss } = useNotifications()
+  const { notifications: all, dismiss } = useNotifications()
+  const notifications = all.filter((n) => !n.modalId)
 
   if (notifications.length === 0) return null
   const shouldScroll = notifications.length > 2

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,8 @@ type RequestSourceDialogProps = {
   onOpenChange: (open: boolean) => void
   domain: string
   url?: string
+  /** Why the domain was rejected (the error shown in the submission dialog underneath). Read on open. */
+  notice?: string
   userId?: string
   userName?: string
   userAvatarUrl?: string
@@ -31,24 +33,25 @@ type RequestSourceDialogProps = {
  * @param onOpenChange - Callback when dialog open state changes
  * @param domain - The domain being requested
  */
-export function RequestSourceDialog({ open, onOpenChange, domain, url, userId: _userId, userName: _userName, userAvatarUrl: _userAvatarUrl }: RequestSourceDialogProps) {
+export function RequestSourceDialog({ open, onOpenChange, domain, url, notice, userId: _userId, userName: _userName, userAvatarUrl: _userAvatarUrl }: RequestSourceDialogProps) {
   const { notify } = useNotifications()
   const [reason, setReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const noticeRef = useRef<HTMLDivElement>(null)
   const { getAccessToken } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!reason.trim()) {
-      notify.error('Please provide a reason for requesting this domain')
+      notify.error('Please provide a reason for requesting this domain.')
       return
     }
 
     // Get token from auth context
     const token = await getAccessToken()
     if (!token) {
-      notify.error('Please sign in to submit a request')
+      notify.error('Please sign in to submit a request.')
       return
     }
 
@@ -94,14 +97,16 @@ export function RequestSourceDialog({ open, onOpenChange, domain, url, userId: _
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       // Provide clearer guidance for different error types
-      if (message.includes('No authorization header') || message.toLowerCase().includes('unauthorized')) {
+      if (message.toLowerCase().includes('pending')) {
+        notify.error(
+          'You already have a pending source-domain request. Moderators will review it soon; you can close this dialog and continue with a different source in the meantime.'
+        )
+      } else if (message.includes('No authorization header') || message.toLowerCase().includes('unauthorized')) {
         notify.error('Authorization missing. Please sign in and try again.')
-      } else if (message.includes('not supported') || message.includes('Unsupported domain')) {
-        notify.error(`The domain ${domain} is not currently supported. Your request has been submitted for review.`)
       } else if (message.includes('Internal server error') || message.includes('500')) {
         notify.error('Server error. Your request may not have been submitted. Please try again.')
       } else {
-        notify.error('Failed to process request. Please try again.')
+        notify.error(`We couldn't submit your request for ${domain}. Please try again.`)
       }
       console.error('RequestSourceDialog submit error:', error)
     } finally {
@@ -118,9 +123,31 @@ export function RequestSourceDialog({ open, onOpenChange, domain, url, userId: _
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent
+        className="max-w-md"
+        onOpenAutoFocus={(event) => {
+          // When opened because a domain was rejected, put focus on the reason so screen readers read
+          // it straight after the dialog title (aria-describedby is often skipped on open).
+          if (notice && noticeRef.current) {
+            event.preventDefault()
+            noticeRef.current.focus()
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Request New Source Domain</DialogTitle>
+          {/* The submission dialog underneath is aria-hidden once this opens, so its inline error is
+              repeated here and focused on open. */}
+          {notice && (
+            <div
+              ref={noticeRef}
+              role="alert"
+              tabIndex={-1}
+              className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
+            >
+              {notice}
+            </div>
+          )}
           <DialogDescription>
             Help us support more sources by requesting that <code className="bg-muted px-2 py-1 rounded text-xs">{domain}</code> be added to our allowed sources.
           </DialogDescription>
