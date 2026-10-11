@@ -38,7 +38,6 @@ const mockUser2: UserData = {
 const mockProduct: Product = {
   id: 'product-1',
   name: 'Test Product',
-  type: 'Software',
   source: 'GitHub',
   sourceUrl: 'https://github.com/test/repo',
   description: 'A test product for accessibility',
@@ -86,7 +85,6 @@ describe('ProductSubmission', () => {
         id: `prod-${products.length + 1}`,
         slug: `${slugBase}-${products.length + 1}`,
         name: data.name,
-        type: data.type,
         source: data.source,
         sourceUrl: data.sourceUrl,
         description: data.description,
@@ -177,7 +175,6 @@ describe('ProductSubmission', () => {
       // Create product as user1
       const createdProduct = await APIService.createProduct({
         name: mockProduct.name,
-        type: mockProduct.type,
         source: mockProduct.source,
         sourceUrl: mockProduct.sourceUrl,
         description: mockProduct.description,
@@ -217,7 +214,6 @@ describe('ProductSubmission', () => {
       // Add product to backend database as user1
       const createdProduct = await APIService.createProduct({
         name: mockProduct.name,
-        type: mockProduct.type,
         source: mockProduct.source,
         sourceUrl: mockProduct.sourceUrl,
         description: mockProduct.description,
@@ -408,7 +404,6 @@ describe('ProductSubmission', () => {
         id: 'test-github-id',
         name: 'Test Repository',
         description: 'A test repository for accessibility testing',
-        type: 'Software',
         source: 'github',
         sourceUrl: 'https://github.com/test/test-repo',
         imageId: 'test-image-id',
@@ -464,7 +459,6 @@ describe('ProductSubmission', () => {
           id: 'test-id-image-ref',
           name: 'Image Id Product',
           description: 'Product with an image table ID from scraper response',
-          type: 'Software',
           source: 'github',
           sourceUrl: 'https://github.com/test/image-id-product',
           imageId: '123e4567-e89b-12d3-a456-426614174999',
@@ -645,7 +639,6 @@ describe('ProductSubmission', () => {
       // Create product as user1
       await APIService.createProduct({
         name: mockProduct.name,
-        type: mockProduct.type,
         source: mockProduct.source,
         sourceUrl: 'https://github.com/unique-url-1234',
         description: mockProduct.description,
@@ -704,7 +697,6 @@ describe('ProductSubmission', () => {
       // Create product as this user (creator is automatically added as manager)
       const createdProduct = await APIService.createProduct({
         name: mockProduct.name,
-        type: mockProduct.type,
         source: mockProduct.source,
         sourceUrl: mockProduct.sourceUrl,
         description: mockProduct.description,
@@ -743,7 +735,6 @@ describe('ProductSubmission', () => {
       // Create product as user1
       const createdProduct = await APIService.createProduct({
         name: mockProduct.name,
-        type: mockProduct.type,
         source: mockProduct.source,
         sourceUrl: mockProduct.sourceUrl,
         description: mockProduct.description,

@@ -16,7 +16,6 @@ beforeAll(async () => {
   const products = await Promise.all([
     APIService.createProduct({
       name: 'Filterable Software',
-      type: 'Software',
       source: 'github',
       sourceUrl: `https://github.com/test/filter-software-${Date.now()}`,
       description: 'Software product for filter tests with sufficient description',
@@ -24,7 +23,6 @@ beforeAll(async () => {
     }),
     APIService.createProduct({
       name: 'Filterable Print',
-      type: 'Fabrication',
       source: 'thingiverse',
       sourceUrl: `https://thingiverse.com/thing:${Date.now()}`,
       description: 'Fabrication product for filter tests with sufficient description',

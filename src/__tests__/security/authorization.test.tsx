@@ -27,7 +27,6 @@ describeWithBackend('Backend Authorization Enforcement', () => {
           description: 'Should be rejected',
           source_url: 'https://example.com/product',
           source: 'manual',
-          type: 'Other',
         }),
       })
 
@@ -64,7 +63,6 @@ describeWithBackend('Backend Authorization Enforcement', () => {
           description: 'For ownership testing',
           source_url: 'https://github.com/test/owner-test',
           source: 'manual',
-          type: 'Other',
         }),
       })
 
@@ -117,7 +115,6 @@ describeWithBackend('Backend Authorization Enforcement', () => {
           description: 'For collection testing',
           source_url: 'https://github.com/test/collection-product',
           source: 'manual',
-          type: 'Other',
         }),
       })
 

@@ -8,11 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Star, X } from '@phosphor-icons/react'
 
 type ProductFiltersProps = {
-  // Legacy props retained for compatibility with existing callers/tests.
-  // Product type filtering is intentionally no-op in current UI.
-  types?: string[]
-  selectedTypes?: string[]
-  onTypeToggle?: (type: string) => void
   tags: string[]
   sources: Array<{ name: string; count: number }>
   selectedTags: string[]

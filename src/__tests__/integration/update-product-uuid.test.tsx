@@ -38,7 +38,6 @@ describe('updateProduct UUID enforcement', () => {
     id: PRODUCT_UUID,
     slug: PRODUCT_SLUG,
     name: 'Eating Utensil Grip',
-    type: 'Tool',
     source: 'user-submitted',
     sourceUrl: 'https://example.com/product',
     description: 'Original description that is long enough',
@@ -73,7 +72,6 @@ describe('updateProduct UUID enforcement', () => {
     vi.spyOn(APIService, 'getCurrentUser').mockResolvedValue(adminAccount)
     // Product listings
     vi.spyOn(APIService, 'getProductSources').mockResolvedValue([])
-    vi.spyOn(APIService, 'getProductTypes').mockResolvedValue(['Tool', 'Software', 'Other'])
     vi.spyOn(APIService, 'getPopularTags').mockResolvedValue([])
     vi.spyOn(APIService, 'getFilteredTags').mockResolvedValue([])
     vi.spyOn(APIService, 'getAllProducts').mockResolvedValue([testProduct])

@@ -41,7 +41,6 @@ describeWithBackend('ProductCard Accessibility Tests', () => {
     // Create product
     product = await APIService.createProduct({
       name: 'Accessible Widget',
-      type: 'Software',
       source: 'github',
       sourceUrl: productSourceUrl,
       description: 'A test accessible widget with sufficient description for testing purposes',
@@ -138,20 +137,6 @@ describeWithBackend('ProductCard Accessibility Tests', () => {
 
     const article = screen.getByRole('article')
     expect(article).toHaveAttribute('tabIndex')
-  })
-
-  it('should not display product type', () => {
-    render(
-      <ProductCard
-        product={product}
-        ratings={ratings}
-        onClick={vi.fn()}
-        userAccount={regularAccount}
-        onDelete={vi.fn()}
-      />
-    )
-
-    expect(screen.queryByText(product.type)).not.toBeInTheDocument()
   })
 
   it('should show delete button for admins', () => {

@@ -34,7 +34,6 @@ describe('Source Rating Calculations', () => {
         {
           id: 'product1',
           name: 'Test Product',
-          type: 'Software',
           source: 'GitHub',
           sourceUrl: 'https://github.com/test',
           description: 'Test',
@@ -56,7 +55,6 @@ describe('Source Rating Calculations', () => {
         {
           id: 'product1',
           name: 'Test Product',
-          type: 'Software',
           source: 'GitHub',
           sourceUrl: 'https://github.com/test',
           description: 'Test',
@@ -79,7 +77,6 @@ describe('Source Rating Calculations', () => {
         {
           id: 'product1',
           name: 'Test Product',
-          type: 'Fabrication',
           source: 'Thingiverse',
           sourceUrl: 'https://thingiverse.com/thing:123',
           description: 'Test',
@@ -106,7 +103,6 @@ describe('Source Rating Calculations', () => {
         {
           id: 'product1',
           name: 'Test Product',
-          type: 'Software',
           source: 'GitHub',
           sourceUrl: 'https://github.com/test',
           description: 'Test',
@@ -126,7 +122,6 @@ describe('Source Rating Calculations', () => {
         {
           id: 'product1',
           name: 'Test Product',
-          type: 'knitting',
           source: 'Ravelry',
           sourceUrl: 'https://ravelry.com/patterns/123',
           description: 'Test',
@@ -153,7 +148,6 @@ describe('Source Rating Calculations', () => {
       const product: Product = {
         id: 'product1',
         name: 'Popular Repo',
-        type: 'Software',
         source: 'GitHub',
         sourceUrl: 'https://github.com/test/popular',
         description: 'Test',
@@ -180,7 +174,6 @@ describe('Source Rating Calculations', () => {
         const product: Product = {
           id: `product-${stars}`,
           name: 'Test Repo',
-          type: 'Software',
           source: 'GitHub',
           sourceUrl: 'https://github.com/test/repo',
           description: 'Test',
@@ -198,7 +191,6 @@ describe('Source Rating Calculations', () => {
       const product: Product = {
         id: 'product1',
         name: 'New Repo',
-        type: 'Software',
         source: 'GitHub',
         sourceUrl: 'https://github.com/test/new',
         description: 'Test',
@@ -215,7 +207,6 @@ describe('Source Rating Calculations', () => {
       const product: Product = {
         id: 'product1',
         name: 'Unstarred Repo',
-        type: 'Software',
         source: 'GitHub',
         sourceUrl: 'https://github.com/test/unstarred',
         description: 'Test',
@@ -234,7 +225,6 @@ describe('Source Rating Calculations', () => {
       const product: Product = {
         id: 'product1',
         name: 'Test Product',
-        type: 'Fabrication',
         source: 'Thingiverse',
         sourceUrl: 'https://thingiverse.com/thing:123',
         description: 'Test',
@@ -253,7 +243,6 @@ describe('Source Rating Calculations', () => {
       const product: Product = {
         id: 'product1',
         name: 'Test Product',
-        type: 'Software',
         source: 'GitHub',
         sourceUrl: 'https://github.com/test',
         description: 'Test',
@@ -278,7 +267,6 @@ describe('Source Rating Calculations', () => {
         {
           id: 'product1',
           name: 'Test Product',
-          type: 'Software',
           source: 'GitHub',
           sourceUrl: 'https://github.com/test',
           description: 'Test',
@@ -300,7 +288,6 @@ describe('Source Rating Calculations', () => {
         {
           id: 'product1',
           name: 'Test Product',
-          type: 'Software',
           source: 'GitHub',
           sourceUrl: 'https://github.com/test',
           description: 'Test',
@@ -322,7 +309,6 @@ describe('Source Rating Calculations', () => {
         {
           id: 'product1',
           name: 'Test Product',
-          type: 'Software',
           source: 'GitHub',
           sourceUrl: 'https://github.com/test',
           description: 'Test',
@@ -348,7 +334,6 @@ describe('Source Rating Calculations', () => {
         {
           id: 'product1',
           name: 'Test Product',
-          type: 'Fabrication',
           source: 'Thingiverse',
           sourceUrl: 'https://thingiverse.com/thing:123',
           description: 'Test',
@@ -379,7 +364,6 @@ describe('Source Rating Calculations', () => {
         {
           id: 'product1',
           name: 'High Rated Product',
-          type: 'Software',
           source: 'GitHub',
           sourceUrl: 'https://github.com/test',
           description: 'Test',
@@ -391,7 +375,6 @@ describe('Source Rating Calculations', () => {
         {
           id: 'product2',
           name: 'Low Rated Product',
-          type: 'Software',
           source: 'GitHub',
           sourceUrl: 'https://github.com/test2',
           description: 'Test',
@@ -419,7 +402,6 @@ describe('Source Rating Calculations', () => {
         {
           id: 'product1',
           name: 'Test Product',
-          type: 'Fabrication',
           source: 'Thingiverse',
           sourceUrl: 'https://thingiverse.com/thing:123',
           description: 'Test',

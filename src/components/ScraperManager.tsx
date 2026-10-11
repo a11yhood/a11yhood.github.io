@@ -334,7 +334,6 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
     setEditingProduct(product)
     setEditForm({
       name: product.name,
-      type: product.type,
       source: product.source,
       sourceUrl: product.sourceUrl,
       description: product.description,
@@ -773,10 +772,6 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                                   <span className="font-semibold text-muted-foreground">Name:</span>
                                   <div className="font-medium mt-0.5">{product.name}</div>
                                 </div>
-                                <div>
-                                  <span className="font-semibold text-muted-foreground">Type:</span>
-                                  <div className="font-medium mt-0.5">{product.type}</div>
-                                </div>
                                 <div className="col-span-2">
                                   <span className="font-semibold text-muted-foreground">ID:</span>
                                   <div className="font-mono mt-0.5">{product.id}</div>
@@ -901,7 +896,6 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Source</TableHead>
-                    <TableHead>Type</TableHead>
                     <TableHead>Tags</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -920,7 +914,6 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                       <TableCell>
                         <Badge variant="outline">{formatSourceLabel(product.source)}</Badge>
                       </TableCell>
-                      <TableCell>{product.type}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1 max-w-xs">
                           {product.tags.slice(0, 3).map((tag) => (
@@ -995,7 +988,6 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
                     <TableHead>Tags</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -1011,7 +1003,6 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{product.type}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1 max-w-xs">
                           {(product.tags || []).slice(0, 3).map((tag) => (
@@ -1210,15 +1201,6 @@ export function ScraperManager({ products, onProductsUpdate, role = 'user', curr
                 id="edit-name"
                 value={editForm.name || ''}
                 onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-type">Type</Label>
-              <Input
-                id="edit-type"
-                value={editForm.type || ''}
-                onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
               />
             </div>
 

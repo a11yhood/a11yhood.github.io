@@ -196,7 +196,6 @@ export function RequestCard({
                 <Package size={18} className="text-muted-foreground" />
                 <div className="space-y-1">
                   <p className="text-sm font-medium">{product.name}</p>
-                  <p className="text-xs text-muted-foreground">{product.type}</p>
                   <p className="text-xs text-muted-foreground font-mono">ID: {product.id}</p>
                   {hasEditors ? (
                     <p className="text-xs text-muted-foreground">

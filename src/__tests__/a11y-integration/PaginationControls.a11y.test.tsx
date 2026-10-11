@@ -22,7 +22,6 @@ async function ensureProductsForPagination(): Promise<void> {
       return APIService.createProduct({
         name: `Pagination Control Product ${suffix}`,
         description: 'Product used to ensure page 2 exists for pagination accessibility tests.',
-        type: 'Software',
         source: 'github',
         sourceUrl: `https://github.com/test/pagination-control-${suffix}`,
         tags: ['featured'],

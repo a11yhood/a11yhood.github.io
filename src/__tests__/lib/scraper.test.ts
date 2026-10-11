@@ -35,7 +35,6 @@ async function fetchBackendProducts(limit = 10): Promise<void> {
   if (!Array.isArray(raw) || raw.length === 0) {
     const seedPayload = {
       name: `Scraper Seed ${Date.now()}`,
-      type: 'Software',
       source: 'user-submitted',
       source_url: `https://github.com/a11yhood/scraper-seed-${Date.now()}`,
       description: 'Auto-seeded product for scraper integration tests',
@@ -72,7 +71,6 @@ async function fetchBackendProducts(limit = 10): Promise<void> {
   backendProducts = raw.map((p: any): Product => ({
     id: p.id?.toString() || p.source_url || p.name,
     name: p.name,
-    type: p.type || 'Software',
     source: p.source || 'Unknown',
     sourceUrl: p.source_url,
     description: p.description || '',
@@ -116,7 +114,6 @@ describeWithBackend('ScraperService', () => {
       const scrapedProducts = [
         {
           name: `Scraper Add ${now}`,
-          type: existingProducts[0]?.type || 'Software',
           source: existingProducts[0]?.source || 'GitHub',
           sourceUrl: `https://example.com/scraper-add-${now}`,
           description: 'Integration add product',
@@ -142,7 +139,6 @@ describeWithBackend('ScraperService', () => {
       const scrapedProducts = [
         {
           name: target.name,
-          type: target.type || 'Software',
           source: target.source,
           sourceUrl: target.sourceUrl || target.id,
           description: target.description || '',
@@ -168,7 +164,6 @@ describeWithBackend('ScraperService', () => {
       const scrapedProducts = [
         {
           name: target.name,
-          type: target.type || 'Software',
           source: target.source,
           sourceUrl: target.sourceUrl || target.id,
           description: target.description || '',
@@ -193,7 +188,6 @@ describeWithBackend('ScraperService', () => {
       const scrapedProducts = [
         {
           name: target.name,
-          type: target.type || 'Software',
           source: target.source,
           sourceUrl: target.sourceUrl || target.id,
           description: target.description || '',
@@ -220,7 +214,6 @@ describeWithBackend('ScraperService', () => {
       const scrapedProducts = [
         {
           name: `Scraper Rating ${now}`,
-          type: existingProducts[0]?.type || 'Fabrication',
           source: 'Thingiverse',
           sourceUrl: `https://thingiverse.com/thing:${now}`,
           description: 'New product with rating',
@@ -248,7 +241,6 @@ describeWithBackend('ScraperService', () => {
       const scrapedProducts = [
         {
           name: `Scraper Multi 1 ${now}`,
-          type: target.type || 'Software',
           source: target.source,
           sourceUrl: `https://example.com/scraper-multi-${now}-1`,
           description: 'New product 1',
@@ -257,7 +249,6 @@ describeWithBackend('ScraperService', () => {
         },
         {
           name: target.name,
-          type: target.type || 'Software',
           source: target.source,
           sourceUrl: target.sourceUrl || target.id,
           description: target.description || '',
@@ -266,7 +257,6 @@ describeWithBackend('ScraperService', () => {
         },
         {
           name: `Scraper Multi 2 ${now}`,
-          type: target.type || 'Software',
           source: target.source,
           sourceUrl: `https://example.com/scraper-multi-${now}-2`,
           description: 'New product 2',

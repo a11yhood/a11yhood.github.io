@@ -2,7 +2,6 @@ import type { Product } from './types'
 
 export type ScrapedProduct = {
   name: string
-  type: string
   source: string
   sourceUrl: string
   description: string
@@ -45,7 +44,6 @@ export class ScraperService {
         toAdd.push({
           id: scraped.externalId ?? scraped.sourceUrl ?? scraped.name,
           name: scraped.name,
-          type: scraped.type,
           source: scraped.source,
           sourceUrl: scraped.sourceUrl,
           description: scraped.description,

@@ -41,7 +41,6 @@ const createOrReuseProductForAdditionalUrlTests = async () => {
       description: 'For testing additional URL validation',
       source_url: `https://github.com/user/url-link-${Date.now()}`,
       source: 'user-submitted',
-      type: 'Software',
     }),
   })
 
@@ -80,7 +79,6 @@ describeWithBackend('Backend URL Validation Security', () => {
           description: 'Testing javascript: URL rejection',
           source_url: 'javascript:alert(1)',
           source: 'user-submitted',
-          type: 'Other',
         }),
       })
 
@@ -97,7 +95,6 @@ describeWithBackend('Backend URL Validation Security', () => {
           description: 'Testing data: URL rejection',
           source_url: 'data:text/html,<script>alert(1)</script>',
           source: 'user-submitted',
-          type: 'Other',
         }),
       })
 
@@ -113,7 +110,6 @@ describeWithBackend('Backend URL Validation Security', () => {
           description: 'Testing file: URL rejection',
           source_url: 'file:///etc/passwd',
           source: 'user-submitted',
-          type: 'Other',
         }),
       })
 
@@ -131,7 +127,6 @@ describeWithBackend('Backend URL Validation Security', () => {
           description: 'Testing invalid URL rejection',
           source_url: 'not-a-valid-url',
           source: 'user-submitted',
-          type: 'Other',
         }),
       })
 
@@ -147,7 +142,6 @@ describeWithBackend('Backend URL Validation Security', () => {
           description: 'Testing empty URL rejection',
           source_url: '',
           source: 'user-submitted',
-          type: 'Other',
         }),
       })
 
@@ -165,7 +159,6 @@ describeWithBackend('Backend URL Validation Security', () => {
           description: 'Testing valid https URL acceptance',
           source_url: 'https://github.com/user/repo',
           source: 'user-submitted',
-          type: 'Software',
         }),
       })
 
@@ -181,7 +174,6 @@ describeWithBackend('Backend URL Validation Security', () => {
           description: 'Testing valid http URL acceptance for supported domains',
           source_url: 'http://github.com/user/repo',
           source: 'user-submitted',
-          type: 'Software',
         }),
       })
 

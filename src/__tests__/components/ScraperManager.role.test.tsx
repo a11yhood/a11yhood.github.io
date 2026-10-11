@@ -8,7 +8,6 @@ const products: Product[] = [
   {
     id: 'p1',
     name: 'Test Product',
-    type: 'tool',
     source: 'User-Submitted',
     description: 'desc',
     tags: [],
@@ -67,7 +66,6 @@ describe('ScraperManager source bulk delete', () => {
       {
         id: 'p2',
         name: 'GitHub Product',
-        type: 'tool',
         source: 'GitHub',
         description: 'desc',
         tags: [],

@@ -1173,7 +1173,6 @@ export class APIService {
     limit?: number
     offset?: number
     sources?: string[]
-    types?: string[]
     tags?: string[]
     minRating?: number
     updatedSince?: string // ISO date string
@@ -1190,9 +1189,6 @@ export class APIService {
     }
     options?.sources?.forEach((source) => {
       if (source) params.append('source', source)
-    })
-    options?.types?.forEach((type) => {
-      if (type) params.append('type', type)
     })
     options?.tags?.forEach((tag) => {
       if (tag) params.append('tags', tag)
@@ -1223,7 +1219,6 @@ export class APIService {
     includeBanned?: boolean
     search?: string
     sources?: string[]
-    types?: string[]
     tags?: string[]
     minRating?: number
     updatedSince?: string // ISO date string
@@ -1238,9 +1233,6 @@ export class APIService {
     }
     options?.sources?.forEach((source) => {
       if (source) params.append('source', source)
-    })
-    options?.types?.forEach((type) => {
-      if (type) params.append('type', type)
     })
     options?.tags?.forEach((tag) => {
       if (tag) params.append('tags', tag)
@@ -1310,11 +1302,6 @@ export class APIService {
     return data.sources || []
   }
 
-  static async getProductTypes(): Promise<string[]> {
-    const data = await request<{ types: string[] }>('/products/types')
-    return data.types || []
-  }
-
   static async getPopularTags(limit: number = 10): Promise<string[]> {
     const data = await request<{ tags: string[] }>(`/products/tags?limit=${limit}`)
     return data.tags || []
@@ -1323,7 +1310,6 @@ export class APIService {
   static async getFilteredTags(options?: {
     search?: string
     sources?: string[]
-    types?: string[]
     includeBanned?: boolean
     limit?: number
   }): Promise<string[]> {
@@ -1333,9 +1319,6 @@ export class APIService {
     if (options?.limit) params.set('limit', String(options.limit))
     options?.sources?.forEach((source) => {
       if (source) params.append('source', source)
-    })
-    options?.types?.forEach((type) => {
-      if (type) params.append('type', type)
     })
     const suffix = params.toString() ? `?${params.toString()}` : ''
     logger.debug('[API.getFilteredTags] Calling /products/tags' + suffix, 'with options:', options)
@@ -1469,7 +1452,6 @@ export class APIService {
       description: updates.description,
       source: updates.source,
       sourceUrl: updates.sourceUrl,
-      type: updates.type,
       image,
       tags: updates.tags,
     }
@@ -1588,8 +1570,6 @@ export class APIService {
   static async deleteProductsByFilters(filters: {
     source?: string
     sources?: string[]
-    type?: string
-    types?: string[]
     tags?: string[]
     tagsMode?: 'or' | 'and'
     minRating?: number
@@ -1604,7 +1584,6 @@ export class APIService {
     
     // Add single-value filters (map camelCase -> snake_case for backend)
     if (filters.source) params.set('source', filters.source)
-    if (filters.type) params.set('type', filters.type)
     if (filters.tagsMode) params.set('tags_mode', filters.tagsMode)
     if (filters.minRating !== undefined) params.set('min_rating', String(filters.minRating))
     if (filters.updatedSince) {
@@ -1617,7 +1596,6 @@ export class APIService {
     
     // Add array-value filters using repeated singular keys (consistent with getAllProducts)
     filters.sources?.forEach(s => { if (s) params.append('source', s) })
-    filters.types?.forEach(t => { if (t) params.append('type', t) })
     filters.tags?.forEach(tag => { if (tag) params.append('tags', tag) })
     
     const suffix = params.toString() ? `?${params.toString()}` : ''
@@ -1990,7 +1968,6 @@ export class APIService {
       isPublic: boolean
       search?: string
       sources?: string[]
-      types?: string[]
       tags?: string[]
       tagsMode?: string
       minRating?: number
