@@ -735,9 +735,12 @@ export class APIService {
   // Returns null only when the backend confirms the user does not exist (404).
   // All other errors (network failures, 401, 5xx, etc.) are re-thrown so the
   // caller can distinguish "user not found → create account" from "request failed".
-  static async getCurrentUser(): Promise<UserAccount | null> {
+  // Pass { fresh: true } after mutating the profile: the backend sends
+  // `Cache-Control: private, max-age=30` on /users/me, so without revalidation the
+  // browser can serve the pre-edit account for up to 30 seconds (#324).
+  static async getCurrentUser(options: { fresh?: boolean } = {}): Promise<UserAccount | null> {
     try {
-      return await request<UserAccount>('/users/me')
+      return await request<UserAccount>('/users/me', options.fresh ? { cache: 'no-cache' } : {})
     } catch (err) {
       if (err instanceof APIError && err.status === 404) {
         return null

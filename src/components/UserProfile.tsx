@@ -149,7 +149,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
               <div className="space-y-2">
                 <div>
                   <CardTitle as="h2" className="text-2xl flex items-center gap-2">
-                    {userAccount.username}
+                    {userAccount.displayName || userAccount.username}
                     {userAccount.role === 'moderator' && (
                       <Badge variant="secondary">Moderator</Badge>
                     )}
@@ -157,7 +157,7 @@ export function UserProfile({ userAccount, user, onUpdate, onProductClick, onCol
                       <Badge variant="default">Admin</Badge>
                     )}
                   </CardTitle>
-                  {userAccount.displayName && (
+                  {userAccount.displayName && userAccount.username && (
                     <p className="text-sm text-muted-foreground">@{userAccount.username}</p>
                   )}
                 </div>
