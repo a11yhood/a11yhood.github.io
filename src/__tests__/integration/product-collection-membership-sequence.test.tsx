@@ -86,7 +86,6 @@ describeWithBackend('Owned + edited membership sequence', () => {
 
     ownedProduct = await APIService.createProduct({
       name: `Owned Product ${unique}`,
-      type: 'Software',
       source: 'user-submitted',
       sourceUrl: `https://github.com/a11yhood/owned-${unique}`,
       description: 'Owned product for stats and collections integration sequence test',
@@ -107,7 +106,6 @@ describeWithBackend('Owned + edited membership sequence', () => {
 
     editedProduct = await APIService.createProduct({
       name: `Edited Product ${unique}`,
-      type: 'Software',
       source: 'user-submitted',
       sourceUrl: `https://github.com/a11yhood/edited-${unique}`,
       description: 'Edited product fixture for membership sequence',

@@ -13,7 +13,6 @@ describe('APIService.getProduct', () => {
         JSON.stringify({
           id: productId,
           name: 'Assistive Widget',
-          type: 'Software',
           source: 'Github',
           description: 'A product',
           tags: [],
@@ -48,7 +47,6 @@ describe('APIService.getProduct', () => {
             id: '123',
             slug: slugLikeId,
             name: 'Assistive Widget',
-            type: 'Software',
             source: 'Github',
             description: 'A product',
             tags: [],

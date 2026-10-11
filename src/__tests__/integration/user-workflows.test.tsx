@@ -105,7 +105,6 @@ beforeAll(async () => {
   const product = await APIService.createProduct({
     name: `Shared Workflow Product ${Date.now()}`,
     description: 'Shared product for user-workflows integration tests',
-    type: 'Software',
     source: 'github',
     sourceUrl: `https://github.com/test/shared-product-${Date.now()}`,
     tags: [],
@@ -136,7 +135,6 @@ describeWithBackend('Product Submission Workflow', () => {
     const productData = {
       name: `New Product ${Date.now()}`,
       description: 'A test product for integration testing with sufficient content',
-      type: 'Software',
       sourceUrl: `https://github.com/test/product-${Date.now()}`,
     }
 
@@ -169,7 +167,6 @@ describeWithBackend('Product Submission Workflow', () => {
     const createdProduct = await APIService.createProduct({
       name: `Create With Upload ${Date.now()}`,
       description: 'Integration test product with an uploaded image',
-      type: 'Software',
       sourceUrl,
       image: { id: imageId, alt: 'Uploaded image for create flow' },
     } as any)
@@ -189,7 +186,6 @@ describeWithBackend('Product Submission Workflow', () => {
     const createdProduct = await APIService.createProduct({
       name: `Edit To Add Upload ${Date.now()}`,
       description: 'Integration test product that will gain an uploaded image later',
-      type: 'Software',
       sourceUrl,
     } as any)
 

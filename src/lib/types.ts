@@ -11,7 +11,6 @@ export type Product = {
   id: string
   slug?: string
   name: string
-  type: string
   
   // Source tracking - indicates platform origin
   // Values: 'user-submitted', 'thingiverse', 'ravelry', 'github', etc.
@@ -215,7 +214,6 @@ export type CollectionEntryKind = 'product' | 'collection' | 'blogPost' | 'query
 export type CollectionQuerySpec = {
   search?: string
   sources?: string[]
-  types?: string[]
   tags?: string[]
   tagsMode?: 'or' | 'and'
   minRating?: number

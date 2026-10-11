@@ -13,7 +13,6 @@ vi.mock('@/components/ProductSubmission', () => ({
       onClick={() => {
         void onSubmit({
           name: 'New Product',
-          type: 'Software',
           sourceUrl: 'https://example.com/new-product',
           source: 'user-submitted',
           description: 'A newly submitted accessible product description.',
@@ -32,7 +31,6 @@ describe('AppHeader product submission navigation', () => {
       id: 'product-1',
       slug: 'new-product',
       name: 'New Product',
-      type: 'Software',
       sourceUrl: 'https://example.com/new-product',
       source: 'user-submitted',
       description: 'A newly submitted accessible product description.',

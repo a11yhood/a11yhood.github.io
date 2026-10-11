@@ -12,7 +12,6 @@ const baseProducts: Product[] = [
     name: 'Visible Product',
     description: 'A product',
     source: 'user-submitted',
-    type: 'tool',
     tags: [],
     createdAt: Date.now(),
   },

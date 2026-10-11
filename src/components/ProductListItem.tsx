@@ -138,7 +138,6 @@ export const ProductListItem = memo(function ProductListItem({ product, ratings,
                   </>
                 )}
               </div>
-              <span className="text-sm capitalize text-muted-foreground flex-shrink-0">{product.type}</span>
             </div>
 
             {product.description && (

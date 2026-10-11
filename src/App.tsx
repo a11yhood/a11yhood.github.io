@@ -211,7 +211,6 @@ function App() {
   // Filter states - initialize from URL params
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
   const [searchInputValue, setSearchInputValue] = useState(searchParams.get('q') || '')
-  const [selectedTypes, setSelectedTypes] = useState<string[]>(() => normalizeParamArray(searchParams.getAll('type')))
   const [selectedSources, setSelectedSources] = useState<string[]>(() => normalizeParamArray(searchParams.getAll('source')))
   const [selectedTags, setSelectedTags] = useState<string[]>(() => normalizeParamArray(searchParams.getAll('tag')))
   const [minRating, setMinRating] = useState(() => parseMinRatingParam(searchParams.get('minRating')))
@@ -265,7 +264,6 @@ function App() {
   }
 
   const handleClearFilters = () => {
-    setSelectedTypes([])
     setSelectedTags([])
     setSelectedSources([])
     setMinRating(0)
@@ -394,16 +392,12 @@ function App() {
     // Only update filter states when the normalized URL params actually differ from current state.
     // normalizeParamArray sorts the values, so order changes in the URL don't trigger spurious updates.
     const urlTags = normalizeParamArray(searchParams.getAll('tag'))
-    const urlTypes = normalizeParamArray(searchParams.getAll('type'))
     const urlSources = normalizeParamArray(searchParams.getAll('source'))
     const urlMinRating = parseMinRatingParam(searchParams.get('minRating'))
     const urlUpdatedSince = parseUpdatedSinceParam(searchParams.get('updatedSince'))
 
     setSelectedTags(current => {
       return arraysEqual(current, urlTags) ? current : urlTags
-    })
-    setSelectedTypes(current => {
-      return arraysEqual(current, urlTypes) ? current : urlTypes
     })
     setSelectedSources(current => {
       return arraysEqual(current, urlSources) ? current : urlSources
@@ -463,7 +457,7 @@ function App() {
       // Only load all products on pages that actually consume the list.
       const needsFullProductList = routeNeedsFullProductList(location.pathname)
 
-      // Only load filter metadata (tags, sources, types) on pages that use them
+      // Only load filter metadata (tags, sources) on pages that use them
       // Don't load on collection detail pages (/collections/:slug)
       const needsFilterMetadata = needsFullProductList
 
@@ -550,7 +544,6 @@ function App() {
         // Build initial fetch params from URL when landing on /products so we don't
         // briefly show unfiltered results before URL-driven filters are applied.
         const initialUrlQuery = location.pathname === '/products' ? (searchParams.get('q') || '') : ''
-        const initialUrlTypes = location.pathname === '/products' ? normalizeParamArray(searchParams.getAll('type')) : []
         const initialUrlSources = location.pathname === '/products' ? normalizeParamArray(searchParams.getAll('source')) : []
         const initialUrlTags = location.pathname === '/products' ? normalizeParamArray(searchParams.getAll('tag')) : []
 
@@ -560,7 +553,6 @@ function App() {
           limit: pageSize,
           offset: 0,
           sources: initialUrlSources.length > 0 ? initialUrlSources : undefined,
-          types: initialUrlTypes.length > 0 ? initialUrlTypes : undefined,
           tags: initialUrlTags.length > 0 ? initialUrlTags : undefined,
           sortBy: 'created_at' as const,
           sortOrder: 'desc' as const,
@@ -652,7 +644,7 @@ function App() {
   // Reset to page 1 when the filters change. Done here (not after the fetch) so that
   // a plain page change with filters active is not mistaken for a filter change (#521).
   const filterKey = JSON.stringify([
-    searchQuery, includeBanned, selectedTypes, selectedSources, selectedTags, minRating, committedUpdatedSince,
+    searchQuery, includeBanned, selectedSources, selectedTags, minRating, committedUpdatedSince,
   ])
   const previousFilterKeyRef = useRef(filterKey)
   useEffect(() => {
@@ -678,7 +670,7 @@ function App() {
     // Check if this is the initial load with no filters (skip to avoid duplicate from initial load)
     const defaultSortByForRoute = 'created_at' as const
     const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 &&
-      selectedTypes.length === 0 && selectedTags.length === 0 &&
+      selectedTags.length === 0 &&
       minRating === 0 && committedUpdatedSince === null &&
       sortBy === defaultSortByForRoute && sortOrder === 'desc' && !sortHasChanged
 
@@ -731,7 +723,6 @@ function App() {
           limit: pageSize,
           offset,
           sources: effectiveSources.length > 0 ? effectiveSources : undefined,
-          types: selectedTypes.length > 0 ? selectedTypes : undefined,
           tags: selectedTags.length > 0 ? selectedTags : requiredHomeTags,
           minRating: minRating || undefined,
           updatedSince: updatedSinceISO,
@@ -750,7 +741,6 @@ function App() {
           APIService.getFilteredTags({
             search: params.search,
             sources: effectiveSources.length > 0 ? effectiveSources : undefined,
-            types: params.types,
             includeBanned: params.includeBanned,
           })
         ])
@@ -827,7 +817,7 @@ function App() {
       clearTimeout(debounceTimer)
       abortController.abort()
     }
-  }, [searchQuery, includeBanned, selectedTypes, selectedSources, selectedTags, minRating, committedUpdatedSince, currentPage, dataLoaded, pageSize, location.pathname, sortBy, sortOrder, allProductSources, ratings, sortHasChanged])
+  }, [searchQuery, includeBanned, selectedSources, selectedTags, minRating, committedUpdatedSince, currentPage, dataLoaded, pageSize, location.pathname, sortBy, sortOrder, allProductSources, ratings, sortHasChanged])
 
   useEffect(() => {
     const fetchUser = async () => {

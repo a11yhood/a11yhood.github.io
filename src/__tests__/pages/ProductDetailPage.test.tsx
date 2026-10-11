@@ -38,7 +38,6 @@ describe('ProductDetailPage', () => {
       createdBy: 'user-1',
       submittedBy: 'user-1',
       banned: false,
-      type: 'sample_type'
     }
 
     const getProductSpy = vi.spyOn(APIService, 'getProduct').mockResolvedValue(product)

@@ -42,7 +42,6 @@ export function createMockProduct(overrides?: Partial<Product>): Product {
   return {
     id: 'product-1',
     name: 'Test Product',
-    type: 'Software',
     source: 'GitHub',
     description: 'A test product for testing',
     tags: ['test', 'accessibility'],

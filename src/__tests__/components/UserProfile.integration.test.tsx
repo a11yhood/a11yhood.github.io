@@ -7,7 +7,6 @@ import { UserProfile } from '@/components/UserProfile'
 import { ProductDetail } from '@/components/ProductDetail'
 import { APIService } from '@/lib/api'
 import { DEV_USERS, getDevToken } from '@/lib/dev-users'
-import { getValidProductType } from '../testData'
 import type { Product, UserAccount, UserData } from '@/lib/types'
 
 vi.mock('@/components/UserRequestsPanel', () => ({
@@ -24,7 +23,6 @@ let authHeader: { Authorization: string }
 async function createOwnedProduct(): Promise<void> {
   const product = await APIService.createProduct({
     name: `Managed Product ${Date.now()}`,
-    type: getValidProductType('user-submitted'),
     source: 'user-submitted',
     sourceUrl: `https://github.com/test/user-profile-${Date.now()}`,
     description: 'Test product for user profile integration tests',
@@ -35,7 +33,6 @@ async function createOwnedProduct(): Promise<void> {
   ownedProduct = {
     id: product.id,
     name: product.name,
-    type: product.type,
     source: product.source,
     description: product.description ?? '',
     tags: product.tags ?? [],

@@ -37,7 +37,6 @@ describeWithBackend('ProductCard - API-backed', () => {
       headers: { 'Content-Type': 'application/json', ...authHeader },
       body: JSON.stringify({
         name: productName,
-        type: 'Software',
         source: 'github',
         source_url: 'https://github.com/example/repo',
         description: 'A test product for accessibility',
@@ -54,7 +53,6 @@ describeWithBackend('ProductCard - API-backed', () => {
     productFromApi = {
       id: productJson.id,
       name: productJson.name,
-      type: productJson.type,
       source: productJson.source,
       sourceUrl: productJson.source_url ?? productJson.sourceUrl,
       description: productJson.description,

@@ -123,7 +123,6 @@ describe('AdminRequestsPanel product ownership request resolution', () => {
       id: 'b5a1cc2b-a50c-4017-b215-b2921a030ef1',
       slug: 'assistive-widget',
       name: 'Assistive Widget',
-      type: 'Software',
       source: 'Github',
       description: 'A test product resolved by ID',
       tags: ['a11y'],

@@ -40,7 +40,6 @@ describeWithBackend('ProductSubmission (existing product via backend)', () => {
     await APIService.createProduct({
       name: `Integration Product ${Date.now()}`,
       description: 'An integration test product with sufficient description content',
-      type: 'Software',
       sourceUrl: uniqueUrl,
       tags: ['integration'],
     } as any)

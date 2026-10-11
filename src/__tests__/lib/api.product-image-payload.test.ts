@@ -4,7 +4,6 @@ import { APIService } from '@/lib/api'
 const productResponse = {
   id: 'product-1',
   name: 'Sample Product',
-  type: 'Software',
   source: 'user-submitted',
   description: 'Sample description',
   tags: [],
@@ -91,7 +90,6 @@ describe('APIService product image payload normalization', () => {
 
     await APIService.createProduct({
       name: 'Create With URL Image',
-      type: 'Software',
       source: 'user-submitted',
       description: 'Product with external URL image',
       image: {
