@@ -114,6 +114,19 @@ describe('ProductSubmission Accessibility Tests', () => {
         expect(summary).toHaveTextContent('Please fix the following:')
         expect(document.activeElement).toBe(summary)
       })
+
+      const firstErrorText = summary?.textContent
+      const nameInput = screen.getByLabelText(/product name/i, { selector: 'input' })
+      await userEvent.click(nameInput)
+      expect(nameInput).toHaveFocus()
+
+      fireEvent.submit(form!)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('product-submission-error-summary')).toBe(summary)
+        expect(summary?.textContent).toBe(firstErrorText)
+        expect(summary).toHaveFocus()
+      })
     })
 
     it('should use aria-invalid for form fields with validation errors', async () => {
