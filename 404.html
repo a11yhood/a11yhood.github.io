@@ -26,6 +26,7 @@
     var redirectPath = basePath + '?/' + encodedRoute + (searchPayload ? '&' + encodedSearch : '');
     var target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + redirectPath + l.hash;
     var baseTarget = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + l.hash;
+    var routeTarget = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + '?/' + encodedRoute + l.hash;
 
     // Guard against self-redirect loops (e.g. /pr-preview/331/?/%2F%26...).
     // If the computed target is identical, fall back to the canonical base path.
@@ -34,19 +35,16 @@
     }
 
     // Guard against URI Too Long (HTTP 414): if the redirect URL would exceed a safe
-    // length the CDN rejects it with a bare error page that has no landmark elements,
-    // causing an axe "region" violation.  Fall back to the base path so the SPA loads
-    // and shows the NotFoundPage instead.
+    // length, first drop encoded search params while preserving the encoded route so
+    // deep links still land on the intended page/NotFound route.
     if (target.length > 2000) {
-      target = baseTarget;
+      target = routeTarget;
     }
 
-    // Guard against 414 URI Too Long: the redirect double-encodes search params, which
-    // can more than double the URL length.  If the redirect URL would exceed a safe
-    // threshold (well under most servers' 8 KB limit), drop the query string and
-    // redirect to just the path so the server can still serve index.html.
+    // Extremely defensive fallback: if even the route-only redirect is still too long,
+    // use the base path so the SPA can still load.
     if (target.length > 6000) {
-      target = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath + '?/' + encodedRoute + l.hash;
+      target = baseTarget;
     }
 
     if (target !== l.href) {
