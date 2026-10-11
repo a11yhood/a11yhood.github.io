@@ -15,24 +15,9 @@
  * - Notifications raised while a dialog is open carry a modalId and are rendered by
  *   DialogNotifications inside that dialog instead (this banner is covered and aria-hidden then).
  */
-import { X, CheckCircle, AlertCircle, Info } from 'lucide-react'
-import { useNotifications, type NotificationType } from '@/contexts/NotificationContext'
+import { useNotifications } from '@/contexts/NotificationContext'
+import { NotificationItem } from '@/components/NotificationItem'
 import { cn } from '@/lib/utils'
-
-const styles: Record<NotificationType, string> = {
-  success:
-    'bg-green-50 border-green-300 text-green-900 dark:bg-green-950 dark:border-green-700 dark:text-green-100',
-  error:
-    'bg-red-50 border-red-300 text-red-900 dark:bg-red-950 dark:border-red-700 dark:text-red-100',
-  info:
-    'bg-blue-50 border-blue-300 text-blue-900 dark:bg-blue-950 dark:border-blue-700 dark:text-blue-100',
-}
-
-const icons: Record<NotificationType, React.ReactElement> = {
-  success: <CheckCircle size={16} aria-hidden="true" />,
-  error: <AlertCircle size={16} aria-hidden="true" />,
-  info: <Info size={16} aria-hidden="true" />,
-}
 
 export function AlertBanner() {
   const { notifications: all, dismiss } = useNotifications()
@@ -57,26 +42,7 @@ export function AlertBanner() {
         {errors.length > 0 && (
           <div role="alert" aria-live="assertive" aria-atomic="false" className="space-y-2">
             {errors.map((n) => (
-              <div
-                key={n.id}
-                className={cn(
-                  'flex w-full items-center justify-between gap-2 border border-x-0 px-4 py-2.5 text-sm',
-                  styles[n.type],
-                )}
-              >
-                <span className="flex items-center gap-2">
-                  {icons[n.type]}
-                  {n.message}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => dismiss(n.id)}
-                  aria-label="Dismiss notification"
-                  className="ml-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current flex-shrink-0"
-                >
-                  <X size={16} aria-hidden="true" />
-                </button>
-              </div>
+              <NotificationItem key={n.id} notification={n} onDismiss={dismiss} variant="banner" />
             ))}
           </div>
         )}
@@ -85,26 +51,7 @@ export function AlertBanner() {
         {others.length > 0 && (
           <div role="status" aria-live="polite" aria-atomic="false" className="space-y-2">
             {others.map((n) => (
-              <div
-                key={n.id}
-                className={cn(
-                  'flex w-full items-center justify-between gap-2 border border-x-0 px-4 py-2.5 text-sm',
-                  styles[n.type],
-                )}
-              >
-                <span className="flex items-center gap-2">
-                  {icons[n.type]}
-                  {n.message}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => dismiss(n.id)}
-                  aria-label="Dismiss notification"
-                  className="ml-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current flex-shrink-0"
-                >
-                  <X size={16} aria-hidden="true" />
-                </button>
-              </div>
+              <NotificationItem key={n.id} notification={n} onDismiss={dismiss} variant="banner" />
             ))}
           </div>
         )}
