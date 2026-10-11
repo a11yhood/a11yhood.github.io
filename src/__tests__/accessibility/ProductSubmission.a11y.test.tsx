@@ -101,9 +101,10 @@ describe('ProductSubmission Accessibility Tests', () => {
       expect(nameLabel?.textContent).toContain('*')
     })
 
-    it('keeps the error summary live region mounted before validation and focuses it after invalid submission', async () => {
+    it('keeps the error summary mounted and focuses it after repeated invalid submissions without a live alert', async () => {
       const summary = document.querySelector('[data-testid="product-submission-error-summary"]')
-      expect(summary).toHaveAttribute('aria-live', 'assertive')
+      expect(summary).toHaveAttribute('role', 'group')
+      expect(summary).not.toHaveAttribute('aria-live')
       expect(summary).toBeEmptyDOMElement()
 
       const form = summary?.closest('form')
@@ -112,6 +113,8 @@ describe('ProductSubmission Accessibility Tests', () => {
 
       await waitFor(() => {
         expect(summary).toHaveTextContent('Please fix the following:')
+        expect(summary).toHaveAccessibleName('Please fix the following:')
+        expect(summary).toHaveAccessibleDescription(/Product name is required/)
         expect(document.activeElement).toBe(summary)
       })
 
@@ -127,6 +130,21 @@ describe('ProductSubmission Accessibility Tests', () => {
         expect(summary?.textContent).toBe(firstErrorText)
         expect(summary).toHaveFocus()
       })
+    })
+
+    it('keeps focus on the field while the user corrects validation errors', async () => {
+      const summary = screen.getByTestId('product-submission-error-summary')
+      fireEvent.submit(summary.closest('form')!)
+      await waitFor(() => expect(summary).toHaveFocus())
+
+      const nameInput = screen.getByLabelText(/product name/i, { selector: 'input' })
+      await userEvent.click(nameInput)
+      await userEvent.type(nameInput, 'Accessible product')
+
+      expect(nameInput).toHaveFocus()
+      expect(summary).not.toHaveTextContent('Product name is required')
+      expect(summary).not.toHaveAttribute('aria-live')
+      expect(summary).toHaveAttribute('role', 'group')
     })
 
     it('should use aria-invalid for form fields with validation errors', async () => {

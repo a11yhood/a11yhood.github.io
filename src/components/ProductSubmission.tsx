@@ -593,11 +593,13 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
         {(urlCheckState === 'form') && (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div
+              // Focus announces the named group; a live region would also announce
+              // changes while the user is correcting a field.
               ref={errorSummaryRef}
               data-testid="product-submission-error-summary"
-              role="alert"
-              aria-live="assertive"
-              aria-atomic="true"
+              role="group"
+              aria-labelledby={submissionErrors.length > 0 ? 'product-submission-error-title' : undefined}
+              aria-describedby={submissionErrors.length > 0 ? 'product-submission-error-list' : undefined}
               tabIndex={-1}
               className={submissionErrors.length > 0
                 ? 'border border-destructive/50 bg-destructive/5 text-destructive rounded-md p-4 space-y-2'
@@ -605,8 +607,8 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
             >
               {submissionErrors.length > 0 && (
                 <>
-                <p className="font-semibold">Please fix the following:</p>
-                <ul className="list-disc pl-5 space-y-1">
+                <p id="product-submission-error-title" className="font-semibold">Please fix the following:</p>
+                <ul id="product-submission-error-list" className="list-disc pl-5 space-y-1">
                   {submissionErrors.map(([key, message]) => {
                     const targetId = errorFieldIds[key as keyof typeof errorFieldIds] || 'product-form-help'
                     return (
