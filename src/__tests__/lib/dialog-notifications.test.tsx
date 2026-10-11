@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { NotificationProvider, useNotifications } from '@/contexts/NotificationContext'
 import { AlertBanner } from '@/components/AlertBanner'
+import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog'
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet'
+import * as DialogPrimitive from '@radix-ui/react-dialog'
 
 function Buttons() {
   const { notify } = useNotifications()
@@ -103,5 +106,61 @@ describe('dialog-scoped notifications', () => {
     render(<App initiallyOpen={false} />)
     press(document.body, 'fail')
     expect(screen.getByRole('alert')).toHaveTextContent('Boom: something failed')
+  })
+
+  it('renders inside an AlertDialog and a Sheet too', () => {
+    const { unmount } = render(
+      <NotificationProvider>
+        <AlertBanner />
+        <AlertDialog open>
+          <AlertDialogContent>
+            <AlertDialogTitle>Confirm</AlertDialogTitle>
+            <AlertDialogDescription>sure?</AlertDialogDescription>
+            <Buttons />
+          </AlertDialogContent>
+        </AlertDialog>
+      </NotificationProvider>
+    )
+    const alertDialog = screen.getByRole('alertdialog')
+    press(alertDialog, 'fail')
+    expect(within(alertDialog).getByRole('alert')).toHaveTextContent('Boom: something failed')
+    unmount()
+
+    render(
+      <NotificationProvider>
+        <AlertBanner />
+        <Sheet open>
+          <SheetContent>
+            <SheetTitle>Panel</SheetTitle>
+            <SheetDescription>panel</SheetDescription>
+            <Buttons />
+          </SheetContent>
+        </Sheet>
+      </NotificationProvider>
+    )
+    const sheet = screen.getByRole('dialog')
+    press(sheet, 'ok')
+    expect(within(sheet).getByRole('status')).toHaveTextContent('Saved it')
+  })
+
+  it('falls back to the page banner for a modal that cannot render scoped messages', () => {
+    render(
+      <NotificationProvider>
+        <AlertBanner />
+        <DialogPrimitive.Root open>
+          <DialogPrimitive.Portal>
+            <DialogPrimitive.Content>
+              <DialogPrimitive.Title>Bare</DialogPrimitive.Title>
+              <DialogPrimitive.Description>no host</DialogPrimitive.Description>
+              <Buttons />
+            </DialogPrimitive.Content>
+          </DialogPrimitive.Portal>
+        </DialogPrimitive.Root>
+      </NotificationProvider>
+    )
+    press(screen.getByRole('dialog'), 'fail')
+    // Not lost: shown in the page banner, with an auto-dismiss timer where applicable
+    const banner = document.querySelector('section[aria-label="Notifications"]')
+    expect(banner).toHaveTextContent('Boom: something failed')
   })
 })

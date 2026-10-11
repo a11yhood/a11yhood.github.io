@@ -46,9 +46,15 @@ interface NotificationContextValue {
 
 const NotificationContext = createContext<NotificationContextValue | undefined>(undefined)
 
-const OPEN_MODAL_SELECTOR = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
+/**
+ * Only modals that mount <DialogNotifications /> (which sets data-notifications-host) can show
+ * scoped messages. Anything else, e.g. a bare Radix Dialog, keeps using the page banner so a message
+ * is never routed somewhere that cannot render it.
+ */
+const OPEN_MODAL_SELECTOR =
+  '[data-notifications-host][role="dialog"][data-state="open"], [data-notifications-host][role="alertdialog"][data-state="open"]'
 
-/** id of the topmost open modal (portals append in open order), if any. */
+/** id of the topmost open notification-hosting modal (portals append in open order), if any. */
 function topmostModalId(): string | undefined {
   if (typeof document === 'undefined') return undefined
   const modals = document.querySelectorAll<HTMLElement>(OPEN_MODAL_SELECTOR)

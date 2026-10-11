@@ -27,7 +27,7 @@ const icons: Record<NotificationType, React.ReactElement> = {
   info: <Info size={16} aria-hidden="true" />,
 }
 
-export function DialogNotifications() {
+export function DialogNotifications({ className }: { className?: string }) {
   const { notifications, dismiss, dismissModal } = useNotifications()
   const anchorRef = useRef<HTMLDivElement>(null)
   const [modalId, setModalId] = useState<string | null>(null)
@@ -36,9 +36,14 @@ export function DialogNotifications() {
 
   // Identify the enclosing dialog (Radix gives the content element a stable id).
   useEffect(() => {
-    const id = anchorRef.current?.closest('[role="dialog"], [role="alertdialog"]')?.id ?? null
+    const modal = anchorRef.current?.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]')
+    const id = modal?.id || null
     setModalId(id)
+    // Advertise that this surface can render its own notifications. NotificationContext only scopes
+    // messages to modals carrying this marker; any other open modal falls back to the page banner.
+    modal?.setAttribute('data-notifications-host', '')
     return () => {
+      modal?.removeAttribute('data-notifications-host')
       if (id) dismissModal?.(id)
     }
   }, [dismissModal])
@@ -83,11 +88,13 @@ export function DialogNotifications() {
   )
 
   return (
-    <div ref={anchorRef} className="empty:hidden">
-      <div role="alert" aria-live="assertive" aria-atomic="false" className="space-y-2 empty:hidden">
+    // Visually hidden (but still in the accessibility tree, so the live regions stay registered)
+    // while there is nothing to show; avoids adding an empty row to the dialog's grid/flex gap.
+    <div ref={anchorRef} className={mine.length === 0 ? 'sr-only' : className}>
+      <div role="alert" aria-live="assertive" aria-atomic="false" className="space-y-2">
         {errors.map(renderItem)}
       </div>
-      <div role="status" aria-live="polite" aria-atomic="false" className="space-y-2 empty:hidden">
+      <div role="status" aria-live="polite" aria-atomic="false" className="space-y-2">
         {others.map(renderItem)}
       </div>
     </div>

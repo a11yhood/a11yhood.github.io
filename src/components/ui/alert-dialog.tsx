@@ -5,6 +5,7 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+import { DialogNotifications } from "@/components/DialogNotifications"
 
 function AlertDialog({
   ...props
@@ -46,6 +47,7 @@ function AlertDialogOverlay({
 
 function AlertDialogContent({
   className,
+  children,
   ...props
 }: ComponentProps<typeof AlertDialogPrimitive.Content>) {
   return (
@@ -58,7 +60,10 @@ function AlertDialogContent({
           className
         )}
         {...props}
-      />
+      >
+        <DialogNotifications />
+        {children}
+      </AlertDialogPrimitive.Content>
     </AlertDialogPortal>
   )
 }
