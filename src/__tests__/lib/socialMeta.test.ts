@@ -81,6 +81,24 @@ describe('resolveSocialMeta', () => {
     }
   })
 
+  it('uses header_image from the blog API for the preview image', async () => {
+    const meta = await resolveSocialMeta({
+      requestUrl: `${ORIGIN}/blog/with-image`,
+      apiBaseUrl: API,
+      fetchJson: fetchFrom({
+        '/api/blog-posts/slug/with-image': {
+          title: 'With image',
+          published: true,
+          excerpt: 'Has a header',
+          header_image: '/api/images/img-9',
+          header_image_alt: 'A header',
+        },
+      }),
+    })
+    expect(meta?.image).toBe(`${API}/api/images/img-9`)
+    expect(meta?.imageAlt).toBe('A header')
+  })
+
   it('skips unpublished blog posts', async () => {
     const meta = await resolveSocialMeta({
       requestUrl: `${ORIGIN}/blog/draft`,

@@ -81,10 +81,7 @@ export async function resolveSocialMeta({
     return {
       title: `${title} | a11yhood blog`,
       description: truncate(source || DEFAULT_DESCRIPTION),
-      image:
-        resolveImage(str(post.header_image_url), apiBaseUrl) ||
-        imageFromId(post.header_image_id, apiBaseUrl) ||
-        fallbackImage,
+      image: resolveImage(str(post.header_image), apiBaseUrl) || fallbackImage,
       imageAlt: str(post.header_image_alt),
       url: pageUrl,
       type: 'article',
