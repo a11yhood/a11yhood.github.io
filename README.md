@@ -189,14 +189,13 @@ Products gathered through such scraping receive an initial review that is based 
 
 ## Deployment
 
-The site is hosted on GitHub Pages. Production deploys are gated behind a version
-tag — merging to `main` alone does **not** deploy:
+The site is hosted on Vercel. Merging to `main` deploys to production
+automatically, and every branch or pull request gets its own preview
+deployment. Pull requests also run lint, tests, and accessibility checks in CI.
 
-PR preview publishing is currently disabled. Pull requests still run lint,
-tests, and accessibility checks in CI.
-
-See [GITHUB_PAGES_DEPLOYMENT.md](GITHUB_PAGES_DEPLOYMENT.md) for the full release process, PR preview details, and
-required repository settings.
+See [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md) for domains and DNS,
+environment variables, social link previews, rollback, and release
+verification.
 
 ### Full Backend Test Validation
 
