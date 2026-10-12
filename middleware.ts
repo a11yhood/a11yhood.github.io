@@ -14,7 +14,27 @@ export const config = {
 }
 
 const DEFAULT_API_URL = 'https://backend-a11yhood.vercel.app'
-const API_TIMEOUT_MS = 3000
+// Cold edge/function starts can exceed a short timeout, which would silently
+// serve generic previews that unfurlers then cache. Allow one retry.
+const API_TIMEOUT_MS = 4000
+const API_MAX_ATTEMPTS = 2
+
+async function fetchApiJson(url: string): Promise<Record<string, unknown> | null> {
+  for (let attempt = 1; attempt <= API_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      })
+      if (response.ok) return (await response.json()) as Record<string, unknown>
+      // A definitive client error (e.g. 404) won't change on retry.
+      if (response.status < 500) return null
+    } catch {
+      // Timeout or network error: fall through to retry.
+    }
+  }
+  return null
+}
 
 export default async function middleware(request: Request): Promise<Response> {
   if (request.method !== 'GET') return next()
@@ -25,13 +45,7 @@ export default async function middleware(request: Request): Promise<Response> {
     const meta = await resolveSocialMeta({
       requestUrl: request.url,
       apiBaseUrl,
-      fetchJson: async (path) => {
-        const response = await fetch(`${apiBaseUrl}${path}`, {
-          headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(API_TIMEOUT_MS),
-        })
-        return response.ok ? ((await response.json()) as Record<string, unknown>) : null
-      },
+      fetchJson: (path) => fetchApiJson(`${apiBaseUrl}${path}`),
     })
     if (!meta) return next()
 
