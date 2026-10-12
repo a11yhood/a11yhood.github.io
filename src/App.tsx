@@ -1531,7 +1531,7 @@ function App() {
 
   const handleProfileUpdate = async () => {
     if (user) {
-      const account = await APIService.getUserAccount(user.id)
+      const account = await APIService.getCurrentUser({ fresh: true })
       if (account) {
         setUserAccount(account)
       }
