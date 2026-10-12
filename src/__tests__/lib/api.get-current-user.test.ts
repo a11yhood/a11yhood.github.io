@@ -75,4 +75,33 @@ describe('APIService.getCurrentUser', () => {
 
     await expect(APIService.getCurrentUser()).rejects.toMatchObject({ status: 500 })
   })
+
+  describe('cache revalidation (#324)', () => {
+    // /users/me is served with `Cache-Control: private, max-age=30`, so after a
+    // profile edit the caller must bypass the browser cache to see the new data.
+    const okResponse = () =>
+      new Response(JSON.stringify({ id: 'user-uuid-123', username: 'testuser', role: 'user' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+    it("revalidates with cache: 'no-cache' when fresh is true", async () => {
+      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(okResponse())
+
+      await APIService.getCurrentUser({ fresh: true })
+
+      const [url, init] = fetchSpy.mock.calls[0]
+      expect(String(url)).toContain('/users/me')
+      expect(init).toMatchObject({ cache: 'no-cache' })
+    })
+
+    it('does not set a cache mode by default', async () => {
+      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(okResponse())
+
+      await APIService.getCurrentUser()
+
+      const [, init] = fetchSpy.mock.calls[0]
+      expect(init).not.toHaveProperty('cache')
+    })
+  })
 })
