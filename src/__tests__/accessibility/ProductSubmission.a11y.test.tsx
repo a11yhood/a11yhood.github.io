@@ -101,6 +101,53 @@ describe('ProductSubmission Accessibility Tests', () => {
       expect(nameLabel?.textContent).toContain('*')
     })
 
+    it('keeps the error summary mounted and focuses it after repeated invalid submissions without a live alert', async () => {
+      const summary = document.querySelector('[data-testid="product-submission-error-summary"]')
+      expect(summary).toHaveAttribute('role', 'group')
+      expect(summary).not.toHaveAttribute('aria-live')
+      expect(summary).toBeEmptyDOMElement()
+
+      const form = summary?.closest('form')
+      expect(form).not.toBeNull()
+      const submitButton = screen.getByRole('button', { name: /submit product/i })
+      await userEvent.click(submitButton)
+
+      await waitFor(() => {
+        expect(summary).toHaveTextContent('Please fix the following:')
+        expect(summary).toHaveAccessibleName('Please fix the following:')
+        expect(summary).toHaveAccessibleDescription(/Product name is required/)
+        expect(document.activeElement).toBe(summary)
+      })
+
+      const firstErrorText = summary?.textContent
+      const nameInput = screen.getByLabelText(/product name/i, { selector: 'input' })
+      await userEvent.click(nameInput)
+      expect(nameInput).toHaveFocus()
+
+      await userEvent.click(submitButton)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('product-submission-error-summary')).toBe(summary)
+        expect(summary?.textContent).toBe(firstErrorText)
+        expect(summary).toHaveFocus()
+      })
+    })
+
+    it('keeps focus on the field while the user corrects validation errors', async () => {
+      const summary = screen.getByTestId('product-submission-error-summary')
+      await userEvent.click(screen.getByRole('button', { name: /submit product/i }))
+      await waitFor(() => expect(summary).toHaveFocus())
+
+      const nameInput = screen.getByLabelText(/product name/i, { selector: 'input' })
+      await userEvent.click(nameInput)
+      await userEvent.type(nameInput, 'Accessible product')
+
+      expect(nameInput).toHaveFocus()
+      expect(summary).not.toHaveTextContent('Product name is required')
+      expect(summary).not.toHaveAttribute('aria-live')
+      expect(summary).toHaveAttribute('role', 'group')
+    })
+
     it('should use aria-invalid for form fields with validation errors', async () => {
       // Try to submit without filling required fields
       const submitButton = screen.getAllByRole('button', { name: /submit/i }).find(btn => btn.textContent?.includes('Submit Product'))

@@ -33,6 +33,13 @@ export interface ProductSubmissionRef {
   close: () => void
 }
 
+const errorFieldIds = {
+  name: 'product-name',
+  sourceUrl: 'product-url',
+  description: 'product-description',
+  imageAlt: 'image-alt-text',
+} as const
+
 /**
  * Extract image ID from /api/images/{id} references for ID-only API payloads.
  * Returns undefined when no image ID reference is available.
@@ -425,6 +432,10 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
     return null
   }
 
+  const submissionErrors = Object.entries(errors).filter(([key]) =>
+    Object.prototype.hasOwnProperty.call(errorFieldIds, key)
+  )
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
       setOpen(isOpen)
@@ -580,38 +591,38 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
         )}
 
         {(urlCheckState === 'form') && (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {Object.entries(errors).filter(([key]) => ['name', 'sourceUrl', 'description', 'imageAlt'].includes(key)).length > 0 && (
-              <div
-                ref={errorSummaryRef}
-                role="alert"
-                aria-live="assertive"
-                tabIndex={-1}
-                className="border border-destructive/50 bg-destructive/5 text-destructive rounded-md p-4 space-y-2"
-              >
-                <p className="font-semibold">Please fix the following:</p>
-                <ul className="list-disc pl-5 space-y-1">
-                  {Object.entries(errors)
-                    .filter(([key]) => ['name', 'sourceUrl', 'description', 'imageAlt'].includes(key))
-                    .map(([key, message]) => {
-                      const idMap: Record<string, string> = {
-                        name: 'product-name',
-                        sourceUrl: 'product-url',
-                        description: 'product-description',
-                        imageAlt: 'image-alt-text',
-                      }
-                      const targetId = idMap[key] || 'product-form-help'
-                      return (
-                        <li key={key}>
-                          <a href={`#${targetId}`} className="underline">
-                            {message}
-                          </a>
-                        </li>
-                      )
-                    })}
+          <form noValidate onSubmit={handleSubmit} className="space-y-6">
+            <div
+              // Focus announces the named group; a live region would also announce
+              // changes while the user is correcting a field.
+              ref={errorSummaryRef}
+              data-testid="product-submission-error-summary"
+              role="group"
+              aria-labelledby={submissionErrors.length > 0 ? 'product-submission-error-title' : undefined}
+              aria-describedby={submissionErrors.length > 0 ? 'product-submission-error-list' : undefined}
+              tabIndex={-1}
+              className={submissionErrors.length > 0
+                ? 'border border-destructive/50 bg-destructive/5 text-destructive rounded-md p-4 space-y-2'
+                : 'sr-only'}
+            >
+              {submissionErrors.length > 0 && (
+                <>
+                <p id="product-submission-error-title" className="font-semibold">Please fix the following:</p>
+                <ul id="product-submission-error-list" className="list-disc pl-5 space-y-1">
+                  {submissionErrors.map(([key, message]) => {
+                    const targetId = errorFieldIds[key as keyof typeof errorFieldIds] || 'product-form-help'
+                    return (
+                      <li key={key}>
+                        <a href={`#${targetId}`} className="underline">
+                          {message}
+                        </a>
+                      </li>
+                    )
+                  })}
                 </ul>
-              </div>
-            )}
+                </>
+              )}
+            </div>
 
             <fieldset className="space-y-6" aria-describedby="product-form-help">
               <legend className="text-lg font-semibold">Product Details</legend>
