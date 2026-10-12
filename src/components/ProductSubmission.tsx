@@ -591,7 +591,7 @@ export const ProductSubmission = forwardRef<ProductSubmissionRef, ProductSubmiss
         )}
 
         {(urlCheckState === 'form') && (
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form noValidate onSubmit={handleSubmit} className="space-y-6">
             <div
               // Focus announces the named group; a live region would also announce
               // changes while the user is correcting a field.

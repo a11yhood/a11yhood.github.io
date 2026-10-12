@@ -109,7 +109,8 @@ describe('ProductSubmission Accessibility Tests', () => {
 
       const form = summary?.closest('form')
       expect(form).not.toBeNull()
-      fireEvent.submit(form!)
+      const submitButton = screen.getByRole('button', { name: /submit product/i })
+      await userEvent.click(submitButton)
 
       await waitFor(() => {
         expect(summary).toHaveTextContent('Please fix the following:')
@@ -123,7 +124,7 @@ describe('ProductSubmission Accessibility Tests', () => {
       await userEvent.click(nameInput)
       expect(nameInput).toHaveFocus()
 
-      fireEvent.submit(form!)
+      await userEvent.click(submitButton)
 
       await waitFor(() => {
         expect(screen.getByTestId('product-submission-error-summary')).toBe(summary)
@@ -134,7 +135,7 @@ describe('ProductSubmission Accessibility Tests', () => {
 
     it('keeps focus on the field while the user corrects validation errors', async () => {
       const summary = screen.getByTestId('product-submission-error-summary')
-      fireEvent.submit(summary.closest('form')!)
+      await userEvent.click(screen.getByRole('button', { name: /submit product/i }))
       await waitFor(() => expect(summary).toHaveFocus())
 
       const nameInput = screen.getByLabelText(/product name/i, { selector: 'input' })
