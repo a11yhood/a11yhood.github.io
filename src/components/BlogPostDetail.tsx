@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from '@phosphor-icons/react'
+import { ShareButton } from '@/components/ShareButton'
 import { renderMarkdown } from '@/lib/markdown'
 import { useState, useEffect } from 'react'
 
@@ -86,13 +87,14 @@ export function BlogPostDetail({ post, onBack, onEdit }: BlogPostDetailProps) {
                   </div>
                 )}
               </div>
-              {onEdit && (
-                <div className="flex-shrink-0">
+              <div className="flex-shrink-0 flex items-center gap-2">
+                <ShareButton title={post.title} label="blog post" />
+                {onEdit && (
                   <Button variant="outline" size="sm" onClick={() => onEdit(post)}>
                     Edit Post
                   </Button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
