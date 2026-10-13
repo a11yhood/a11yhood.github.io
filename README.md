@@ -189,9 +189,10 @@ Products gathered through such scraping receive an initial review that is based 
 
 ## Deployment
 
-The site is hosted on Vercel. Merging to `main` deploys to production
-automatically, and every branch or pull request gets its own preview
-deployment. Pull requests also run lint, tests, and accessibility checks in CI.
+The site is hosted on Vercel. Production deploys are gated behind a version
+tag — merging to `main` alone does **not** deploy. Every branch or pull request
+gets its own preview deployment, and pull requests also run lint, tests, and
+accessibility checks in CI.
 
 See [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md) for domains and DNS,
 environment variables, social link previews, rollback, and release

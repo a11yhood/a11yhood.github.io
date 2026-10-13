@@ -8,15 +8,17 @@ Vercel project (`backend`, plus `backend-test` for testing).
 
 | What | How |
 |------|-----|
-| Production | Every merge to `main` deploys to production automatically |
-| Branch / PR previews | Every push to a branch or PR builds a preview deployment |
+| Production | Pushing a `v*` tag promotes that commit to production (via the `release` branch) |
+| Branch / PR previews | Every push to a branch, including `main`, builds a preview deployment |
 | Social link previews | `middleware.ts` (Vercel Routing Middleware), see below |
-| Release verification | [Production Release](.github/workflows/production-release.yml) runs on `v*` tags |
+| Release gate | [Production Release](.github/workflows/production-release.yml) runs on `v*` tags |
 | Accessibility scan | [a11y-scan.yml](.github/workflows/a11y-scan.yml) scans `https://a11yhood.org` after a successful Production Release |
 
-> Merging to `main` goes live. Production Release does **not** deploy: it is a
-> verification step that checks the tagged commit is on `main`, runs the reduced
-> test suite, validates the Supabase config, and builds.
+> Merging to `main` does **not** go live. Vercel's Production Branch is
+> `release`; the Production Release workflow fast-forwards it to a tagged commit
+> after verifying that commit (on `main`, tests pass, Supabase config valid,
+> builds). Merges to `main` only produce preview deployments, which use the
+> Preview environment variables.
 
 ---
 
@@ -113,13 +115,14 @@ deployment toolbar. The production domain is public.
 ## Rolling back
 
 - **Bad deploy:** in Vercel, *Deployments*, promote the previous production
-  deployment (or revert the merge on `main`).
+  deployment, then fix forward with a new tag. The `release` branch only moves
+  forward, so tagging an older commit fails.
 - **Hosting problem:** DNS can be pointed elsewhere at GoDaddy; the TTL is
   600 seconds.
 
 ---
 
-## Release verification
+## Releasing to production
 
 Create a version tag (`vMAJOR.MINOR.PATCH`) on a commit that is on `main`:
 
@@ -129,12 +132,24 @@ git tag v1.2.3
 git push origin v1.2.3
 ```
 
-The workflow then verifies the tag is reachable from `main`, runs the reduced
-test suite, validates the Supabase URL/key pair, builds, and triggers the
-accessibility scan.
+The workflow then:
+
+1. verifies the tag is reachable from `main`, runs the reduced test suite,
+   validates the Supabase URL/key pair, and builds;
+2. fast-forwards the `release` branch to the tagged commit (Vercel deploys it
+   to production);
+3. waits for the Vercel production deployment to succeed, then triggers the
+   accessibility scan.
 
 If it fails, fix the cause on `main` and tag again, or re-run it from the
-Actions tab (*Run workflow*).
+Actions tab. Running it manually (*Run workflow*) verifies and re-runs the
+scan but never promotes.
+
+### One-time setup
+
+- A `release` branch must exist (the first tag run creates it).
+- In Vercel, *Settings → Git → Production Branch* must be `release`.
+- If `release` is protected, allow the `github-actions` bot to push to it.
 
 ---
 

@@ -1,18 +1,22 @@
 name: Production Release
 
-# Release verification gate.
+# Release gate.
 #
-# Production is hosted on Vercel and deploys automatically when `main` changes
-# (see VERCEL_DEPLOYMENT.md). This workflow does NOT deploy. It verifies that a
-# tagged commit is on `main`, passes the reduced test suite, has a valid
-# Supabase config, and builds. On success it triggers the accessibility scan
-# of the live site (see a11y-scan.yml).
+# Production is hosted on Vercel with `release` as its Production Branch, so
+# merging to `main` only produces preview deployments. Pushing a `v*` tag runs
+# this workflow, which:
+#   1. verifies the tagged commit is on `main`, passes the reduced tests, has a
+#      valid Supabase config, and builds (job: build), then
+#   2. fast-forwards the `release` branch to the tagged commit, which makes
+#      Vercel deploy it to production, and waits for that deployment (job: promote).
+# On success the accessibility scan of the live site runs (see a11y-scan.yml).
+# See VERCEL_DEPLOYMENT.md.
 on:
   # Run when a version tag is pushed (e.g. v1.2.3).
   push:
     tags:
       - "v*"
-  # Allow manual runs (e.g. to re-trigger the post-release accessibility scan).
+  # Manual runs only verify and re-trigger the accessibility scan; they never promote.
   workflow_dispatch:
 
 permissions:
@@ -110,3 +114,47 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build:ghpages:ci
+
+  promote:
+    needs: build
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the `release` branch
+      deployments: read # read Vercel's deployment status
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # Fast-forward only: this fails if the tag is older than what is already
+      # on `release`. To roll back, promote an earlier deployment in Vercel.
+      - name: Fast-forward release branch to the tagged commit
+        run: |
+          # Remember when we pushed (minus a little clock-skew slack) so the next
+          # step ignores earlier production deploys of this same commit.
+          echo "PUSH_START=$(date -u -d '30 seconds ago' +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          git push origin "${GITHUB_SHA}:refs/heads/release"
+
+      - name: Wait for Vercel production deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          repo="${GITHUB_REPOSITORY}"
+          for i in $(seq 1 60); do
+            id=$(gh api "repos/${repo}/deployments?sha=${GITHUB_SHA}&environment=Production" \
+              --jq "[.[] | select(.created_at >= \"${PUSH_START}\")][0].id // empty")
+            if [ -n "$id" ]; then
+              state=$(gh api "repos/${repo}/deployments/${id}/statuses" --jq '.[0].state // "pending"')
+              echo "Production deployment ${id}: ${state}"
+              case "$state" in
+                success) exit 0 ;;
+                failure|error|inactive) echo "Vercel production deployment did not succeed."; exit 1 ;;
+              esac
+            else
+              echo "Waiting for Vercel to start the production deployment..."
+            fi
+            sleep 10
+          done
+          echo "::warning::Timed out waiting for the Vercel production deployment; the accessibility scan may run against the previous version."
