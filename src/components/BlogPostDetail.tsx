@@ -88,7 +88,7 @@ export function BlogPostDetail({ post, onBack, onEdit }: BlogPostDetailProps) {
                 )}
               </div>
               <div className="flex-shrink-0 flex items-center gap-2">
-                <ShareButton title={post.title} label="blog post" />
+                {post.published && <ShareButton title={post.title} label="blog post" />}
                 {onEdit && (
                   <Button variant="outline" size="sm" onClick={() => onEdit(post)}>
                     Edit Post
