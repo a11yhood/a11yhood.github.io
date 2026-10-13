@@ -51,11 +51,6 @@ cmd = "VITE_BASE_URL=/ npm run build"
 
 depends-on = ["install-dev"]
 
-[tasks.test-deploy-local]
-description = "simulate production deployment merge into gh-pages and validate assets"
-depends-on = ["build-ghpages"]
-cmd = "./scripts/test-deploy-local.sh"
-
 [tasks.install-node]
 description = "install node and npm dependencies"
 cmd = "npm ci && npm install --no-save @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu"

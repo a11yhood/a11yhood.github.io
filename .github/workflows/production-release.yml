@@ -1,22 +1,29 @@
 name: Production Release
 
+# Release gate.
+#
+# Production is hosted on Vercel with `release` as its Production Branch, so
+# merging to `main` only produces preview deployments. Pushing a `v*` tag runs
+# this workflow, which:
+#   1. verifies the tagged commit is on `main`, passes the reduced tests, has a
+#      valid Supabase config, and builds (job: build), then
+#   2. fast-forwards the `release` branch to the tagged commit, which makes
+#      Vercel deploy it to production, and waits for that deployment (job: promote).
+# On success the accessibility scan of the live site runs (see a11y-scan.yml).
+# See VERCEL_DEPLOYMENT.md.
 on:
-  # Only deploy production when a version tag is pushed (e.g. v1.2.3).
-  # This acts as a deliberate quality gate: you create the tag after
-  # verifying the build is ready for production.
+  # Run when a version tag is pushed (e.g. v1.2.3).
   push:
     tags:
       - "v*"
-  # Allow manual re-deploys (e.g. after environment config changes).
+  # Manual runs only verify and re-trigger the accessibility scan; they never promote.
   workflow_dispatch:
 
 permissions:
-  contents: write # Needed to commit updated production build to gh-pages branch
-  pages: write # Needed to publish the assembled site to GitHub Pages
-  id-token: write # Required by actions/deploy-pages
+  contents: read
 
 concurrency:
-  group: "pages"
+  group: "production-release"
   cancel-in-progress: false
 
 jobs:
@@ -99,7 +106,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: echo "VITE_APP_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
 
-      - name: Build for GitHub Pages
+      - name: Build production bundle
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_DEV_MODE: ${{ secrets.VITE_DEV_MODE }}
@@ -108,101 +115,46 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build:ghpages:ci
 
-      - name: Upload production build artifact
-        uses: actions/upload-artifact@v5
-        with:
-          name: production-build
-          path: dist/
-
-  deploy:
+  promote:
     needs: build
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: write # push the `release` branch
+      deployments: read # read Vercel's deployment status
     steps:
-      - name: Checkout trusted merge script source
+      - name: Checkout code
         uses: actions/checkout@v5
         with:
-          repository: ${{ github.repository }}
-          ref: ${{ github.sha }}
-          path: trusted-workflow-source
-          sparse-checkout: |
-            scripts/merge-pages-root.sh
-          sparse-checkout-cone-mode: false
-          persist-credentials: false
+          fetch-depth: 0
 
-      - name: Checkout gh-pages branch
-        uses: actions/checkout@v5
-        with:
-          ref: gh-pages
-          path: gh-pages-branch
-          fetch-depth: 1
-
-      - name: Download production build
-        uses: actions/download-artifact@v5
-        with:
-          name: production-build
-          path: ${{ runner.temp }}/new-production/
-
-      - name: Debug downloaded production artifact
+      # Fast-forward only: this fails if the tag is older than what is already
+      # on `release`. To roll back, promote an earlier deployment in Vercel.
+      - name: Fast-forward release branch to the tagged commit
         run: |
-          echo "Downloaded artifact layout (top 3 levels):"
-          find "${RUNNER_TEMP}/new-production" -maxdepth 3 -print | sort
+          # Remember when we pushed (minus a little clock-skew slack) so the next
+          # step ignores earlier production deploys of this same commit.
+          echo "PUSH_START=$(date -u -d '30 seconds ago' +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          git push origin "${GITHUB_SHA}:refs/heads/release"
 
-      # Replace all root content with the new production build while preserving
-      # preview subdirectories (legacy draft/ and current pr-preview/).
-      - name: Merge production build into gh-pages root
+      - name: Wait for Vercel production deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          cd gh-pages-branch
-          ARTIFACT_ROOT="${RUNNER_TEMP}/new-production"
-
-          if [ -d "${ARTIFACT_ROOT}/dist" ]; then
-            BUILD_SOURCE="${ARTIFACT_ROOT}/dist/"
-          else
-            BUILD_SOURCE="${ARTIFACT_ROOT}/"
-          fi
-
-          echo "Selected BUILD_SOURCE=${BUILD_SOURCE}"
-
-          chmod +x ../trusted-workflow-source/scripts/merge-pages-root.sh
-          ../trusted-workflow-source/scripts/merge-pages-root.sh "${BUILD_SOURCE}" .
-
-          rm -rf "${ARTIFACT_ROOT}"
-
-      # Keep gh-pages as the canonical assembled site so PR previews continue
-      # to merge against the latest production root.
-      - name: Commit updated production to gh-pages
-        run: |
-          cd gh-pages-branch
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "Nothing to commit, production is already up to date"
-          else
-            git commit -m "Deploy production ${{ github.ref_name }}"
-            git push
-          fi
-
-      - name: Stage assembled site for Pages upload
-        run: |
-          STAGING_DIR="${RUNNER_TEMP}/pages-artifact"
-          rm -rf "${STAGING_DIR}"
-          mkdir -p "${STAGING_DIR}"
-          rsync -a --delete --exclude='.git' gh-pages-branch/ "${STAGING_DIR}/"
-
-      # Publish directly from this workflow because gh-pages pushes performed
-      # with GITHUB_TOKEN do not trigger follow-up workflows reliably.
-      - name: Upload assembled site as Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/pages-artifact
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
-#
+          repo="${GITHUB_REPOSITORY}"
+          for i in $(seq 1 60); do
+            id=$(gh api "repos/${repo}/deployments?sha=${GITHUB_SHA}&environment=Production" \
+              --jq "[.[] | select(.created_at >= \"${PUSH_START}\")][0].id // empty")
+            if [ -n "$id" ]; then
+              state=$(gh api "repos/${repo}/deployments/${id}/statuses" --jq '.[0].state // "pending"')
+              echo "Production deployment ${id}: ${state}"
+              case "$state" in
+                success) exit 0 ;;
+                failure|error|inactive) echo "Vercel production deployment did not succeed."; exit 1 ;;
+              esac
+            else
+              echo "Waiting for Vercel to start the production deployment..."
+            fi
+            sleep 10
+          done
+          echo "::warning::Timed out waiting for the Vercel production deployment; the accessibility scan may run against the previous version."
