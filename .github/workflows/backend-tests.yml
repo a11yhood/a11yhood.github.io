@@ -73,6 +73,10 @@ jobs:
 
           if [ "$status_code" = "200" ] || [ "$status_code" = "204" ] || [ "$status_code" = "404" ]; then
             echo "Trigger label reset status: ${status_code}"
+          elif [ "$status_code" = "403" ]; then
+            # Restricted tokens (e.g. Copilot-authored PRs) cannot edit labels.
+            # The label check in the next step still gates the run, so don't fail here.
+            echo "::warning::Could not reset trigger label (HTTP 403); continuing. A stale '${FULL_BACKEND_TRIGGER_LABEL}' label will not be cleared on this push."
           else
             echo "Failed to reset trigger label (HTTP ${status_code})"
             exit 1
