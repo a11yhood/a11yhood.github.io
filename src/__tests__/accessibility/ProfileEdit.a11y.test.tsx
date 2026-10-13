@@ -214,8 +214,8 @@ describeWithBackend('ProfileEdit Accessibility Tests (Story 1.3)', () => {
         <UserProfile userAccount={testAccount} user={testUser} />
       )
 
-      // Username should be visible but not as an editable input in the main view
-      expect(screen.getByText(testAccount.username!)).toBeInTheDocument()
+      // Username is shown as "@username" under the display name, not as an editable input
+      expect(screen.getByText(`@${testAccount.username!}`)).toBeInTheDocument()
     })
   })
 
