@@ -157,6 +157,23 @@ jobs:
             exit 1
           fi
 
+          # Never reset unless the backend confirms it is a verified test environment.
+          assert_url="${TEST_BACKEND_URL%/}/api/dev/assert-test-environment"
+          assert_body=$(mktemp)
+          assert_status=$(curl -sS -o "$assert_body" -w "%{http_code}" \
+            "$assert_url" \
+            -H "X-Test-Run-Token: ${TEST_RUN_TOKEN}")
+          echo "Test-environment assertion status: $assert_status"
+          if [ "$assert_status" != "200" ] \
+             || ! grep -q '"safe_to_reset":true' "$assert_body" \
+             || ! grep -q '"allow_test_data_mutation":true' "$assert_body"; then
+            echo "Refusing to reset: backend did not confirm a safe test environment"
+            cat "$assert_body"; echo
+            rm -f "$assert_body"
+            exit 1
+          fi
+          rm -f "$assert_body"
+
           reset_url="${TEST_BACKEND_URL%/}/api/dev/reset"
           reset_ok=false
           last_status=""
