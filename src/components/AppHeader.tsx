@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { UserCircle, SignOut, ChartBar, Users, FileText, MagnifyingGlass } from '@phosphor-icons/react'
+import { UserCircle, SignOut, ChartBar, Users, FileText, MagnifyingGlass, Plus } from '@phosphor-icons/react'
 import { ProductSubmission, ProductSubmissionRef } from '@/components/ProductSubmission'
 import { RequestSourceDialog } from '@/components/RequestSourceDialog'
 import { UserData, UserAccount } from '@/lib/types'
@@ -37,7 +37,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
   user: UserData | null
   userAccount: UserAccount | null
   pendingRequestsCount: number
-  onLogin: () => void
+  onLogin: (returnToPath?: string) => void
   onLogout: () => void
   onProductCreated?: () => void
 }) {
@@ -263,10 +263,22 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                 </DropdownMenu>
               </div>
             ) : (
-              <Button onClick={() => onLogin()} size="sm">
-                <UserCircle size={20} className="mr-2" />
-                Sign in
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => onLogin(`${location.pathname}${location.search}`)}
+                  aria-label="Submit Product (sign in required)"
+                >
+                  <Plus size={16} />
+                  <span className="hidden sm:inline">Submit Product</span>
+                </Button>
+                <Button onClick={() => onLogin()} size="sm">
+                  <UserCircle size={20} className="mr-2" />
+                  Sign in
+                </Button>
+              </div>
             )}
           </div>
         </div>
