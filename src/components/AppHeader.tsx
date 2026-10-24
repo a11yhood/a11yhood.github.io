@@ -269,7 +269,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                   variant="outline"
                   className="flex items-center gap-2"
                   onClick={() => onLogin(`${location.pathname}${location.search}`)}
-                  aria-label="Sign in to submit a product"
+                  aria-label="Submit Product (sign in required)"
                 >
                   <Plus size={16} />
                   <span className="hidden sm:inline">Submit Product</span>

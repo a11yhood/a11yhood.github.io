@@ -14,7 +14,8 @@ describe('signed-out users see actions that lead to sign-in', () => {
       </MemoryRouter>
     )
 
-    await userEvent.click(screen.getByRole('button', { name: 'Sign in to submit a product' }))
+    // Accessible name starts with the visible text so voice control can target it (WCAG 2.5.3).
+    await userEvent.click(screen.getByRole('button', { name: 'Submit Product (sign in required)' }))
 
     expect(onLogin).toHaveBeenCalledWith('/products?q=braille')
   })
