@@ -17,6 +17,13 @@ permissions:
   contents: read
   issues: write
 
+# Every run resets and writes to the one shared backend-test database, which
+# caps each table at DEV_MODE_MAX_ROWS_PER_TABLE rows. Queue runs (never cancel
+# one mid-flight) so they can't wipe or fill each other's data.
+concurrency:
+  group: backend-test-db
+  cancel-in-progress: false
+
 jobs:
   test-with-backend:
     runs-on: ubuntu-latest
