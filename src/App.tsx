@@ -648,6 +648,7 @@ function App() {
   ])
   const previousFilterKeyRef = useRef(filterKey)
   const lastFetchedSearchQueryRef = useRef(searchQuery)
+  const hasLeftInitialViewRef = useRef(false)
   useEffect(() => {
     if (previousFilterKeyRef.current === filterKey) return
     previousFilterKeyRef.current = filterKey
@@ -675,7 +676,11 @@ function App() {
       minRating === 0 && committedUpdatedSince === null &&
       sortBy === defaultSortByForRoute && sortOrder === 'desc' && !sortHasChanged
 
-    if (isInitialLoad) {
+    // The initial load's products are only valid until the view first moves off them; returning
+    // to page 1 or the default view afterwards (e.g. Previous) must refetch.
+    if (!isInitialLoad) {
+      hasLeftInitialViewRef.current = true
+    } else if (!hasLeftInitialViewRef.current) {
       console.log('[App.fetchEffect] Skipping - using data from initial load')
       return
     }
