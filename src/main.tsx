@@ -11,6 +11,8 @@ import { createRoot } from 'react-dom/client'
 
 import { ErrorBoundary } from "react-error-boundary";
 import { BrowserRouter } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 
 import App from './App.tsx'
 
@@ -41,6 +43,8 @@ createRoot(document.getElementById('root')!).render(
         </AuthProvider>
       </NotificationProvider>
     </BrowserRouter>
+    <Analytics />
+    <SpeedInsights />
   </ErrorBoundary>
 )
 console.debug('✓ [main.tsx] Render call completed')
