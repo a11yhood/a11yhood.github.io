@@ -1592,9 +1592,14 @@ function App() {
     console.log('[App] Current userAccount:', userAccount)
     // DELETE requires the UUID id, not a slug (writes are scoped to the
     // immutable identifier; only GET accepts a slug lookup).
-    const resolvedId = products.find(p => p.slug === productSlug || p.id === productSlug)?.id || productSlug
-
     try {
+      // `products` is only the current page, so a product opened directly
+      // (e.g. /product/brailletools) may be missing; resolve via GET then.
+      const resolvedId =
+        products.find(p => p.slug === productSlug || p.id === productSlug)?.id ||
+        (await APIService.getProduct(productSlug))?.id ||
+        productSlug
+
       console.log('[App] Calling APIService.deleteProduct...')
       await APIService.deleteProduct(resolvedId)
       console.log('[App] Delete successful, updating local state')
