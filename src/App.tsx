@@ -647,6 +647,7 @@ function App() {
     searchQuery, includeBanned, selectedSources, selectedTags, minRating, committedUpdatedSince,
   ])
   const previousFilterKeyRef = useRef(filterKey)
+  const lastFetchedSearchQueryRef = useRef(searchQuery)
   useEffect(() => {
     if (previousFilterKeyRef.current === filterKey) return
     previousFilterKeyRef.current = filterKey
@@ -690,6 +691,7 @@ function App() {
     const currentSearchId = ++latestSearchIdRef.current
 
     const fetchProducts = async () => {
+      lastFetchedSearchQueryRef.current = searchQuery
       try {
         // Convert date to ISO string with time set to start of day
         let updatedSinceISO: string | undefined
@@ -811,7 +813,8 @@ function App() {
       }
     }
 
-    const debounceTimer = setTimeout(fetchProducts, 400)
+    // Debounce only while the search text is being typed; page, sort and filter clicks fetch at once.
+    const debounceTimer = setTimeout(fetchProducts, searchQuery !== lastFetchedSearchQueryRef.current ? 400 : 0)
 
     return () => {
       clearTimeout(debounceTimer)
