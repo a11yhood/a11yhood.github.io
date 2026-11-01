@@ -160,6 +160,8 @@ export const ProductCard = memo(function ProductCard({ product, ratings, collect
             src={product.imageUrl}
             alt={product.imageAlt || `${product.name} image`}
             className="w-full h-full object-cover object-center"
+            loading="lazy"
+            decoding="async"
             onError={() => setImageError(true)}
           />
         </div>

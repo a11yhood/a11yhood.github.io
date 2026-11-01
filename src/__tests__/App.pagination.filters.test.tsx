@@ -86,6 +86,29 @@ describe('App products pagination with filters (#521)', () => {
     expect(screen.queryByText(/Page 1 \/ 3/)).not.toBeInTheDocument()
   })
 
+  it('refetches page 1 when going Previous from page 2 on the default view', async () => {
+    const user = userEvent.setup()
+    renderProductsPage()
+
+    await screen.findByText(/Page 1 \/ 3/)
+    expect(await screen.findByText('Product 0')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /next page/i }))
+    expect(await screen.findByText('Product 50')).toBeInTheDocument()
+
+    getAllProductsSpy.mockClear()
+    await user.click(screen.getByRole('button', { name: /previous page/i }))
+
+    // The default view matches the initial load's params, but its products were replaced by page 2,
+    // so Previous must fetch again instead of leaving page 2's cards under a "Page 1" label.
+    await waitFor(() => {
+      expect(getAllProductsSpy).toHaveBeenCalledWith(expect.objectContaining({ offset: 0 }))
+    })
+    expect(await screen.findByText('Product 0')).toBeInTheDocument()
+    expect(screen.queryByText('Product 50')).not.toBeInTheDocument()
+    expect(screen.getByText(/Page 1 \/ 3/)).toBeInTheDocument()
+  })
+
   it('returns to page 1 when a filter changes while on a later page', async () => {
     const user = userEvent.setup()
     renderProductsPage('?source=GitHub')

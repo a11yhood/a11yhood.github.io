@@ -148,4 +148,18 @@ describe('updateProduct UUID enforcement', () => {
       expect(thirdArg).not.toBe(DEV_USERS.admin.username)
     })
   }, 25000)
+
+  it('handleDeleteProduct: resolves UUID via GET when product is not in the loaded page (#566)', async () => {
+    vi.mocked(APIService.getAllProducts).mockResolvedValue([])
+    vi.spyOn(APIService, 'deleteProduct').mockResolvedValue(undefined)
+
+    renderAppAtProductPage(`/product/${PRODUCT_SLUG}`)
+
+    const deleteButton = await screen.findByRole('button', { name: /Delete product/i }, { timeout: 15000 })
+    fireEvent.click(deleteButton)
+
+    await waitFor(() => {
+      expect(APIService.deleteProduct).toHaveBeenCalledWith(PRODUCT_UUID)
+    })
+  }, 25000)
 })

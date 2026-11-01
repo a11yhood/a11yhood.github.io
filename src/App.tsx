@@ -647,6 +647,8 @@ function App() {
     searchQuery, includeBanned, selectedSources, selectedTags, minRating, committedUpdatedSince,
   ])
   const previousFilterKeyRef = useRef(filterKey)
+  const lastFetchedSearchQueryRef = useRef(searchQuery)
+  const hasLeftInitialViewRef = useRef(false)
   useEffect(() => {
     if (previousFilterKeyRef.current === filterKey) return
     previousFilterKeyRef.current = filterKey
@@ -674,7 +676,11 @@ function App() {
       minRating === 0 && committedUpdatedSince === null &&
       sortBy === defaultSortByForRoute && sortOrder === 'desc' && !sortHasChanged
 
-    if (isInitialLoad) {
+    // The initial load's products are only valid until the view first moves off them; returning
+    // to page 1 or the default view afterwards (e.g. Previous) must refetch.
+    if (!isInitialLoad) {
+      hasLeftInitialViewRef.current = true
+    } else if (!hasLeftInitialViewRef.current) {
       console.log('[App.fetchEffect] Skipping - using data from initial load')
       return
     }
@@ -690,6 +696,7 @@ function App() {
     const currentSearchId = ++latestSearchIdRef.current
 
     const fetchProducts = async () => {
+      lastFetchedSearchQueryRef.current = searchQuery
       try {
         // Convert date to ISO string with time set to start of day
         let updatedSinceISO: string | undefined
@@ -811,7 +818,8 @@ function App() {
       }
     }
 
-    const debounceTimer = setTimeout(fetchProducts, 400)
+    // Debounce only while the search text is being typed; page, sort and filter clicks fetch at once.
+    const debounceTimer = setTimeout(fetchProducts, searchQuery !== lastFetchedSearchQueryRef.current ? 400 : 0)
 
     return () => {
       clearTimeout(debounceTimer)
@@ -1597,9 +1605,14 @@ function App() {
     console.log('[App] Current userAccount:', userAccount)
     // DELETE requires the UUID id, not a slug (writes are scoped to the
     // immutable identifier; only GET accepts a slug lookup).
-    const resolvedId = products.find(p => p.slug === productSlug || p.id === productSlug)?.id || productSlug
-
     try {
+      // `products` is only the current page, so a product opened directly
+      // (e.g. /product/brailletools) may be missing; resolve via GET then.
+      const resolvedId =
+        products.find(p => p.slug === productSlug || p.id === productSlug)?.id ||
+        (await APIService.getProduct(productSlug))?.id ||
+        productSlug
+
       console.log('[App] Calling APIService.deleteProduct...')
       await APIService.deleteProduct(resolvedId)
       console.log('[App] Delete successful, updating local state')

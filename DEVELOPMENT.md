@@ -77,7 +77,7 @@ pixi run preview
 
 - **Dev backend**: `:8002` (HTTP by default; HTTPS on `:8443` when `certs/localhost.pem` exists in the backend repo) - active development with the test database
 - **Prod backend**: `:8001` (HTTPS, Supabase) - testing production builds locally
-- **Real servers**: use their domain URLs via `VITE_API_URL` (see below)
+- **Real servers**: use their domain URLs via `VITE_API_URL` (see below) 
 
 ## Environment Comparison
 
