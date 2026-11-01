@@ -15,6 +15,7 @@ type DiscussionSectionProps = {
   onEditDiscussion?: (id: string, content: string) => void
   onDeleteDiscussion?: (id: string) => void
   onToggleBlockDiscussion?: (id: string, block: boolean) => void
+  onRequireLogin?: () => void
 }
 
 type DiscussionItemProps = {
@@ -276,6 +277,7 @@ export function DiscussionSection({
   onEditDiscussion,
   onDeleteDiscussion,
   onToggleBlockDiscussion,
+  onRequireLogin,
 }: DiscussionSectionProps) {
   const [messageContent, setMessageContent] = useState('')
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
@@ -348,7 +350,14 @@ export function DiscussionSection({
       </div>
 
       {!user ? (
-        <p className="text-sm text-muted-foreground">Sign in to start a thread or reply.</p>
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">Sign in to start a thread or reply.</p>
+          {onRequireLogin && (
+            <Button type="button" size="sm" onClick={onRequireLogin}>
+              Sign in to join the discussion
+            </Button>
+          )}
+        </div>
       ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <label htmlFor="discussion-content" className="text-base font-medium mb-4">Start a new thread</label>

@@ -176,7 +176,6 @@ export function ProductListPage({
     const totalPages = Math.max(1, Math.ceil(totalProductCount / pageSize))
     const paginatedProducts = products
     const normalizedSearchQuery = searchQuery.trim().toLowerCase()
-    const canAddToCollection = !!user
     const isDevMode = import.meta.env.VITE_DEV_MODE === 'true'
 
     const handleOpenAddForTargets = (productTargets: string[], defaults?: { name?: string; description?: string; isPublic?: boolean }) => {
@@ -370,7 +369,7 @@ export function ProductListPage({
                                     : `Showing ${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, totalProductCount)} of ${totalProductCount}`}
                             </div>
 
-                            {user && totalProductCount > 0 && (
+                            {totalProductCount > 0 && (
                                 <Button
                                     size="sm"
                                     variant="outline"
@@ -462,7 +461,7 @@ export function ProductListPage({
                                 </Button>
                             </div>
 
-                            {user && products.length > 0 && (
+                            {products.length > 0 && (
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -529,7 +528,7 @@ export function ProductListPage({
                                                         </p>
                                                         <h4 className="text-base font-semibold line-clamp-2">{collection.name}</h4>
                                                     </div>
-                                                    {canAddToCollection && (collection.id || collection.slug) && (
+                                                    {(collection.id || collection.slug) && (
                                                         <Button
                                                             type="button"
                                                             variant="ghost"
@@ -634,7 +633,7 @@ export function ProductListPage({
                                     canModerate={canModerate}
                                     onToggleBan={() => onToggleBan(product)}
                                     onDelete={onDeleteProduct}
-                                    onOpenAddToCollection={canAddToCollection ? handleOpenAddForTargets : undefined}
+                                    onOpenAddToCollection={handleOpenAddForTargets}
                                 />
                             ))}
                         </div>
@@ -657,7 +656,7 @@ export function ProductListPage({
                                     showBannedBadge={canViewBanned}
                                     canModerate={canModerate}
                                     onToggleBan={() => onToggleBan(product)}
-                                    onOpenAddToCollection={canAddToCollection ? handleOpenAddForTargets : undefined}
+                                    onOpenAddToCollection={handleOpenAddForTargets}
                                 />
                             ))}
                         </div>
