@@ -548,7 +548,7 @@ function App() {
         const initialUrlTags = location.pathname === '/products' ? normalizeParamArray(searchParams.getAll('tag')) : []
 
         const initialProductParams = {
-          includeBanned: false,
+          includeBanned,
           search: initialUrlQuery || undefined,
           limit: pageSize,
           offset: 0,
@@ -674,7 +674,9 @@ function App() {
     const isInitialLoad = currentPage === 1 && searchQuery === '' && selectedSources.length === 0 &&
       selectedTags.length === 0 &&
       minRating === 0 && committedUpdatedSince === null &&
-      sortBy === defaultSortByForRoute && sortOrder === 'desc' && !sortHasChanged
+      sortBy === defaultSortByForRoute && sortOrder === 'desc' && !sortHasChanged &&
+      // The initial load runs before an admin's includeBanned turns on, so that needs a refetch. The home page always excludes banned products.
+      (!includeBanned || location.pathname === '/')
 
     // The initial load's products are only valid until the view first moves off them; returning
     // to page 1 or the default view afterwards (e.g. Previous) must refetch.
