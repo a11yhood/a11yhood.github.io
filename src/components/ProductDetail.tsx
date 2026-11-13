@@ -78,6 +78,7 @@ export function ProductDetail({
   const [imageLooksInvisible, setImageLooksInvisible] = useState(false)
   const [localCollections, setLocalCollections] = useState<Collection[]>(userCollections)
   const collectionLoadStartedRef = useRef(false)
+  const collectionRequestRef = useRef(0)
   const resolvedImageUrl = (() => {
     if (product.imageUrl) {
       return product.imageUrl
@@ -169,6 +170,7 @@ export function ProductDetail({
 
   // Load collections function (extracted for reuse)
   const loadCollections = useCallback(async () => {
+    const requestId = ++collectionRequestRef.current
     if (!user?.username?.trim()) return
 
     // Guard against mixed identity state (e.g., stale user vs userAccount) before
@@ -183,6 +185,9 @@ export function ProductDetail({
 
     try {
       const userCollections = await APIService.getUserCollections()
+      // A read started before a save can finish after the post-save refresh.
+      // Only the latest request may replace the displayed membership state.
+      if (requestId !== collectionRequestRef.current) return
       setLocalCollections((current) => {
         // Preserve collections already shown on the page (e.g. public memberships)
         // and overlay fresh authenticated collection data from /collections.
@@ -215,6 +220,7 @@ export function ProductDetail({
   useEffect(() => {
     collectionLoadStartedRef.current = false
     void loadCollections()
+    return () => { collectionRequestRef.current += 1 }
   }, [loadCollections, user])
 
   useEffect(() => {
