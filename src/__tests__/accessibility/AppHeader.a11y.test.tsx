@@ -2,7 +2,7 @@
  * Accessibility tests for AppHeader component.
  * Covers WCAG 2.1 link-name rule: links must have discernible text.
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AppHeader } from '@/components/AppHeader'
@@ -53,6 +53,53 @@ describe('AppHeader logo link accessibility', () => {
     const userAccount = createMockUserAccount({ id: 'u1', username: 'alice' })
 
     const { container } = renderHeader(user, userAccount)
+
+    const results = await runA11yScan(container)
+    expect(results).toHaveNoViolations()
+  })
+})
+
+describe('AppHeader names below the sm breakpoint (#73)', () => {
+  // jsdom loads no Tailwind CSS, so `hidden` has no effect in tests and an icon-only link still
+  // seems to have its text. Add Tailwind's own `hidden` and `sr-only` rules (the `sm:` rules stay
+  // off, as below the breakpoint) so these tests see what a phone, or a desktop zoomed in past
+  // the breakpoint, gets.
+  let style: HTMLStyleElement
+
+  beforeEach(() => {
+    style = document.createElement('style')
+    style.textContent = `
+      .hidden { display: none; }
+      .sr-only {
+        position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+        overflow: hidden; clip-path: inset(50%); white-space: nowrap; border-width: 0;
+      }
+    `
+    document.head.appendChild(style)
+  })
+
+  afterEach(() => {
+    style.remove()
+  })
+
+  it('names every navigation link when only the icons show', async () => {
+    const { container } = renderHeader()
+
+    for (const name of ['About', 'Blog', 'Collections', 'Products']) {
+      expect(screen.getByRole('link', { name })).toBeInTheDocument()
+    }
+
+    const results = await runA11yScan(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('starts the user menu name with the username it shows (WCAG 2.5.3 Label in Name)', async () => {
+    const user: UserData = { id: 'u1', username: 'alice' }
+    const userAccount = createMockUserAccount({ id: 'u1', username: 'alice' })
+
+    const { container } = renderHeader(user, userAccount)
+
+    expect(screen.getByRole('button', { name: /^alice\b.*user menu/i })).toBeInTheDocument()
 
     const results = await runA11yScan(container)
     expect(results).toHaveNoViolations()
