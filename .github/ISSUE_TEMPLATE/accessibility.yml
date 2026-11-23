@@ -1,0 +1,74 @@
+name: Accessibility barrier
+description: Something on a11yhood is hard or impossible to use with your device, assistive technology, or settings.
+title: "[a11y] "
+labels: ["a11y"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for telling us. You do not need to know the technical cause, and partial reports are welcome.
+
+        If GitHub is unfamiliar, or you would rather not post publicly, email **create-contact@uw.edu** and we will open an issue for you if you want one. We will not share details about you, your disability, or your assistive technology without your permission.
+
+        Please do not include personal information you do not want to be public.
+  - type: textarea
+    id: task
+    attributes:
+      label: What were you trying to do, and on which page?
+      description: For example, "submit a product from the Add Product page".
+    validations:
+      required: false
+  - type: textarea
+    id: expected-actual
+    attributes:
+      label: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: If you remember them. Partial steps are fine.
+    validations:
+      required: false
+  - type: input
+    id: browser-os
+    attributes:
+      label: Browser and operating system
+      placeholder: e.g. Firefox 140 on Windows 11
+    validations:
+      required: false
+  - type: input
+    id: at
+    attributes:
+      label: Assistive technology or settings (with version, if you know it)
+      description: For example a screen reader, magnifier, switch device, voice control, keyboard only, zoom level, high contrast or reduced motion.
+      placeholder: e.g. NVDA 2025.3, keyboard only, 200% zoom
+    validations:
+      required: false
+  - type: dropdown
+    id: severity
+    attributes:
+      label: How much did this get in your way?
+      description: This helps us decide what to look at first. If you are not sure, pick your best guess. See ACCESSIBILITY.md for details.
+      options:
+        - Critical - I could not complete the task at all
+        - Serious - I could complete it only with great difficulty or a workaround
+        - Moderate - It was frustrating or confusing, but I could complete it
+        - Minor - A small annoyance
+        - Not sure
+    validations:
+      required: false
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Is there a workaround you found?
+    validations:
+      required: false
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, recordings, or links are welcome (please add a short description of them).
+    validations:
+      required: false

@@ -4,6 +4,8 @@ This is the main repository for the [A11yhood front end website](https://a11yhoo
 
 To join our community and learn about contributing, go to the [community](https://github.com/a11yhood/community) repository. [Learn more](https://github.com/a11yhood)
 
+For our accessibility priorities, how to report a barrier, and what to expect in response, see [ACCESSIBILITY.md](ACCESSIBILITY.md).
+
 ## Tech Stack
 
 ### Frontend
@@ -245,6 +247,9 @@ see the community guide: [Community CONTRIBUTING.md](https://github.com/a11yhood
 
 When opening a pull request in this repository, complete the accessibility checklist
 in [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md).
+
+Accessibility expectations for UI changes (target standard, testing, and CI requirements)
+are described in [ACCESSIBILITY.md](ACCESSIBILITY.md).
 
 ## Partners and Funders
 
