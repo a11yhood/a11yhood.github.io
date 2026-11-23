@@ -1,6 +1,6 @@
 # Accessibility
 
-a11yhood exists to connect people with accessibility technology. A core value of our site is to do so accessibly. However, we are a small team and  do not always get everything right. In addition, because a lot of our products are scraped or entered by others, we cannot control their accessibility. If something is hard to use, please tell us.
+a11yhood exists to connect people with accessibility technology. A core value of our site is to do so accessibly. However, we are a small team and do not always get everything right. In addition, because a lot of our products are scraped or entered by others, we cannot control their accessibility. If something is hard to use, please tell us.
 
 ## Planned Goal
 
