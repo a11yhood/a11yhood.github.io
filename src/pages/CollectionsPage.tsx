@@ -17,6 +17,7 @@ export function CollectionsPage({
     onDeleteCollection,
     onEditCollection,
     onCreateCollection,
+    onLogin,
     onOpenAddToCollection
 }: {
     collections: Collection[]
@@ -27,6 +28,7 @@ export function CollectionsPage({
     onDeleteCollection: (collectionSlug: string) => void
     onEditCollection: (collection: Collection) => void
     onCreateCollection: () => void
+    onLogin?: () => void
     onOpenAddToCollection: (defaults: AddToCollectionDefaults) => void
 }) {
     const navigate = useNavigate()
@@ -248,7 +250,14 @@ export function CollectionsPage({
                             ← Back to Products
                         </Button>
                     </div>
-                    <p className="text-lg text-muted-foreground">Log in to create your own collection</p>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <p className="text-lg text-muted-foreground">Collections group products you want to keep or share.</p>
+                        {onLogin && (
+                            <Button size="sm" onClick={onLogin}>
+                                Sign in to create a collection
+                            </Button>
+                        )}
+                    </div>
                 </div>
             )}
 

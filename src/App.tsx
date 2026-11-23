@@ -18,7 +18,7 @@ import { AboutPage } from '@/components/AboutPage'
 import { UserSignup } from '@/components/UserSignup'
 import { HomePage } from '@/components/HomePage'
 import { SearchPage } from '@/components/SearchPage'
-import { AddToCollectionTargets, Product, ProductUpdate, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput, CollectionEntry } from '@/lib/types'
+import { AddToCollectionDefaults, AddToCollectionTargets, Product, ProductUpdate, Rating, Discussion, UserData, UserAccount, BlogPost, Collection, CollectionCreateInput, CollectionEntry } from '@/lib/types'
 import { APIService, setAuthTokenGetter } from '@/lib/api'
 import { logger, setRuntimeLogLevel } from '@/lib/logger'
 import { createCollectionEntriesFromProductIds, getCollectionEntries, getCollectionProductEntries } from '@/lib/collectionUtils'
@@ -1586,6 +1586,19 @@ function App() {
     setCurrentPage(1)
   }
 
+  const openAddToCollection = (defaults: AddToCollectionDefaults) => {
+    if (!user) {
+      handleLogin(`${location.pathname}${location.search}`)
+      return
+    }
+    setInitialCollectionName(defaults.name ?? '')
+    setInitialCollectionDescription(defaults.description ?? '')
+    setInitialCollectionEntries(defaults.entries)
+    setInitialPreselectedCollectionKeys(defaults.preselectedCollectionKeys ?? [])
+    setInitialCollectionIsPublic(defaults.isPublic ?? true)
+    setShowAddSearchResultsDialog(true)
+  }
+
   const handleDeleteProduct = async (productSlug: string) => {
     console.log('[App] handleDeleteProduct called with slug/id:', productSlug)
     console.log('[App] Current user:', user)
@@ -2222,15 +2235,7 @@ function App() {
                   onRate={handleRate}
                   onDeleteProduct={handleDeleteProduct}
                   onCreateCollection={handleCreateCollection}
-                  onOpenAddToCollection={(defaults) => {
-                    setInitialCollectionName(defaults.name ?? '')
-                    setInitialCollectionDescription(defaults.description ?? '')
-                    setInitialCollectionEntries(defaults.entries)
-                    setInitialPreselectedCollectionKeys(defaults.preselectedCollectionKeys ?? [])
-
-                    setInitialCollectionIsPublic(defaults.isPublic ?? true)
-                    setShowAddSearchResultsDialog(true)
-                  }}
+                  onOpenAddToCollection={openAddToCollection}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
                   searchInputValue={searchInputValue}
@@ -2299,15 +2304,8 @@ function App() {
                     setShowEditCollectionDialog(true)
                   }}
                   onCreateCollection={() => setShowCreateCollectionDialog(true)}
-                  onOpenAddToCollection={(defaults) => {
-                    setInitialCollectionName(defaults.name ?? '')
-                    setInitialCollectionDescription(defaults.description ?? '')
-                    setInitialCollectionEntries(defaults.entries)
-                    setInitialPreselectedCollectionKeys(defaults.preselectedCollectionKeys ?? [])
-
-                    setInitialCollectionIsPublic(defaults.isPublic ?? true)
-                    setShowAddSearchResultsDialog(true)
-                  }}
+                  onLogin={() => handleLogin('/collections')}
+                  onOpenAddToCollection={openAddToCollection}
                 />
               } />
               <Route path="/collections/:collectionSlug" element={
@@ -2324,15 +2322,7 @@ function App() {
                     setEditingCollection(collection)
                     setShowEditCollectionDialog(true)
                   }}
-                  onOpenAddToCollection={(defaults) => {
-                    setInitialCollectionName(defaults.name ?? '')
-                    setInitialCollectionDescription(defaults.description ?? '')
-                    setInitialCollectionEntries(defaults.entries)
-                    setInitialPreselectedCollectionKeys(defaults.preselectedCollectionKeys ?? [])
-
-                    setInitialCollectionIsPublic(defaults.isPublic ?? true)
-                    setShowAddSearchResultsDialog(true)
-                  }}
+                  onOpenAddToCollection={openAddToCollection}
                 />
               } />
               <Route path="/account/:username" element={
