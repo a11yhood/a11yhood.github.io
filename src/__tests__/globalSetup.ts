@@ -106,6 +106,49 @@ function resolveDevDbResetMode(raw: string | undefined): DevDbResetMode {
 }
 
 /**
+ * Preflight guard for destructive test setup.
+ *
+ * Calls the backend's `/api/dev/assert-test-environment`, which verifies that
+ * destructive routes are enabled and the connected database project is on the
+ * test allowlist. Throws (aborting the run) on any non-200 response, network
+ * error, or payload that does not explicitly confirm it is safe to reset.
+ */
+async function assertSafeTestEnvironment(backendBase: string, testRunToken?: string): Promise<void> {
+  const url = `${backendBase}/api/dev/assert-test-environment`
+  const abort = (reason: string): never => {
+    throw new Error(
+      `Refusing to reset the dev database: ${reason}\n` +
+      `Checked ${url}. No data was modified. ` +
+      'Point TEST_BACKEND_URL at a backend running against a test project, or set ' +
+      'VITEST_DEV_DB_RESET_MODE=never to skip the reset.'
+    )
+  }
+
+  let res: Response
+  try {
+    res = await fetch(url, {
+      headers: testRunToken ? { 'X-Test-Run-Token': testRunToken } : {},
+    })
+  } catch (err) {
+    return abort(`could not reach the environment check (${err instanceof Error ? err.message : String(err)})`)
+  }
+
+  if (!res.ok) {
+    const details = await res.text().catch(() => '')
+    return abort(`environment check returned ${res.status} ${res.statusText} ${details}`.trim())
+  }
+
+  const payload = await res.json().catch(() => null) as {
+    safe_to_reset?: boolean
+    allow_test_data_mutation?: boolean
+  } | null
+
+  if (payload?.safe_to_reset !== true || payload?.allow_test_data_mutation !== true) {
+    abort(`environment check did not confirm a safe test environment (${JSON.stringify(payload)})`)
+  }
+}
+
+/**
  * Vitest global setup — runs once in the main process before any workers start.
  *
  * Checks whether the local dev backend is reachable and stores the result in
@@ -159,6 +202,10 @@ export async function setup() {
   const testRunToken = process.env.TEST_RUN_TOKEN || process.env.VITEST_TEST_RUN_TOKEN
 
   if (backendAvailable && shouldReset) {
+    // Hard-fail before mutating anything unless the backend itself confirms it
+    // is a verified test environment (issue #385).
+    await assertSafeTestEnvironment(backendBase, testRunToken)
+
     const adminToken = getDevToken(DEV_USERS.admin.role)
     const resetRes = await fetch(`${backendBase}/api/dev/reset`, {
       method: 'POST',
