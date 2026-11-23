@@ -17,7 +17,7 @@ body:
       label: What were you trying to do, and on which page?
       description: For example, "submit a product from the Add Product page".
     validations:
-      required: true
+      required: false
   - type: textarea
     id: expected-actual
     attributes:
