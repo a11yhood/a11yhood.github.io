@@ -11,6 +11,7 @@ import { createRoot } from 'react-dom/client'
 
 import { ErrorBoundary } from "react-error-boundary";
 import { BrowserRouter } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
 
 import App from './App.tsx'
 
@@ -38,6 +39,7 @@ createRoot(document.getElementById('root')!).render(
       <NotificationProvider>
         <AuthProvider>
           <App />
+          <Analytics />
         </AuthProvider>
       </NotificationProvider>
     </BrowserRouter>
