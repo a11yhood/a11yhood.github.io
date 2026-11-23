@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report an accessibility barrier by email
+    url: mailto:create-contact@uw.edu
+    about: If GitHub is hard to use or you prefer not to post publicly, email us and we can open an issue for you.
+  - name: Accessibility statement
+    url: https://github.com/a11yhood/a11yhood.github.io/blob/main/ACCESSIBILITY.md
+    about: What to expect and how to submit concerns
