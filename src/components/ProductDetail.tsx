@@ -1,3 +1,4 @@
+import { ShareButton } from '@/components/ShareButton'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link as LinkIcon, Trash, Prohibit, CheckCircle, Star } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
@@ -432,6 +433,7 @@ export function ProductDetail({
               </h1>
               <div className="flex items-center gap-2 shrink-0">
                 {product.banned && <Badge variant="destructive">Banned</Badge>}
+                {!product.banned && <ShareButton title={product.name} label="product" />}
               </div>
             </div>
 

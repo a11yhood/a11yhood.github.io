@@ -1,3 +1,4 @@
+import { ShareButton } from '@/components/ShareButton'
 import { AddToCollectionDefaults, Collection, CollectionEntry, Product, Rating, UserAccount } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -617,7 +618,11 @@ export function CollectionDetail({
         Back to Collections
       </Button>
 
-      <h1 className="text-2xl font-semibold leading-none mb-4">{collection.name}</h1>
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <h1 className="text-2xl font-semibold leading-none">{collection.name}</h1>
+        {/* Private collections have no public preview, so there is nothing to share. */}
+        {collection.isPublic && <ShareButton title={collection.name} label="collection" />}
+      </div>
 
       <Card className="mb-6">
         <CardHeader>
