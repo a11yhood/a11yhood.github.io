@@ -9,9 +9,11 @@ This file starts from the change below; prior history is not backfilled.
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-01
+
 ### Changed
 
-- Products page: paging, sort and filter clicks now fetch fatser instead of waiting out the 400 ms search-typing debounce (the debounce still applies while the search text changes), and product card and list images load lazily, so a page no longer requests all of its images at once through the backend. See a11yhood/a11yhood.github.io#441.
+- Products page: paging, sort and filter clicks now fetch faster instead of waiting out the 400 ms search-typing debounce (the debounce still applies while the search text changes), and product card and list images load lazily, so a page no longer requests all of its images at once through the backend. See a11yhood/a11yhood.github.io#441.
 
 ### Fixed
 
