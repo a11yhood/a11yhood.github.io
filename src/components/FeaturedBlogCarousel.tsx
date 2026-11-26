@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { BlogPost } from '@/lib/types'
+import { createPlainTextSummary } from '@/lib/plainTextSummary'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CaretLeft, CaretRight } from '@phosphor-icons/react'
@@ -26,11 +27,6 @@ export function FeaturedBlogCarousel({
 
   const handleNext = () => {
     setCurrentIndex((prev) => (prev === posts.length - 1 ? 0 : prev + 1))
-  }
-
-  const truncateExcerpt = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text
-    return text.slice(0, maxLength).trim() + '...'
   }
 
   return (
@@ -92,7 +88,7 @@ export function FeaturedBlogCarousel({
           <h3 className="text-lg font-bold mb-2">{currentPost.title}</h3>
           {currentPost.excerpt && currentPost.excerpt.trim() && (
             <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
-              {truncateExcerpt(currentPost.excerpt, 150)}
+              {createPlainTextSummary(currentPost.excerpt, 150)}
             </p>
           )}
         </div>

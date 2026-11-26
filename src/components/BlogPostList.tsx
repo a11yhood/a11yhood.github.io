@@ -2,6 +2,7 @@ import { BlogPost } from '@/lib/types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Star, ArrowRight } from '@phosphor-icons/react'
+import { createPlainTextSummary } from '@/lib/plainTextSummary'
 
 type BlogPostListProps = {
   posts: BlogPost[]
@@ -161,7 +162,7 @@ function BlogPostCard({
           <p className="text-sm text-foreground">{post.excerpt}</p>
         ) : (
           <div className="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none line-clamp-3">
-            <div className="whitespace-pre-wrap">{post.content.substring(0, 300)}</div>
+            <div className="whitespace-pre-wrap">{createPlainTextSummary(post.content, 300)}</div>
           </div>
         )}
 
