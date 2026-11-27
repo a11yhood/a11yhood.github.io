@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { MagnifyingGlass, ArrowRight } from '@phosphor-icons/react'
 import { getProductsPathForTag } from '@/lib/tagRoutes'
+import { createPlainTextSummary } from '@/lib/plainTextSummary'
 
 const RANDOM_PRODUCT_COUNT = 5
 const BLOG_POST_LIMIT = 10
@@ -61,11 +62,6 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
     } else {
       navigate('/products')
     }
-  }
-
-  const truncateExcerpt = (text: string, maxLength: number = EXCERPT_MAX_LENGTH) => {
-    if (text.length <= maxLength) return text
-    return text.slice(0, maxLength).trim() + '...'
   }
 
   const renderBlogContent = () => {
@@ -127,7 +123,7 @@ export function HomePage({ products, blogPosts, blogPostsLoading, ratings, onRat
                   </div>
                   {post.excerpt && (
                     <CardDescription className="text-base mt-2">
-                      {truncateExcerpt(post.excerpt)}
+                      {createPlainTextSummary(post.excerpt, EXCERPT_MAX_LENGTH)}
                     </CardDescription>
                   )}
                 </CardHeader>

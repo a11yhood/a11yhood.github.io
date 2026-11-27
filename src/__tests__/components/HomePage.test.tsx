@@ -97,6 +97,20 @@ describe('HomePage', () => {
     expect(secondPostLink).toHaveClass('lg:block')
   })
 
+  it('uses the shared plain-text summary for Markdown excerpts', () => {
+    const blogPosts = [
+      createMockBlogPost({ excerpt: 'Read **bold** [docs](https://example.com) today.' }),
+    ]
+
+    render(
+      <MemoryRouter>
+        <HomePage products={[]} {...defaultProps} blogPosts={blogPosts} />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('Read bold docs today.')).toBeInTheDocument()
+  })
+
   it('renders sections once in reading order and uses desktop grid placement classes', () => {
     const products = [createMockProduct({ id: 'p1', name: 'Product 1', tags: [FEATURED_TAG] })]
     const blogPosts = [createMockBlogPost({ title: 'Only Post', slug: 'only-post' })]
