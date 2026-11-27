@@ -158,12 +158,14 @@ function BlogPostCard({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {post.excerpt ? (
-          <p className="text-sm text-foreground">{post.excerpt}</p>
+        {post.excerpt?.trim() ? (
+          <p className="text-sm text-foreground">
+            {createPlainTextSummary(post.excerpt, 300)}
+          </p>
         ) : (
-          <div className="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none line-clamp-3">
-            <div className="whitespace-pre-wrap">{createPlainTextSummary(post.content, 300)}</div>
-          </div>
+          <p className="text-sm text-muted-foreground line-clamp-3">
+            {createPlainTextSummary(post.content, 300)}
+          </p>
         )}
 
         {post.tags && post.tags.length > 0 && (

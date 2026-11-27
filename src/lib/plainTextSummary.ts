@@ -1,49 +1,75 @@
-/**
- * Build a plain-text preview from Markdown source.
- *
- * Used for blog post summaries so cards show readable text instead of raw
- * Markdown syntax. Link and image URLs are dropped (screen readers would
- * otherwise read them literally), and the result is cut at a word boundary.
- */
+import { Marked } from 'marked'
+
+const summaryMarkdown = new Marked({ breaks: false })
+
+/** Build a plain-text preview without changing the app's shared Markdown renderer. */
 export function createPlainTextSummary(markdown: string, maxLength: number): string {
   const text = markdownToPlainText(markdown)
   return truncateAtWordBoundary(text, maxLength)
 }
 
 function markdownToPlainText(markdown: string): string {
-  const text = markdown
-    // Fenced code markers (keep the code text itself)
-    .replace(/^\s*(```|~~~).*$/gm, ' ')
-    // Images: drop entirely, including the URL
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
-    // Links: keep the link text, drop the URL
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-    // Raw HTML tags only (a tag name right after "<" or "</"), so text such as
-    // "a < b and c > d" is left alone
-    .replace(/<\/?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?\/?>/g, ' ')
-    // Heading, blockquote and list markers at line start
-    .replace(/^\s*#{1,6}\s+/gm, '')
-    .replace(/^\s*>\s?/gm, '')
-    .replace(/^\s*(?:[-*+]|\d+\.)\s+/gm, '')
-    // Inline code backticks
-    .replace(/`+/g, '')
-    // Emphasis markers
-    .replace(/(\*\*|__)(.+?)\1/g, '$2')
-    .replace(/(^|\W)[*_](?=\S)(.+?)(?<=\S)[*_](?=\W|$)/g, '$1$2')
+  const html = summaryMarkdown.parse(markdown, { async: false })
+  const document = new DOMParser().parseFromString(html, 'text/html')
 
-  return text.replace(/\s+/g, ' ').trim()
+  // A bare autolink has no useful label; do not leak its URL into a summary.
+  for (const link of document.querySelectorAll('a')) {
+    const href = link.getAttribute('href')?.trim()
+    if (href && link.textContent?.trim() === href) {
+      link.replaceWith(' ')
+    }
+  }
+
+  return (document.body.textContent ?? '').replace(/\s+/g, ' ').trim()
+}
+
+function graphemes(text: string): string[] {
+  if (typeof Intl.Segmenter === 'function') {
+    return Array.from(
+      new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text),
+      ({ segment }) => segment
+    )
+  }
+
+  const units = Array.from(text)
+  const result: string[] = []
+  let regionalIndicators = 0
+
+  for (const unit of units) {
+    const codePoint = unit.codePointAt(0) ?? 0
+    const isRegionalIndicator = codePoint >= 0x1f1e6 && codePoint <= 0x1f1ff
+    const isEmojiModifier = codePoint >= 0x1f3fb && codePoint <= 0x1f3ff
+    const isEmojiTag = codePoint >= 0xe0020 && codePoint <= 0xe007f
+    const previous = result.length - 1
+    const joinsPrevious =
+      previous >= 0 &&
+      (unit === '\u200d' ||
+        result[previous].endsWith('\u200d') ||
+        isEmojiModifier ||
+        isEmojiTag ||
+        /\p{Mark}/u.test(unit) ||
+        (isRegionalIndicator && regionalIndicators % 2 === 1))
+
+    if (joinsPrevious) result[previous] += unit
+    else result.push(unit)
+
+    regionalIndicators = isRegionalIndicator ? regionalIndicators + 1 : 0
+  }
+
+  return result
 }
 
 function truncateAtWordBoundary(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text
+  const units = graphemes(text)
+  if (units.length <= maxLength) return text
 
-  const cut = text.slice(0, maxLength)
-  // If the cut lands exactly on a space, the slice already ends on a whole word
-  if (text[maxLength] === ' ') {
+  const cut = units.slice(0, maxLength).join('')
+  // If the cut lands exactly on a space, the slice already ends on a whole word.
+  if (units[maxLength] === ' ') {
     return cut.replace(/[\s.,;:!?-]+$/, '') + '...'
   }
   const lastSpace = cut.lastIndexOf(' ')
-  // Prefer the last whole word; fall back to a hard cut for one very long word
+  // Prefer the last whole word; fall back to a grapheme-safe cut for one long word.
   const base = lastSpace > 0 ? cut.slice(0, lastSpace) : cut
   return base.replace(/[\s.,;:!?-]+$/, '') + '...'
 }

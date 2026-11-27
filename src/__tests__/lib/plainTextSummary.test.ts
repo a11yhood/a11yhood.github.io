@@ -68,4 +68,44 @@ describe('createPlainTextSummary', () => {
       'Hello world'
     )
   })
+
+  it.each([
+    ['a code fence marker followed by text', '```npm test``` runs the suite', 'npm test runs the suite'],
+    [
+      'HTML in inline and fenced code',
+      'Use `<main>` and `my_fn()` here; `__init__`.\n\n```html\n<main>Hi</main>\n```',
+      'Use <main> and my_fn() here; __init__. <main>Hi</main>',
+    ],
+    [
+      'nested and reference links',
+      '[Braille](https://en.wikipedia.org/wiki/Braille_(disambiguation)) and [the [new] docs](https://example.com) and [Braille][g]\n\n[g]: https://example.com/reference',
+      'Braille and the [new] docs and Braille',
+    ],
+    [
+      'an autolink URL',
+      'Visit <https://example.com> today.',
+      'Visit today.',
+    ],
+    [
+      'tables, thematic breaks and setext headings',
+      'Heading\n=======\n\n| Name | Status |\n| --- | --- |\n| keyboard | supported |\n\n---\n\nAfter.',
+      'Heading Name Status keyboard supported After.',
+    ],
+    [
+      'strikethrough, task boxes, comments and entities',
+      '~~old~~\n\n- [ ] todo\n- [x] done\n\n<!-- secret -->Visible &amp; decoded.',
+      'old todo done Visible & decoded.',
+    ],
+    ['escaped punctuation', String.raw`\*literal\* and \[text\].`, '*literal* and [text].'],
+  ])('renders %s as plain text', (_name, markdown, expected) => {
+    expect(createPlainTextSummary(markdown, 500)).toBe(expected)
+  })
+
+  it('does not expose URLs from images', () => {
+    expect(createPlainTextSummary('![x](https://e.com/a_(1).png)', 300)).toBe('')
+  })
+
+  it('does not split a joined emoji when truncating', () => {
+    expect(createPlainTextSummary('alpha 👩‍👩‍👧‍👦 beta', 7)).toBe('alpha 👩‍👩‍👧‍👦...')
+  })
 })
