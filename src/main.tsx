@@ -40,11 +40,11 @@ createRoot(document.getElementById('root')!).render(
       <NotificationProvider>
         <AuthProvider>
           <App />
+          <Analytics />
+          <SpeedInsights />
         </AuthProvider>
       </NotificationProvider>
     </BrowserRouter>
-    <Analytics />
-    <SpeedInsights />
   </ErrorBoundary>
 )
 console.debug('✓ [main.tsx] Render call completed')

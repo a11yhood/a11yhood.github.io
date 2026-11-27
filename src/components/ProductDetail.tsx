@@ -536,6 +536,7 @@ export function ProductDetail({
               onEditDiscussion={onEditDiscussion}
               onDeleteDiscussion={onDeleteDiscussion}
               onToggleBlockDiscussion={onToggleBlockDiscussion}
+              onRequireLogin={handleRequireLogin}
             />
           </CollapsibleCard>
 
