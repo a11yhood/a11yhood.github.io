@@ -9,6 +9,11 @@ This file starts from the change below; prior history is not backfilled.
 
 ## [Unreleased]
 
+### Fixed
+
+- Header: below the `sm` breakpoint (phones, or a desktop browser zoomed in past it) the About, Blog and Collections links showed only an icon and had no accessible name, because their labels used `hidden sm:inline`. Screen readers announced them as unnamed links and voice control could not target them (axe `link-name`). The labels now use `sr-only sm:not-sr-only`, so they stay available to assistive technology at every width; the layout is unchanged. See a11yhood/a11yhood.github.io#73.
+- Header: the signed-in user menu button showed the username but was named "User menu", so a voice control user saying "click <username>" got no match (WCAG 2.5.3 Label in Name). Its name now starts with the username ("alice, user menu"). See a11yhood/a11yhood.github.io#73.
+
 ## [0.6.1] - 2026-11-01
 
 ### Changed

@@ -109,7 +109,10 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
               }`}
             >
               <FileText size={18} />
-              <span className="hidden sm:inline">About</span>
+              {/* Below the sm breakpoint (phones, or desktop zoomed in) only the icon shows. The label
+                  stays in the accessibility tree (sr-only) so screen readers and voice control can
+                  still name the link; `hidden` removed it and left an unnamed link. See #73. */}
+              <span className="sr-only sm:not-sr-only">About</span>
             </Link>
             <Link
               to="/blog"
@@ -120,7 +123,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
               }`}
             >
               <FontAwesomeIcon icon={faNewspaper} className="w-[18px] h-[18px]" />
-              <span className="hidden sm:inline">Blog</span>
+              <span className="sr-only sm:not-sr-only">Blog</span>
             </Link>
           </div>
 
@@ -141,7 +144,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
               }`}
             >
               <FontAwesomeIcon icon={faLayerGroup} className="w-[18px] h-[18px]" />
-              <span className="hidden sm:inline">Collections</span>
+              <span className="sr-only sm:not-sr-only">Collections</span>
             </Link>
             <Link
               to="/products"
@@ -153,7 +156,7 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
               aria-label="Products"
             >
               <MagnifyingGlass size={18} />
-              <span className="hidden sm:inline">Products</span>
+              <span className="sr-only sm:not-sr-only">Products</span>
             </Link>
             {user ? (
               <div className="flex items-center gap-3">
@@ -209,7 +212,10 @@ export function AppHeader({ user, userAccount, pendingRequestsCount, onLogin, on
                       variant="ghost"
                       size="sm"
                       className="flex items-center gap-2"
-                      aria-label="User menu"
+                      // The name starts with the username the button shows (WCAG 2.5.3 Label in Name),
+                      // so a voice control user can say "click <username>". It was "User menu", which
+                      // did not include the visible text. See #73.
+                      aria-label={`${userAccount?.username || user.username}, user menu`}
                     >
                       <UserCircle size={18} />
                       <span className="hidden sm:inline">{userAccount?.username || user.username}</span>
